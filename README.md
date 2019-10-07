@@ -20,7 +20,7 @@ class Options(ParseableFromCommandLine):
 
 Options.add_arguments(parser)
 
-args = parser.parse_args("--a 5")
+args = parser.parse_args("--a 5".split())
 
 options = Options.from_args(args)
 print(options)

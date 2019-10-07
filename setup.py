@@ -5,13 +5,13 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="simple_parsing",
-    version="0.0.1",
+    version="0.0.1.post1",
     author="Fabrice Normandin",
     author_email="fabrice.normandin@gmail.com",
     description="A small utility for simplifying and cleaning up argument parsing scripts.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/lebrice/EasyArgs",
+    url="https://github.com/lebrice/SimpleParsing",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
