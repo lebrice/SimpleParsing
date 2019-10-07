@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="easyargs",
+    name="simple_parsing",
     version="0.0.1",
     author="Fabrice Normandin",
     author_email="fabrice.normandin@gmail.com",

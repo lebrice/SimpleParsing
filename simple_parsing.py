@@ -1,7 +1,16 @@
+"""Simple, Elegant Argument parsing.
+@author: Fabrice Normandin
+"""
 import argparse
 import dataclasses
 from typing import *
 
+class InconsistentArgumentError(argparse.ArgumentError):
+    """
+    Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 class ParseableFromCommandLine:
     """
@@ -28,12 +37,9 @@ class ParseableFromCommandLine:
     ```
     """
     
-    class InconsistentArgumentError(RuntimeError):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
 
     @classmethod
-    def add_cmd_args(cls, parser: argparse.ArgumentParser):
+    def add_arguments(cls, parser: argparse.ArgumentParser):
         """
         Adds corresponding command-line arguments for this class to the given parser.
         
@@ -94,7 +100,7 @@ class ParseableFromCommandLine:
         for field_name, values in constructor_arguments.items():
             if isinstance(values, list):
                 if len(values) not in {1, num_instances_to_parse}:
-                    raise cls.InconsistentArgumentError(
+                    raise InconsistentArgumentError(
                         f"The field {field_name} contains {len(values)} values, but either 1 or {num_instances_to_parse} values were expected.")
                 if len(values) == 1:
                     constructor_arguments[field_name] = values[0]
@@ -114,8 +120,6 @@ class ParseableFromCommandLine:
     @classmethod
     def read_from_command_line(cls):
         parser = argparse.ArgumentParser()
-        cls.add_cmd_args(parser)
+        cls.add_arguments(parser)
         args = parser.parse_args()
         return cls.from_args(args)
-    
-
