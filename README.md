@@ -114,8 +114,11 @@ class MyModel():
 m = MyModel(hyperparameters, config)
 ```
 
-## Parsing multiple instances at once:
-It is also possible to use `from_args_multiple` to create multiple instances of a class from the command line arguments. For example, suppose you had a class `BlockConfig` for each block in a ML model.
+## Parsing multiple instances of the same class:
+It is also possible to create multiple instances of a class from the command line arguments.
+To do this, use `add_arguments(parser, multiple=True)` when registering the arguments, and use the `from_args_multiple` function to create the instances.
+
+For example, suppose you had a class `BlockConfig` for each block in a ML model.
 
 ```python
 @dataclass
@@ -126,7 +129,7 @@ class BlockConfig(ParseableFromCommandLine):
 
 parser = argparse.ArgumentParser()
 
-BlockConfig.add_arguments(parser)
+BlockConfig.add_arguments(parser, multiple=True)
 
 args = parser.parse_args("--num_layers 15 20 25 --kernel_size 5".split())
 

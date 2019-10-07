@@ -16,9 +16,9 @@ class Extended(Base):
     d: int = 5
 
 
-def setup_base(arguments: str):
+def setup_base(arguments: str, multiple=False):
     parser = argparse.ArgumentParser()
-    Base.add_arguments(parser)
+    Base.add_arguments(parser, multiple=multiple)
 
     args = parser.parse_args(arguments.split())
     return args
@@ -35,7 +35,7 @@ def test_parse_base_simple_without_required_throws_error():
         args = setup_base("--b 3 --c Hello")
 
 def test_parse_multiple_works():
-    args = setup_base("--a 10 20 --b 3 --c Hello Bye")
+    args = setup_base("--a 10 20 --b 3 --c Hello Bye", multiple=True)
     b_s = Base.from_args_multiple(args, 2)
     b1 = b_s[0]
     b2 = b_s[1]
@@ -48,7 +48,7 @@ def test_parse_multiple_works():
     assert b2.c == "Bye"
 
 def test_parse_multiple_inconsistent_throws_error():
-    args = setup_base("--a 10 20 --b 3 --c Hello Bye")
+    args = setup_base("--a 10 20 --b 3 --c Hello Bye", multiple=True)
     with pytest.raises(InconsistentArgumentError):
         b_s = Base.from_args_multiple(args, 3)
 
@@ -59,4 +59,5 @@ def test_help_displays_class_docstring_text():
     with pytest.raises(SystemExit), redirect_stdout(f):
         args = setup_base("--help")
     s = f.getvalue()
+    print(s)
     assert Base.__doc__ in s

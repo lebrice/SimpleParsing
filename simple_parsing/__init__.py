@@ -28,34 +28,33 @@ class ParseableFromCommandLine:
 
     args = parser.parse_args("--a 5")
     options = Options.from_args(args)
-    print(options) # gives "Options(a=5, b=10)"
-
-    args = parser.parse_args("--a 1 2 --b 9")
-    options_list = Options.from_args_multiple(args, 2)
-    print(options_list) # gives "[Options(a=1, b=9), Options(a=2, b=9)]"
-
+    print(options) 
+    >>> Options(a=5, b=10)
     ```
     """
 
     @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser):
+    def add_arguments(cls, parser: argparse.ArgumentParser, multiple=False):
         """
         Adds corresponding command-line arguments for this class to the given parser.
         
         Arguments:
             parser {argparse.ArgumentParser} -- The base argument parser to use
+            multiple {bool} -- Wether we wish to eventually parse multiple instances of this class or not.
         """
         group = parser.add_argument_group(cls.__qualname__, description=cls.__doc__)
         for f in dataclasses.fields(cls):
             arg_options: Dict[str, Any] = {
                 "type": f.type,
-                "nargs": "*",
             }
+            if multiple:
+                arg_options["nargs"] = "*"
             if f.default is dataclasses.MISSING:
                 arg_options["required"] = True
             else:
                 arg_options["default"] = f.default
             group.add_argument(f"--{f.name}", **arg_options)
+
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> object:
@@ -69,7 +68,7 @@ class ParseableFromCommandLine:
         """
         args_dict = vars(args) 
         constructor_args: Dict[str, Any] = {
-            f.name: args_dict[f.name][0] for f in dataclasses.fields(cls)
+            f.name: args_dict[f.name] for f in dataclasses.fields(cls)
         }
         return cls(**constructor_args) #type: ignore
 
@@ -100,7 +99,7 @@ class ParseableFromCommandLine:
             if isinstance(values, list):
                 if len(values) not in {1, num_instances_to_parse}:
                     raise InconsistentArgumentError(
-                        f"The field {field_name} contains {len(values)} values, but either 1 or {num_instances_to_parse} values were expected.")
+                        f"The field '{field_name}' contains {len(values)} values, but either 1 or {num_instances_to_parse} values were expected.")
                 if len(values) == 1:
                     constructor_arguments[field_name] = values[0]
 
