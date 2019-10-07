@@ -24,7 +24,7 @@ class ParseableFromCommandLine:
         b: int = 10
 
     parser = argparse.ArgumentParser()
-    Options.add_cmd_args(parser)
+    Options.add_arguments(parser)
 
     args = parser.parse_args("--a 5")
     options = Options.from_args(args)
