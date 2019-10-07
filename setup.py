@@ -2,10 +2,11 @@ import setuptools
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
+print("PACKAGES FOUND:",setuptools.find_packages())
 
 setuptools.setup(
     name="simple_parsing",
-    version="0.0.1.post1",
+    version="0.0.1.post4",
     author="Fabrice Normandin",
     author_email="fabrice.normandin@gmail.com",
     description="A small utility for simplifying and cleaning up argument parsing scripts.",

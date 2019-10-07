@@ -5,7 +5,7 @@ import argparse
 import dataclasses
 from typing import *
 
-class InconsistentArgumentError(argparse.ArgumentError):
+class InconsistentArgumentError(RuntimeError):
     """
     Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
     """
@@ -36,7 +36,6 @@ class ParseableFromCommandLine:
 
     ```
     """
-    
 
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser):
@@ -46,7 +45,7 @@ class ParseableFromCommandLine:
         Arguments:
             parser {argparse.ArgumentParser} -- The base argument parser to use
         """
-        group = parser.add_argument_group(cls.__qualname__)
+        group = parser.add_argument_group(cls.__qualname__, description=cls.__doc__)
         for f in dataclasses.fields(cls):
             arg_options: Dict[str, Any] = {
                 "type": f.type,
@@ -70,7 +69,7 @@ class ParseableFromCommandLine:
         """
         args_dict = vars(args) 
         constructor_args: Dict[str, Any] = {
-            f.name: args_dict[f.name] for f in dataclasses.fields(cls) 
+            f.name: args_dict[f.name][0] for f in dataclasses.fields(cls)
         }
         return cls(**constructor_args) #type: ignore
 
@@ -116,10 +115,3 @@ class ParseableFromCommandLine:
             cls(**arguments_dict) #type: ignore
             for arguments_dict in arguments_per_instance
         ]
-
-    @classmethod
-    def read_from_command_line(cls):
-        parser = argparse.ArgumentParser()
-        cls.add_arguments(parser)
-        args = parser.parse_args()
-        return cls.from_args(args)
