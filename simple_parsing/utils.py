@@ -85,19 +85,31 @@ def find_docstring_of_field(some_dataclass: type, field_name: str) -> AttributeD
         result = ""
         start_line = line
         end_line = line
+
+        # print(f"Get comment ending at line {line}")
+        # for i, line in enumerate(code_lines):
+        #     print(f"line {i}: {line}")
+
         # move up the code, one line at a time, while we don't hit the start, an attribute definition, or the end of a docstring.
         while start_line > 0:
             line_str = code_lines[start_line]
-            if is_empty(line_str):
-                continue
             if contains_attribute_definition(line_str):
                 break # previous line is an assignment
             if '"""' in line_str or "'''" in line_str:
                 break # previous line has a docstring
             start_line -= 1
-        return "\n".join([
-            get_comment_at_line(code_lines, i) for i in range(start_line, end_line)
-        ])
+        
+        lines = []
+        for i in range(start_line+1, end_line):
+            # print(f"line {i}: {code_lines[i]}")
+            if is_empty(code_lines[i]):
+                continue
+            assert not contains_attribute_definition(code_lines[i])
+            comment = get_comment_at_line(code_lines, i)
+            lines.append(comment)
+        return "\n".join(lines)
+
+
     
     def get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
         first_line = line
@@ -117,18 +129,19 @@ def find_docstring_of_field(some_dataclass: type, field_name: str) -> AttributeD
         while i <= len(code_lines):
             line_str = code_lines[i]
             # print(f"(docstring) line {line}: {line_str}")
-            if is_empty(line_str):
-                i += 1  
-                continue
-            
+
             # we haven't identified the starting line yet.
             if token is None:
-                if contains_attribute_definition(line_str):
+                if is_empty(line_str):
+                    i += 1
+                    continue
+                # This is the starting line.
+                elif contains_attribute_definition(line_str):
                     # we haven't reached the start of a docstring yet (token is None), and we reached a line with an attribute definition, hence the docstring is empty.
                     # print("attribute def, we hit the end")
                     return ""
 
-                if triple_single in line_str and triple_double in line_str:
+                elif triple_single in line_str and triple_double in line_str:
                     #* This handles something stupid like:
                     # @dataclass
                     # class Bob:
@@ -168,10 +181,14 @@ def find_docstring_of_field(some_dataclass: type, field_name: str) -> AttributeD
             else:
                 # print(f"token is <{token}>")
                 if token in line_str:
-                    # print("Line is the end of a docstring:", line_str)
+                    # print(f"Line {line} End of a docstring:", line_str)
                     before = line_str.split(token, maxsplit=1)[0]
-                    docstring_contents.append(before)
+                    docstring_contents.append(before.strip())
                     break
+                else:
+                    # intermediate line without the token.
+                    docstring_contents.append(line_str.strip())
+            i += 1
         # print("Docstring contents:", docstring_contents)
         return "\n".join(docstring_contents)
     

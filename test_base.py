@@ -11,9 +11,12 @@ import textwrap
 class Base(ParseableFromCommandLine):
     """A simple base-class example"""
     a: int # TODO: finetune this
+
     """docstring for attribute 'a'"""
     b: float = 5.0 # inline comment on attribute 'b'
+            
     c: str = ""
+
 
 def test_docstring_parsing_works():
     from simple_parsing.utils import find_docstring_of_field, AttributeDocString
