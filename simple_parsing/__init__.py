@@ -4,6 +4,10 @@
 import argparse
 import dataclasses
 from typing import *
+import collections
+from collections import namedtuple
+import inspect
+from . import utils
 
 class InconsistentArgumentError(RuntimeError):
     """
@@ -12,7 +16,7 @@ class InconsistentArgumentError(RuntimeError):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-class ParseableFromCommandLine:
+class ParseableFromCommandLine():
     """
     When applied to a dataclass, this enables creating an instance of that class and populating the attributes from the command-line.
     
@@ -33,6 +37,17 @@ class ParseableFromCommandLine:
     ```
     """
 
+    def __setattr__(self, name: str, value):
+        print("Setting attribute", name, " with value", value)
+        if isinstance(value, tuple):
+            print("adding a doc attribute")
+            self.__dict__[name] = value[0]
+            # self.__dict__[name].__doc__ = value[1]
+            self.__dict__[f"__{name}_doc__"] = value[1]
+        else:
+            self.__dict__[name] = value
+
+
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser, multiple=False):
         """
@@ -42,13 +57,23 @@ class ParseableFromCommandLine:
             parser {argparse.ArgumentParser} -- The base argument parser to use
             multiple {bool} -- Wether we wish to eventually parse multiple instances of this class or not.
         """
+        print("Adding arguments")
         group = parser.add_argument_group(cls.__qualname__, description=cls.__doc__)
         for f in dataclasses.fields(cls):
             arg_options: Dict[str, Any] = {
                 "type": f.type,
             }
+            doc = utils.find_docstring_of_field(cls, f.name)
+            if doc is not None:
+                if doc.docstring_below:
+                    arg_options["help"] = doc.docstring_below
+                elif doc.comment_above:
+                    arg_options["help"] = doc.comment_above
+                elif doc.comment_inline:
+                    arg_options["help"] = doc.comment_inline
             if multiple:
                 arg_options["nargs"] = "*"
+            
             if f.default is dataclasses.MISSING:
                 arg_options["required"] = True
             else:

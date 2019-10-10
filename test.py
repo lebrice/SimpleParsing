@@ -1,23 +1,46 @@
 from simple_parsing import ParseableFromCommandLine, InconsistentArgumentError
 import argparse
-from dataclasses import dataclass
+import dataclasses
+from dataclasses import dataclass, Field
 
 import pytest
+import inspect
+import textwrap
 
 @dataclass
 class Base(ParseableFromCommandLine):
     """A simple base-class example"""
-    a: int
-    b: float = 5.0
+    a: int # TODO: finetune this
+    """docstring for attribute 'a'"""
+    b: float = 5.0 # inline comment on attribute 'b'
     c: str = ""
+
+def test_docstring_parsing_works():
+    from simple_parsing.utils import find_docstring_of_field, AttributeDocString
+    docstring = find_docstring_of_field(Base, "a")
+    assert docstring.comment_above == ""
+    assert docstring.comment_inline == "TODO: finetune this"
+    assert docstring.docstring_below == "docstring for attribute 'a'"
+
+    docstring = find_docstring_of_field(Base, "b")
+    assert docstring.comment_above == ""
+    assert docstring.comment_inline == "inline comment on attribute 'b'"
+    assert docstring.docstring_below == ""
+
+    docstring = find_docstring_of_field(Base, "c")
+    assert docstring.comment_above == ""
+    assert docstring.comment_inline == ""
+    assert docstring.docstring_below == ""
+
 
 @dataclass
 class Extended(Base):
+    """ Some extension of base-class `Base` """
     d: int = 5
 
 
 def setup_base(arguments: str, multiple=False):
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     Base.add_arguments(parser, multiple=multiple)
 
     args = parser.parse_args(arguments.split())
@@ -52,12 +75,27 @@ def test_parse_multiple_inconsistent_throws_error():
     with pytest.raises(InconsistentArgumentError):
         b_s = Base.from_args_multiple(args, 3)
 
-def test_help_displays_class_docstring_text():
-    from contextlib import redirect_stdout
+def get_help_text_for(some_class, multiple=False):
+    import contextlib
     from io import StringIO
     f = StringIO()
-    with pytest.raises(SystemExit), redirect_stdout(f):
-        args = setup_base("--help")
+    with contextlib.suppress(SystemExit), contextlib.redirect_stdout(f):
+        parser = argparse.ArgumentParser()
+        some_class.add_arguments(parser, multiple=multiple)
+        args = parser.parse_args(["--help"])
     s = f.getvalue()
-    print(s)
-    assert Base.__doc__ in s
+    return s
+
+def test_help_displays_class_docstring_text():
+    assert Base.__doc__ in get_help_text_for(Base)
+
+
+def show_help(some_class):
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    some_class.add_arguments(parser, multiple=False)
+    args = parser.parse_args("--help".split())
+
+
+if __name__ == "__main__":
+    show_help(Base)
+    
