@@ -1,9 +1,11 @@
 """Utility for retrieveing the docstring of a dataclass
 @author: Fabrice Normandin
 """
-from dataclasses import dataclass
 import inspect
+import typing
+from dataclasses import dataclass
 from typing import *
+from argparse import ArgumentTypeError
 
 @dataclass
 class AttributeDocString():
@@ -79,6 +81,9 @@ def _contains_attribute_definition(line_str: str) -> bool:
 def _is_empty(line_str: str) -> bool:
     return line_str.strip() == ""
 
+def _is_comment(line_str: str) -> bool:
+    return line_str.strip().startswith("#")
+
 def _get_comment_at_line(code_lines: List[str], line: int) -> str:
     """Gets the comment at line `line` in `code_lines`.
     
@@ -148,7 +153,7 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
     first_line = line
     i = line
     end_line: int
-    token: str = ""
+    token: str = None
     triple_single = "'''"
     triple_double = '"""'
     # print("finding docstring starting from line", line)
@@ -164,14 +169,13 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
         # print(f"(docstring) line {line}: {line_str}")
 
         # we haven't identified the starting line yet.
-        if not token:
+        if token is None:
             if _is_empty(line_str):
                 i += 1
                 continue
-            # This is the starting line.
-            elif _contains_attribute_definition(line_str):
-                # we haven't reached the start of a docstring yet (token is None), and we reached a line with an attribute definition, hence the docstring is empty.
-                # print("attribute def, we hit the end")
+            
+            elif _contains_attribute_definition(line_str) or _is_comment(line_str):
+                # we haven't reached the start of a docstring yet (since token is None), and we reached a line with an attribute definition, or a comment, hence the docstring is empty.
                 return ""
 
             elif triple_single in line_str and triple_double in line_str:
@@ -192,7 +196,12 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
             elif triple_single in line_str:
                 token = triple_single
             else:
-                raise RuntimeError(f"Line {i} should have been the start of a docstring.")
+                # for i, line in enumerate(code_lines):
+                #     print(f"line {i}: <{line}>")
+                # print(f"token: <{token}>")
+                # print(line_str)
+                raise Warning("Unable to parse attribute docstring")
+                return ""
             
             # get the string portion of the line (after a token or possibly between two tokens).
             parts = line_str.split(token, maxsplit=2)
@@ -237,4 +246,14 @@ def str2bool(v: str) -> bool:
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
         return False
     else:
-        raise argparse.ArgumentTypeError(f"Boolean value expected for argument {f.name}, received '{v}'")
+        raise ArgumentTypeError(f"Boolean value expected for argument, received '{v}'")
+
+
+def get_list_item_type(list_type: Type) -> Optional[Type]:
+    if list_type is list:
+        return None
+    if type(list_type) is typing._GenericAlias:
+        T = list_type.__args__[0] if len(list_type.__args__) == 1 else None
+        return T
+    else:
+        return None

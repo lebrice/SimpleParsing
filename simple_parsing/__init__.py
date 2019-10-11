@@ -79,6 +79,8 @@ class ParseableFromCommandLine():
             if f.default is dataclasses.MISSING:
                 if f.default_factory is dataclasses.MISSING:
                     arg_options["required"] = True
+                elif multiple:
+                    arg_options["default"] = [f.default_factory()]
                 else:
                     arg_options["default"] = f.default_factory()
             else:
@@ -94,9 +96,20 @@ class ParseableFromCommandLine():
                         arg_options["default"] = default_value.name
             
             elif list in f.type.mro():
-                # Check if typing.List was used as an annotation, in which case we can automatically convert to the desired item type.
-                if type(f.type) is typing._GenericAlias:
-                    T = f.type.__args__[0] if len(f.type.__args__) == 1 else None
+                T = utils.get_list_item_type(f.type)
+                if multiple:
+                    def parse_list_of_lists(v: str) -> List[Any]:
+                        print(f"Parse list of lists, value is: {v}")
+                        sep = "," if "," in v else None
+                        values = [p.strip() for p in v.split(sep)]
+                        if T:
+                            values = [T(v_str) for v_str in values]
+                        return values
+                    arg_options["type"] = parse_list_of_lists
+                    arg_options["nargs"] = '+'
+
+                    # Check if typing.List was used as an annotation, in which case we can automatically convert to the desired item type.
+                elif T:
                     arg_options["type"] = T
                 arg_options["nargs"] = "*"
             
@@ -176,9 +189,12 @@ class ParseableFromCommandLine():
             f.name: args_dict[f.name]
             for f in dataclasses.fields(cls)
         }
-
+        print("Constructor arguments:", constructor_arguments)
+        
+        #! BUG: Fix this for list of lists.
         for field_name, values in constructor_arguments.items():
             if isinstance(values, list):
+                print(f"{field_name}: {values}")
                 if len(values) not in {1, num_instances_to_parse}:
                     raise InconsistentArgumentError(
                         f"The field '{field_name}' contains {len(values)} values, but either 1 or {num_instances_to_parse} values were expected.")
