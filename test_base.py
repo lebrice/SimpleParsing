@@ -1,11 +1,13 @@
-from simple_parsing import ParseableFromCommandLine, InconsistentArgumentError
 import argparse
 import dataclasses
-from dataclasses import dataclass, Field
-
-import pytest
 import inspect
 import textwrap
+from dataclasses import Field, dataclass
+from enum import Enum
+
+import pytest
+from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
+
 
 @dataclass
 class Base(ParseableFromCommandLine):
@@ -15,16 +17,29 @@ class Base(ParseableFromCommandLine):
     b: float = 5.0 # inline comment on attribute 'b'
     c: str = ""
 
+class Color(Enum):
+    RED = "RED"
+    ORANGE = "ORANGE"
+    BLUE = "BLUE"
+
 @dataclass
 class Extended(Base):
     """ Some extension of base-class `Base` """
     d: int = 5
     """ docstring for 'd' in Extended. """
+    e: Color = Color.BLUE
 
 
 def setup_base(arguments: str, multiple=False):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     Base.add_arguments(parser, multiple=multiple)
+
+    args = parser.parse_args(arguments.split())
+    return args
+
+def setup_extended(arguments: str, multiple=False):
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    Extended.add_arguments(parser, multiple=multiple)
 
     args = parser.parse_args(arguments.split())
     return args
@@ -58,6 +73,7 @@ def test_parse_multiple_inconsistent_throws_error():
     with pytest.raises(InconsistentArgumentError):
         b_s = Base.from_args_multiple(args, 3)
 
+
 def get_help_text_for(some_class, multiple=False):
     import contextlib
     from io import StringIO
@@ -69,16 +85,28 @@ def get_help_text_for(some_class, multiple=False):
     s = f.getvalue()
     return s
 
+
 def test_help_displays_class_docstring_text():
     assert Base.__doc__ in get_help_text_for(Base)
 
 
-def show_help(some_class):
+def test_enum_attributes_work():
+    args = setup_extended("--a 5 --e RED")
+    ext = Extended.from_args(args)
+    assert ext.e == Color.RED
+
+    args = setup_extended("--a 5")
+    ext = Extended.from_args(args)
+    assert ext.e == Color.BLUE
+
+
+def show_help(some_class: ParseableFromCommandLine):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     some_class.add_arguments(parser, multiple=False)
-    args = parser.parse_args("--help".split())
+    args = parser.parse_args()
+    obj = some_class.from_args(args)
+    print(obj)
 
 
 if __name__ == "__main__":
     show_help(Extended)
-    
