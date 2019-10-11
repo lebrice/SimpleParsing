@@ -224,3 +224,17 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
         i += 1
     # print("Docstring contents:", docstring_contents)
     return "\n".join(docstring_contents)
+
+
+def str2bool(v: str) -> bool:
+    """
+    Taken from https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
+    """
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError(f"Boolean value expected for argument {f.name}, received '{v}'")

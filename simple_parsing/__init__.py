@@ -46,14 +46,25 @@ class ParseableFromCommandLine():
     def add_arguments(cls, parser: argparse.ArgumentParser, multiple=False):
         """
         Adds corresponding command-line arguments for this class to the given parser.
-        # TODO: Add support for Booleans, List, Tuples, and Enums.
+
         Arguments:
             parser {argparse.ArgumentParser} -- The base argument parser to use
             multiple {bool} -- Wether we wish to eventually parse multiple instances of this class or not.
+        
+        
+        #TODO: Double-Check this mechanism, just to make sure this is natural and makes sense.
+        
+        NOTE: about boolean (flag-like) arguments:
+        If the argument is present with no value, then the opposite of the default value should be used.
+        For example, say there is an argument called "--no-cache", with a default value of False.
+        - When we don't pass the argument, (i.e, $> python example.py) the value should be False.
+        - When we pass the argument, (i.e, $> python example.py --no-cache), the value should be True.
+        - When we pass the argument with a value, ex: "--no-cache true" or "--no-cache false", the given value should be used 
         """
         group = parser.add_argument_group(cls.__qualname__, description=cls.__doc__)
         for f in dataclasses.fields(cls):
-            arg_options: Dict[str, Any] = {
+            name = f"--{f.name}"
+            arg_options: Dict[str, Any] = { 
                 "type": f.type,
             }
             doc = utils.get_attribute_docstring(cls, f.name)
@@ -83,32 +94,32 @@ class ParseableFromCommandLine():
                         arg_options["default"] = default_value.name
             
             elif list in f.type.mro():
+                # Check if typing.List was used as an annotation, in which case we can automatically convert to the desired item type.
                 if type(f.type) is typing._GenericAlias:
-                    # typing.List was used as an annotation
-                    item_type = f.type.__args__[0] if len(f.type.__args__) == 1 else None
-                    arg_options["type"] = item_type
+                    T = f.type.__args__[0] if len(f.type.__args__) == 1 else None
+                    arg_options["type"] = T
                 arg_options["nargs"] = "*"
             
             elif tuple in f.type.mro():
+                # Check if typing.List was used as an annotation, in which case we can automatically convert to the desired item type.
                 if type(f.type) is typing._GenericAlias:
-                    # typing.Tuple was used as an annotation
                     # NOTE: we only support tuples with a single type, for simplicity's sake.
-                    item_type = f.type.__args__[0] if len(f.type.__args__) >= 1 else None
-                    arg_options["type"] = item_type
+                    T = f.type.__args__[0] if len(f.type.__args__) >= 1 else None
+                    arg_options["type"] = T
                 arg_options["nargs"] = "*"
 
+            elif f.type is bool:
+                arg_options["default"] = False if f.default is dataclasses.MISSING else f.default
+                arg_options["type"] = utils.str2bool
+                arg_options["nargs"] = '?'
+                if f.default is dataclasses.MISSING:
+                    arg_options["required"] = True
             elif multiple:
                 arg_options["nargs"] = "*"
             
-            group.add_argument(f"--{f.name}", **arg_options)
+            group.add_argument(name, **arg_options)
 
-            def add_bool_arg(parser, name, default=False):
-                """Taken from https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse"""
-                group = parser.add_mutually_exclusive_group(required=False)
-                group.add_argument('--' + name, dest=name, action='store_true')
-                group.add_argument('--no-' + name, dest=name, action='store_false')
-                parser.set_defaults(**{name:default})
-
+ 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> object:
         """Creates an instance of this class using results of `parser.parse_args()`
@@ -124,8 +135,21 @@ class ParseableFromCommandLine():
         for f in dataclasses.fields(cls):
             if enum.Enum in f.type.mro():
                 constructor_args[f.name] = f.type[args_dict[f.name]]
+            
             elif tuple in f.type.mro():
                 constructor_args[f.name] = tuple(args_dict[f.name])
+            
+            elif f.type is bool:
+                value = args_dict[f.name]
+                constructor_args[f.name] = value
+                default_value = False if f.default is dataclasses.MISSING else f.default
+                if value is None:
+                    constructor_args[f.name] = not default_value
+                elif isinstance(value, bool):
+                    constructor_args[f.name] = value
+                else:
+                    raise argparse.ArgumentTypeError(f"bool argument {f.name} isn't bool: {value}")
+
             else:
                 constructor_args[f.name] = args_dict[f.name]
         return cls(**constructor_args) #type: ignore

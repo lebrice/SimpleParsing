@@ -59,7 +59,11 @@ class Container(ParseableFromCommandLine, Setup):
     c: Tuple[str] = field(default_factory=tuple)
     d: List[int] = field(default_factory=list)
 
-
+@dataclass
+class Flags(ParseableFromCommandLine, Setup):
+    a: bool # an example required flag (defaults to False)
+    b: bool = True # optional flag 'b'.
+    c: bool = False # optional flag 'c'.
 
 def test_parse_base_simple_works():
     args = Base.setup("--a 10 --b 3 --c Hello")
@@ -106,17 +110,33 @@ def test_enum_attributes_work():
 
 
 def test_bool_attributes_work():
-    args = Extended.setup("--a 5 --f True")
-    ext = Extended.from_args(args)
-    assert ext.f == True
-
-    args = Extended.setup("--a 5 --f true")
+    args = Extended.setup("--a 5 --f")
     ext = Extended.from_args(args)
     assert ext.f == True
 
     args = Extended.setup("--a 5")
     ext = Extended.from_args(args)
     assert ext.f == False
+
+    true_strings = ["True", "true"]
+    for s in true_strings:
+        args = Extended.setup(f"--a 5 --f {s}")
+        ext = Extended.from_args(args)
+        assert ext.f == True
+
+    false_strings = ["False", "false"]
+    for s in false_strings:
+        args = Extended.setup(f"--a 5 --f {s}")
+        ext = Extended.from_args(args)
+        assert ext.f == False
+
+
+def test_bool_flags_work():
+    args = Flags.setup("--a true --b --c")
+    flags = Flags.from_args(args)
+    assert flags.a == True
+    assert flags.b == False
+    assert flags.c == True
 
 
 def test_list_attributes_work():
@@ -146,4 +166,4 @@ def main(some_class: ParseableFromCommandLine):
     print(obj)
 
 if __name__ == "__main__":
-    main(Container)
+    main(Flags)
