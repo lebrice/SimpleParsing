@@ -28,20 +28,59 @@ class Base(ParseableFromCommandLine):
     Docstring for 'c'
     """
 
+@dataclass
+class Extended(Base):
+    """ Some extension of base-class `Base` """
+    ## Comment above d)
+    # its multiline, does it still work?
+    d: int = 5
+    """ docstring for 'd' in Extended. """
+    
+    # Comment above e, but with a line skipped
 
-def test_docstring_parsing_works():
-    from simple_parsing.utils import find_docstring_of_field, AttributeDocString
-    docstring = find_docstring_of_field(Base, "a")
+    e: float = -1               #*# comment on the side of e
+
+def test_docstring_parsing_work_on_base():
+    from simple_parsing.utils import get_attribute_docstring
+    docstring = get_attribute_docstring(Base, "a")
     assert docstring.comment_above == ""
     assert docstring.comment_inline == "TODO: finetune this"
     assert docstring.docstring_below == "docstring for attribute 'a'"
 
-    docstring = find_docstring_of_field(Base, "b")
+    docstring = get_attribute_docstring(Base, "b")
     assert docstring.comment_above == ""
     assert docstring.comment_inline == "inline comment on attribute 'b'"
     assert docstring.docstring_below == ""
 
-    docstring = find_docstring_of_field(Base, "c")
+    docstring = get_attribute_docstring(Base, "c")
     assert docstring.comment_above == ""
     assert docstring.comment_inline == ""
     assert docstring.docstring_below == "Multi\nLine\nDocstring for 'c'\n"
+
+
+def test_docstring_parsing_works_on_extended():
+    from simple_parsing.utils import get_attribute_docstring
+    docstring = get_attribute_docstring(Extended, "a")
+    assert docstring.comment_above == ""
+    assert docstring.comment_inline == "TODO: finetune this"
+    assert docstring.docstring_below == "docstring for attribute 'a'"
+
+    docstring = get_attribute_docstring(Extended, "b")
+    assert docstring.comment_above == ""
+    assert docstring.comment_inline == "inline comment on attribute 'b'"
+    assert docstring.docstring_below == ""
+
+    docstring = get_attribute_docstring(Extended, "c")
+    assert docstring.comment_above == ""
+    assert docstring.comment_inline == ""
+    assert docstring.docstring_below == "Multi\nLine\nDocstring for 'c'\n"
+
+    docstring = get_attribute_docstring(Extended, "d")
+    assert docstring.comment_above == "# Comment above d)\nits multiline, does it still work?"
+    assert docstring.comment_inline == ""
+    assert docstring.docstring_below == "docstring for 'd' in Extended."
+
+    docstring = get_attribute_docstring(Extended, "e")
+    assert docstring.comment_above == "Comment above e, but with a line skipped"
+    assert docstring.comment_inline == "*# comment on the side of e"
+    assert docstring.docstring_below == ""

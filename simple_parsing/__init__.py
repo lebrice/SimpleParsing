@@ -19,7 +19,9 @@ class InconsistentArgumentError(RuntimeError):
 class ParseableFromCommandLine():
     """
     When applied to a dataclass, this enables creating an instance of that class and populating the attributes from the command-line.
-    
+    Each class is visually separated into a different argument group. The class docstring is used for the group description, while the 'attribute docstrings'
+    are used for the help text of the arguments. See the example script for a more visual description.
+
     Example:
     ```
     @dataclass
@@ -36,18 +38,6 @@ class ParseableFromCommandLine():
     >>> Options(a=5, b=10)
     ```
     """
-
-    def __setattr__(self, name: str, value):
-        print("Setting attribute", name, " with value", value)
-        if isinstance(value, tuple):
-            print("adding a doc attribute")
-            self.__dict__[name] = value[0]
-            # self.__dict__[name].__doc__ = value[1]
-            self.__dict__[f"__{name}_doc__"] = value[1]
-        else:
-            self.__dict__[name] = value
-
-
     @classmethod
     def add_arguments(cls, parser: argparse.ArgumentParser, multiple=False):
         """
@@ -57,13 +47,12 @@ class ParseableFromCommandLine():
             parser {argparse.ArgumentParser} -- The base argument parser to use
             multiple {bool} -- Wether we wish to eventually parse multiple instances of this class or not.
         """
-        print("Adding arguments")
         group = parser.add_argument_group(cls.__qualname__, description=cls.__doc__)
         for f in dataclasses.fields(cls):
             arg_options: Dict[str, Any] = {
                 "type": f.type,
             }
-            doc = utils.find_docstring_of_field(cls, f.name)
+            doc = utils.get_attribute_docstring(cls, f.name)
             if doc is not None:
                 if doc.docstring_below:
                     arg_options["help"] = doc.docstring_below
@@ -71,6 +60,7 @@ class ParseableFromCommandLine():
                     arg_options["help"] = doc.comment_above
                 elif doc.comment_inline:
                     arg_options["help"] = doc.comment_inline
+            
             if multiple:
                 arg_options["nargs"] = "*"
             
