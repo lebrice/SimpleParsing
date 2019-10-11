@@ -7,6 +7,7 @@ import dataclasses
 import enum
 import inspect
 from collections import namedtuple
+import typing
 from typing import *
 
 from . import utils
@@ -65,7 +66,10 @@ class ParseableFromCommandLine():
                     arg_options["help"] = doc.comment_inline
             
             if f.default is dataclasses.MISSING:
-                arg_options["required"] = True
+                if f.default_factory is dataclasses.MISSING:
+                    arg_options["required"] = True
+                else:
+                    arg_options["default"] = f.default_factory()
             else:
                 arg_options["default"] = f.default
             
@@ -77,12 +81,33 @@ class ParseableFromCommandLine():
                     # if the default value is the Enum object, we make it a string
                     if isinstance(default_value, enum.Enum):
                         arg_options["default"] = default_value.name
+            
+            elif list in f.type.mro():
+                if type(f.type) is typing._GenericAlias:
+                    # typing.List was used as an annotation
+                    item_type = f.type.__args__[0] if len(f.type.__args__) == 1 else None
+                    arg_options["type"] = item_type
+                arg_options["nargs"] = "*"
+            
+            elif tuple in f.type.mro():
+                if type(f.type) is typing._GenericAlias:
+                    # typing.Tuple was used as an annotation
+                    # NOTE: we only support tuples with a single type, for simplicity's sake.
+                    item_type = f.type.__args__[0] if len(f.type.__args__) >= 1 else None
+                    arg_options["type"] = item_type
+                arg_options["nargs"] = "*"
 
-            if multiple or f.type in {list, tuple}:
+            elif multiple:
                 arg_options["nargs"] = "*"
             
             group.add_argument(f"--{f.name}", **arg_options)
 
+            def add_bool_arg(parser, name, default=False):
+                """Taken from https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse"""
+                group = parser.add_mutually_exclusive_group(required=False)
+                group.add_argument('--' + name, dest=name, action='store_true')
+                group.add_argument('--no-' + name, dest=name, action='store_false')
+                parser.set_defaults(**{name:default})
 
     @classmethod
     def from_args(cls, args: argparse.Namespace) -> object:
@@ -95,11 +120,12 @@ class ParseableFromCommandLine():
             object -- an instance of this class
         """
         args_dict = vars(args) 
-        print("args dict:", args_dict)
         constructor_args: Dict[str, Any] = {}
         for f in dataclasses.fields(cls):
             if enum.Enum in f.type.mro():
                 constructor_args[f.name] = f.type[args_dict[f.name]]
+            elif tuple in f.type.mro():
+                constructor_args[f.name] = tuple(args_dict[f.name])
             else:
                 constructor_args[f.name] = args_dict[f.name]
         return cls(**constructor_args) #type: ignore

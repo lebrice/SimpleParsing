@@ -1,16 +1,37 @@
 import argparse
+import contextlib
 import dataclasses
 import inspect
 import textwrap
-from dataclasses import Field, dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+from typing import *
 
 import pytest
 from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
 
 
+class Setup():
+    @classmethod
+    def setup(cls: ParseableFromCommandLine, arguments = "", multiple = False) -> str:
+        parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        cls.add_arguments(parser, multiple=multiple)
+        args = parser.parse_args(arguments.split())
+        return args
+    
+    @classmethod
+    def get_help_text(cls: ParseableFromCommandLine, multiple=False):
+        import contextlib
+        from io import StringIO
+        f = StringIO()
+        with contextlib.suppress(SystemExit), contextlib.redirect_stdout(f):
+            _ = cls.setup("--help")
+        s = f.getvalue()
+        return s
+
+
 @dataclass
-class Base(ParseableFromCommandLine):
+class Base(ParseableFromCommandLine, Setup):
     """A simple base-class example"""
     a: int # TODO: finetune this
     """docstring for attribute 'a'"""
@@ -28,24 +49,20 @@ class Extended(Base):
     d: int = 5
     """ docstring for 'd' in Extended. """
     e: Color = Color.BLUE
+    f: bool = False
 
 
-def setup_base(arguments: str, multiple=False):
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    Base.add_arguments(parser, multiple=multiple)
+@dataclass
+class Container(ParseableFromCommandLine, Setup):
+    a: Tuple[int]
+    b: List[int]
+    c: Tuple[str] = field(default_factory=tuple)
+    d: List[int] = field(default_factory=list)
 
-    args = parser.parse_args(arguments.split())
-    return args
 
-def setup_extended(arguments: str, multiple=False):
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    Extended.add_arguments(parser, multiple=multiple)
-
-    args = parser.parse_args(arguments.split())
-    return args
 
 def test_parse_base_simple_works():
-    args = setup_base("--a 10 --b 3 --c Hello")
+    args = Base.setup("--a 10 --b 3 --c Hello")
     b = Base.from_args(args)
     assert b.a == 10
     assert b.b == 3
@@ -53,10 +70,10 @@ def test_parse_base_simple_works():
 
 def test_parse_base_simple_without_required_throws_error():
     with pytest.raises(SystemExit):
-        args = setup_base("--b 3 --c Hello")
+        args = Base.setup("--b 3 --c Hello")
 
 def test_parse_multiple_works():
-    args = setup_base("--a 10 20 --b 3 --c Hello Bye", multiple=True)
+    args = Base.setup("--a 10 20 --b 3 --c Hello Bye", multiple=True)
     b_s = Base.from_args_multiple(args, 2)
     b1 = b_s[0]
     b2 = b_s[1]
@@ -69,44 +86,64 @@ def test_parse_multiple_works():
     assert b2.c == "Bye"
 
 def test_parse_multiple_inconsistent_throws_error():
-    args = setup_base("--a 10 20 --b 3 --c Hello Bye", multiple=True)
+    args = Base.setup("--a 10 20 --b 3 --c Hello Bye", multiple=True)
     with pytest.raises(InconsistentArgumentError):
         b_s = Base.from_args_multiple(args, 3)
 
 
-def get_help_text_for(some_class, multiple=False):
-    import contextlib
-    from io import StringIO
-    f = StringIO()
-    with contextlib.suppress(SystemExit), contextlib.redirect_stdout(f):
-        parser = argparse.ArgumentParser()
-        some_class.add_arguments(parser, multiple=multiple)
-        args = parser.parse_args(["--help"])
-    s = f.getvalue()
-    return s
-
-
 def test_help_displays_class_docstring_text():
-    assert Base.__doc__ in get_help_text_for(Base)
+    assert Base.__doc__ in Base.get_help_text()
 
 
 def test_enum_attributes_work():
-    args = setup_extended("--a 5 --e RED")
+    args = Extended.setup("--a 5 --e RED")
     ext = Extended.from_args(args)
     assert ext.e == Color.RED
 
-    args = setup_extended("--a 5")
+    args = Extended.setup("--a 5")
     ext = Extended.from_args(args)
     assert ext.e == Color.BLUE
 
 
-def show_help(some_class: ParseableFromCommandLine):
+def test_bool_attributes_work():
+    args = Extended.setup("--a 5 --f True")
+    ext = Extended.from_args(args)
+    assert ext.f == True
+
+    args = Extended.setup("--a 5 --f true")
+    ext = Extended.from_args(args)
+    assert ext.f == True
+
+    args = Extended.setup("--a 5")
+    ext = Extended.from_args(args)
+    assert ext.f == False
+
+
+def test_list_attributes_work():
+    args = Container.setup("--a 1 2 3 --b 4 5 6 --c 7 8 9 --d 10 11 12")
+    container = Container.from_args(args)
+    assert container.a == (1, 2, 3)
+    assert container.b == [4, 5, 6]
+    assert container.c == ('7', '8', '9')
+    assert container.d == [10, 11, 12]
+
+    # required attributes still work.
+    with contextlib.suppress(SystemExit), pytest.raises(argparse.ArgumentError):
+        args = Container.setup("--b 4")
+
+    args = Container.setup("--a 1 2 --b 2 --c 3 4 5 --d 10 11 12")
+    container = Container.from_args(args)
+    assert container.a == (1,2)
+    assert container.b == [2]
+    assert container.c == ('3', '4', '5')
+    assert container.d == [10, 11, 12]
+
+def main(some_class: ParseableFromCommandLine):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     some_class.add_arguments(parser, multiple=False)
     args = parser.parse_args()
     obj = some_class.from_args(args)
     print(obj)
 
-
 if __name__ == "__main__":
-    show_help(Extended)
+    main(Container)
