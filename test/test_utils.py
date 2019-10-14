@@ -1,13 +1,14 @@
-import simple_parsing
-from simple_parsing import ParseableFromCommandLine, InconsistentArgumentError
-
 import argparse
 import dataclasses
-from dataclasses import dataclass, Field
-
-import pytest
 import inspect
 import textwrap
+from dataclasses import Field, dataclass
+
+import pytest
+
+import simple_parsing
+from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
+
 
 @dataclass
 class Base(ParseableFromCommandLine):

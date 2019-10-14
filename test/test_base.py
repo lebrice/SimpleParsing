@@ -8,6 +8,7 @@ from enum import Enum
 from typing import *
 
 import pytest
+import simple_parsing
 from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
 
 
