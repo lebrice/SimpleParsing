@@ -19,8 +19,8 @@ class Example(ParseableFromCommandLine):
     """This list has a default value of ["default_1", "default_2"]."""
 
 
-    some_list_of_strings: List[str] = field(default_factory=lambda: ["default_1", "default_2"])
-    """This list has a default value of ["default_1", "default_2"]."""
+    # some_list_of_strings: List[str] = field(default_factory=lambda: ["default_1", "default_2"])
+    # """This list has a default value of ["default_1", "default_2"]."""
 
 
 Example.add_arguments(parser)

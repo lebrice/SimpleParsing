@@ -22,26 +22,15 @@ class Options(ParseableFromCommandLine):
     bar: int = 10 # an optional int parameter named bar.
     log_dir: str = "/logs" # an optional string parameter named log_dir.
     """the logging directory to use. (This is an attribute docstring for the log_dir attribute, and shows up when using the "--help" argument!)"""
-
-
-@dataclass
-class OtherOptions(Options):
-    """ Some other options, cleanly separated from the `Options` class """
-    #This parameter is very different. it has a comment above it, which acts as a docstring.
-    different_param: float = 0.05
-    # This flag, when passed, will set the value of `some_flag` to True. When omitted, the value will be False..
-    some_flag: bool = False # NOTE: you could also pass a value, with for example "--some_flag true" or "--some_flag false".
+   
 
 Options.add_arguments(parser)
-OtherOptions.add_arguments(parser)
 
 args = parser.parse_args()
 
 options = Options.from_args(args)
-other_options = OtherOptions.from_args(args)
 
 # Do whatever you want using the Options object here!
 # (...)
 
 print(options)
-print(other_options)
