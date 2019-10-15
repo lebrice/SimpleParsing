@@ -17,7 +17,7 @@ class Temperature(enum.Enum):
     COLD = -1
     MONTREAL = -35
 
-@dataclass
+@dataclass()
 class MyPreferences(ParseableFromCommandLine):
     """You can use Enums"""
     color: Color = Color.BLUE # my favorite colour

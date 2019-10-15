@@ -10,7 +10,7 @@ import simple_parsing
 from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
 
 
-@dataclass
+@dataclass()
 class Base(ParseableFromCommandLine):
     """A simple base-class example"""
     a: int # TODO: finetune this
@@ -29,7 +29,7 @@ class Base(ParseableFromCommandLine):
     Docstring for 'c'
     """
 
-@dataclass
+@dataclass()
 class Extended(Base):
     """ Some extension of base-class `Base` """
     ## Comment above d)

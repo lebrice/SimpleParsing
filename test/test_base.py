@@ -31,7 +31,7 @@ class Setup():
         return s
 
 
-@dataclass
+@dataclass()
 class Base(ParseableFromCommandLine, Setup):
     """A simple base-class example"""
     a: int # TODO: finetune this
@@ -44,7 +44,7 @@ class Color(Enum):
     ORANGE = "ORANGE"
     BLUE = "BLUE"
 
-@dataclass
+@dataclass()
 class Extended(Base):
     """ Some extension of base-class `Base` """
     d: int = 5
@@ -53,14 +53,14 @@ class Extended(Base):
     f: bool = False
 
 
-@dataclass
+@dataclass()
 class Container(ParseableFromCommandLine, Setup):
     a: Tuple[int]
     b: List[int]
     c: Tuple[str] = field(default_factory=tuple)
     d: List[int] = field(default_factory=list)
 
-@dataclass
+@dataclass()
 class Flags(ParseableFromCommandLine, Setup):
     a: bool # an example required flag (defaults to False)
     b: bool = True # optional flag 'b'.

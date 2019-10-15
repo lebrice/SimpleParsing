@@ -15,21 +15,19 @@ from simple_parsing import ParseableFromCommandLine
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 
-@dataclass
+@dataclass()
 class Options(ParseableFromCommandLine):
     """ A class which groups related parameters. """
     foo: int # Some required parameter named foo.
     bar: int = 10 # an optional int parameter named bar.
     log_dir: str = "/logs" # an optional string parameter named log_dir.
     """the logging directory to use. (This is an attribute docstring for the log_dir attribute, and shows up when using the "--help" argument!)"""
-   
 
 Options.add_arguments(parser)
 
 args = parser.parse_args()
 
 options = Options.from_args(args)
-
 # Do whatever you want using the Options object here!
 # (...)
 

@@ -6,7 +6,7 @@ from simple_parsing import ParseableFromCommandLine
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-@dataclass
+@dataclass()
 class Example(ParseableFromCommandLine):
     # As well as lists using dataclasses.field (see the dataclasses package):
     some_list_of_ints: List[int] = field(default_factory=list)

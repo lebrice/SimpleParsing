@@ -15,7 +15,7 @@ from simple_parsing import ParseableFromCommandLine
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-@dataclass
+@dataclass()
 class Options(ParseableFromCommandLine):
     """ A class which groups related parameters. """
     foo: int # Some required parameter named foo.
@@ -23,7 +23,7 @@ class Options(ParseableFromCommandLine):
     log_dir: str = "/logs"
     """the logging directory to use. (This is an attribute docstring)"""
 
-@dataclass
+@dataclass()
 class OtherOptions(ParseableFromCommandLine):
     """Some other options, cleanly separated from the `Options` class
     """
@@ -134,13 +134,13 @@ from simple_parsing import ParseableFromCommandLine
 # create a parser, as usual
 parser = argparse.ArgumentParser()
 
-@dataclass
+@dataclass()
 class MyModelHyperParameters(ParseableFromCommandLine):
     """Hyperparameters of MyModel"""
     learning_rate: float = 0.05
     momentum: float = 0.01
 
-@dataclass
+@dataclass()
 class TrainingConfig(ParseableFromCommandLine):
     """Training configuration settings"""
     data_dir: str = "/data"
@@ -175,7 +175,7 @@ To do this, use `add_arguments(parser, multiple=True)` when registering the argu
 For example, suppose you had a class `BlockConfig` for each block in a ML model.
 
 ```python
-@dataclass
+@dataclass()
 class BlockConfig(ParseableFromCommandLine):
     num_layers: int
     kernel_size: int = 3

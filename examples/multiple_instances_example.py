@@ -12,7 +12,7 @@ from typing import List
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 
-@dataclass
+@dataclass()
 class Example(ParseableFromCommandLine):
     """ A class which groups related parameters. """
     foo: int # Some required parameter named foo.

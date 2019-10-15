@@ -25,7 +25,7 @@ from typing import List, Tuple
 from simple_parsing import ParseableFromCommandLine
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-@dataclass
+@dataclass()
 class DocStringsExample(ParseableFromCommandLine):
     """NOTE: This block of text is the class docstring, and it will show up under
     the name of the class in the --help group for this set of parameters.    
