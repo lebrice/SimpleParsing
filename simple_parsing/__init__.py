@@ -12,6 +12,7 @@ from typing import *
 
 from . import utils
 
+T = TypeVar("T", bound="ParseableFromCommandLine")
 
 class InconsistentArgumentError(RuntimeError):
     """
@@ -28,7 +29,7 @@ class ParseableFromCommandLine():
 
     Example:
     ```
-    @dataclass
+    @dataclass()
     class Options(ParseableFromCommandLine):
         a: int
         b: int = 10
@@ -43,7 +44,7 @@ class ParseableFromCommandLine():
     ```
     """
     @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser, multiple=False):
+    def add_arguments(cls: Type[T], parser: argparse.ArgumentParser, multiple=False):
         """
         Adds corresponding command-line arguments for this class to the given parser.
 
@@ -134,7 +135,7 @@ class ParseableFromCommandLine():
 
  
     @classmethod
-    def from_args(cls, args: argparse.Namespace) -> object:
+    def from_args(cls: T, args: argparse.Namespace) -> T:
         """Creates an instance of this class using results of `parser.parse_args()`
         
         Arguments:
@@ -168,7 +169,7 @@ class ParseableFromCommandLine():
         return cls(**constructor_args) #type: ignore
 
     @classmethod
-    def from_args_multiple(cls, args: argparse.Namespace, num_instances_to_parse: int) -> List[object]:
+    def from_args_multiple(cls: Type[T], args: argparse.Namespace, num_instances_to_parse: int) -> List[T]:
         """Parses multiple instances of this class from the command line, and returns them.
         Each argument may have either 0 values (when applicable), 1, or {num_instances_to_parse}. 
         NOTE: If only one value is provided, every instance will be populated with the same value.
