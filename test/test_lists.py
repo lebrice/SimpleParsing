@@ -39,8 +39,8 @@ def test_list_attributes_work():
     assert container.d == [10, 11, 12]
 
 def test_list_multiple_work():
-    args = Container.setup('--a "1 2 3" "4 5 6" --b "4 5 6" "7 8 9" --c "7 8 9" "7 9 11" --d 10 11 12', multiple=True)
-    containers = Container.from_args_multiple(args)
+    args = Container.setup("""--a '1 2 3' '4 5 6' --b "4 5 6" "7 8 9" --c "7 8 9" "7 9 11" --d '10 11 12'""", multiple=True)
+    containers = Container.from_args_multiple(args, 2)
     container1 = containers[0]
     container2 = containers[1]
     assert container1.a == (1, 2, 3)
@@ -52,3 +52,13 @@ def test_list_multiple_work():
     assert container2.b == [7, 8, 9]
     assert container2.c == ('7', '9', '11')
     assert container2.d == [10, 11, 12]
+
+# parser = argparse.ArgumentParser()
+
+# Container.add_arguments(parser, multiple=True)
+
+# args = parser.parse_args()
+
+# containers = Container.from_args_multiple(args, 2)
+# print(containers[0])
+# print(containers[1])

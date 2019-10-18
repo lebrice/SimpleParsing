@@ -11,6 +11,7 @@ import typing
 from typing import *
 
 from . import utils
+from . import docstring
 
 T = TypeVar("T", bound="ParseableFromCommandLine")
 
@@ -68,7 +69,8 @@ class ParseableFromCommandLine():
             arg_options: Dict[str, Any] = { 
                 "type": f.type,
             }
-            doc = utils.get_attribute_docstring(cls, f.name)
+
+            doc = docstring.get_attribute_docstring(cls, f.name)
             if doc is not None:
                 if doc.docstring_below:
                     arg_options["help"] = doc.docstring_below
@@ -80,12 +82,15 @@ class ParseableFromCommandLine():
             if f.default is dataclasses.MISSING:
                 if f.default_factory is dataclasses.MISSING:
                     arg_options["required"] = True
-                elif multiple:
-                    arg_options["default"] = [f.default_factory()]
                 else:
                     arg_options["default"] = f.default_factory()
             else:
                 arg_options["default"] = f.default
+
+            # if multiple and "default" in arg_options:
+            #     arg_options["default"] = [arg_options["default"]]    
+            
+            print(f"adding argument for field {f.name} with type {f.type}. Multiple is {multiple}, default value is {arg_options.get('default', None)}")
             
             if enum.Enum in f.type.mro():
                 arg_options["choices"] = list(e.name for e in f.type)
@@ -96,32 +101,19 @@ class ParseableFromCommandLine():
                     if isinstance(default_value, enum.Enum):
                         arg_options["default"] = default_value.name
             
-            elif list in f.type.mro():
-                T = utils.get_list_item_type(f.type)
+            elif utils.is_tuple_or_list(f.type):
+                # Check if typing.List or typing.Tuple was used as an annotation, in which case we can automatically convert items to the desired item type.
+                # NOTE: we only support tuples with a single type, for simplicity's sake. 
+                T = utils.get_argparse_container_type(f.type)
+                arg_options["nargs"] = "*"
                 if multiple:
-                    def parse_list_of_lists(v: str) -> List[Any]:
-                        print(f"Parse list of lists, value is: {v}")
-                        sep = "," if "," in v else None
-                        values = [p.strip() for p in v.split(sep)]
-                        if T:
-                            values = [T(v_str) for v_str in values]
-                        return values
-                    arg_options["type"] = parse_list_of_lists
-                    arg_options["nargs"] = '+'
-
-                    # Check if typing.List was used as an annotation, in which case we can automatically convert to the desired item type.
-                elif T:
-                    arg_options["type"] = T
-                arg_options["nargs"] = "*"
+                    # TODO: figure out exactly how to handle this one.
+                    arg_options["type"] = utils._parse_multiple_containers(f.type)
+                    # arg_options["type"] = str
+                    # arg_options["action"] = "append"
+                else:
+                    arg_options["type"] = T             
             
-            elif tuple in f.type.mro():
-                # Check if typing.List was used as an annotation, in which case we can automatically convert to the desired item type.
-                if type(f.type) is typing._GenericAlias:
-                    # NOTE: we only support tuples with a single type, for simplicity's sake.
-                    T = f.type.__args__[0] if len(f.type.__args__) >= 1 else None
-                    arg_options["type"] = T
-                arg_options["nargs"] = "*"
-
             elif f.type is bool:
                 arg_options["default"] = False if f.default is dataclasses.MISSING else f.default
                 arg_options["type"] = utils.str2bool
@@ -145,14 +137,18 @@ class ParseableFromCommandLine():
             object -- an instance of this class
         """
         args_dict = vars(args) 
+        # print("args dict:", args_dict)
         constructor_args: Dict[str, Any] = {}
         for f in dataclasses.fields(cls):
             if enum.Enum in f.type.mro():
                 constructor_args[f.name] = f.type[args_dict[f.name]]
             
-            elif tuple in f.type.mro():
+            elif utils.is_tuple(f.type):
                 constructor_args[f.name] = tuple(args_dict[f.name])
             
+            elif utils.is_list(f.type):
+                constructor_args[f.name] = list(args_dict[f.name])
+
             elif f.type is bool:
                 value = args_dict[f.name]
                 constructor_args[f.name] = value
@@ -190,26 +186,21 @@ class ParseableFromCommandLine():
             f.name: args_dict[f.name]
             for f in dataclasses.fields(cls)
         }
-        print("Constructor arguments:", constructor_arguments)
-        
-        #! BUG: Fix this for list of lists.
-        for field_name, values in constructor_arguments.items():
-            if isinstance(values, list):
-                print(f"{field_name}: {values}")
-                if len(values) not in {1, num_instances_to_parse}:
+        # print("Constructor arguments:", constructor_arguments)
+        arguments_per_instance: List[Dict[str, Any]] = []
+        for i in range(num_instances_to_parse):
+            ith_arguments_dict: Dict[str, Any] = {}
+            for field_name, field_values in constructor_arguments.items():
+                if len(field_values) == 1:
+                    ith_arguments_dict[field_name] = field_values[0]
+                elif len(field_values) == num_instances_to_parse:
+                    ith_arguments_dict[field_name] = field_values[i]
+                else:
                     raise InconsistentArgumentError(
                         f"The field '{field_name}' contains {len(values)} values, but either 1 or {num_instances_to_parse} values were expected.")
-                if len(values) == 1:
-                    constructor_arguments[field_name] = values[0]
+            arguments_per_instance.append(ith_arguments_dict)
 
-        # convert from a dict of lists to a list of dicts.
-        arguments_per_instance: List[Dict[str, Any]] = [
-            {
-                field_name: field_values[i] if isinstance(field_values, list) else field_values
-                for field_name, field_values in constructor_arguments.items()
-            } for i in range(num_instances_to_parse) 
-        ]
-        return [
+        return list(
             cls(**arguments_dict) #type: ignore
             for arguments_dict in arguments_per_instance
-        ]
+        )

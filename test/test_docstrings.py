@@ -9,6 +9,7 @@ import pytest
 import simple_parsing
 from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
 
+from simple_parsing.docstring import get_attribute_docstring
 
 @dataclass()
 class Base(ParseableFromCommandLine):
@@ -42,7 +43,6 @@ class Extended(Base):
     e: float = -1               #*# comment on the side of e
 
 def test_docstring_parsing_work_on_base():
-    from simple_parsing.utils import get_attribute_docstring
     docstring = get_attribute_docstring(Base, "a")
     assert docstring.comment_above == ""
     assert docstring.comment_inline == "TODO: finetune this"
@@ -60,7 +60,6 @@ def test_docstring_parsing_work_on_base():
 
 
 def test_docstring_parsing_works_on_extended():
-    from simple_parsing.utils import get_attribute_docstring
     docstring = get_attribute_docstring(Extended, "a")
     assert docstring.comment_above == ""
     assert docstring.comment_inline == "TODO: finetune this"

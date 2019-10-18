@@ -13,6 +13,7 @@ from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
 
 from testutils import Setup
 
+
 @dataclass()
 class Base(ParseableFromCommandLine, Setup):
     """A simple base-class example"""
