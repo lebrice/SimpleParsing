@@ -9,7 +9,7 @@ from typing import *
 
 import pytest
 import simple_parsing
-from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
+from simple_parsing import *
 
 from testutils import Setup
 
@@ -33,15 +33,6 @@ class Extended(Base):
     d: int = 5
     """ docstring for 'd' in Extended. """
     e: Color = Color.BLUE
-    f: bool = False
-
-
-
-@dataclass()
-class Flags(ParseableFromCommandLine, Setup):
-    a: bool # an example required flag (defaults to False)
-    b: bool = True # optional flag 'b'.
-    c: bool = False # optional flag 'c'.
 
 def test_parse_base_simple_works():
     args = Base.setup("--a 10 --b 3 --c Hello")
@@ -87,34 +78,6 @@ def test_enum_attributes_work():
     assert ext.e == Color.BLUE
 
 
-def test_bool_attributes_work():
-    args = Extended.setup("--a 5 --f")
-    ext = Extended.from_args(args)
-    assert ext.f == True
-
-    args = Extended.setup("--a 5")
-    ext = Extended.from_args(args)
-    assert ext.f == False
-
-    true_strings = ["True", "true"]
-    for s in true_strings:
-        args = Extended.setup(f"--a 5 --f {s}")
-        ext = Extended.from_args(args)
-        assert ext.f == True
-
-    false_strings = ["False", "false"]
-    for s in false_strings:
-        args = Extended.setup(f"--a 5 --f {s}")
-        ext = Extended.from_args(args)
-        assert ext.f == False
-
-
-def test_bool_flags_work():
-    args = Flags.setup("--a true --b --c")
-    flags = Flags.from_args(args)
-    assert flags.a == True
-    assert flags.b == False
-    assert flags.c == True
 
 
 def main(some_class: ParseableFromCommandLine):
