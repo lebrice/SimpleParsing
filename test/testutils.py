@@ -8,7 +8,7 @@ from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
 
 class Setup():
     @classmethod
-    def setup(cls: ParseableFromCommandLine, arguments = "", multiple = False) -> str:
+    def setup(cls, arguments: str = None, multiple = False) -> argparse.Namespace:
         parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         cls.add_arguments(parser, multiple=multiple)
         # BUG: the arguments might have quotes in them, hence we shouldn't necessarily just split() with whitespace..
@@ -17,7 +17,7 @@ class Setup():
         return args
     
     @classmethod
-    def get_help_text(cls: ParseableFromCommandLine, multiple=False):
+    def get_help_text(cls, multiple=False):
         import contextlib
         from io import StringIO
         f = StringIO()

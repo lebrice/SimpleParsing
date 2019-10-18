@@ -100,7 +100,33 @@ def _parse_multiple_containers(tuple_or_list: type,) -> Callable[[str], List[Any
         str_values = [v.strip() for v in v.split(separator)]
         T_values = [T(v_str) for v_str in str_values]
         values = factory(v for v in T_values)
-        print("values:", values)
+        # print("values:", values)
         return values
 
     return parse_fn
+
+
+def _parse_container(tuple_or_list: type,) -> Callable[[str], List[Any]]:
+    T = get_argparse_container_type(tuple_or_list)
+    factory = tuple if is_tuple(tuple_or_list) else list
+
+    def parse_fn(v: str) -> List[Any]:
+        # TODO: maybe we could use the fact we know this isn't for a list of lists to make this better somehow.
+        # print(f"Parsing a {tuple_or_list} of {T}s, value is: {v}, type is {type(v)}")
+        v = v.strip()
+        if v.startswith("[") and v.endswith("]"):
+            v = v[1:-1]
+        
+        separator = " "
+        for sep in [","]: # TODO: maybe add support for other separators?
+            if sep in v:
+                separator = sep
+        str_values = [v.strip() for v in v.split(separator)]
+        T_values = [T(v_str) for v_str in str_values]
+        values = factory(v for v in T_values)
+        # print("values:", values)
+        return values
+
+    return parse_fn
+
+  

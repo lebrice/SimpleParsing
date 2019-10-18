@@ -90,7 +90,7 @@ class ParseableFromCommandLine():
             # if multiple and "default" in arg_options:
             #     arg_options["default"] = [arg_options["default"]]    
             
-            print(f"adding argument for field {f.name} with type {f.type}. Multiple is {multiple}, default value is {arg_options.get('default', None)}")
+            # print(f"adding argument for field {f.name} with type {f.type}. Multiple is {multiple}, default value is {arg_options.get('default', None)}")
             
             if enum.Enum in f.type.mro():
                 arg_options["choices"] = list(e.name for e in f.type)
@@ -107,11 +107,11 @@ class ParseableFromCommandLine():
                 T = utils.get_argparse_container_type(f.type)
                 arg_options["nargs"] = "*"
                 if multiple:
-                    # TODO: figure out exactly how to handle this one.
                     arg_options["type"] = utils._parse_multiple_containers(f.type)
-                    # arg_options["type"] = str
-                    # arg_options["action"] = "append"
                 else:
+                    # TODO: Supporting the `--a '1 2 3'`, `--a [1,2,3]`, and `--a 1 2 3` at the same time is syntax is kinda hard, and I'm not sure if it's really necessary.
+                    # right now, we support --a '1 2 3' '4 5 6' and --a [1,2,3] [4,5,6] when parsing multiple instances.
+                    # arg_options["type"] = utils._parse_container(f.type)
                     arg_options["type"] = T             
             
             elif f.type is bool:
@@ -197,7 +197,7 @@ class ParseableFromCommandLine():
                     ith_arguments_dict[field_name] = field_values[i]
                 else:
                     raise InconsistentArgumentError(
-                        f"The field '{field_name}' contains {len(values)} values, but either 1 or {num_instances_to_parse} values were expected.")
+                        f"The field '{field_name}' contains {len(field_values)} values, but either 1 or {num_instances_to_parse} values were expected.")
             arguments_per_instance.append(ith_arguments_dict)
 
         return list(
