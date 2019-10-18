@@ -11,25 +11,7 @@ import pytest
 import simple_parsing
 from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
 
-
-class Setup():
-    @classmethod
-    def setup(cls: ParseableFromCommandLine, arguments = "", multiple = False) -> str:
-        parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-        cls.add_arguments(parser, multiple=multiple)
-        args = parser.parse_args(arguments.split())
-        return args
-    
-    @classmethod
-    def get_help_text(cls: ParseableFromCommandLine, multiple=False):
-        import contextlib
-        from io import StringIO
-        f = StringIO()
-        with contextlib.suppress(SystemExit), contextlib.redirect_stdout(f):
-            _ = cls.setup("--help")
-        s = f.getvalue()
-        return s
-
+from testutils import Setup
 
 @dataclass()
 class Base(ParseableFromCommandLine, Setup):
@@ -53,12 +35,6 @@ class Extended(Base):
     f: bool = False
 
 
-@dataclass()
-class Container(ParseableFromCommandLine, Setup):
-    a: Tuple[int]
-    b: List[int]
-    c: Tuple[str] = field(default_factory=tuple)
-    d: List[int] = field(default_factory=list)
 
 @dataclass()
 class Flags(ParseableFromCommandLine, Setup):
@@ -139,25 +115,6 @@ def test_bool_flags_work():
     assert flags.b == False
     assert flags.c == True
 
-
-def test_list_attributes_work():
-    args = Container.setup("--a 1 2 3 --b 4 5 6 --c 7 8 9 --d 10 11 12")
-    container = Container.from_args(args)
-    assert container.a == (1, 2, 3)
-    assert container.b == [4, 5, 6]
-    assert container.c == ('7', '8', '9')
-    assert container.d == [10, 11, 12]
-
-    # required attributes still work.
-    with contextlib.suppress(SystemExit), pytest.raises(argparse.ArgumentError):
-        args = Container.setup("--b 4")
-
-    args = Container.setup("--a 1 2 --b 2 --c 3 4 5 --d 10 11 12")
-    container = Container.from_args(args)
-    assert container.a == (1,2)
-    assert container.b == [2]
-    assert container.c == ('3', '4', '5')
-    assert container.d == [10, 11, 12]
 
 def main(some_class: ParseableFromCommandLine):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
