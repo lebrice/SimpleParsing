@@ -13,7 +13,7 @@ from typing import *
 from . import utils
 from . import docstring
 
-T = TypeVar("T", bound="ParseableFromCommandLine")
+
 
 class InconsistentArgumentError(RuntimeError):
     """
@@ -21,6 +21,9 @@ class InconsistentArgumentError(RuntimeError):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+
+T = TypeVar("T", bound="ParseableFromCommandLine")
 
 class ParseableFromCommandLine():
     """
@@ -44,8 +47,9 @@ class ParseableFromCommandLine():
     >>> Options(a=5, b=10)
     ```
     """
+
     @classmethod
-    def add_arguments(cls: Type[T], parser: argparse.ArgumentParser, multiple=False):
+    def add_arguments(cls, parser: argparse.ArgumentParser, multiple=False) -> None:
         """
         Adds corresponding command-line arguments for this class to the given parser.
 
@@ -124,10 +128,9 @@ class ParseableFromCommandLine():
                 arg_options["nargs"] = "*"
             
             group.add_argument(name, **arg_options)
-
- 
+    
     @classmethod
-    def from_args(cls: T, args: argparse.Namespace) -> T:
+    def from_args(cls, args: argparse.Namespace):
         """Creates an instance of this class using results of `parser.parse_args()`
         
         Arguments:
