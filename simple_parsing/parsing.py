@@ -22,7 +22,7 @@ class InconsistentArgumentError(RuntimeError):
         super().__init__(*args, **kwargs)
 
 
-T = TypeVar("T", bound="ParseableFromCommandLine")
+# T = TypeVar("T", bound="ParseableFromCommandLine")
 
 
 class ParseableFromCommandLine():
@@ -168,7 +168,7 @@ class ParseableFromCommandLine():
         return cls(**constructor_args) #type: ignore
 
     @classmethod
-    def from_args_multiple(cls: Type[T], args: argparse.Namespace, num_instances_to_parse: int) -> List[T]:
+    def from_args_multiple(cls, args: argparse.Namespace, num_instances_to_parse: int):
         """Parses multiple instances of this class from the command line, and returns them.
         Each argument may have either 0 values (when applicable), 1, or {num_instances_to_parse}. 
         NOTE: If only one value is provided, every instance will be populated with the same value.
