@@ -14,7 +14,6 @@ from . import utils
 from . import docstring
 
 
-
 class InconsistentArgumentError(RuntimeError):
     """
     Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
@@ -24,6 +23,7 @@ class InconsistentArgumentError(RuntimeError):
 
 
 T = TypeVar("T", bound="ParseableFromCommandLine")
+
 
 class ParseableFromCommandLine():
     """

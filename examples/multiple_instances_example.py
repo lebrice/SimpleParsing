@@ -31,7 +31,7 @@ Example.add_arguments(parser, multiple=True)
 args = parser.parse_args()
 num_instances = args.num_instances
 
-examples = Example.from_args_multiple(args, num_instances)
+examples: List[Example] = Example.from_args_multiple(args, num_instances)
 assert len(examples) == num_instances
 for example in examples:
     print(example)
