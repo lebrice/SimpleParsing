@@ -2,7 +2,7 @@ import setuptools
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
-print("PACKAGES FOUND:",setuptools.find_packages())
+print("PACKAGES FOUND:", setuptools.find_packages())
 
 setuptools.setup(
     name="simple_parsing",
@@ -13,7 +13,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/lebrice/SimpleParsing",
-    packages=setuptools.find_packages(),
+    packages=["simple_parsing"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

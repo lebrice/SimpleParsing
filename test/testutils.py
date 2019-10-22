@@ -6,15 +6,17 @@ import simple_parsing
 from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine, Formatter
 
 
-class Setup():
+class TestSetup():
     @classmethod
-    def setup(cls, arguments: str = None, multiple = False) -> argparse.Namespace:
-        parser = argparse.ArgumentParser(formatter_class=Formatter)
+    def setup(cls, arguments: Optional[str] = "", multiple = False) -> argparse.Namespace:
+        parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
         cls.add_arguments(parser, multiple=multiple)
         # BUG: the arguments might have quotes in them, hence we shouldn't necessarily just split() with whitespace..
-        splits = shlex.split(arguments)
-        args = parser.parse_args(splits)
-        return args
+        if arguments is None:
+            return parser.parse_args()
+        else:
+            splits = shlex.split(arguments)
+            return parser.parse_args(splits)
     
     @classmethod
     def get_help_text(cls, multiple=False):

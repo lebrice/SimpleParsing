@@ -11,17 +11,17 @@ import pytest
 import simple_parsing
 from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
 
-import testutils
+from .testutils import TestSetup
 
 @dataclass()
-class Base(ParseableFromCommandLine, testutils.Setup):
+class Base(ParseableFromCommandLine, TestSetup):
     """ Some extension of base-class `Base` """
     a: int = 5
     f: bool = False
 
 
 @dataclass()
-class Flags(ParseableFromCommandLine, testutils.Setup):
+class Flags(ParseableFromCommandLine, TestSetup):
     a: bool # an example required flag (defaults to False)
     b: bool = True # optional flag 'b'.
     c: bool = False # optional flag 'c'.

@@ -8,12 +8,15 @@ from enum import Enum
 from typing import *
 
 import pytest
+
 import simple_parsing
 from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
-from testutils import Setup
+
+from .testutils import TestSetup
+
 
 @dataclass()
-class Container(ParseableFromCommandLine, Setup):
+class ContainerClass(ParseableFromCommandLine, TestSetup):
     a: Tuple[int]
     b: List[int]
     c: Tuple[str] = field(default_factory=tuple)
@@ -21,8 +24,8 @@ class Container(ParseableFromCommandLine, Setup):
 
 
 def test_single_element_list():
-    args = Container.setup("--a 1 --b 4 --c 7 --d 10")
-    container = Container.from_args(args)
+    args = ContainerClass.setup("--a 1 --b 4 --c 7 --d 10")
+    container = ContainerClass.from_args(args)
     assert container.a == (1,)
     assert container.b == [4]
     assert container.c == ('7',)
@@ -30,16 +33,16 @@ def test_single_element_list():
 
 
 def test_single_list_without_quotes_works():
-    args = Container.setup("--a 1 2 3 --b 4 5 6 --c 7 8 9 --d 10 11 12")
-    container = Container.from_args(args)
+    args = ContainerClass.setup("--a 1 2 3 --b 4 5 6 --c 7 8 9 --d 10 11 12")
+    container = ContainerClass.from_args(args)
     assert container.a == (1, 2, 3)
     assert container.b == [4, 5, 6]
     assert container.c == ('7', '8', '9')
     assert container.d == [10, 11, 12]
 
    
-    args = Container.setup("--a 1 2 --b 2 --c 3 4 5 --d 10 11 12")
-    container = Container.from_args(args)
+    args = ContainerClass.setup("--a 1 2 --b 2 --c 3 4 5 --d 10 11 12")
+    container = ContainerClass.from_args(args)
     assert container.a == (1,2)
     assert container.b == [2]
     assert container.c == ('3', '4', '5')
@@ -49,20 +52,20 @@ def test_single_list_without_quotes_works():
 def test_required_attributes_works():
     args = None
     with contextlib.suppress(SystemExit), pytest.raises(argparse.ArgumentError):
-        args = Container.setup("--b 4")
+        args = ContainerClass.setup("--b 4")
     assert args is None
 
     with contextlib.suppress(SystemExit), pytest.raises(argparse.ArgumentError):
-        args = Container.setup("--a 4")
+        args = ContainerClass.setup("--a 4")
     assert args is None
 
-    args = Container.setup("--a 4 --b 5")
+    args = ContainerClass.setup("--a 4 --b 5")
     assert args
 
 
 def test_list_multiple_work_with_quotes():
-    args = Container.setup("""--a '1 2 3' '4 5 6' --b "4 5 6" "7 8 9" --c "7 8 9" "7 9 11" --d '10 11 12'""", multiple=True)
-    containers = Container.from_args_multiple(args, 2)
+    args = ContainerClass.setup("""--a '1 2 3' '4 5 6' --b "4 5 6" "7 8 9" --c "7 8 9" "7 9 11" --d '10 11 12'""", multiple=True)
+    containers = ContainerClass.from_args_multiple(args, 2)
     container1 = containers[0]
     container2 = containers[1]
     assert container1.a == (1, 2, 3)
@@ -76,8 +79,8 @@ def test_list_multiple_work_with_quotes():
     assert container2.d == [10, 11, 12]
 
 def test_list_multiple_work_with_brackets():
-    args = Container.setup("""--a [1,2,3] [4,5,6] --b [4,5,6] [7,8,9] --c [7,8,9] [7,9,11] --d [10,11,12]""", multiple=True)
-    containers = Container.from_args_multiple(args, 2)
+    args = ContainerClass.setup("""--a [1,2,3] [4,5,6] --b [4,5,6] [7,8,9] --c [7,8,9] [7,9,11] --d [10,11,12]""", multiple=True)
+    containers = ContainerClass.from_args_multiple(args, 2)
     container1 = containers[0]
     container2 = containers[1]
     assert container1.a == (1, 2, 3)
@@ -91,23 +94,24 @@ def test_list_multiple_work_with_brackets():
     assert container2.d == [10, 11, 12]
 
 
-@pytest.mark.skip(reason="Supporting both this syntax and regular argparse syntax is kinda hard, and I'm not sure if it's needed.")
+@pytest.mark.xfail(reason="Supporting both this syntax and regular argparse syntax is kinda hard, and I'm not sure if it's needed.")
 def test_single_list_with_quotes_works():
-    args = Container.setup("""--a '1 2 3' --b "4 5 6" --c "7 9 11" --d '10 11 12'""")
-    container = Container.from_args(args)
+    args = ContainerClass.setup("""--a '1 2 3' --b "4 5 6" --c "7 9 11" --d '10 11 12'""")
+    container = ContainerClass.from_args(args)
     assert container.a == (1, 2, 3)
     assert container.b == [4, 5, 6]
     assert container.c == ('7', '9', '11')
     assert container.d == [10, 11, 12]
 
 
-@pytest.mark.skip(reason="Supporting both this syntax and regular argparse syntax is kinda hard, and I'm not sure if it's needed.")
+@pytest.mark.xfail(reason="Supporting both this syntax and regular argparse syntax is kinda hard, and I'm not sure if it's needed.")
 def test_single_list_with_brackets_works():
-    args = Container.setup("""--a [1,2,3] --b [4,5,6] --c [7,9,11] --d [10,11,12]""")
-    container = Container.from_args(args)
+    args = ContainerClass.setup("""--a [1,2,3] --b [4,5,6] --c [7,9,11] --d [10,11,12]""")
+    container = ContainerClass.from_args(args)
     assert container.a == (1, 2, 3)
     assert container.b == [4, 5, 6]
     assert container.c == ('7', '9', '11')
     assert container.d == [10, 11, 12]
 
 # print(Container.get_help_text())
+ContainerClass
