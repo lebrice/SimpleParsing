@@ -1,9 +1,16 @@
 """Utility functions"""
 import inspect
 import typing
+import argparse
 from dataclasses import dataclass
 from typing import *
-from argparse import ArgumentTypeError
+
+
+class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
+    """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
+    """
+    pass
+
 
 def str2bool(v: str) -> bool:
     """
@@ -16,7 +23,7 @@ def str2bool(v: str) -> bool:
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
         return False
     else:
-        raise ArgumentTypeError(f"Boolean value expected for argument, received '{v}'")
+        raise argparse.ArgumentTypeError(f"Boolean value expected for argument, received '{v}'")
 
 
 def get_item_type(container_type: Type) -> Optional[Type]:
@@ -128,5 +135,3 @@ def _parse_container(tuple_or_list: type,) -> Callable[[str], List[Any]]:
         return values
 
     return parse_fn
-
-  

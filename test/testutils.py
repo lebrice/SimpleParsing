@@ -3,13 +3,13 @@ from typing import *
 import shlex
 import pytest
 import simple_parsing
-from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
+from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine, Formatter
 
 
 class Setup():
     @classmethod
     def setup(cls, arguments: str = None, multiple = False) -> argparse.Namespace:
-        parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        parser = argparse.ArgumentParser(formatter_class=Formatter)
         cls.add_arguments(parser, multiple=multiple)
         # BUG: the arguments might have quotes in them, hence we shouldn't necessarily just split() with whitespace..
         splits = shlex.split(arguments)

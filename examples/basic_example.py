@@ -10,10 +10,9 @@ import argparse
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
-from simple_parsing import ParseableFromCommandLine
+from simple_parsing import Formatter, ParseableFromCommandLine
 
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
+parser = argparse.ArgumentParser(formatter_class=Formatter)
 
 @dataclass()
 class Options(ParseableFromCommandLine):
