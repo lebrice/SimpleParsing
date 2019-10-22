@@ -22,9 +22,6 @@ class InconsistentArgumentError(RuntimeError):
         super().__init__(*args, **kwargs)
 
 
-# T = TypeVar("T", bound="ParseableFromCommandLine")
-
-
 class ParseableFromCommandLine():
     """
     When applied to a dataclass, this enables creating an instance of that class and populating the attributes from the command-line.
@@ -83,18 +80,17 @@ class ParseableFromCommandLine():
                 elif doc.comment_inline:
                     arg_options["help"] = doc.comment_inline
             
-            if f.default is dataclasses.MISSING:
-                if f.default_factory is dataclasses.MISSING:
-                    arg_options["required"] = True
-                else:
-                    arg_options["default"] = f.default_factory()
-            else:
+            if f.default is not dataclasses.MISSING:
                 arg_options["default"] = f.default
-
-            # if multiple and "default" in arg_options:
-            #     arg_options["default"] = [arg_options["default"]]    
+            elif f.default_factory is not dataclasses.MISSING: # type: ignore
+                arg_options["default"] = f.default_factory() # type: ignore
+            else:
+                arg_options["required"] = True
             
-            # print(f"adding argument for field {f.name} with type {f.type}. Multiple is {multiple}, default value is {arg_options.get('default', None)}")
+            
+                        
+            print(f"adding argument for field {f.name} with type {f.type}. Multiple is {multiple}, default value is {arg_options.get('default', None)}, required is {arg_options.get('required', None)}")
+            print("arg_options so far:", arg_options)
             
             if enum.Enum in f.type.mro():
                 arg_options["choices"] = list(e.name for e in f.type)
@@ -114,18 +110,23 @@ class ParseableFromCommandLine():
                     arg_options["type"] = utils._parse_multiple_containers(f.type)
                 else:
                     # TODO: Supporting the `--a '1 2 3'`, `--a [1,2,3]`, and `--a 1 2 3` at the same time is syntax is kinda hard, and I'm not sure if it's really necessary.
-                    # right now, we support --a '1 2 3' '4 5 6' and --a [1,2,3] [4,5,6] when parsing multiple instances.
+                    # right now, we support --a '1 2 3' '4 5 6' and --a [1,2,3] [4,5,6] only when parsing multiple instances.
                     # arg_options["type"] = utils._parse_container(f.type)
                     arg_options["type"] = T             
             
             elif f.type is bool:
                 arg_options["default"] = False if f.default is dataclasses.MISSING else f.default
                 arg_options["type"] = utils.str2bool
-                arg_options["nargs"] = '?'
+                arg_options["nargs"] = "*" if multiple else "?"
                 if f.default is dataclasses.MISSING:
                     arg_options["required"] = True
+            
             elif multiple:
-                arg_options["nargs"] = "*"
+                required = arg_options.get("required", False)
+                if required:
+                    arg_options["nargs"] = "+"
+                else:
+                    arg_options["nargs"] = "*"
             
             group.add_argument(name, **arg_options)
     
@@ -185,25 +186,53 @@ class ParseableFromCommandLine():
         """
         args_dict: Dict[str, Any] = vars(args)
         # keep the arguments and values relevant to this class.
-        constructor_arguments: Dict[str, Union[Any, List]] = {
-            f.name: args_dict[f.name]
-            for f in dataclasses.fields(cls)
-        }
-        # print("Constructor arguments:", constructor_arguments)
+        constructor_arguments: Dict[str, Union[Any, List]] = {}
+        for f in dataclasses.fields(cls):
+            constructor_arguments[f.name] = args_dict[f.name]
+        
         arguments_per_instance: List[Dict[str, Any]] = []
         for i in range(num_instances_to_parse):
-            ith_arguments_dict: Dict[str, Any] = {}
+            
+            instance_arguments: Dict[str, Any] = {}
+
             for field_name, field_values in constructor_arguments.items():
-                if len(field_values) == 1:
-                    ith_arguments_dict[field_name] = field_values[0]
+                if not isinstance(field_values, list):
+                    instance_arguments[field_name] = field_values
+                elif isinstance(field_values, (list, tuple)) and len(field_values) == 0:
+                    instance_arguments[field_name] = field_values
+                elif len(field_values) == 1:
+                    instance_arguments[field_name] = field_values[0]
                 elif len(field_values) == num_instances_to_parse:
-                    ith_arguments_dict[field_name] = field_values[i]
+                    instance_arguments[field_name] = field_values[i]
                 else:
                     raise InconsistentArgumentError(
                         f"The field '{field_name}' contains {len(field_values)} values, but either 1 or {num_instances_to_parse} values were expected.")
-            arguments_per_instance.append(ith_arguments_dict)
+            arguments_per_instance.append(instance_arguments)
 
         return list(
             cls(**arguments_dict) #type: ignore
             for arguments_dict in arguments_per_instance
         )
+    
+    def asdict(self) -> Dict[str, Any]:
+        """Returns a dictionary constructed from this dataclass' values.
+        
+        Returns:
+            Dict[str, Any] -- A dictionary
+        """
+        d = dataclasses.asdict(self)
+        return d
+    
+    def attribute_docstrings(self) -> Dict[str, docstring.AttributeDocString]:
+        """Returns a dictionary of all the attribute docstrings in this dataclass.
+        
+        Returns:
+            Dict[str, docstring.AttributeDocString] -- A dictionary where the keys are the attribute names, and the values are `docstring.AttributeDocString` instances. 
+        """
+        docs = {}
+        for field in dataclasses.fields(self):
+            doc = docstring.get_attribute_docstring(self.__class__, field.name)
+            if doc is not None:
+                docs[field.name] = doc
+        return docs
+
