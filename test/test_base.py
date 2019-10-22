@@ -43,8 +43,7 @@ def test_default_value_is_used_when_no_args_are_provided(some_type: Type, defaul
         (float, 0.,     123.456),
         (str,   "",     "bobby_boots"),
         (bool,  False,  True),
-    ]
-)
+    ])
 def test_arg_value_is_set_when_args_are_provided(some_type: Type, default_value: Any, arg_value: Any):
     @dataclass()
     class SomeClass(ParseableFromCommandLine, TestSetup):
@@ -58,7 +57,6 @@ def test_arg_value_is_set_when_args_are_provided(some_type: Type, default_value:
     assert isinstance(class_a.a, some_type)
 
 
-
 @pytest.mark.parametrize("some_type", [int, float, str, bool,])
 def test_not_providing_required_argument_throws_error(some_type):
     @dataclass()
@@ -69,6 +67,16 @@ def test_not_providing_required_argument_throws_error(some_type):
     with pytest.raises(SystemExit):
         args = SomeClass.setup("")
 
+
+@pytest.mark.parametrize("some_type", [int, float, str])
+def test_not_providing_required_argument_name_but_no_value_throws_error(some_type):
+    @dataclass()
+    class SomeClass(ParseableFromCommandLine, TestSetup):
+        a: some_type # type: ignore
+        """some docstring for attribute 'a'"""
+
+    with pytest.raises(SystemExit):
+        args = SomeClass.setup("--a")
 
 class Color(Enum):
     RED = "RED"
@@ -129,4 +137,3 @@ def test_enum_attributes_work():
     args = Extended.setup("--a 5")
     ext = Extended.from_args(args)
     assert ext.e == Color.BLUE
-

@@ -63,6 +63,15 @@ def test_required_attributes_works():
     assert args
 
 
+def test_default_value():
+    args = ContainerClass.setup("--a 1 2 3 --b 4 5 6")
+    container = ContainerClass.from_args(args)
+    assert container.a == (1, 2, 3)
+    assert container.b == [4, 5, 6]
+    assert container.c == tuple()
+    assert container.d == list()
+
+
 def test_list_multiple_work_with_quotes():
     args = ContainerClass.setup("""--a '1 2 3' '4 5 6' --b "4 5 6" "7 8 9" --c "7 8 9" "7 9 11" --d '10 11 12'""", multiple=True)
     containers = ContainerClass.from_args_multiple(args, 2)
@@ -114,4 +123,3 @@ def test_single_list_with_brackets_works():
     assert container.d == [10, 11, 12]
 
 # print(Container.get_help_text())
-ContainerClass

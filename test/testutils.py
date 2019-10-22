@@ -10,6 +10,7 @@ class TestSetup():
     @classmethod
     def setup(cls, arguments: Optional[str] = "", multiple = False) -> argparse.Namespace:
         parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        # parser = argparse.ArgumentParser(formatter_class=Formatter)
         cls.add_arguments(parser, multiple=multiple)
         # BUG: the arguments might have quotes in them, hence we shouldn't necessarily just split() with whitespace..
         if arguments is None:
