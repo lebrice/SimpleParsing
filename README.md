@@ -74,28 +74,28 @@ For instance, passing the "--help" option displays relevant information for each
 ```console
 $> python ./basic_example.py --help
 usage: basic_example.py [-h] --some_int int [--some_float float] [--name str]
-												[--log_dir str] [--flag [str2bool]]
-												[--some_integers [int [int ...]]]
-												[--some_floats [float [float ...]]]
+                        [--log_dir str] [--flag [str2bool]]
+                        [--some_integers [int [int ...]]]
+                        [--some_floats [float [float ...]]]
 
 optional arguments:
-	-h, --help            show this help message and exit
+  -h, --help            show this help message and exit
 
 Options:
-	A class which groups related parameters.
+  A class which groups related parameters.
 
-	--some_int int        Some required parameter int parameter (default: None)
-	--some_float float    An optional float parameter (default: 1.23)
-	--name str            The name of some **important** experiment (default:
-												default)
-	--log_dir str         an optional string parameter (default: /logs)
-	--flag [str2bool]     Wether or not we do something (default: False)
-	--some_integers [int [int ...]]
-												This is a list of integers (empty by default)
-												(default: [])
-	--some_floats [float [float ...]]
-												Converting the list items to the right type will be
-												taken care of for you! (default: [])
+  --some_int int        Some required int parameter (default: None)
+  --some_float float    An optional float parameter (default: 1.23)
+  --name str            The name of some important experiment (default:
+                        default)
+  --log_dir str         an optional string parameter (default: /logs)
+  --flag [str2bool]     Wether or not we do something (default: False)
+  --some_integers [int [int ...]]
+                        This is a list of integers (empty by default)
+                        (default: [])
+  --some_floats [float [float ...]]
+                        Converting the list items to the right type will be
+                        taken care of for you! (default: [])
 ```
 
 ### Easily convert to/from a dictionary:
