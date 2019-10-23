@@ -57,7 +57,7 @@ def get_item_type(container_type: Type) -> Optional[Type]:
     if container_type in {list, tuple}:
         # the built-in `list` and `tuple` types don't have annotations for their item types.
         return None
-    if type(container_type) is typing._GenericAlias:
+    if hasattr(container_type, "__args__"):
         T = container_type.__args__[0] if len(container_type.__args__) >= 1 else None
         return T
     return None
