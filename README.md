@@ -1,4 +1,4 @@
-Welcome to the SimpleParsing wiki!
+[![Build Status](https://travis-ci.org/lebrice/SimpleParsing.svg?branch=master)](https://travis-ci.org/lebrice/SimpleParsing)
 
 # Simple, Elegant Argument Parsing
 
@@ -38,13 +38,13 @@ parser = argparse.ArgumentParser(formatter_class=Formatter)
 class Options(ParseableFromCommandLine):
 	""" A class which groups related parameters. """
 
-	some_int: int              	# Some required int parameter
-	some_float: float = 1.23    # An optional float parameter
+	some_int: int			# Some required int parameter
+	some_float: float = 1.23	# An optional float parameter
 
 	name: str = "default"   	# The name of some important experiment
 
 	log_dir: str = "/logs" 		# an optional string parameter
-	flag: bool = False 			# Wether or not we do something
+	flag: bool = False 		# Wether or not we do something
 
 	# This is a list of integers (empty by default)
 	some_integers: List[int] = field(default_factory=list)
