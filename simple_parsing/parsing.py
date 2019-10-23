@@ -87,10 +87,8 @@ class ParseableFromCommandLine():
             else:
                 arg_options["required"] = True
             
-            
-                        
-            print(f"adding argument for field {f.name} with type {f.type}. Multiple is {multiple}, default value is {arg_options.get('default', None)}, required is {arg_options.get('required', None)}")
-            print("arg_options so far:", arg_options)
+            # print(f"adding argument for field {f.name} with type {f.type}. Multiple is {multiple}, default value is {arg_options.get('default', None)}, required is {arg_options.get('required', None)}")
+            # print("arg_options so far:", arg_options)
             
             if enum.Enum in f.type.mro():
                 arg_options["choices"] = list(e.name for e in f.type)
@@ -112,7 +110,7 @@ class ParseableFromCommandLine():
                     # TODO: Supporting the `--a '1 2 3'`, `--a [1,2,3]`, and `--a 1 2 3` at the same time is syntax is kinda hard, and I'm not sure if it's really necessary.
                     # right now, we support --a '1 2 3' '4 5 6' and --a [1,2,3] [4,5,6] only when parsing multiple instances.
                     # arg_options["type"] = utils._parse_container(f.type)
-                    arg_options["type"] = T             
+                    arg_options["type"] = T
             
             elif f.type is bool:
                 arg_options["default"] = False if f.default is dataclasses.MISSING else f.default

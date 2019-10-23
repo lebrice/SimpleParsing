@@ -20,10 +20,6 @@ class Example(ParseableFromCommandLine):
     log_dir: str = "/logs" # an optional string parameter named log_dir.
     """the logging directory to use. (This is an attribute docstring for the log_dir attribute, and shows up when using the "--help" argument!)"""
     
-    
-    list_of_ints: List[int] = field(default_factory=list) 
-    list_of_strings: List[str] = field(default_factory=list)
-
 
 parser.add_argument("--num_instances", default=2, type=int, help="Number of instances of `Example` to create from the command line values.")
 Example.add_arguments(parser, multiple=True)

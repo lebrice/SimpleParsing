@@ -6,7 +6,7 @@ print("PACKAGES FOUND:", setuptools.find_packages())
 
 setuptools.setup(
     name="simple_parsing",
-    version="0.0.1.post7",
+    version="0.0.1.post8",
     author="Fabrice Normandin",
     author_email="fabrice.normandin@gmail.com",
     description="A small utility for simplifying and cleaning up argument parsing scripts.",
