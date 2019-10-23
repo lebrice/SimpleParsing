@@ -10,12 +10,14 @@ Do you ever find youself stuck with an endless list of command-line arguments, s
 
 ## installation
 
-python version >= 3.7
-```
+python version >= 3.7:
+```console
 pip install simple-parsing
 ```
-(python 3.6 support might become available in the future using the [`dataclasses` backport](https://pypi.org/project/dataclasses/))
-
+python version == 3.6.X:
+```console
+pip install dataclasses simple-parsing
+```
 
 ## Basic Usage: <a name="basic-usage"></a>
 
