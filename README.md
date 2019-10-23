@@ -74,7 +74,7 @@ Options(some_int=123, some_float=1.23, name='default', log_dir='/logs', flag=Tru
 **However, we get a lot of nice information for free!**
 For instance, passing the "--help" option displays relevant information for each argument:
 ```console
-$> python ./basic_example.py --help
+$ python ./basic_example.py --help
 usage: basic_example.py [-h] --some_int int [--some_float float] [--name str]
                         [--log_dir str] [--flag [str2bool]]
                         [--some_integers [int [int ...]]]
