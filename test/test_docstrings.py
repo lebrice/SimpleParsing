@@ -1,18 +1,13 @@
-import argparse
-import dataclasses
-import inspect
-import textwrap
-from dataclasses import Field, dataclass
+from dataclasses import dataclass
 
 import pytest
 
 import simple_parsing
-from simple_parsing import InconsistentArgumentError, ParseableFromCommandLine
-
 from simple_parsing.docstring import get_attribute_docstring
 
+
 @dataclass()
-class Base(ParseableFromCommandLine):
+class Base():
     """A simple base-class example"""
     a: int # TODO: finetune this
 
