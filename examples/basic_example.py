@@ -31,7 +31,7 @@ parser.add_arguments(Options)
 args = parser.parse_args()
 
 # retrieve the Options instance from the parsed args
-options = args.options
+options: Options = args.options
 
 # Do whatever you want using the Options object here!
 print(options)

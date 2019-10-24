@@ -1,10 +1,9 @@
-import argparse
 import enum
 from dataclasses import dataclass, field
 
-from simple_parsing import ParseableFromCommandLine
+from simple_parsing import ArgumentParser
 
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = ArgumentParser()
 
 class Color(enum.Enum):
     RED = "RED"
@@ -18,12 +17,12 @@ class Temperature(enum.Enum):
     MONTREAL = -35
 
 @dataclass()
-class MyPreferences(ParseableFromCommandLine):
+class MyPreferences():
     """You can use Enums"""
     color: Color = Color.BLUE # my favorite colour
     temp: Temperature = Temperature.WARM
 
-MyPreferences.add_arguments(parser)
+parser.add_arguments(MyPreferences, "my_preferences")
 args = parser.parse_args()
-prefs = MyPreferences.from_args(args)
+prefs: MyPreferences = args.my_preferences
 print(prefs)

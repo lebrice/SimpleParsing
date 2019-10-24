@@ -1,13 +1,12 @@
-import argparse
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
-from simple_parsing import ParseableFromCommandLine
+from simple_parsing import ArgumentParser
 
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = ArgumentParser()
 
 @dataclass()
-class Example(ParseableFromCommandLine):
+class Example():
     # As well as lists using dataclasses.field (see the dataclasses package):
     some_list_of_ints: List[int] = field(default_factory=list)
     """This list is empty, by default. when passed some parameters, they are
@@ -23,7 +22,9 @@ class Example(ParseableFromCommandLine):
     # """This list has a default value of ["default_1", "default_2"]."""
 
 
-Example.add_arguments(parser)
+parser.add_arguments(Example, "example")
 args = parser.parse_args()
-example = Example.from_args(args)
+
+example = args.example
+
 print(example)

@@ -7,13 +7,13 @@
 """
 import argparse
 from dataclasses import dataclass, field
-from simple_parsing import ParseableFromCommandLine
+from simple_parsing import ArgumentParser
 from typing import List
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
+parser = ArgumentParser()
 
 @dataclass()
-class Example(ParseableFromCommandLine):
+class Example():
     """ A class which groups related parameters. """
     foo: int # Some required parameter named foo.
     bar: int = 10 # an optional int parameter named bar.
@@ -21,14 +21,13 @@ class Example(ParseableFromCommandLine):
     """the logging directory to use. (This is an attribute docstring for the log_dir attribute, and shows up when using the "--help" argument!)"""
     
 
-parser.add_argument("--num_instances", default=2, type=int, help="Number of instances of `Example` to create from the command line values.")
-Example.add_arguments(parser, multiple=True)
+
+num_instances = 2
+for i in range(num_instances):
+    parser.add_arguments(Example, f"example_{i}")
 
 args = parser.parse_args()
-num_instances = args.num_instances
 
-examples = Example.from_args_multiple(args, num_instances)
-
-assert len(examples) == num_instances
-for example in examples:
-    print(example)
+example1 = args.example_0
+example2 = args.example_1
+print(example1, example2, sep="\n")
