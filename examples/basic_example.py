@@ -2,9 +2,9 @@
 from dataclasses import dataclass, field, asdict
 from typing import List, Tuple
 
-from simple_parsing import ArgumentParser, Formatter
+import simple_parsing
 
-parser = ArgumentParser(formatter_class=Formatter)
+parser = simple_parsing.ArgumentParser()
 
 @dataclass
 class Options:
@@ -25,7 +25,7 @@ class Options:
 	some_floats: List[float] = field(default_factory=list)
 
 # add the arguments
-parser.add_arguments(Options)
+parser.add_arguments(Options, "options")
 
 # parse the arguments from stdin
 args = parser.parse_args()

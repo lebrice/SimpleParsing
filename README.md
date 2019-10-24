@@ -4,8 +4,8 @@
 
 Do you ever find youself stuck with an endless list of command-line arguments, say, when specifying all the hyper-parameters of your ML model? Well, say no more, here's something to make your life just a little bit easier!
 
-`simple-parsing` uses python 3.7's amazing [dataclasses](https://docs.python.org/3/library/dataclasses.html) to allow you to define your arguments in a simple, elegant, and object-oriented way. When applied to a dataclass, the `ParseableFromCommandLine` base-class enables creating instances of that class automatically from the provided command-line arguments.
-
+`simple-parsing` uses python 3.7's amazing [dataclasses](https://docs.python.org/3/library/dataclasses.html) to allow you to define your arguments in a simple, elegant, and object-oriented way. 
+Simply replace the 
 ## Documentation: [SimpleParse Wiki](https://github.com/lebrice/SimpleParsing/wiki)
 
 ## installation
@@ -21,30 +21,30 @@ pip install dataclasses simple-parsing
 
 ## Basic Usage: <a name="basic-usage"></a>
 
-Instead of adding your command-line arguments with `parser.add_argument(...)`, you can instead define your arguments directly in code!
-Simply create a `dataclass` to hold your arguments, adding `ParseableFromCommandLine` as a base class:
+Instead of having to add every argument with `parser.add_argument(...)`, you can instead define group them into dataclasses, and all the arguments will be added for you!
+To start, simply create a `dataclass` to hold your arguments.
+Then, replace the usual `argparse.ArgumentParser` with `simple_parsing.ArgumentParser`, (a subclass of the regular `ArgumentParser`).
 
 ```python
 """A basic example of how to use simple-parsing."""
-import argparse
-from dataclasses import dataclass, field
-from typing import List
+from dataclasses import dataclass, field, asdict
+from typing import List, Tuple
 
-from simple_parsing import Formatter, ParseableFromCommandLine
+import simple_parsing
 
-parser = argparse.ArgumentParser(formatter_class=Formatter)
+parser = simple_parsing.ArgumentParser()
 
-@dataclass()
-class Options(ParseableFromCommandLine):
+@dataclass
+class Options:
 	""" A class which groups related parameters. """
 
-	some_int: int			# Some required int parameter
-	some_float: float = 1.23	# An optional float parameter
+	some_int: int              	# Some required int parameter
+	some_float: float = 1.23    # An optional float parameter
 
 	name: str = "default"   	# The name of some important experiment
 
 	log_dir: str = "/logs" 		# an optional string parameter
-	flag: bool = False 		# Wether or not we do something
+	flag: bool = False 			# Wether or not we do something
 
 	# This is a list of integers (empty by default)
 	some_integers: List[int] = field(default_factory=list)
@@ -53,13 +53,13 @@ class Options(ParseableFromCommandLine):
 	some_floats: List[float] = field(default_factory=list)
 
 # add the arguments
-Options.add_arguments(parser)
+parser.add_arguments(Options, "options")
 
 # parse the arguments from stdin
 args = parser.parse_args()
 
-# create an instance of Options with the arguments
-options = Options.from_args(args)
+# retrieve the Options instance from the parsed args
+options: Options = args.options
 
 # Do whatever you want using the Options object here!
 print(options)
@@ -74,7 +74,7 @@ Options(some_int=123, some_float=1.23, name='default', log_dir='/logs', flag=Tru
 **However, we get a lot of nice information for free!**
 For instance, passing the "--help" option displays relevant information for each argument:
 ```console
-$ python ./basic_example.py --help
+$ python examples/basic_example.py --help
 usage: basic_example.py [-h] --some_int int [--some_float float] [--name str]
                         [--log_dir str] [--flag [str2bool]]
                         [--some_integers [int [int ...]]]
@@ -83,7 +83,7 @@ usage: basic_example.py [-h] --some_int int [--some_float float] [--name str]
 optional arguments:
   -h, --help            show this help message and exit
 
-Options:
+Options ['options']:
   A class which groups related parameters.
 
   --some_int int        Some required int parameter (default: None)
@@ -102,8 +102,10 @@ Options:
 
 ### Easily convert to/from a dictionary:
 ```python
+
 # convert the dataclass to a dict
-options_dict = options.asdict()
+from dataclasses import asdict
+options_dict = asdict(options)
 
 # create an instance from a dict
 options_ = Options(**options_dict)
@@ -114,7 +116,7 @@ You can then use whichever library you like (`yaml`, `json`, etc.) and save the 
 ```python
 import json
 with open(options.name + ".json", "w") as f:
-	json.dump(options_dict, f, indent=1)
+  json.dump(options_dict, f, indent=1)
 ```
 ```console
 $ cat default.json
@@ -135,8 +137,8 @@ $ cat default.json
 Loading from a dictionary or JSON file:
 ```python
 with open("default.json") as f:
-	params = json.load(f)
-	default_options = Options(**params)
-	assert options == default_options
-	print(default_options)
+  params = json.load(f)
+  default_options = Options(**params)
+  assert options == default_options
+  print(default_options)
 ```
