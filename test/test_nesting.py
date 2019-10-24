@@ -8,7 +8,7 @@ import pytest
 
 from .testutils import TestSetup
 from simple_parsing import (Formatter, InconsistentArgumentError,
-                            ParseableFromCommandLine)
+                            ArgumentParser)
 
     
 # call a test function multiple times passing in different arguments in turn.
@@ -18,29 +18,29 @@ from simple_parsing import (Formatter, InconsistentArgumentError,
 
 
 @dataclass()
-class ClassA(ParseableFromCommandLine):
+class ClassA():
     a: int = 1
 
 
 @dataclass()
-class ClassB(ParseableFromCommandLine):
+class ClassB():
     b: int = 2
 
 
 @dataclass()
-class ClassC(ParseableFromCommandLine):
+class ClassC():
     c: int = 3
 
 
 @dataclass()
-class Container1(ParseableFromCommandLine, TestSetup):
+class Container1(TestSetup):
     v1: int = 0
     class_a: ClassA = ClassA()
     class_b: ClassB = ClassB()
 
 
 @dataclass()
-class Container2(ParseableFromCommandLine, TestSetup):
+class Container2(TestSetup):
     list_of_class_c: List[ClassC] = field(default_factory=list)
 
 

@@ -33,7 +33,7 @@ class TestSetup():
         else:
             splits = shlex.split(arguments)
             args = parser.parse_args(splits)
-        instance: cls = getattr(parser, dest) #type: ignore
+        instance: cls = getattr(args, dest) #type: ignore
         return instance
     
     @classmethod

@@ -117,6 +117,14 @@ def test_parse_multiple_without_required_container_arguments(container_type: Typ
     with pytest.raises(SystemExit):
         _ = SomeClass.setup_multiple(3, "")
 
+@pytest.mark.xfail(reason="TODO: Should passing '--a' with no value make an empty list if the arguent is required? or should an error be thrown?")
+@pytest.mark.parametrize("container_type", [List, Tuple])
+@pytest.mark.parametrize("item_type", [int, float, str, bool])
+def test_parse_multiple_without_required_container_arguments(container_type: Type, item_type: Type):
+    @dataclass()
+    class SomeClass(TestSetup):
+        a: container_type[item_type] # type: ignore
+        """some docstring for attribute 'a'"""
 
     with pytest.raises(SystemExit):
         _ = SomeClass.setup_multiple(3, "--a")

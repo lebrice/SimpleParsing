@@ -77,7 +77,7 @@ def test_list_multiple_work_with_quotes():
     assert container2.d == [10, 11, 12]
 
 def test_list_multiple_work_with_brackets():
-    container1, container2 = ContainerClass.setup_multiple(2, """--a [1,2,3] [4,5,6] --b [4,5,6] [7,8,9] --c [7,8,9] [7,9,11] --d [10,11,12]""", multiple=True)
+    container1, container2 = ContainerClass.setup_multiple(2, """--a [1,2,3] [4,5,6] --b [4,5,6] [7,8,9] --c [7,8,9] [7,9,11] --d [10,11,12]""")
     assert container1.a == (1, 2, 3)
     assert container1.b == [4, 5, 6]
     assert container1.c == ('7', '8', '9')

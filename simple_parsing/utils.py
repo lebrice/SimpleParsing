@@ -1,7 +1,6 @@
 """Utility functions"""
-import inspect
-import typing
 import argparse
+import re
 from dataclasses import dataclass
 from typing import *
 
@@ -10,6 +9,11 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelp
     """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
     """
     pass
+
+
+def camel_case(name):
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
 def str2bool(v: str) -> bool:
@@ -62,7 +66,7 @@ def get_item_type(container_type: Type) -> Optional[Type]:
         return T
     return None
 
-def get_argparse_container_type(container_type: Type) -> typing.Type:
+def get_argparse_container_type(container_type: Type) -> Type:
     """Gets the argparse 'type' option to be used for a given container type.
     When an annotation is present, the 'type' option of argparse is set to that type.
     if not, then the default value of 'str' is returned.

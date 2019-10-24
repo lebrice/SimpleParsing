@@ -6,7 +6,7 @@ import collections
 import dataclasses
 import enum
 import inspect
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 import typing
 from typing import *
 import re
@@ -24,15 +24,14 @@ class InconsistentArgumentError(RuntimeError):
 
 
 class ArgumentParser(argparse.ArgumentParser):
-
     def __init__(self, *args, **kwargs):
         if "formatter_class" not in kwargs:
             kwargs["formatter_class"] = utils.Formatter
         super().__init__(*args, **kwargs)
 
-        self._args_to_add: Dict[Type, List[str]] = {}
+        self._args_to_add: Dict[Type, List[str]] = defaultdict(list)
     
-    def add_arguments(self, dataclass: Type, dest: str = None):
+    def add_arguments(self, dataclass: Type, dest: str):
         """Adds corresponding command-line arguments for this class to the parser.
         
         Arguments:
@@ -40,32 +39,28 @@ class ArgumentParser(argparse.ArgumentParser):
         
         Keyword Arguments:
             dest {str} -- The destination key where filled dataclass will be stored after parsing
-                          If no destination is passed, the name of the class converted to snake_case is used (default: {None})
         """
         
         #TODO: Double-Check this mechanism, just to make sure this is natural and makes sense.
-        
         # NOTE: about boolean (flag-like) arguments:
         # If the argument is present with no value, then the opposite of the default value should be used.
         # For example, say there is an argument called "--no-cache", with a default value of False.
         # - When we don't pass the argument, (i.e, $> python example.py) the value should be False.
         # - When we pass the argument, (i.e, $> python example.py --no-cache), the value should be True.
         # - When we pass the argument with a value, ex: "--no-cache true" or "--no-cache false", the given value should be used 
-
-        # Convert from CamelCase to snake_case
-        if dest is None:
-            dest = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', dataclass.__qualname__)
-            dest = re.sub('([a-z0-9])([A-Z])', r'\1_\2', dest).lower()
         
         # Here we store args to add instead of adding them directly in order to handle the case where
         # multiple of the same dataclass are added as arguments
-        if dataclass in self._args_to_add:
-            self._args_to_add[dataclass].append(dest)
-        else:
-            self._args_to_add[dataclass] = [dest]
+        self._args_to_add[dataclass].append(dest)
+
     
     def _add_arguments(self, dataclass: Type, multiple=False):
-        group = self.add_argument_group(dataclass.__qualname__, description=dataclass.__doc__)
+        names = self._args_to_add[dataclass]
+        names_string =f""" [{', '.join(f"'{name}'" for name in names)}]"""
+        group = self.add_argument_group(
+            dataclass.__qualname__ + names_string,
+            description=dataclass.__doc__
+        )
         for f in dataclasses.fields(dataclass):
             name = f"--{f.name}"
             arg_options: Dict[str, Any] = { 
@@ -162,6 +157,7 @@ class ArgumentParser(argparse.ArgumentParser):
     def _instantiate_multiple_dataclasses(self, dataclass: Type, args: argparse.Namespace, num_instances_to_parse: int):
         """Creates multiple instances of the dataclass using results of `parser.parse_args()`"""
         args_dict: Dict[str, Any] = vars(args)
+
         # keep the arguments and values relevant to this class.
         constructor_arguments: Dict[str, Union[Any, List]] = {}
         for f in dataclasses.fields(dataclass):
@@ -195,14 +191,16 @@ class ArgumentParser(argparse.ArgumentParser):
         # Add (for real this time!) the dataclasses, handling the case where the same dataclass was added multiple times
         # with different 'dest' strings
         for dataclass_to_add, destinations in self._args_to_add.items():
-            self._add_arguments(dataclass_to_add, multiple=len(destinations) > 0)
+            self._add_arguments(dataclass_to_add, multiple=len(destinations) > 1)
 
         # Parse the arguments normally
         parsed_args = super().parse_args(args, namespace)
 
+        # TODO: get a nice typed version of parsed_args (a Namespace)       
+
         # Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
         for dataclass_to_add, destinations in self._args_to_add.items():
-            if len(destinations) == 0:
+            if len(destinations) == 1:
                 dataclass_instance = self._instantiate_dataclass(dataclass_to_add, parsed_args)
                 setattr(parsed_args, destinations[0], dataclass_instance)
             else:

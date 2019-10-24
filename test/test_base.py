@@ -9,7 +9,6 @@ from typing import *
 
 import pytest
 import simple_parsing
-from simple_parsing import *
 
 from .testutils import TestSetup
 
@@ -57,7 +56,7 @@ def test_arg_value_is_set_when_args_are_provided(some_type: Type, default_value:
 @pytest.mark.parametrize("some_type", [int, float, str, bool,])
 def test_not_providing_required_argument_throws_error(some_type):
     @dataclass()
-    class SomeClass(ParseableFromCommandLine, TestSetup):
+    class SomeClass(TestSetup):
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
     with pytest.raises(SystemExit):
@@ -67,7 +66,7 @@ def test_not_providing_required_argument_throws_error(some_type):
 @pytest.mark.parametrize("some_type", [int, float, str])
 def test_not_providing_required_argument_name_but_no_value_throws_error(some_type):
     @dataclass()
-    class SomeClass(ParseableFromCommandLine, TestSetup):
+    class SomeClass(TestSetup):
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
 
@@ -112,7 +111,7 @@ def test_parse_multiple_works():
     assert b2.c == "Bye"
 
 def test_parse_multiple_inconsistent_throws_error():
-    with pytest.raises(InconsistentArgumentError):
+    with pytest.raises(simple_parsing.InconsistentArgumentError):
         args = Base.setup_multiple(3, "--a 10 20 --b 3 --c Hello Bye")
 
 def test_help_displays_class_docstring_text():
