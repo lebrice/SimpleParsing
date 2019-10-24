@@ -2,10 +2,10 @@
 @author: Fabrice Normandin
 """
 from .utils import Formatter
-from .parsing import ParseableFromCommandLine, InconsistentArgumentError
+from .parsing import ArgumentParser, InconsistentArgumentError
 
 __all__ = [
-    "ParseableFromCommandLine",
+    "ArgumentParser",
     "InconsistentArgumentError",
     "Formatter",
 ]

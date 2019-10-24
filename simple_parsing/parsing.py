@@ -6,9 +6,10 @@ import collections
 import dataclasses
 import enum
 import inspect
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 import typing
 from typing import *
+import re
 
 from . import utils
 from . import docstring
@@ -22,56 +23,51 @@ class InconsistentArgumentError(RuntimeError):
         super().__init__(*args, **kwargs)
 
 
-class ParseableFromCommandLine():
-    """
-    When applied to a dataclass, this enables creating an instance of that class and populating the attributes from the command-line.
-    Each class is visually separated into a different argument group. The class docstring is used for the group description, while the 'attribute docstrings'
-    are used for the help text of the arguments. See the example script for a more visual description.
+class ArgumentParser(argparse.ArgumentParser):
+    def __init__(self, *args, **kwargs):
+        if "formatter_class" not in kwargs:
+            kwargs["formatter_class"] = utils.Formatter
+        super().__init__(*args, **kwargs)
 
-    Example:
-    ```
-    @dataclass()
-    class Options(ParseableFromCommandLine):
-        a: int
-        b: int = 10
-
-    parser = argparse.ArgumentParser()
-    Options.add_arguments(parser)
-
-    args = parser.parse_args("--a 5")
-    options = Options.from_args(args)
-    print(options) 
-    >>> Options(a=5, b=10)
-    ```
-    """
-
-    @classmethod
-    def add_arguments(cls, parser: argparse.ArgumentParser, multiple=False) -> None:
-        """
-        Adds corresponding command-line arguments for this class to the given parser.
-
-        Arguments:
-            parser {argparse.ArgumentParser} -- The base argument parser to use
-            multiple {bool} -- Wether we wish to eventually parse multiple instances of this class or not.
+        self._args_to_add: Dict[Type, List[str]] = defaultdict(list)
+    
+    def add_arguments(self, dataclass: Type, dest: str):
+        """Adds corresponding command-line arguments for this class to the parser.
         
+        Arguments:
+            dataclass {Type} -- The dataclass for which to add fields as arguments in the parser
+        
+        Keyword Arguments:
+            dest {str} -- The destination key where filled dataclass will be stored after parsing
+        """
         
         #TODO: Double-Check this mechanism, just to make sure this is natural and makes sense.
+        # NOTE: about boolean (flag-like) arguments:
+        # If the argument is present with no value, then the opposite of the default value should be used.
+        # For example, say there is an argument called "--no-cache", with a default value of False.
+        # - When we don't pass the argument, (i.e, $> python example.py) the value should be False.
+        # - When we pass the argument, (i.e, $> python example.py --no-cache), the value should be True.
+        # - When we pass the argument with a value, ex: "--no-cache true" or "--no-cache false", the given value should be used 
         
-        NOTE: about boolean (flag-like) arguments:
-        If the argument is present with no value, then the opposite of the default value should be used.
-        For example, say there is an argument called "--no-cache", with a default value of False.
-        - When we don't pass the argument, (i.e, $> python example.py) the value should be False.
-        - When we pass the argument, (i.e, $> python example.py --no-cache), the value should be True.
-        - When we pass the argument with a value, ex: "--no-cache true" or "--no-cache false", the given value should be used 
-        """
-        group = parser.add_argument_group(cls.__qualname__, description=cls.__doc__)
-        for f in dataclasses.fields(cls):
+        # Here we store args to add instead of adding them directly in order to handle the case where
+        # multiple of the same dataclass are added as arguments
+        self._args_to_add[dataclass].append(dest)
+
+    
+    def _add_arguments(self, dataclass: Type, multiple=False):
+        names = self._args_to_add[dataclass]
+        names_string =f""" [{', '.join(f"'{name}'" for name in names)}]"""
+        group = self.add_argument_group(
+            dataclass.__qualname__ + names_string,
+            description=dataclass.__doc__
+        )
+        for f in dataclasses.fields(dataclass):
             name = f"--{f.name}"
             arg_options: Dict[str, Any] = { 
                 "type": f.type,
             }
 
-            doc = docstring.get_attribute_docstring(cls, f.name)
+            doc = docstring.get_attribute_docstring(dataclass, f.name)
             if doc is not None:
                 if doc.docstring_below:
                     arg_options["help"] = doc.docstring_below
@@ -127,21 +123,13 @@ class ParseableFromCommandLine():
                     arg_options["nargs"] = "*"
             
             group.add_argument(name, **arg_options)
-    
-    @classmethod
-    def from_args(cls, args: argparse.Namespace):
-        """Creates an instance of this class using results of `parser.parse_args()`
-        
-        Arguments:
-            args {argparse.Namespace} -- The result of a call to `parser.parse_args()`
-        
-        Returns:
-            object -- an instance of this class
-        """
+
+    def _instantiate_dataclass(self, dataclass: Type, args: argparse.Namespace):
+        """Creates an instance of the dataclass using results of `parser.parse_args()`"""
         args_dict = vars(args) 
         # print("args dict:", args_dict)
         constructor_args: Dict[str, Any] = {}
-        for f in dataclasses.fields(cls):
+        for f in dataclasses.fields(dataclass):
             if enum.Enum in f.type.mro():
                 constructor_args[f.name] = f.type[args_dict[f.name]]
             
@@ -164,28 +152,15 @@ class ParseableFromCommandLine():
 
             else:
                 constructor_args[f.name] = args_dict[f.name]
-        return cls(**constructor_args) #type: ignore
-
-    @classmethod
-    def from_args_multiple(cls, args: argparse.Namespace, num_instances_to_parse: int):
-        """Parses multiple instances of this class from the command line, and returns them.
-        Each argument may have either 0 values (when applicable), 1, or {num_instances_to_parse}. 
-        NOTE: If only one value is provided, every instance will be populated with the same value.
-
-        Arguments:
-            args {argparse.Namespace} -- The
-            num_instances_to_parse {int} -- Number of instances that are to be created from the given parsedarguments
-        
-        Raises:
-            cls.InconsistentArgumentError: [description]
-        
-        Returns:
-            List -- A list of populated instances of this class.
-        """
+        return dataclass(**constructor_args) #type: ignore
+    
+    def _instantiate_multiple_dataclasses(self, dataclass: Type, args: argparse.Namespace, num_instances_to_parse: int):
+        """Creates multiple instances of the dataclass using results of `parser.parse_args()`"""
         args_dict: Dict[str, Any] = vars(args)
+
         # keep the arguments and values relevant to this class.
         constructor_arguments: Dict[str, Union[Any, List]] = {}
-        for f in dataclasses.fields(cls):
+        for f in dataclasses.fields(dataclass):
             constructor_arguments[f.name] = args_dict[f.name]
         
         arguments_per_instance: List[Dict[str, Any]] = []
@@ -208,29 +183,29 @@ class ParseableFromCommandLine():
             arguments_per_instance.append(instance_arguments)
 
         return list(
-            cls(**arguments_dict) #type: ignore
+            dataclass(**arguments_dict) #type: ignore
             for arguments_dict in arguments_per_instance
         )
     
-    def asdict(self) -> Dict[str, Any]:
-        """Returns a dictionary constructed from this dataclass' values.
-        
-        Returns:
-            Dict[str, Any] -- A dictionary
-        """
-        d = dataclasses.asdict(self)
-        return d
-    
-    def attribute_docstrings(self) -> Dict[str, docstring.AttributeDocString]:
-        """Returns a dictionary of all the attribute docstrings in this dataclass.
-        
-        Returns:
-            Dict[str, docstring.AttributeDocString] -- A dictionary where the keys are the attribute names, and the values are `docstring.AttributeDocString` instances. 
-        """
-        docs = {}
-        for field in dataclasses.fields(self):
-            doc = docstring.get_attribute_docstring(self.__class__, field.name)
-            if doc is not None:
-                docs[field.name] = doc
-        return docs
+    def parse_args(self, args=None, namespace=None):
+        # Add (for real this time!) the dataclasses, handling the case where the same dataclass was added multiple times
+        # with different 'dest' strings
+        for dataclass_to_add, destinations in self._args_to_add.items():
+            self._add_arguments(dataclass_to_add, multiple=len(destinations) > 1)
 
+        # Parse the arguments normally
+        parsed_args = super().parse_args(args, namespace)
+
+        # TODO: get a nice typed version of parsed_args (a Namespace)       
+
+        # Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
+        for dataclass_to_add, destinations in self._args_to_add.items():
+            if len(destinations) == 1:
+                dataclass_instance = self._instantiate_dataclass(dataclass_to_add, parsed_args)
+                setattr(parsed_args, destinations[0], dataclass_instance)
+            else:
+                dataclass_instances = self._instantiate_multiple_dataclasses(dataclass_to_add, parsed_args, len(destinations))
+                for dataclass_instance, dest in zip(dataclass_instances, destinations):
+                    setattr(parsed_args, dest, dataclass_instance)
+
+        return parsed_args

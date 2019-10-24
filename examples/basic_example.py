@@ -1,14 +1,13 @@
 """A basic example of how to use simple-parsing."""
-import argparse
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from typing import List, Tuple
 
-from simple_parsing import Formatter, ParseableFromCommandLine
+import simple_parsing
 
-parser = argparse.ArgumentParser(formatter_class=Formatter)
+parser = simple_parsing.ArgumentParser()
 
-@dataclass()
-class Options(ParseableFromCommandLine):
+@dataclass
+class Options:
 	""" A class which groups related parameters. """
 
 	some_int: int              	# Some required int parameter
@@ -26,19 +25,19 @@ class Options(ParseableFromCommandLine):
 	some_floats: List[float] = field(default_factory=list)
 
 # add the arguments
-Options.add_arguments(parser)
+parser.add_arguments(Options, "options")
 
 # parse the arguments from stdin
 args = parser.parse_args()
 
-# create an instance of Options with the arguments
-options = Options.from_args(args)
+# retrieve the Options instance from the parsed args
+options: Options = args.options
 
 # Do whatever you want using the Options object here!
 print(options)
 
 # convert the dataclass to a dict
-options_dict = options.asdict()
+options_dict = asdict(options)
 
 # create an instance from a dict
 options_ = Options(**options_dict)
@@ -65,9 +64,6 @@ with open("default.json") as f:
 	params = json.load(f)
 	default_options = Options(**params)
 	assert options == default_options
-	print(default_options)
-
-
 
 
 """ >>> python ./basic_example.py --help

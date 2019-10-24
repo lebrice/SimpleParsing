@@ -18,15 +18,15 @@ assignments when using either the 'comment above' or 'docstring below'
 style, just for clarity. This doesn't change anything about the output of
 the "--help" command.
 """
-import argparse
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
-from simple_parsing import ParseableFromCommandLine
-parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+from simple_parsing import ArgumentParser
+
+parser = ArgumentParser()
 
 @dataclass()
-class DocStringsExample(ParseableFromCommandLine):
+class DocStringsExample():
     """NOTE: This block of text is the class docstring, and it will show up under
     the name of the class in the --help group for this set of parameters.    
     """
@@ -52,7 +52,7 @@ class DocStringsExample(ParseableFromCommandLine):
     """docstring below (this appears in --help)"""
 
 
-DocStringsExample.add_arguments(parser)
+parser.add_arguments(DocStringsExample, "example")
 args = parser.parse_args()
-ex = DocStringsExample.from_args(args)
+ex = args.example
 print(ex)

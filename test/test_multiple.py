@@ -6,8 +6,8 @@ from typing import *
 
 import pytest
 
-from simple_parsing import (Formatter, InconsistentArgumentError,
-                            ParseableFromCommandLine)
+from simple_parsing import (InconsistentArgumentError,
+                            ArgumentParser)
 
 from .testutils import TestSetup
 
@@ -23,16 +23,15 @@ from .testutils import TestSetup
 )
 def test_parse_multiple_with_no_arguments_sets_default_value(num_instances: int, some_type: Type, default_value: Any):
     @dataclass()
-    class SomeClass(ParseableFromCommandLine, TestSetup):
+    class SomeClass(TestSetup):
         a: some_type = default_value  # type: ignore
         """some docstring for attribute 'a'"""
 
-    args = SomeClass.setup("", multiple=True)
-    classes = SomeClass.from_args_multiple(args, num_instances)
-
+    classes = SomeClass.setup_multiple(num_instances, "")
     assert len(classes) == num_instances
     for i in range(num_instances):
         c_i = classes[i]
+        assert isinstance(c_i, SomeClass)
         assert c_i.a == default_value
         assert isinstance(c_i.a, some_type)
 
@@ -54,16 +53,15 @@ def test_parse_multiple_with_single_arg_value_sets_that_value_for_all_instances(
     ):
 
     @dataclass()
-    class SomeClass(ParseableFromCommandLine, TestSetup):
+    class SomeClass(TestSetup):
         a: some_type = default_value  # type: ignore
         """some docstring for attribute 'a'"""
-
-    args = SomeClass.setup(f"--a {passed_value}", multiple=True)
-    classes = SomeClass.from_args_multiple(args, num_instances)
+    classes = SomeClass.setup_multiple(num_instances, f"--a {passed_value}")
 
     assert len(classes) == num_instances
     for i in range(num_instances):
         c_i = classes[i]
+        assert isinstance(c_i, SomeClass)
         assert c_i.a == passed_value
         assert isinstance(c_i.a, some_type)
 
@@ -83,17 +81,17 @@ def test_parse_multiple_with_provided_value_for_each_instance(
     ):
 
     @dataclass()
-    class SomeClass(ParseableFromCommandLine, TestSetup):
+    class SomeClass(TestSetup):
         a: some_type = default_value  # type: ignore
         """some docstring for attribute 'a'"""
     # TODO: maybe test out other syntaxes for passing in multiple argument values? (This looks a lot like passing in a list of values..)
     arguments = f"--a {' '.join(str(p) for p in passed_values)}"
-    args = SomeClass.setup(arguments, multiple=True)
-    classes = SomeClass.from_args_multiple(args, 3)
+    classes = SomeClass.setup_multiple(3, arguments)
 
     assert len(classes) == 3
     for i in range(3):
         c_i = classes[i]
+        assert isinstance(c_i, SomeClass)
         assert c_i.a == passed_values[i]
         assert isinstance(c_i.a, some_type)
 
@@ -101,34 +99,35 @@ def test_parse_multiple_with_provided_value_for_each_instance(
 @pytest.mark.parametrize("some_type", [int, float, str, bool])        
 def test_parse_multiple_without_required_arguments(some_type: Type):
     @dataclass()
-    class SomeClass(ParseableFromCommandLine, TestSetup):
+    class SomeClass(TestSetup):
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
 
     with pytest.raises(SystemExit):
-        args = SomeClass.setup("", multiple=True)
+        some_class = SomeClass.setup_multiple(2, "")
 
-@pytest.mark.parametrize("container_type, concrete_type", [(List, list), (Tuple, tuple)])
+@pytest.mark.parametrize("container_type", [List, Tuple])
 @pytest.mark.parametrize("item_type", [int, float, str, bool])
-def test_parse_multiple_without_required_container_arguments(container_type: Type, concrete_type: Type, item_type: Type):
+def test_parse_multiple_without_required_container_arguments(container_type: Type, item_type: Type):
     @dataclass()
-    class SomeClass(ParseableFromCommandLine, TestSetup):
+    class SomeClass(TestSetup):
         a: container_type[item_type] # type: ignore
         """some docstring for attribute 'a'"""
 
     with pytest.raises(SystemExit):
-        args = SomeClass.setup("", multiple=True)
+        _ = SomeClass.setup_multiple(3, "")
 
-
-@pytest.mark.parametrize("some_type", [int, float, str])
-def test_parse_multiple_with_argument_name_but_without_value(some_type: Type):
+@pytest.mark.xfail(reason="TODO: Should passing '--a' with no value make an empty list if the arguent is required? or should an error be thrown?")
+@pytest.mark.parametrize("container_type", [List, Tuple])
+@pytest.mark.parametrize("item_type", [int, float, str, bool])
+def test_parse_multiple_without_required_container_arguments(container_type: Type, item_type: Type):
     @dataclass()
-    class SomeClass(ParseableFromCommandLine, TestSetup):
-        a: some_type # type: ignore
+    class SomeClass(TestSetup):
+        a: container_type[item_type] # type: ignore
         """some docstring for attribute 'a'"""
 
     with pytest.raises(SystemExit):
-        args = SomeClass.setup("--a", multiple=True)
+        _ = SomeClass.setup_multiple(3, "--a")
 
 
 def format_using_brackets(list_of_lists: List[List[Any]])-> str:
@@ -175,19 +174,19 @@ def test_parse_multiple_with_list_attributes(
         passed_values: List[List[Any]],
     ):
     @dataclass()
-    class SomeClass(ParseableFromCommandLine, TestSetup):
+    class SomeClass(TestSetup):
         a: List[item_type] = field(default_factory=list)  # type: ignore
         """some docstring for attribute 'a'"""
 
     arguments = "--a " + list_formatting_function(passed_values)
     print(arguments)
 
-    args = SomeClass.setup(arguments, multiple=True)
-    classes = SomeClass.from_args_multiple(args, 3)
+    classes = SomeClass.setup_multiple(3, arguments)
 
     assert len(classes) == 3
     for i, c_i in enumerate(classes):
         assert c_i.a == passed_values[i]
+        assert isinstance(c_i, SomeClass)
         assert len(c_i.a) == 2
         assert all(
             isinstance(v, item_type) for v in c_i.a
