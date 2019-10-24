@@ -1,19 +1,15 @@
-import argparse
-import dataclasses
 import shlex
-from dataclasses import dataclass, field
-from typing import *
+from dataclasses import dataclass
 
 import pytest
 
-from simple_parsing import (Formatter, InconsistentArgumentError,
-                            ParseableFromCommandLine)
+from simple_parsing import ArgumentParser
 
 from .testutils import TestSetup
 
 
 @dataclass()
-class Base(ParseableFromCommandLine, TestSetup):
+class Base(TestSetup):
     """ Some extension of base-class `Base` """
     common_attribute: int = 1
 
@@ -27,21 +23,21 @@ class ExtendedB(Base):
     b: int = 3
 
 
-def setup(arguments=""):
-    parser = argparse.ArgumentParser(formatter_class=Formatter)
-    ExtendedA.add_arguments(parser)
-    ExtendedB.add_arguments(parser)
+def inheritance_setup(arguments=""):
+    parser = ArgumentParser()
+    parser.add_arguments(ExtendedA)
+    parser.add_arguments(ExtendedB)
 
     splits = shlex.split(arguments)
     args = parser.parse_args(splits)
 
-    extb = ExtendedA.from_args(args)
-    extc = ExtendedB.from_args(args)
-    return extb, extc
+    exta = args.extended_a
+    extb = args.extended_b
+    return exta, extb
 
 @pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
 def test_subclasses_with_same_base_class_no_args():
-    ext_a, ext_b = setup()
+    ext_a, ext_b = inheritance_setup()
     
     assert ext_a.common_attribute == 1
     assert ext_a.a == 2
@@ -52,7 +48,7 @@ def test_subclasses_with_same_base_class_no_args():
 
 @pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
 def test_subclasses_with_same_base_class_with_args():
-    ext_a, ext_b = setup("--a 10 --b 20 --a 30 --c 40")
+    ext_a, ext_b = inheritance_setup("--a 10 --b 20 --a 30 --c 40")
     
     assert ext_a.common_attribute == 10
     assert ext_a.a == 20
