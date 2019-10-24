@@ -25,13 +25,11 @@ from .testutils import TestSetup
 )
 def test_default_value_is_used_when_no_args_are_provided(some_type: Type, default_value):
     @dataclass()
-    class SomeClass(ParseableFromCommandLine, TestSetup):
+    class SomeClass(TestSetup):
         a: some_type = default_value # type: ignore
         """some docstring for attribute 'a'"""
-
-    args = SomeClass.setup("")
-    class_a = SomeClass.from_args(args)
-
+    
+    class_a = SomeClass.setup()
     assert class_a.a == default_value
     assert isinstance(class_a.a, some_type)
 
@@ -46,12 +44,11 @@ def test_default_value_is_used_when_no_args_are_provided(some_type: Type, defaul
     ])
 def test_arg_value_is_set_when_args_are_provided(some_type: Type, default_value: Any, arg_value: Any):
     @dataclass()
-    class SomeClass(ParseableFromCommandLine, TestSetup):
+    class SomeClass(TestSetup):
         a: some_type = default_value # type: ignore
         """some docstring for attribute 'a'"""
 
-    args = SomeClass.setup(f"--a {arg_value}")
-    class_a = SomeClass.from_args(args)
+    class_a = SomeClass.setup(f"--a {arg_value}")
     assert class_a.a != default_value
     assert class_a.a == arg_value
     assert isinstance(class_a.a, some_type)
@@ -63,9 +60,8 @@ def test_not_providing_required_argument_throws_error(some_type):
     class SomeClass(ParseableFromCommandLine, TestSetup):
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
-
     with pytest.raises(SystemExit):
-        args = SomeClass.setup("")
+        class_a = SomeClass.setup("")
 
 
 @pytest.mark.parametrize("some_type", [int, float, str])
@@ -76,7 +72,7 @@ def test_not_providing_required_argument_name_but_no_value_throws_error(some_typ
         """some docstring for attribute 'a'"""
 
     with pytest.raises(SystemExit):
-        args = SomeClass.setup("--a")
+        class_a = SomeClass.setup("--a")
 
 class Color(Enum):
     RED = "RED"
@@ -84,7 +80,7 @@ class Color(Enum):
     BLUE = "BLUE"
 
 @dataclass()
-class Base(ParseableFromCommandLine, TestSetup):
+class Base(TestSetup):
     """A simple base-class example"""
     a: int # TODO: finetune this
     """docstring for attribute 'a'"""
@@ -99,18 +95,14 @@ class Extended(Base):
     e: Color = Color.BLUE
 
 def test_parse_base_simple_works():
-    args = Base.setup("--a 10 --b 3 --c Hello")
-    b = Base.from_args(args)
+    b = Base.setup("--a 10 --b 3 --c Hello")
     assert b.a == 10
     assert b.b == 3
     assert b.c == "Hello"
 
 
 def test_parse_multiple_works():
-    args = Base.setup("--a 10 20 --b 3 --c Hello Bye", multiple=True)
-    b_s = Base.from_args_multiple(args, 2)
-    b1 = b_s[0]
-    b2 = b_s[1]
+    b1, b2 = Base.setup_multiple(2, "--a 10 20 --b 3 --c Hello Bye")
     assert b1.a == 10
     assert b1.b == 3
     assert b1.c == "Hello"
@@ -120,20 +112,15 @@ def test_parse_multiple_works():
     assert b2.c == "Bye"
 
 def test_parse_multiple_inconsistent_throws_error():
-    args = Base.setup("--a 10 20 --b 3 --c Hello Bye", multiple=True)
     with pytest.raises(InconsistentArgumentError):
-        b_s = Base.from_args_multiple(args, 3)
-
+        args = Base.setup_multiple(3, "--a 10 20 --b 3 --c Hello Bye")
 
 def test_help_displays_class_docstring_text():
     assert Base.__doc__ in Base.get_help_text()
 
-
 def test_enum_attributes_work():
-    args = Extended.setup("--a 5 --e RED")
-    ext = Extended.from_args(args)
+    ext = Extended.setup("--a 5 --e RED")
     assert ext.e == Color.RED
 
-    args = Extended.setup("--a 5")
-    ext = Extended.from_args(args)
+    ext = Extended.setup("--a 5")
     assert ext.e == Color.BLUE
