@@ -10,6 +10,7 @@ from collections import namedtuple, defaultdict
 import typing
 from typing import *
 import re
+import warnings
 
 from . import utils
 from . import docstring
@@ -52,7 +53,12 @@ class ArgumentParser(argparse.ArgumentParser):
         # Here we store args to add instead of adding them directly in order to handle the case where
         # multiple of the same dataclass are added as arguments
         self._args_to_add[dataclass].append(dest)
-
+        for field in dataclasses.fields(dataclass):
+            if dataclasses.is_dataclass(field.type):
+                warnings.warn(UserWarning("Nesting isn't supported yet!"))
+                # TODO: interesting problem, the nested dataclasses should be set as attributes to the dataclasses, so what would the 'dest' be in such a case?
+            elif utils.is_tuple_or_list(field.type) and dataclasses.is_dataclass(utils.get_item_type(field.type)):
+                warnings.warn(UserWarning("Nesting isn't supported yet!"))
     
     def _add_arguments(self, dataclass: Type, multiple=False):
         names = self._args_to_add[dataclass]
@@ -64,14 +70,15 @@ class ArgumentParser(argparse.ArgumentParser):
         for f in dataclasses.fields(dataclass):
             if not f.init:
                 continue
-            
-            if dataclasses.is_dataclass(f.type):
-                self._add_arguments(f.type, multiple)
-                # TODO!
-                raise NotImplementedError("Nesting isn't supported yet!")
+            elif dataclasses.is_dataclass(f.type):
+                warnings.warn(UserWarning("Nesting isn't supported yet!"))
+                continue
+                # self._add_arguments(f.type, multiple)
             elif utils.is_tuple_or_list(f.type) and dataclasses.is_dataclass(utils.get_item_type(f.type)):
-                self._add_arguments(f.type, True)
-                raise NotImplementedError("Nesting isn't supported yet! (container of dataclasses)")
+                warnings.warn(UserWarning("Nesting isn't supported yet! (container of dataclasses)"))
+                continue
+                # T = utils.get_item_type(f.type)
+                # self._add_arguments(T, True)
 
             name = f"--{f.name}"
             arg_options: Dict[str, Any] = { 
@@ -142,7 +149,7 @@ class ArgumentParser(argparse.ArgumentParser):
             if not f.init:
                 continue
             if dataclasses.is_dataclass(f.type):
-                raise NotImplementedError("Nesting isn't supported yet!")
+                raise UserWarning("Nesting isn't supported yet!")
 
             if enum.Enum in f.type.mro():
                 constructor_args[f.name] = f.type[args_dict[f.name]]
