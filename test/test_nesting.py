@@ -66,7 +66,7 @@ def test_nesting_with_containers_no_args():
     assert len(container.list_of_class_c) == 0
 
 
-@pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+# @pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
 def test_nesting_with_containers_with_args():
     container = Container2.setup("--c 1 2 3")
     assert len(container.list_of_class_c) == 3
