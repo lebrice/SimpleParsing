@@ -43,7 +43,7 @@ class Container1(TestSetup):
 class Container2(TestSetup):
     list_of_class_c: List[ClassC] = field(default_factory=list)
 
-
+@pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
 def test_nesting_no_args():
     c1 = Container1.setup("")
     assert c1.v1 == 0
@@ -57,3 +57,49 @@ def test_nesting_with_args():
     assert c1.v1 == 3
     assert c1.class_a.a == 123
     assert c1.class_b.b == 456
+
+
+
+@pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+def test_nesting_with_containers_no_args():
+    container = Container2.setup("")
+    assert len(container.list_of_class_c) == 0
+
+
+@pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+def test_nesting_with_containers_with_args():
+    container = Container2.setup("--c 1 2 3")
+    assert len(container.list_of_class_c) == 3
+    c1, c2, c3 = tuple(container.list_of_class_c)
+    assert c1.c == 1
+    assert isinstance(c1, ClassC)
+    assert c2.c == 2
+    assert isinstance(c2, ClassC)
+    assert c3.c == 3
+    assert isinstance(c3, ClassC)
+
+
+@pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+def test_nesting_multiple_containers_containers_no_args():
+    container1, container2, container3 = Container2.setup_multiple(3, "--c '1 2' '3 4' '5 6'")
+    assert len(container1.list_of_class_c) == 3
+    c1, c2 = tuple(container1.list_of_class_c)
+    assert c1.c == 1
+    assert isinstance(c1, ClassC)
+    assert c2.c == 2
+    assert isinstance(c2, ClassC)
+
+
+    assert len(container2.list_of_class_c) == 3
+    c1, c2 = tuple(container2.list_of_class_c)
+    assert c1.c == 3
+    assert isinstance(c1, ClassC)
+    assert c2.c == 4
+    assert isinstance(c2, ClassC)
+
+    assert len(container3.list_of_class_c) == 3
+    c1, c2 = tuple(container3.list_of_class_c)
+    assert c1.c == 5
+    assert isinstance(c1, ClassC)
+    assert c2.c == 6
+    assert isinstance(c2, ClassC)
