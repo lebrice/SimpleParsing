@@ -21,6 +21,6 @@ class Example():
 parser.add_arguments(Example, "example")
 args = parser.parse_args()
 
-example = args.example
+example: Example = args.example
 
 print(example)

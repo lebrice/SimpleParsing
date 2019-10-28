@@ -8,6 +8,13 @@ from simple_parsing import InconsistentArgumentError, ArgumentParser, Formatter
 
 from simple_parsing.utils import camel_case
 
+xfail = pytest.mark.xfail
+parametrize = pytest.mark.parametrize
+
+def xfail_param(*args, reason:str):
+    return pytest.param(*args, marks=pytest.mark.xfail(reason=reason))
+
+
 T = TypeVar("T", bound="TestSetup")
 
 class TestSetup():
@@ -61,3 +68,46 @@ class TestSetup():
             _ = cls.setup("--help")
         s = f.getvalue()
         return s
+
+
+ListFormattingFunction = Callable[[List[Any]], str]
+ListOfListsFormattingFunction = Callable[[List[List[Any]]], str]
+
+
+def format_list_using_spaces(value_list: List[Any])-> str:
+    return " ".join(str(p) for p in value_list)
+
+
+def format_list_using_brackets(value_list: List[Any])-> str:
+    return f"[{','.join(str(p) for p in value_list)}]"
+
+
+def format_list_using_single_quotes(value_list: List[Any])-> str:
+    return f"'{format_list_using_spaces(value_list)}'"
+
+
+def format_list_using_double_quotes(value_list: List[Any])-> str:
+    return f'"{format_list_using_spaces(value_list)}"'
+
+
+def format_lists_using_brackets(list_of_lists: List[List[Any]])-> str:
+    return " ".join(
+        format_list_using_brackets(value_list)
+        for value_list in list_of_lists
+    )
+
+
+def format_lists_using_double_quotes(list_of_lists: List[List[Any]])-> str:
+    return " ".join(
+        format_list_using_double_quotes(value_list)
+        for value_list in list_of_lists
+    )
+
+
+def format_lists_using_single_quotes(list_of_lists: List[List[Any]])-> str:
+    return " ".join(
+        format_list_using_single_quotes(value_list)
+        for value_list in list_of_lists
+    )
+
+

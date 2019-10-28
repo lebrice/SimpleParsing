@@ -5,7 +5,7 @@ import pytest
 
 from simple_parsing import ArgumentParser
 
-from .testutils import TestSetup
+from .testutils import *
 
 
 @dataclass()
@@ -35,7 +35,7 @@ def inheritance_setup(arguments=""):
     extb = args.extended_b
     return exta, extb
 
-@pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+@xfail(reason="TODO: make sure this is how people would want to use this feature.")
 def test_subclasses_with_same_base_class_no_args():
     ext_a, ext_b = inheritance_setup()
     
@@ -46,7 +46,7 @@ def test_subclasses_with_same_base_class_no_args():
     assert ext_b.b == 3
 
 
-@pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+@xfail(reason="TODO: make sure this is how people would want to use this feature.")
 def test_subclasses_with_same_base_class_with_args():
     ext_a, ext_b = inheritance_setup("--a 10 --b 20 --a 30 --c 40")
     
