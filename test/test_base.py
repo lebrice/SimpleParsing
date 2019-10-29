@@ -10,10 +10,10 @@ from typing import *
 import pytest
 import simple_parsing
 
-from .testutils import TestSetup
+from .testutils import *
 
 
-@pytest.mark.parametrize(
+@parametrize(
     "some_type, default_value",
     [
         (int,   123524),
@@ -33,7 +33,7 @@ def test_default_value_is_used_when_no_args_are_provided(some_type: Type, defaul
     assert isinstance(class_a.a, some_type)
 
 
-@pytest.mark.parametrize(
+@parametrize(
     "some_type, default_value,  arg_value",
     [
         (int,   0,      1234),
@@ -53,7 +53,7 @@ def test_arg_value_is_set_when_args_are_provided(some_type: Type, default_value:
     assert isinstance(class_a.a, some_type)
 
 
-@pytest.mark.parametrize("some_type", [int, float, str, bool,])
+@parametrize("some_type", [int, float, str, bool,])
 def test_not_providing_required_argument_throws_error(some_type):
     @dataclass()
     class SomeClass(TestSetup):
@@ -63,7 +63,7 @@ def test_not_providing_required_argument_throws_error(some_type):
         class_a = SomeClass.setup("")
 
 
-@pytest.mark.parametrize("some_type", [int, float, str])
+@parametrize("some_type", [int, float, str])
 def test_not_providing_required_argument_name_but_no_value_throws_error(some_type):
     @dataclass()
     class SomeClass(TestSetup):

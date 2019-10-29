@@ -12,22 +12,21 @@ from typing import List
 
 parser = ArgumentParser()
 
+
 @dataclass()
-class Example():
+class Config():
     """ A class which groups related parameters. """
-    foo: int # Some required parameter named foo.
-    bar: int = 10 # an optional int parameter named bar.
-    log_dir: str = "/logs" # an optional string parameter named log_dir.
+    run_name: str # Some required parameter.
+    some_int: int = 10 # an optional int parameter.
+    log_dir: str = "logs" # an optional string parameter.
     """the logging directory to use. (This is an attribute docstring for the log_dir attribute, and shows up when using the "--help" argument!)"""
     
-
-
-num_instances = 2
-for i in range(num_instances):
-    parser.add_arguments(Example, f"example_{i}")
+parser.add_arguments(Config, "train_config")
+parser.add_arguments(Config, "valid_config")
 
 args = parser.parse_args()
 
-example1 = args.example_0
-example2 = args.example_1
-print(example1, example2, sep="\n")
+train_config: Config = args.train_config
+valid_config: Config = args.valid_config
+
+print(train_config, valid_config, sep="\n")

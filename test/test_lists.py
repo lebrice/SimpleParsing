@@ -8,7 +8,7 @@ import pytest
 import simple_parsing
 from simple_parsing import ArgumentParser, InconsistentArgumentError
 
-from .testutils import TestSetup
+from .testutils import *
 
 
 @dataclass()
@@ -19,27 +19,13 @@ class ContainerClass(TestSetup):
     d: List[int] = field(default_factory=list)
 
 
+
 def test_single_element_list():
     container = ContainerClass.setup("--a 1 --b 4 --c 7 --d 10")
     assert container.a == (1,)
     assert container.b == [4]
     assert container.c == ('7',)
     assert container.d == [10]
-
-
-def test_single_list_without_quotes_works():
-    container = ContainerClass.setup("--a 1 2 3 --b 4 5 6 --c 7 8 9 --d 10 11 12")
-    assert container.a == (1, 2, 3)
-    assert container.b == [4, 5, 6]
-    assert container.c == ('7', '8', '9')
-    assert container.d == [10, 11, 12]
-
-   
-    container = ContainerClass.setup("--a 1 2 --b 2 --c 3 4 5 --d 10 11 12")
-    assert container.a == (1,2)
-    assert container.b == [2]
-    assert container.c == ('3', '4', '5')
-    assert container.d == [10, 11, 12]
 
 
 def test_required_attributes_works():
@@ -64,46 +50,84 @@ def test_default_value():
     assert container.d == list()
 
 
-def test_list_multiple_work_with_quotes():
-    container1, container2 = ContainerClass.setup_multiple(2, """--a '1 2 3' '4 5 6' --b "4 5 6" "7 8 9" --c "7 8 9" "7 9 11" --d '10 11 12'""")
-    assert container1.a == (1, 2, 3)
-    assert container1.b == [4, 5, 6]
-    assert container1.c == ('7', '8', '9')
-    assert container1.d == [10, 11, 12]
+@parametrize(
+    "list_formatting_function",
+    [
+        format_list_using_spaces,
+        # format_list_using_brackets,
+        xfail_param(format_list_using_brackets, reason="TODO: decide which syntax we want to allow for single lists."),
+        xfail_param(format_list_using_double_quotes, reason="TODO: decide which syntax we want to allow for single lists."),
+        xfail_param(format_list_using_single_quotes, reason="TODO: decide which syntax we want to allow for single lists."),
+    ])
+@parametrize(
+    "item_type, passed_values",
+    [
+        (int,   [1, 2]),
+        (float, [1.1, 2.1]),
+        (str,   ["a", "b"]),
+        # (bool,  [True, True]),
+    ]
+)
+def test_list_supported_formats(
+        list_formatting_function: ListFormattingFunction,
+        item_type: Type,
+        passed_values: List[Any],
+    ):
+    @dataclass()
+    class SomeClass(TestSetup):
+        a: List[item_type] = field(default_factory=list)  # type: ignore
+        """some docstring for attribute 'a'"""
 
-    assert container2.a == (4, 5, 6)
-    assert container2.b == [7, 8, 9]
-    assert container2.c == ('7', '9', '11')
-    assert container2.d == [10, 11, 12]
+    arguments = "--a " + list_formatting_function(passed_values)
+    print(arguments)
 
-def test_list_multiple_work_with_brackets():
-    container1, container2 = ContainerClass.setup_multiple(2, """--a [1,2,3] [4,5,6] --b [4,5,6] [7,8,9] --c [7,8,9] [7,9,11] --d [10,11,12]""")
-    assert container1.a == (1, 2, 3)
-    assert container1.b == [4, 5, 6]
-    assert container1.c == ('7', '8', '9')
-    assert container1.d == [10, 11, 12]
+    some_class = SomeClass.setup(arguments)
 
-    assert container2.a == (4, 5, 6)
-    assert container2.b == [7, 8, 9]
-    assert container2.c == ('7', '9', '11')
-    assert container2.d == [10, 11, 12]
+    assert some_class.a == passed_values
+    assert isinstance(some_class, SomeClass)
+    assert len(some_class.a) == 2
+    assert all(
+        isinstance(v, item_type) for v in some_class.a
+    )
 
 
-@pytest.mark.xfail(reason="Supporting both this syntax and regular argparse syntax is kinda hard, and I'm not sure if it's needed.")
-def test_single_list_with_quotes_works():
-    container = ContainerClass.setup("""--a '1 2 3' --b "4 5 6" --c "7 9 11" --d '10 11 12'""")
-    assert container.a == (1, 2, 3)
-    assert container.b == [4, 5, 6]
-    assert container.c == ('7', '9', '11')
-    assert container.d == [10, 11, 12]
+@parametrize(
+    "list_of_lists_formatting_function",
+    [
+        format_lists_using_brackets,
+        format_lists_using_single_quotes,
+        format_lists_using_double_quotes,
+    ])
+@parametrize(
+    "item_type, passed_values",
+    [
+        (int,   [[1, 2], [4, 5], [7, 8]]),
+        (float, [[1.1, 2.1], [4.2, 5.2], [7.2, 8.2]]),
+        (str,   [["a", "b"], ["c", "d"], ["e", "f"]]),
+        # (bool,  [[True, True], [True, False], [False, True]]),
+    ]
+)
+def test_parse_multiple_with_list_attributes(
+        list_of_lists_formatting_function: ListOfListsFormattingFunction,
+        item_type: Type,
+        passed_values: List[List[Any]],
+    ):
+    @dataclass()
+    class SomeClass(TestSetup):
+        a: List[item_type] = field(default_factory=list)  # type: ignore
+        """some docstring for attribute 'a'"""
 
+    arguments = "--a " + list_of_lists_formatting_function(passed_values)
+    print(arguments)
 
-@pytest.mark.xfail(reason="Supporting both this syntax and regular argparse syntax is kinda hard, and I'm not sure if it's needed.")
-def test_single_list_with_brackets_works():
-    container = ContainerClass.setup("""--a [1,2,3] --b [4,5,6] --c [7,9,11] --d [10,11,12]""")
-    assert container.a == (1, 2, 3)
-    assert container.b == [4, 5, 6]
-    assert container.c == ('7', '9', '11')
-    assert container.d == [10, 11, 12]
+    classes = SomeClass.setup_multiple(3, arguments)
 
-# print(Container.get_help_text())
+    assert len(classes) == 3
+    for i, c_i in enumerate(classes):
+        assert c_i.a == passed_values[i]
+        assert isinstance(c_i, SomeClass)
+        assert len(c_i.a) == 2
+        assert all(
+            isinstance(v, item_type) for v in c_i.a
+        )
+
