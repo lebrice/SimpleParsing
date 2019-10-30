@@ -25,13 +25,17 @@ class InconsistentArgumentError(RuntimeError):
 
 T = TypeVar("T")
 
+class Dest(NamedTuple):
+    attribute: str
+    is_multiple: bool
+
 class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
         if "formatter_class" not in kwargs:
             kwargs["formatter_class"] = utils.Formatter
         super().__init__(*args, **kwargs)
 
-        self._args_to_add: Dict[Type, List[str]] = defaultdict(list)
+        self._args_to_add: Dict[Type, List[Dest]] = {}
     
     def add_arguments(self, dataclass: Type, dest: str):
         """Adds corresponding command-line arguments for this class to the parser.
@@ -53,38 +57,60 @@ class ArgumentParser(argparse.ArgumentParser):
         
         # Here we store args to add instead of adding them directly in order to handle the case where
         # multiple of the same dataclass are added as arguments
-        if dest in self._args_to_add[dataclass]:
+        self._register_dataclass(dataclass, dest)
+
+
+    def _register_dataclass(self, dataclass, dest, is_multiple = False):
+        destinations = self._args_to_add.setdefault(dataclass, [])
+        if dest in destinations:
             raise RuntimeError(f"Destination attribute {dest} is already used for dataclass of type {dataclass}. Make sure all destinations are unique!")
-        self._args_to_add[dataclass].append(dest)
+        destinations.append(Dest(dest, is_multiple=is_multiple))
+        
         for field in dataclasses.fields(dataclass):
             if dataclasses.is_dataclass(field.type):
-                warnings.warn(UserWarning("Nesting isn't supported yet!"))
-            elif utils.is_tuple_or_list(field.type) and dataclasses.is_dataclass(utils.get_item_type(field.type)):
-                warnings.warn(UserWarning("Nesting isn't supported yet!"))
+                child_dataclass = field.type
+                child_dest = f"{dest}.{field.name}"
+                print(f"adding child dataclass of type {child_dataclass} at attribute {child_dest}")
+                self._register_dataclass(child_dataclass, child_dest)
+
+            elif utils.is_tuple_or_list_of_dataclasses(field.type):
+                child_dataclass = utils.get_item_type(field.type)
+                child_dest = f"{dest}.{field.name}"
+                print(f"adding child dataclass of type {child_dataclass} at attribute {child_dest}")            
+                self._register_dataclass(child_dataclass, child_dest, is_multiple=True)
     
+
     def parse_args(self, args=None, namespace=None):
         self._preprocessing()
         parsed_args = super().parse_args(args, namespace)
         return self._postprocessing(parsed_args)
 
     def _preprocessing(self):
+        print("\nPREPROCESSING\n")
         for dataclass_to_add, destinations in self._args_to_add.items():
-            self._add_arguments(dataclass_to_add, multiple=len(destinations) > 1)
+            print("\ndataclass to add: ", dataclass_to_add, "destinations:", destinations)
+            multiple = len(destinations) > 1 or destinations[0].is_multiple
+            self._add_arguments(dataclass_to_add, multiple=multiple)
 
     def _postprocessing(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+        print("\nPOST PROCESSING\n")
         # TODO: Try and maybe teturn a nicer, typed version of parsed_args (a Namespace subclass?)       
         # Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
         for dataclass, destinations_attributes in self._args_to_add.items():
             if len(destinations_attributes) == 1:
                 dataclass_instance = self._instantiate_dataclass(dataclass, parsed_args)
-                setattr(parsed_args, destinations_attributes[0], dataclass_instance)
+                dest = destinations_attributes[0]
+                utils.setattr_recursive(parsed_args, dest.attribute, dataclass_instance)
             else:
                 dataclass_instances = self._instantiate_dataclasses(dataclass, parsed_args, len(destinations_attributes))
                 for dataclass_instance, dest in zip(dataclass_instances, destinations_attributes):
-                    setattr(parsed_args, dest, dataclass_instance)
+                    utils.setattr_recursive(parsed_args, dest.attribute, dataclass_instance)
         return parsed_args
 
+
     def _add_arguments(self, dataclass: Type[T], multiple=False):
+        print(f"dataclass: {dataclass}, multiple={multiple}")
+
         names = self._args_to_add[dataclass]
         names_string =f""" [{', '.join(f"'{name}'" for name in names)}]"""
         group = self.add_argument_group(
@@ -92,17 +118,23 @@ class ArgumentParser(argparse.ArgumentParser):
             description=dataclass.__doc__
         )
         for f in dataclasses.fields(dataclass):
+            print(f)
             if not f.init:
                 continue
+
             elif dataclasses.is_dataclass(f.type):
-                warnings.warn(UserWarning("Nesting isn't supported yet!"))
+                child_dataclass = f.type
+                print(f"Adding arguments for a child dataclass of type {f.type} (parent is {dataclass})")
+                multiple = len(self._args_to_add[child_dataclass]) > 1
+                # self._add_arguments(f.type, multiple=multiple)
                 continue
-                # self._add_arguments(f.type, multiple)
-            elif utils.is_tuple_or_list(f.type) and dataclasses.is_dataclass(utils.get_item_type(f.type)):
-                warnings.warn(UserWarning("Nesting isn't supported yet! (container of dataclasses)"))
+
+            elif utils.is_tuple_or_list_of_dataclasses(f.type):
+                child_dataclass = utils.get_item_type(f.type)
+                print(f"Adding arguments for a list of child dataclass of type {child_dataclass} (parent is {dataclass})")
+                # self._add_arguments(child_dataclass, True)
                 continue
-                # T = utils.get_item_type(f.type)
-                # self._add_arguments(T, True)
+                # warnings.warn(UserWarning("Nesting a list of dataclasses isn't supported yet!"))
 
             name = f"--{f.name}"
             arg_options: Dict[str, Any] = { 
@@ -169,13 +201,24 @@ class ArgumentParser(argparse.ArgumentParser):
         args_dict = vars(args) if isinstance(args, argparse.Namespace) else args
         # print("args dict:", args_dict)
         constructor_args: Dict[str, Any] = {}
+
         for f in dataclasses.fields(dataclass):
             if not f.init:
                 continue
+            
             if dataclasses.is_dataclass(f.type):
-                raise UserWarning("Nesting isn't supported yet!")
+                child_dataclass = f.type
+                constructor_args[f.name] = self._instantiate_dataclass(f.type, args_dict)
+            
+            elif utils.is_tuple_or_list_of_dataclasses(f.type):
+                child_dataclass = utils.get_item_type(f.type)
+                container = utils.get_argparse_container_type(f.type)
 
-            if enum.Enum in f.type.mro():
+                # TODO: how do we know how many should be instantiated?
+                constructor_args[f.name] = container(self._instantiate_dataclasses(child_dataclass, args_dict, 1))
+                raise UserWarning("Nesting a list of dataclasses isn't supported yet!")
+
+            elif enum.Enum in f.type.mro():
                 constructor_args[f.name] = f.type[args_dict[f.name]]
             
             elif utils.is_tuple(f.type):
@@ -199,9 +242,10 @@ class ArgumentParser(argparse.ArgumentParser):
                 constructor_args[f.name] = args_dict[f.name]
         return dataclass(**constructor_args) #type: ignore
     
-    def _instantiate_dataclasses(self, dataclass: Type[T], args: argparse.Namespace, num_instances_to_parse: int) -> List[T]:
+    def _instantiate_dataclasses(self, dataclass: Type[T], args: Union[Dict[str, Any], argparse.Namespace], num_instances_to_parse: int) -> List[T]:
         """Creates multiple instances of the dataclass using results of `parser.parse_args()`"""
-        args_dict: Dict[str, Any] = vars(args)
+        num_instances_to_parse = len(self._args_to_add[dataclass])
+        args_dict: Dict[str, Any] = vars(args) if isinstance(args, argparse.Namespace) else args
 
         instances: List[dataclass] = [] # type: ignore
         for i in range(num_instances_to_parse):

@@ -149,6 +149,14 @@ def _parse_container(tuple_or_list: type,) -> Callable[[str], List[Any]]:
 
     return parse_fn
 
+def setattr_recursive(obj: object, attribute_name: str, value: Any):
+    parts = attribute_name.split(".")
+    print("setattr recursive", obj, attribute_name, value)
+    if len(parts) == 1:
+        setattr(obj, attribute_name, value)
+    else:
+        child_object = getattr(obj, parts[0])
+        setattr_recursive(child_object, ".".join(parts[1:]), value)
 
 
 if __name__ == "__main__":

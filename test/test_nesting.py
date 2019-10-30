@@ -46,14 +46,14 @@ class Container2(TestSetup):
 
 xfail_nesting_isnt_supported_yet = pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
 
-@xfail_nesting_isnt_supported_yet
+# @xfail_nesting_isnt_supported_yet
 def test_nesting_no_args():
     c1 = Container1.setup("")
     assert c1.v1 == 0
     assert c1.class_a.a == 1
     assert c1.class_b.b == 2
 
-@xfail_nesting_isnt_supported_yet
+# @xfail_nesting_isnt_supported_yet
 def test_nesting_with_args():
     c1 = Container1.setup("--a 123 --b 456 --v1 3")
     assert c1.v1 == 3
