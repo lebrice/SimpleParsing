@@ -1,5 +1,6 @@
 """Utility functions"""
 import argparse
+import dataclasses
 import re
 from dataclasses import dataclass
 from typing import *
@@ -30,26 +31,30 @@ def str2bool(v: str) -> bool:
     else:
         raise argparse.ArgumentTypeError(f"Boolean value expected for argument, received '{v}'")
 
+T = TypeVar("T")
 
-def get_item_type(container_type: Type) -> Optional[Type]:
-    """Returns the `type` of the items in the list type. When no type annotation is found, returns None.
-    >>> get_container_item_type(typing.List[int])
+def get_item_type(container_type: Type[Container[T]]) -> T:
+    """Returns the `type` of the items in the provided container `type`. When no type annotation is found, or no item type is found, returns `typing.Any`.
+    >>> import typing
+    >>> get_item_type(typing.List)
+
+    >>> get_item_type(typing.List[int])
     <class 'int'>
-    >>> get_container_item_type(typing.List[str])
+    >>> get_item_type(typing.List[str])
     <class 'str'>
-    >>> get_container_item_type(typing.List[float])
+    >>> get_item_type(typing.List[float])
     <class 'float'>
-    >>> get_container_item_type(List[float])
+    >>> get_item_type(List[float])
     <class 'float'>
-    >>> get_container_item_type(List[Tuple])
+    >>> get_item_type(List[Tuple])
     typing.Tuple
     >>> get_item_type(List[Tuple[int, int]])
     typing.Tuple[int, int]
-    >>> get_container_item_type(Tuple[int, str])
+    >>> get_item_type(Tuple[int, str])
     <class 'int'>
-    >>> get_container_item_type(Tuple[str, int])
+    >>> get_item_type(Tuple[str, int])
     <class 'str'>
-    >>> get_container_item_type(Tuple[str, str, str, str])
+    >>> get_item_type(Tuple[str, str, str, str])
     <class 'str'>
 
     Arguments:
@@ -60,11 +65,9 @@ def get_item_type(container_type: Type) -> Optional[Type]:
     """
     if container_type in {list, tuple}:
         # the built-in `list` and `tuple` types don't have annotations for their item types.
-        return None
-    if hasattr(container_type, "__args__"):
-        T = container_type.__args__[0] if len(container_type.__args__) >= 1 else None
-        return T
-    return None
+        return Type[Any]
+    return getattr(container_type, "__args__", tuple([Any]))[0]
+    
 
 def get_argparse_container_type(container_type: Type) -> Type:
     """Gets the argparse 'type' option to be used for a given container type.
@@ -93,6 +96,11 @@ def is_tuple(t: Type) -> bool:
 
 def is_tuple_or_list(t: Type) -> bool:
     return is_list(t) or is_tuple(t)
+
+
+def is_tuple_or_list_of_dataclasses(t: Type) -> bool:
+    return is_tuple_or_list(t) and dataclasses.is_dataclass(get_item_type(t))
+
 
 
 def _parse_multiple_containers(tuple_or_list: type,) -> Callable[[str], List[Any]]:
@@ -140,3 +148,9 @@ def _parse_container(tuple_or_list: type,) -> Callable[[str], List[Any]]:
         return values
 
     return parse_fn
+
+
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

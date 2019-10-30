@@ -43,15 +43,17 @@ class Container1(TestSetup):
 class Container2(TestSetup):
     list_of_class_c: List[ClassC] = field(default_factory=list)
 
-@pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+
+xfail_nesting_isnt_supported_yet = pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+
+@xfail_nesting_isnt_supported_yet
 def test_nesting_no_args():
     c1 = Container1.setup("")
     assert c1.v1 == 0
     assert c1.class_a.a == 1
     assert c1.class_b.b == 2
 
-
-@pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+@xfail_nesting_isnt_supported_yet
 def test_nesting_with_args():
     c1 = Container1.setup("--a 123 --b 456 --v1 3")
     assert c1.v1 == 3
@@ -59,14 +61,13 @@ def test_nesting_with_args():
     assert c1.class_b.b == 456
 
 
-
-@pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+@xfail_nesting_isnt_supported_yet
 def test_nesting_with_containers_no_args():
     container = Container2.setup("")
     assert len(container.list_of_class_c) == 0
 
 
-# @pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+@xfail_nesting_isnt_supported_yet
 def test_nesting_with_containers_with_args():
     container = Container2.setup("--c 1 2 3")
     assert len(container.list_of_class_c) == 3
@@ -79,7 +80,7 @@ def test_nesting_with_containers_with_args():
     assert isinstance(c3, ClassC)
 
 
-@pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
+@xfail_nesting_isnt_supported_yet
 def test_nesting_multiple_containers_containers_no_args():
     container1, container2, container3 = Container2.setup_multiple(3, "--c '1 2' '3 4' '5 6'")
     assert len(container1.list_of_class_c) == 3

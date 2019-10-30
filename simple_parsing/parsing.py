@@ -23,6 +23,7 @@ class InconsistentArgumentError(RuntimeError):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+T = TypeVar("T")
 
 class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args, **kwargs):
@@ -52,15 +53,38 @@ class ArgumentParser(argparse.ArgumentParser):
         
         # Here we store args to add instead of adding them directly in order to handle the case where
         # multiple of the same dataclass are added as arguments
+        if dest in self._args_to_add[dataclass]:
+            raise RuntimeError(f"Destination attribute {dest} is already used for dataclass of type {dataclass}. Make sure all destinations are unique!")
         self._args_to_add[dataclass].append(dest)
         for field in dataclasses.fields(dataclass):
             if dataclasses.is_dataclass(field.type):
                 warnings.warn(UserWarning("Nesting isn't supported yet!"))
-                # TODO: interesting problem, the nested dataclasses should be set as attributes to the dataclasses, so what would the 'dest' be in such a case?
             elif utils.is_tuple_or_list(field.type) and dataclasses.is_dataclass(utils.get_item_type(field.type)):
                 warnings.warn(UserWarning("Nesting isn't supported yet!"))
     
-    def _add_arguments(self, dataclass: Type, multiple=False):
+    def parse_args(self, args=None, namespace=None):
+        self._preprocessing()
+        parsed_args = super().parse_args(args, namespace)
+        return self._postprocessing(parsed_args)
+
+    def _preprocessing(self):
+        for dataclass_to_add, destinations in self._args_to_add.items():
+            self._add_arguments(dataclass_to_add, multiple=len(destinations) > 1)
+
+    def _postprocessing(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+        # TODO: Try and maybe teturn a nicer, typed version of parsed_args (a Namespace subclass?)       
+        # Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
+        for dataclass, destinations_attributes in self._args_to_add.items():
+            if len(destinations_attributes) == 1:
+                dataclass_instance = self._instantiate_dataclass(dataclass, parsed_args)
+                setattr(parsed_args, destinations_attributes[0], dataclass_instance)
+            else:
+                dataclass_instances = self._instantiate_dataclasses(dataclass, parsed_args, len(destinations_attributes))
+                for dataclass_instance, dest in zip(dataclass_instances, destinations_attributes):
+                    setattr(parsed_args, dest, dataclass_instance)
+        return parsed_args
+
+    def _add_arguments(self, dataclass: Type[T], multiple=False):
         names = self._args_to_add[dataclass]
         names_string =f""" [{', '.join(f"'{name}'" for name in names)}]"""
         group = self.add_argument_group(
@@ -140,7 +164,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
             group.add_argument(name, **arg_options)
 
-    def _instantiate_dataclass(self, dataclass: Type, args: argparse.Namespace):
+    def _instantiate_dataclass(self, dataclass: Type[T], args: Union[Dict[str, Any], argparse.Namespace]) -> T:
         """Creates an instance of the dataclass using results of `parser.parse_args()`"""
         args_dict = vars(args) if isinstance(args, argparse.Namespace) else args
         # print("args dict:", args_dict)
@@ -175,7 +199,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 constructor_args[f.name] = args_dict[f.name]
         return dataclass(**constructor_args) #type: ignore
     
-    def _instantiate_dataclasses(self, dataclass: Type, args: argparse.Namespace, num_instances_to_parse: int):
+    def _instantiate_dataclasses(self, dataclass: Type[T], args: argparse.Namespace, num_instances_to_parse: int) -> List[T]:
         """Creates multiple instances of the dataclass using results of `parser.parse_args()`"""
         args_dict: Dict[str, Any] = vars(args)
 
@@ -198,27 +222,3 @@ class ArgumentParser(argparse.ArgumentParser):
                     )
             instances.append(self._instantiate_dataclass(dataclass, constructor_arguments))
         return instances
-
-
-    def parse_args(self, args=None, namespace=None):
-        # Add (for real this time!) the dataclasses, handling the case where the same dataclass was added multiple times
-        # with different 'dest' strings
-        for dataclass_to_add, destinations in self._args_to_add.items():
-            self._add_arguments(dataclass_to_add, multiple=len(destinations) > 1)
-
-        # Parse the arguments normally
-        parsed_args = super().parse_args(args, namespace)
-
-        # TODO: get a nice typed version of parsed_args (a Namespace)       
-
-        # Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
-        for dataclass_to_add, destinations in self._args_to_add.items():
-            if len(destinations) == 1:
-                dataclass_instance = self._instantiate_dataclass(dataclass_to_add, parsed_args)
-                setattr(parsed_args, destinations[0], dataclass_instance)
-            else:
-                dataclass_instances = self._instantiate_dataclasses(dataclass_to_add, parsed_args, len(destinations))
-                for dataclass_instance, dest in zip(dataclass_instances, destinations):
-                    setattr(parsed_args, dest, dataclass_instance)
-
-        return parsed_args
