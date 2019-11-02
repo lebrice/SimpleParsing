@@ -16,6 +16,106 @@ from typing import *
 from . import docstring, utils
 import logging
 
+from abc import ABC
+
+@dataclasses.dataclass
+class FieldWrapper():
+    dataclass: Type
+    field: dataclasses.Field
+    _arg_options: Dict[str, Any] = dataclasses.field(init=False, default={})
+    docstring: Optional[docstring.AttributeDocString] = None
+
+    @property
+    def arg_options(self) -> Dict[str, Any]:
+        if self._arg_options:
+            return self._arg_options
+        else:
+            # TODO:
+            self._arg_options = self._get_arg_options(multiple=False)
+            return self._arg_options 
+
+    def _get_arg_options(self, multiple=False):
+        f = self.field
+        dataclass = self.dataclass
+        multiple = self.multiple
+
+        if not f.init:
+            return
+        elif dataclasses.is_dataclass(f.type):
+            return
+        elif utils.is_tuple_or_list_of_dataclasses(f.type):
+            return
+
+        name = f"--{f.name}"
+        arg_options: Dict[str, Any] = { 
+            "type": f.type,
+        }
+
+        doc = docstring.get_attribute_docstring(dataclass, f.name)
+        if doc is not None:
+            if doc.docstring_below:
+                arg_options["help"] = doc.docstring_below
+            elif doc.comment_above:
+                arg_options["help"] = doc.comment_above
+            elif doc.comment_inline:
+                arg_options["help"] = doc.comment_inline
+        
+        if f.default is not dataclasses.MISSING:
+            arg_options["default"] = f.default
+        elif f.default_factory is not dataclasses.MISSING: # type: ignore
+            arg_options["default"] = f.default_factory() # type: ignore
+        else:
+            arg_options["required"] = True
+                    
+        if enum.Enum in f.type.mro():
+            arg_options["choices"] = list(e.name for e in f.type)
+            arg_options["type"] = str # otherwise we can't parse the enum, as we get a string.
+            if "default" in arg_options:
+                default_value = arg_options["default"]
+                # if the default value is the Enum object, we make it a string
+                if isinstance(default_value, enum.Enum):
+                    arg_options["default"] = default_value.name
+        
+        elif utils.is_tuple_or_list(f.type):
+            # Check if typing.List or typing.Tuple was used as an annotation, in which case we can automatically convert items to the desired item type.
+            # NOTE: we only support tuples with a single type, for simplicity's sake. 
+            T = utils.get_argparse_container_type(f.type)
+            arg_options["nargs"] = "*"
+            if multiple:
+                arg_options["type"] = utils._parse_multiple_containers(f.type)
+            else:
+                # TODO: Supporting the `--a '1 2 3'`, `--a [1,2,3]`, and `--a 1 2 3` at the same time is syntax is kinda hard, and I'm not sure if it's really necessary.
+                # right now, we support --a '1 2 3' '4 5 6' and --a [1,2,3] [4,5,6] only when parsing multiple instances.
+                # arg_options["type"] = utils._parse_container(f.type)
+                arg_options["type"] = T
+        
+        elif f.type is bool:
+            arg_options["default"] = False if f.default is dataclasses.MISSING else f.default
+            arg_options["type"] = utils.str2bool
+            arg_options["nargs"] = "*" if multiple else "?"
+            if f.default is dataclasses.MISSING:
+                arg_options["required"] = True
+        
+        if multiple:
+            required = arg_options.get("required", False)
+            if required:
+                arg_options["nargs"] = "+"
+            else:
+                arg_options["nargs"] = "*"
+                arg_options["default"] = [arg_options["default"]]
+
+        self.arg_options = arg_options
+
+@dataclasses.dataclass
+class DataclassWrapper():
+    dataclass: Type
+    _fields: List[FieldWrapper] = dataclasses.field(init=False, default_factory=list)
+
+    def __post_init__(self):
+        for field in dataclasses.fields(self.dataclass):
+            self._fields.append(FieldWrapper(field))
+
+
 class InconsistentArgumentError(RuntimeError):
     """
     Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
@@ -34,6 +134,7 @@ class Destination():
     num_instances_to_parse: int = 1
     ## Maybe TODO: add typing for T here.
     # instances: List[Any] = dataclasses.field(default_factory=list)
+    children: List["Destination"] = dataclasses.field(default_factory=list)
 
 nesting_isnt_supported_yet = lambda field: UserWarning(f"Nesting a list of dataclasses isn't supported yet. Field {field.name} will be set to its default value.")
 
@@ -44,9 +145,9 @@ class ArgumentParser(argparse.ArgumentParser):
         super().__init__(*args, **kwargs)
 
         self._args_to_add: Dict[Type[T], List[Destination]] = {}
+        self._arg_options: Dict[Type[T], Dict[str, Any]] = {}
 
 
-    
     def add_arguments(self, dataclass: Type, dest: str):
         """Adds corresponding command-line arguments for this class to the parser.
         
@@ -83,6 +184,9 @@ class ArgumentParser(argparse.ArgumentParser):
                 child_dataclass = field.type
                 child_attribute = f"{dest.attribute}.{field.name}"
                 child_dest = Destination(child_attribute)
+
+                dest.children.append()
+
                 logging.debug(f"adding child dataclass of type {child_dataclass} at attribute {child_attribute}")
                 self._register_dataclass(child_dataclass, child_dest)
 
@@ -103,7 +207,6 @@ class ArgumentParser(argparse.ArgumentParser):
                 logging.debug(f"adding child dataclass of type {child_dataclass} at dest {child_dest}.")
                 self._register_dataclass(child_dataclass, child_dest)
     
-
     def _preprocessing(self):
         logging.debug("\nPREPROCESSING\n")
         for dataclass_to_add, destinations in self._args_to_add.items():
@@ -115,28 +218,30 @@ class ArgumentParser(argparse.ArgumentParser):
         logging.debug("\nPOST PROCESSING\n")
         # TODO: Try and maybe return a nicer, typed version of parsed_args (a Namespace subclass?)       
         # Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
+
         for dataclass, destinations in self._args_to_add.items():
             # each attribute to set on the parsed_args may be a single dataclass, or a list of dataclasses.  
             total_num_instances = sum(dest.num_instances_to_parse for dest in destinations)
             logging.debug(f"postprocessing: {parsed_args} {dataclass} {destinations}")
             
             # parse all the instances of the required class all at the same time (flattening the nesting tree)
-            # BUG: If there are multiple instances of the children class, then the number of instances
+            logging.debug(f"total number of instances: {total_num_instances}")
+            
+            # BUG: This doesn't work, because the parent dataclass might have only one instance to parse, but if there are multiple children classes, 
             if total_num_instances == 1:
                 dataclass_instances = [self._instantiate_dataclass(dataclass, parsed_args)]
             else:
-                logging.debug(f"total number of instances: {total_num_instances}")
                 dataclass_instances = self._instantiate_dataclasses(dataclass, parsed_args, total_num_instances)
             
             for destination in destinations:
                 if destination.num_instances_to_parse == 1:
                     instance = dataclass_instances.pop(0) # take the leftmost dataclass.
-                    logging.debug(f"setting attribute {destination.attribute} in parsed_args to a value of {instance}")
+                    logging.debug(f"setting attribute {destination.attribute} in parsed_args to a value of {instance} (single)")
                     utils.setattr_recursive(parsed_args, destination.attribute, instance)
                 else:
                     # TODO: we are using lists, whereas it might be a tuple or some other container.
                     instances = [dataclass_instances.pop(0) for _ in range(destination.num_instances_to_parse)]
-                    logging.debug(f"setting attribute {destination.attribute} in parsed_args to a value of {instances}")
+                    logging.debug(f"setting attribute {destination.attribute} in parsed_args to a value of {instances} (multiple)")
                     utils.setattr_recursive(parsed_args, destination.attribute, instances)
         return parsed_args
 
