@@ -40,20 +40,18 @@ class Container1(TestSetup):
 
 
 @dataclass()
-class Container2(TestSetup):
-    list_of_class_c: List[ClassC] = field(default_factory=list)
+class ContainerWithList(TestSetup):
+    list_of_class_c: List[ClassC] = field(default_factory=lambda: [ClassC()] * 2)
 
 
 xfail_nesting_isnt_supported_yet = pytest.mark.xfail(reason="TODO: make sure this is how people would want to use this feature.")
 
-# @xfail_nesting_isnt_supported_yet
 def test_nesting_no_args():
     c1 = Container1.setup("")
     assert c1.v1 == 0
     assert c1.class_a.a == 1
     assert c1.class_b.b == 2
 
-# @xfail_nesting_isnt_supported_yet
 def test_nesting_with_args():
     c1 = Container1.setup("--a 123 --b 456 --v1 3")
     assert c1.v1 == 3
@@ -61,29 +59,25 @@ def test_nesting_with_args():
     assert c1.class_b.b == 456
 
 
-@xfail_nesting_isnt_supported_yet
 def test_nesting_with_containers_no_args():
-    container = Container2.setup("")
-    assert len(container.list_of_class_c) == 0
+    container = ContainerWithList.setup("")
+    assert len(container.list_of_class_c) == 2
 
 
-@xfail_nesting_isnt_supported_yet
 def test_nesting_with_containers_with_args():
-    container = Container2.setup("--c 1 2 3")
-    assert len(container.list_of_class_c) == 3
-    c1, c2, c3 = tuple(container.list_of_class_c)
+    container = ContainerWithList.setup("--c 1 2")
+    assert len(container.list_of_class_c) == 2
+    c1, c2 = tuple(container.list_of_class_c)
     assert c1.c == 1
     assert isinstance(c1, ClassC)
     assert c2.c == 2
     assert isinstance(c2, ClassC)
-    assert c3.c == 3
-    assert isinstance(c3, ClassC)
 
 
 @xfail_nesting_isnt_supported_yet
-def test_nesting_multiple_containers_containers_no_args():
-    container1, container2, container3 = Container2.setup_multiple(3, "--c '1 2' '3 4' '5 6'")
-    assert len(container1.list_of_class_c) == 3
+def test_nesting_multiple_containers_with_args_separator():
+    container1, container2, container3 = ContainerWithList.setup_multiple(3, "--c 1 2 --c 3 4 --c 5 6")
+    assert len(container1.list_of_class_c) == 2
     c1, c2 = tuple(container1.list_of_class_c)
     assert c1.c == 1
     assert isinstance(c1, ClassC)
@@ -91,16 +85,43 @@ def test_nesting_multiple_containers_containers_no_args():
     assert isinstance(c2, ClassC)
 
 
-    assert len(container2.list_of_class_c) == 3
+    assert len(container2.list_of_class_c) == 2
     c1, c2 = tuple(container2.list_of_class_c)
     assert c1.c == 3
     assert isinstance(c1, ClassC)
     assert c2.c == 4
     assert isinstance(c2, ClassC)
 
-    assert len(container3.list_of_class_c) == 3
+    assert len(container3.list_of_class_c) == 2
     c1, c2 = tuple(container3.list_of_class_c)
     assert c1.c == 5
     assert isinstance(c1, ClassC)
     assert c2.c == 6
     assert isinstance(c2, ClassC)
+
+
+@dataclass
+class RunConfig:
+    log_dir: str = "logs"
+    checkpoint_dir: str = field(init=False)
+    
+    def __post_init__(self):
+        """Post-Init to set the fields that shouldn't be constructor arguments."""
+        import os
+        self.checkpoint_dir = os.path.join(self.log_dir, "checkpoints")
+
+@dataclass
+class TrainConfig(TestSetup):
+    train_config: RunConfig = RunConfig("train")
+    valid_config: RunConfig = RunConfig("valid")
+
+def test_train_config_example_no_args():
+    config = TrainConfig.setup("")
+    assert isinstance(config.train_config, RunConfig)
+    assert config.train_config.checkpoint_dir == "logs/checkpoints"
+    
+    assert isinstance(config.valid_config, RunConfig)
+    assert config.valid_config.checkpoint_dir == "logs/checkpoints"
+    
+    print(TrainConfig.get_help_text())
+

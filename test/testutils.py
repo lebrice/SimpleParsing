@@ -15,7 +15,7 @@ def xfail_param(*args, reason:str):
     return pytest.param(*args, marks=pytest.mark.xfail(reason=reason))
 
 
-T = TypeVar("T", bound="TestSetup")
+T = TypeVar("T")
 
 class TestSetup():
     @classmethod
