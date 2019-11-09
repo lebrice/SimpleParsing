@@ -35,6 +35,19 @@ def inheritance_setup(arguments=""):
     extb = args.extended_b
     return exta, extb
 
+
+def test_simple_subclassing_no_args():
+    extended = ExtendedA.setup()
+    assert extended.a == 2
+    assert extended.common_attribute == 1
+
+
+def test_simple_subclassing_with_args():
+    extended = ExtendedA.setup("--common_attribute 123 --a 56")
+    assert extended.a == 56
+    assert extended.common_attribute == 123
+    
+
 @xfail(reason="TODO: make sure this is how people would want to use this feature.")
 def test_subclasses_with_same_base_class_no_args():
     ext_a, ext_b = inheritance_setup()

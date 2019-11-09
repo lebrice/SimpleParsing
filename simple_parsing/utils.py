@@ -3,15 +3,29 @@ import argparse
 import dataclasses
 import functools
 import re
+import dataclasses
 from dataclasses import dataclass
 from typing import *
 
+
+class InconsistentArgumentError(RuntimeError):
+    """
+    Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
     """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
     """
     pass
 
+T = TypeVar("T")
+
+def list_field(default = None, init: bool =True, repr=True, hash: bool = None, compare: bool =True, metadata: Dict[str, Any] = None) -> dataclasses.Field:
+    """Shorthand for writing a `dataclasses.field()` that will hold a list of values.
+    """
+    return dataclasses.field(default_factory=lambda: default, init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
 
 def camel_case(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
@@ -32,7 +46,6 @@ def str2bool(v: str) -> bool:
     else:
         raise argparse.ArgumentTypeError(f"Boolean value expected for argument, received '{v}'")
 
-T = TypeVar("T")
 
 def get_item_type(container_type: Type[Container[T]]) -> T:
     """Returns the `type` of the items in the provided container `type`. When no type annotation is found, or no item type is found, returns `typing.Any`.

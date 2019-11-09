@@ -16,7 +16,7 @@ class AttributeDocString():
     docstring_below: str = ""
 
 
-def get_attribute_docstring(some_dataclass: type, field_name: str) -> Optional[AttributeDocString]:
+def get_attribute_docstring(some_dataclass: Type, field_name: str) -> Optional[AttributeDocString]:
     """Returns the docstrings of a dataclass field.
     NOTE: a docstring can either be: 
         - An inline comment, starting with <#>

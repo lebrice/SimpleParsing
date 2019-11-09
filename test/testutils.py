@@ -4,6 +4,7 @@ import shlex
 import pytest
 import simple_parsing
 from simple_parsing import InconsistentArgumentError, ArgumentParser, Formatter
+from simple_parsing.wrappers import DataclassWrapper
 
 
 from simple_parsing.utils import camel_case
@@ -15,11 +16,11 @@ def xfail_param(*args, reason:str):
     return pytest.param(*args, marks=pytest.mark.xfail(reason=reason))
 
 
-T = TypeVar("T")
+Dataclass = TypeVar("Dataclass")
 
 class TestSetup():
     @classmethod
-    def setup(cls: Type[T], arguments: Optional[str] = "", dest: Optional[str] = None) -> T:
+    def setup(cls: Type[Dataclass], arguments: Optional[str] = "", dest: Optional[str] = None) -> Dataclass:
         """Basic setup for a test.
         
         Keyword Arguments:
@@ -44,7 +45,7 @@ class TestSetup():
         return instance
     
     @classmethod
-    def setup_multiple(cls: Type[T], num_to_parse: int, arguments: Optional[str] = "") -> Tuple[T, ...]:
+    def setup_multiple(cls: Type[Dataclass], num_to_parse: int, arguments: Optional[str] = "") -> Tuple[Dataclass, ...]:
         parser = simple_parsing.ArgumentParser()
         class_name = camel_case(cls.__name__)
         for i in range(num_to_parse):
@@ -68,6 +69,9 @@ class TestSetup():
             _ = cls.setup("--help")
         s = f.getvalue()
         return s
+
+
+
 
 
 ListFormattingFunction = Callable[[List[Any]], str]
