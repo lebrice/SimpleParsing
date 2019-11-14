@@ -66,7 +66,7 @@ class ArgumentParser(argparse.ArgumentParser):
             self.error(f"Destination attribute {dest} is already used for dataclass of type {dataclass}. Make sure all destinations are unique!")
         destinations.append(dest)
         
-        wrapper = self._wrappers.setdefault(dataclass, DataclassWrapper(dataclass, self))
+        wrapper: DataclassWrapper[Dataclass] = self._wrappers.setdefault(dataclass, DataclassWrapper(dataclass, self))
 
         for wrapped_field in wrapper.fields:
             field = wrapped_field.field
@@ -116,22 +116,27 @@ class ArgumentParser(argparse.ArgumentParser):
         logging.debug("\nPOST PROCESSING\n")
         # TODO: Try and maybe return a nicer, typed version of parsed_args (a Namespace subclass?)       
         # Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
+
+        constructor_arguments_for_each_dataclass: Dict[str, Dict[str, Any]] = {}
+
         for dataclass, destinations in self._args_to_add.items():
-            wrapped_dataclass = self._wrappers[dataclass]
+            wrapped_dataclass: DataclassWrapper = self._wrappers[dataclass]
             logging.debug(f"postprocessing: {parsed_args} {wrapped_dataclass} {destinations}")
             
             total_num_instances = len(destinations)
             logging.debug(f"total number of instances: {total_num_instances}")
-            if total_num_instances == 1:
-                dataclass_instances = wrapped_dataclass.instantiate(parsed_args, 1)
-            else:
-                dataclass_instances = wrapped_dataclass.instantiate(parsed_args, total_num_instances)
-            
-            for destination in destinations:
-                instance = dataclass_instances.pop(0) # take the leftmost dataclass.
-                logging.debug(f"setting attribute {destination} in parsed_args to a value of {instance} (single)")
-                utils.setattr_recursive(parsed_args, destination, instance)
+            constructor_arguments_list: List[Dict[str, Any]] = wrapped_dataclass.get_constructor_arguments(parsed_args, total_num_instances)
+
+            for destination, instance_arguments in zip(destinations, constructor_arguments_list):
+                print(f"attribute {destination} will have arguments: {instance_arguments}")
+                constructor_arguments_for_each_dataclass[destination] = instance_arguments
+
+        # we now have all the constructor arguments for each instance.
+        # we can now sort out the different dependencies.
+
         
+
+
         return parsed_args
 
     def _get_destination_attributes_string(self, destinations: List[str]) -> str:

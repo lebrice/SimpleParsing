@@ -139,10 +139,10 @@ class DataclassWrapper(Generic[Dataclass]):
             wrapped_field.multiple = value
         self._multiple = value
 
-    def instantiate(self, args: Union[Dict[str, Any], argparse.Namespace], num_instances_to_parse: int = 1) -> List[Dataclass]:
+    def get_constructor_arguments(self, args: Union[Dict[str, Any], argparse.Namespace], num_instances_to_parse: int = 1) -> List[Dict[str, Any]]:
         """Creates instances of the dataclass using results of `parser.parse_args()`"""
         args_dict: Dict[str, Any] = vars(args) if isinstance(args, argparse.Namespace) else args
-        instances: List[Dataclass] = []
+        constructor_arguments: List[Dict[str, Any]] = []
         dataclass: Type[Dataclass] = self.dataclass
 
         logging.debug(dataclass, args_dict, num_instances_to_parse)
@@ -154,7 +154,7 @@ class DataclassWrapper(Generic[Dataclass]):
             assert num_instances_to_parse == 1, "multiple is false but we're expected to instantiate more than one instance"
 
         for i in range(num_instances_to_parse):
-            constructor_arguments: Dict[str, Union[Any, List]] = {}
+            instance_arguments: Dict[str, Union[Any, List]] = {}
             for wrapped_field in self.fields:
                 f = wrapped_field.field
                 if not f.init:
@@ -173,19 +173,17 @@ class DataclassWrapper(Generic[Dataclass]):
                 if self.multiple:
                     assert isinstance(value, list), f"all fields should have gotten a list default value... ({value})"
                     if len(value) == 1:
-                        constructor_arguments[f.name] = value[0]
+                        instance_arguments[f.name] = value[0]
                     elif len(value) == num_instances_to_parse:
-                        constructor_arguments[f.name] = value[i]
+                        instance_arguments[f.name] = value[i]
                     else:
                         raise utils.InconsistentArgumentError(
                             f"The field '{f.name}' contains {len(value)} values, but either 1 or {num_instances_to_parse} values were expected."
                         )
                 else:
-                    constructor_arguments[f.name] = value
-
-            instances.append(self._instantiate_dataclass(constructor_arguments))
-                    
-        return instances
+                    instance_arguments[f.name] = value
+            constructor_arguments.append(instance_arguments)
+        return constructor_arguments
 
     def _instantiate_dataclass(self, args: Union[Dict[str, Any], argparse.Namespace]) -> Dataclass:
         """Creates an instance of the dataclass using results of `parser.parse_args()`"""
