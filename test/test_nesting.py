@@ -99,10 +99,35 @@ def test_nesting_multiple_containers_with_args_separator():
     assert c2.c == 6
     assert isinstance(c2, ClassC)
 
+@dataclass
+class HParams:
+    """
+    Model Hyper-parameters
+    """
+    # Number of examples per batch
+    batch_size: int = 32
+    # fixed learning rate passed to the optimizer.
+    learning_rate: float = 0.005 
+    # name of the optimizer class to use
+    optimizer: str = "ADAM"
+    
+    
+    default_num_layers: ClassVar[int] = 10
+    
+    # number of layers.
+    num_layers: int = default_num_layers
+    # the number of neurons at each layer
+    neurons_per_layer: List[int] = field(default_factory=lambda: [128] * HParams.default_num_layers)
+
 
 @dataclass
 class RunConfig:
-    log_dir: str = "logs"
+    """
+    Group of settings used during a training or validation run.
+    """
+    # the set of hyperparameters for this run.
+    hparams: HParams = HParams()
+    log_dir: str = "logs" # The logging directory where
     checkpoint_dir: str = field(init=False)
     
     def __post_init__(self):
@@ -110,10 +135,17 @@ class RunConfig:
         import os
         self.checkpoint_dir = os.path.join(self.log_dir, "checkpoints")
 
+
 @dataclass
 class TrainConfig(TestSetup):
-    train: RunConfig = RunConfig("train")
-    valid: RunConfig = RunConfig("valid")
+    """
+    Top-level settings for multiple runs.
+    """
+    # run config to be used during training
+    train: RunConfig = RunConfig(log_dir="train")
+    # run config to be used during validation.
+    valid: RunConfig = RunConfig(log_dir="valid")
+
 
 def test_train_config_example_no_args():
     config = TrainConfig.setup("")
@@ -128,12 +160,19 @@ def test_train_config_example_no_args():
 
 
 def test_train_config_example_with_args():
-    config = TrainConfig.setup("--log_dir train valid")
-    assert isinstance(config.train, RunConfig)
+    config = TrainConfig.setup("--train_log_dir train --train_batch_size 123 --valid_log_dir valid --valid_batch_size 456")
     import os
+    
+    assert isinstance(config.train, RunConfig)
     assert config.train.checkpoint_dir == os.path.join("train","checkpoints")
     
+    assert isinstance(config.train.hparams, HParams)
+    assert config.train.hparams.batch_size == 123
+
     assert isinstance(config.valid, RunConfig)
     assert config.valid.checkpoint_dir == os.path.join("valid","checkpoints")
     
+    assert isinstance(config.valid.hparams, HParams)
+    assert config.valid.hparams.batch_size == 456
+
     print(TrainConfig.get_help_text())

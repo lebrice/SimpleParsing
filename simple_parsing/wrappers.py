@@ -12,14 +12,19 @@ Dataclass = TypeVar("Dataclass")
 class FieldWrapper():
     field: dataclasses.Field
     dataclass: dataclasses.InitVar[Type]
+    name_prefix: str = ""
     _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=lambda: {})
     _docstring: Optional[docstring.AttributeDocString] = None
-
     _multiple: bool = dataclasses.field(init=False, default=False)
-
+    _required: Optional[bool] = dataclasses.field(init=False, default=None)
     def __post_init__(self, dataclass: Type[Dataclass]):
         self._docstring = docstring.get_attribute_docstring(dataclass, self.field.name)
-
+    
+    @property
+    def name(self) -> str:
+        return self.name_prefix + self.field.name
+    
+    
     @property
     def arg_options(self) -> Dict[str, Any]:
         if self._arg_options:
@@ -37,6 +42,20 @@ class FieldWrapper():
         return utils.is_tuple_or_list_of_dataclasses(self.field.type)
 
     @property
+    def required(self) -> bool:
+        if self._required is not None:
+            return self._required
+        else:
+            return (
+                self.field.default is dataclasses.MISSING and 
+                self.field.default_factory is dataclasses.MISSING # type: ignore
+            )
+    
+    @required.setter
+    def required(self, value: bool):
+        self._required = value
+
+    @property
     def multiple(self) -> bool:
         return self._multiple
 
@@ -52,9 +71,9 @@ class FieldWrapper():
 
         if not f.init:
             return {}
-        elif dataclasses.is_dataclass(f.type):
+        elif self.is_dataclass:
             return {}
-        elif utils.is_tuple_or_list_of_dataclasses(f.type):
+        elif self.is_tuple_or_list_of_dataclasses:
             return {}
 
         name = f"--{f.name}"
@@ -76,7 +95,7 @@ class FieldWrapper():
             arg_options["default"] = f.default_factory() # type: ignore
         else:
             arg_options["required"] = True
-                    
+
         if enum.Enum in f.type.mro():
             arg_options["choices"] = list(e.name for e in f.type)
             arg_options["type"] = str # otherwise we can't parse the enum, as we get a string.
@@ -121,13 +140,36 @@ class FieldWrapper():
 @dataclasses.dataclass
 class DataclassWrapper(Generic[Dataclass]):
     dataclass: Type[Dataclass]
-    parser: argparse.ArgumentParser
+    _prefix: dataclasses.InitVar[str] = ""
     fields: List[FieldWrapper] = dataclasses.field(init=False, default_factory=list)
     _multiple: bool = dataclasses.field(init=False, default=False)
-    
-    def __post_init__(self):
+    _required: bool = dataclasses.field(init=False, default=False)
+    _argument_names_prefix: str = dataclasses.field(init=False, default="")
+
+    def __post_init__(self, _prefix: str):
+        self.prefix = _prefix
         for field in dataclasses.fields(self.dataclass):
-            self.fields.append(FieldWrapper(field, self.dataclass))
+            self.fields.append(FieldWrapper(field, self.dataclass, name_prefix=self.prefix))
+
+    @property
+    def prefix(self) -> str:
+        return self._argument_names_prefix
+    
+    @prefix.setter
+    def prefix(self, value: str):
+        self._argument_names_prefix = value
+        for wrapped_field in self.fields:
+            wrapped_field.name_prefix = value
+
+    @property
+    def required(self) -> bool:
+        return self._required
+
+    @required.setter
+    def required(self, value: bool):
+        self._required = value
+        for wrapped_field in self.fields:
+            wrapped_field.required = value
 
     @property
     def multiple(self) -> bool:
@@ -135,7 +177,6 @@ class DataclassWrapper(Generic[Dataclass]):
 
     @multiple.setter
     def multiple(self, value: bool):
-        print("Seting multiple to ", value)
         for wrapped_field in self.fields:
             wrapped_field.multiple = value
         self._multiple = value
@@ -166,13 +207,13 @@ class DataclassWrapper(Generic[Dataclass]):
                 
 
                 if wrapped_field.is_dataclass:
-                    print("The wrapped field is a dataclass. continuing, since it will be populated later.")
+                    logging.debug("The wrapped field is a dataclass. continuing, since it will be populated later.")
                     continue
 
                 assert not wrapped_field.is_tuple_or_list_of_dataclasses, "Shouldn't have been allowed"
                     
-                assert f.name in args_dict, f"{f.name} is not in the arguments dict: {args_dict}"
-                value = args_dict[f.name]
+                assert wrapped_field.name in args_dict, f"{f.name} is not in the arguments dict: {args_dict}"
+                value = args_dict[wrapped_field.name]
                                 
                 if self.multiple:
                     assert isinstance(value, list), f"all fields should have gotten a list default value... ({value})"
@@ -194,7 +235,7 @@ class DataclassWrapper(Generic[Dataclass]):
         """
         Creates an instance of the dataclass using the given dict of constructor arguments, including nested dataclasses if present.
         """
-        print(f"args dict: {args_dict}")
+        logging.debug(f"args dict: {args_dict}")
         
         dataclass = self.dataclass
         constructor_args: Dict[str, Any] = {}
@@ -206,15 +247,10 @@ class DataclassWrapper(Generic[Dataclass]):
             
             value = args_dict[f.name]
 
-            if wrapped_field.is_dataclass:
-                # print("Can't instantiate the child from within the parent, can I?")
-                constructor_args[f.name] = value
-                # constructor_args[f.name] = self._instantiate_dataclass(f.type, args_dict)
+           
+            assert not wrapped_field.is_tuple_or_list_of_dataclasses, "Shouldn't have attributes that are containers of dataclasses!"
             
-            elif utils.is_tuple_or_list_of_dataclasses(f.type):
-                raise RuntimeError("Shouldn't have attributes that are containers of dataclasses!")
-            
-            elif enum.Enum in f.type.mro():
+            if enum.Enum in f.type.mro():
                 constructor_args[f.name] = f.type[value]
             
             elif utils.is_tuple(f.type):
@@ -235,9 +271,7 @@ class DataclassWrapper(Generic[Dataclass]):
                     raise RuntimeError(f"bool argument {f.name} isn't bool: {value}")
 
             else:
-                constructor_args[f.name] = args_dict[f.name]
+                constructor_args[f.name] = value
 
         instance: T = dataclass(**constructor_args) #type: ignore
         return instance
-
-
