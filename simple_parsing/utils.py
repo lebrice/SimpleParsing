@@ -3,7 +3,7 @@ import argparse
 import dataclasses
 import functools
 import re
-import dataclasses
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import *
 
@@ -21,6 +21,57 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelp
     pass
 
 T = TypeVar("T")
+Dataclass = TypeVar("Dataclass")
+
+@dataclass
+class DependenciesGraph:
+    children: Dict[str, List[str]]
+    parent: Dict[str, str]
+
+def dependency_graph(destinations: List[str]) -> DependenciesGraph:
+    destination_to_parent: Dict[str, str] = {}
+    destination_to_children: Dict[str, List[str]] = defaultdict(list)
+
+    destinations = sorted(destinations, key=lambda attribute: attribute.count("."))
+    for destination in destinations:
+        parts = destination.split(".")
+        destination_to_parent[destination] = ".".join(parts[:-1])
+        
+        destination_to_children[".".join(parts[:-1])].append(destination)
+        
+    return DependenciesGraph(destination_to_children, destination_to_parent)
+
+
+
+def _sort_dependencies(args_to_add: Dict[Dataclass, List[str]]):
+    """
+    Idea: sort the order in which we instantiate the dataclasses such that we take care of the dependencies
+
+    Things to keep in mind:
+    1- We currently have to parse all instances for any given dataclass at the same time
+    2- We need to pass the (already parsed) child dataclass instances to their parents's somehow, so that they can be used in the constructor if are required.
+    
+    """
+
+    dataclass_to_destinations = args_to_add.copy()
+    destinations_to_dataclass = {}
+
+    for dataclass, destinations in dataclass_to_destinations.items():
+        for destination in destinations:
+            destinations_to_dataclass[destination] = dataclass
+    destinations = sorted(destinations_to_dataclass.keys(), key=lambda attribute: attribute.count("."))
+
+    while destinations:
+        highest_priority = destinations[0]
+        associated_dataclass = destinations_to_dataclass[destination]
+        all_destinations_for_class = dataclass_to_destinations[dataclass]
+        
+        yield dataclass, all_destinations_for_class
+
+        for parsed_destination in all_destinations_for_class:
+            destinations.remove(parsed_destination)
+
+
 
 def list_field(default = None, init: bool =True, repr=True, hash: bool = None, compare: bool =True, metadata: Dict[str, Any] = None) -> dataclasses.Field:
     """Shorthand for writing a `dataclasses.field()` that will hold a list of values.
@@ -117,12 +168,15 @@ def is_tuple_or_list_of_dataclasses(t: Type) -> bool:
 
 
 
-def _parse_multiple_containers(tuple_or_list: type,) -> Callable[[str], List[Any]]:
+def _parse_multiple_containers(tuple_or_list: type, append_action: bool = False) -> Callable[[str], List[Any]]:
     T = get_argparse_container_type(tuple_or_list)
     factory = tuple if is_tuple(tuple_or_list) else list
+    
+    result = factory()
 
     def parse_fn(v: str) -> List[Any]:
-        # print(f"Parsing a {tuple_or_list} of {T}s, value is: {v}, type is {type(v)}")
+        # nonlocal result
+        print(f"Parsing a {tuple_or_list} of {T}s, value is: {v}, type is {type(v)}")
         v = v.strip()
         if v.startswith("[") and v.endswith("]"):
             v = v[1:-1]
@@ -134,9 +188,12 @@ def _parse_multiple_containers(tuple_or_list: type,) -> Callable[[str], List[Any
         str_values = [v.strip() for v in v.split(separator)]
         T_values = [T(v_str) for v_str in str_values]
         values = factory(v for v in T_values)
-        # print("values:", values)
-        return values
-
+        print("values:", values)
+        if append_action:
+            result += values
+            return result
+        else:
+            return values
     return parse_fn
 
 

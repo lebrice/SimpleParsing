@@ -125,3 +125,15 @@ def test_train_config_example_no_args():
     assert config.valid.checkpoint_dir == os.path.join("logs","checkpoints")
     
     print(TrainConfig.get_help_text())
+
+
+def test_train_config_example_with_args():
+    config = TrainConfig.setup("--log_dir train valid")
+    assert isinstance(config.train, RunConfig)
+    import os
+    assert config.train.checkpoint_dir == os.path.join("train","checkpoints")
+    
+    assert isinstance(config.valid, RunConfig)
+    assert config.valid.checkpoint_dir == os.path.join("valid","checkpoints")
+    
+    print(TrainConfig.get_help_text())

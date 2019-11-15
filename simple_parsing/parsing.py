@@ -28,6 +28,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self._wrappers: Dict[Type[Dataclass], DataclassWrapper[Dataclass]] = {}
         self._args_to_add: Dict[Type[Dataclass], List[str]] = {}
 
+
     def add_arguments(self, dataclass: Type[Dataclass], dest: str):
         """Adds corresponding command-line arguments for this class to the parser.
         
@@ -113,31 +114,66 @@ class ArgumentParser(argparse.ArgumentParser):
 
 
     def _postprocessing(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+        """Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
+        
+        Arguments:
+            parsed_args {argparse.Namespace} -- the result of calling super().parse_args()
+        
+        Returns:
+            argparse.Namespace -- The namespace, with the added attributes for each dataclass.
+            TODO: Try and maybe return a nicer, typed version of parsed_args (a Namespace subclass maybe?)  
+        """
         logging.debug("\nPOST PROCESSING\n")
-        # TODO: Try and maybe return a nicer, typed version of parsed_args (a Namespace subclass?)       
-        # Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
-
         constructor_arguments_for_each_dataclass: Dict[str, Dict[str, Any]] = {}
-
+        wrapper_for_each_destination: Dict[str, DataclassWrapper] = {}
         for dataclass, destinations in self._args_to_add.items():
-            wrapped_dataclass: DataclassWrapper = self._wrappers[dataclass]
-            logging.debug(f"postprocessing: {parsed_args} {wrapped_dataclass} {destinations}")
+            wrapper: DataclassWrapper = self._wrappers[dataclass]
+            logging.debug(f"postprocessing: {parsed_args} {wrapper} {destinations}")
             
             total_num_instances = len(destinations)
             logging.debug(f"total number of instances: {total_num_instances}")
-            constructor_arguments_list: List[Dict[str, Any]] = wrapped_dataclass.get_constructor_arguments(parsed_args, total_num_instances)
+            constructor_arguments_list: List[Dict[str, Any]] = wrapper.get_constructor_arguments(parsed_args, total_num_instances)
 
             for destination, instance_arguments in zip(destinations, constructor_arguments_list):
-                print(f"attribute {destination} will have arguments: {instance_arguments}")
+                logging.debug(f"attribute {destination} will have arguments: {instance_arguments}")
                 constructor_arguments_for_each_dataclass[destination] = instance_arguments
-
-        # we now have all the constructor arguments for each instance.
-        # we can now sort out the different dependencies.
-
+                wrapper_for_each_destination[destination] = wrapper
         
+        # we now have all the constructor arguments for each instance.
+        # we can now sort out the different dependencies, and create the instances.
+        
+        print("all arguments:", constructor_arguments_for_each_dataclass)
 
+        nesting_level = lambda destination_attribute: destination_attribute.count(".")
+        nested_first = sorted(constructor_arguments_for_each_dataclass.keys(), key=nesting_level, reverse=True)
+        for destination in nested_first:
+            constructor = wrapper_for_each_destination[destination].instantiate_dataclass
+            constructor_args = constructor_arguments_for_each_dataclass[destination]    
+
+            instance = constructor(constructor_args)
+
+            if "." in destination:
+                # if this destination is a nested child of another,
+                # we set this instance in the corresponding constructor arguments,
+                # such that the required parameters are set
+                parts = destination.split(".")
+                parent = ".".join(parts[:-1])
+                attribute_in_parent = parts[-1]
+                constructor_arguments_for_each_dataclass[parent][attribute_in_parent] = instance
+            else:
+                # if this destination is not a nested child, we set the attribute
+                # on the returned parsed_args.
+                setattr(parsed_args, destination, instance)
 
         return parsed_args
+
+    def _sort_out_dependencies(self):
+        """PLAN: 
+        - instantiate the dataclasses without children first.
+            - if there aren't any, there must be some kind of cyclic dependency?
+        """
+
+
 
     def _get_destination_attributes_string(self, destinations: List[str]) -> str:
         names = destinations

@@ -91,6 +91,7 @@ class FieldWrapper():
             # NOTE: we only support tuples with a single type, for simplicity's sake. 
             T = utils.get_argparse_container_type(f.type)
             arg_options["nargs"] = "*"
+            # arg_options["action"] = "append"
             if multiple:
                 arg_options["type"] = utils._parse_multiple_containers(f.type)
             else:
@@ -140,12 +141,13 @@ class DataclassWrapper(Generic[Dataclass]):
         self._multiple = value
 
     def get_constructor_arguments(self, args: Union[Dict[str, Any], argparse.Namespace], num_instances_to_parse: int = 1) -> List[Dict[str, Any]]:
-        """Creates instances of the dataclass using results of `parser.parse_args()`"""
+        """
+        Parses the constructor arguments for every instance of the wrapped dataclass from the results of `parser.parse_args()`
+        """
         args_dict: Dict[str, Any] = vars(args) if isinstance(args, argparse.Namespace) else args
         constructor_arguments: List[Dict[str, Any]] = []
-        dataclass: Type[Dataclass] = self.dataclass
 
-        logging.debug(dataclass, args_dict, num_instances_to_parse)
+        logging.debug(self.dataclass, args_dict, num_instances_to_parse)
         logging.debug(f"args: {args}")
         
         if self.multiple:
@@ -154,24 +156,27 @@ class DataclassWrapper(Generic[Dataclass]):
             assert num_instances_to_parse == 1, "multiple is false but we're expected to instantiate more than one instance"
 
         for i in range(num_instances_to_parse):
+            
             instance_arguments: Dict[str, Union[Any, List]] = {}
+
             for wrapped_field in self.fields:
                 f = wrapped_field.field
                 if not f.init:
                     continue
+                
 
                 if wrapped_field.is_dataclass:
-                    print("The wrapped field is a dataclass. continuing?")
+                    print("The wrapped field is a dataclass. continuing, since it will be populated later.")
                     continue
 
                 assert not wrapped_field.is_tuple_or_list_of_dataclasses, "Shouldn't have been allowed"
                     
                 assert f.name in args_dict, f"{f.name} is not in the arguments dict: {args_dict}"
-                
                 value = args_dict[f.name]
-
+                                
                 if self.multiple:
                     assert isinstance(value, list), f"all fields should have gotten a list default value... ({value})"
+
                     if len(value) == 1:
                         instance_arguments[f.name] = value[0]
                     elif len(value) == num_instances_to_parse:
@@ -185,9 +190,10 @@ class DataclassWrapper(Generic[Dataclass]):
             constructor_arguments.append(instance_arguments)
         return constructor_arguments
 
-    def _instantiate_dataclass(self, args: Union[Dict[str, Any], argparse.Namespace]) -> Dataclass:
-        """Creates an instance of the dataclass using results of `parser.parse_args()`"""
-        args_dict = vars(args) if isinstance(args, argparse.Namespace) else args
+    def instantiate_dataclass(self, args_dict: Dict[str, Any]) -> Dataclass:
+        """
+        Creates an instance of the dataclass using the given dict of constructor arguments, including nested dataclasses if present.
+        """
         print(f"args dict: {args_dict}")
         
         dataclass = self.dataclass
@@ -198,23 +204,24 @@ class DataclassWrapper(Generic[Dataclass]):
             if not f.init:
                 continue
             
+            value = args_dict[f.name]
+
             if wrapped_field.is_dataclass:
-                print("Can't instantiate the child from within the parent, can I?")
-                continue
-                # child_dataclass = f.type
+                # print("Can't instantiate the child from within the parent, can I?")
+                constructor_args[f.name] = value
                 # constructor_args[f.name] = self._instantiate_dataclass(f.type, args_dict)
             
             elif utils.is_tuple_or_list_of_dataclasses(f.type):
                 raise RuntimeError("Shouldn't have attributes that are containers of dataclasses!")
-
+            
             elif enum.Enum in f.type.mro():
-                constructor_args[f.name] = f.type[args_dict[f.name]]
+                constructor_args[f.name] = f.type[value]
             
             elif utils.is_tuple(f.type):
-                constructor_args[f.name] = tuple(args_dict[f.name])
+                constructor_args[f.name] = tuple(value)
             
             elif utils.is_list(f.type):
-                constructor_args[f.name] = list(args_dict[f.name])
+                constructor_args[f.name] = list(value)
 
             elif f.type is bool:
                 value = args_dict[f.name]
