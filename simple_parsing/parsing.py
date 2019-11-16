@@ -26,7 +26,6 @@ class ArgumentParser(argparse.ArgumentParser):
         super().__init__(*args, **kwargs)
 
         self._wrappers: Dict[Type[Dataclass], Dict[str, DataclassWrapper[Dataclass]]] = defaultdict(dict)
-        self._destinations: Dict[Type[Dataclasss], Dict[str, List[str]]] = defaultdict(lambda: defaultdict(list))
 
     def add_arguments(self, dataclass: Type[Dataclass], dest: str, argument_names_prefix=""):
         """Adds corresponding command-line arguments for this class to the parser.
@@ -47,7 +46,7 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
         return self._postprocessing(parsed_args), unparsed_args
 
-    def _register_dataclass(self, dataclass: Type[Dataclass], dest: str, prefix: str = ""):
+    def _register_dataclass(self, dataclass: Type[Dataclass], dest: str, prefix: str = "", parent=None) -> DataclassWrapper:
         """Recursively registers the given dataclass and all their children
          (nested) dataclass attributes to be parsed later.
         
@@ -58,32 +57,48 @@ class ArgumentParser(argparse.ArgumentParser):
         
         print("Registering dataclass ", dataclass, "destination:", dest, "prefix: ", prefix)
 
-        wrapper = self._get_or_create_wrapper_for(dataclass, prefix)
-        destinations = self._get_destinations_for(dataclass, prefix)
-        if dest in destinations:
-            self.error(f"Destination attribute {dest} is already used for dataclass of type {dataclass}. Make sure all destinations are unique!")
-        destinations.append(dest)
+        if parent:
+            print(f"Parent prefix: '{parent.prefix}', parent multiple: {parent.multiple}")
 
+        wrapper = self._get_or_create_wrapper_for(dataclass, prefix)
+        destinations = wrapper._destinations
+        if parent is not None:
+            wrapper._parent = parent
+
+        if dest in destinations:
+            self.error(f"Destination attribute {dest} is already used for dataclass of type {dataclass} with prefix '{prefix}'. Make sure all destinations are unique, or use a different prefix!")
+        destinations.append(dest)
+        
+        children: List[DataclassWrapper] = []
         for wrapped_field in wrapper.fields:
-            # handle potential nesting.
+            
+            # handle nesting.
             if wrapped_field.is_dataclass:
                 child_dataclass = wrapped_field.field.type
                 child_attribute_dest = f"{dest}.{wrapped_field.field.name}"
                 logging.debug(f"adding child dataclass of type {child_dataclass} at attribute {child_attribute_dest}")
-                logging.debug(f"wrapper is multiple: {wrapper.multiple}, wrapper prefix: {wrapper.prefix}")
+                logging.debug(f"wrapper is multiple: {wrapper.multiple}, wrapper prefix: '{wrapper.prefix}'")
                 # TODO: Problem: If this is the first dataclass of this type that we see, then we would normally say it doesn't need a prefix.
                 # However, if we see a second instance of this class as we recurse, then we would probably like to have a distinct prefix for each of them.. 
+                # this kinda-sorta works.
                 if prefix:
                     child_prefix = prefix
                 else:
                     child_prefix = wrapped_field.field.name + "_"
-               
-                self._register_dataclass(child_dataclass, child_attribute_dest, child_prefix)
+
+                # recurse.
+                child_wrapper = self._register_dataclass(child_dataclass, child_attribute_dest, child_prefix, parent=wrapper)
+                wrapper._children.append(child_wrapper)
 
             elif wrapped_field.is_tuple_or_list_of_dataclasses:
                 self.error(textwrap.dedent(f"""\
                 Nesting using attributes which are containers of a dataclass isn't supported (yet).
                 """))
+
+        if parent is None:
+            print("Top-level is done, children:")
+            print([child.prefix for child in wrapper._children])
+        return wrapper
 
     def _preprocessing(self):
         logging.debug("\nPREPROCESSING\n")
@@ -94,7 +109,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 
                 logging.debug(f"dataclass: {dataclass}, multiple={wrapper.multiple}")
                 
-                destinations = self._destinations[dataclass][prefix]
+                destinations = wrapper._destinations
                 names_string = self._get_destination_attributes_string(destinations)
                 group = self.add_argument_group(
                     dataclass.__qualname__ + names_string,
@@ -167,26 +182,13 @@ class ArgumentParser(argparse.ArgumentParser):
             wrapper.multiple = True
         return wrapper
 
-    def _get_destinations_for(self, dataclass: Type[Dataclass], prefix: str) -> List[str]:
-        """Retrieves the list of attribute destinations for the given dataclass and prefix.
-        
-        Arguments:
-            dataclass {Type[Dataclass]} -- the type of the dataclass to look for
-            prefix {str} -- the prefix for that dataclass' arguments.
-        
-        Returns:
-            List[str] -- the list of attribute strings, representing the final location of the instances in the parsed argparse.Namespace.
-        """
-        return self._destinations[dataclass][prefix]
-
     def _get_constructor_arguments_for_every_destination(self, parsed_args: argparse.Namespace)-> Dict[str, Dict[str, Any]]:
         constructor_arguments: Dict[str, Dict[str, Any]] = {}
 
-        for dataclass in self._destinations:
-            for prefix, destinations in self._destinations[dataclass].items():
-                # get the associated wrapper
-                wrapper = self._wrappers[dataclass][prefix]
-
+        for dataclass in self._wrappers:
+            for prefix, wrapper in self._wrappers[dataclass].items():
+                # get all the destinations:
+                destinations = wrapper._destinations
                 logging.debug(f"postprocessing: {parsed_args} {wrapper} {destinations}")
             
                 total_num_instances = len(destinations)
@@ -207,9 +209,9 @@ class ArgumentParser(argparse.ArgumentParser):
             Dict[str, DataclassWrapper[Dataclass]] -- [description]
         """
         wrapper_for_destination: Dict[str, DataclassWrapper[Dataclass]] = {}
-        for dataclass in self._destinations:
-            for prefix, destinations in self._destinations[dataclass].items():
-                wrapper = self._wrappers[dataclass][prefix]
+        for dataclass in self._wrappers:
+            for prefix, wrapper in self._wrappers[dataclass].items():
+                destinations = wrapper._destinations
                 for dest in destinations:
                     wrapper_for_destination[dest] = wrapper
         return wrapper_for_destination

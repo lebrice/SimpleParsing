@@ -17,6 +17,7 @@ class FieldWrapper():
     _docstring: Optional[docstring.AttributeDocString] = None
     _multiple: bool = dataclasses.field(init=False, default=False)
     _required: Optional[bool] = dataclasses.field(init=False, default=None)
+
     def __post_init__(self, dataclass: Type[Dataclass]):
         self._docstring = docstring.get_attribute_docstring(dataclass, self.field.name)
     
@@ -145,6 +146,10 @@ class DataclassWrapper(Generic[Dataclass]):
     _multiple: bool = dataclasses.field(init=False, default=False)
     _required: bool = dataclasses.field(init=False, default=False)
     _argument_names_prefix: str = dataclasses.field(init=False, default="")
+    _children: List["DataclassWrapper"] = dataclasses.field(default_factory=list)
+    _parent: Optional["DataclassWrapper"] = None
+    _destinations: List[str] = dataclasses.field(default_factory=list)
+
 
     def __post_init__(self, _prefix: str):
         self.prefix = _prefix
@@ -194,7 +199,7 @@ class DataclassWrapper(Generic[Dataclass]):
         if self.multiple:
             assert num_instances_to_parse > 1, "multiple is true but we're expected to instantiate only one instance"
         else:
-            assert num_instances_to_parse == 1, "multiple is false but we're expected to instantiate more than one instance"
+            assert num_instances_to_parse == 1, f"multiple is false but we're expected to instantiate {num_instances_to_parse} instances"
 
         for i in range(num_instances_to_parse):
             
