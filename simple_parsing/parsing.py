@@ -36,27 +36,27 @@ class ArgumentParser(argparse.ArgumentParser):
         
         Keyword Arguments:
             dest {str} -- The destination attribute of the `argparse.Namespace` where the dataclass instance will be stored after calling `parse_args()`
-            argument_names_prefix {str} -- An optional prefix to add to the argument names of this dataclass.
-            This can be useful when registering multiple distinct instances of a dataclass.
+            argument_names_prefix {str} -- An optional prefix to add prepend to the names of the argparse arguments which will be generated for this dataclass.
+            This can be useful when registering multiple distinct instances of the same dataclass.
         """
         self._register_dataclass(dataclass, dest, prefix=argument_names_prefix)
-
+    
     def parse_known_args(self, args=None, namespace=None):
         # NOTE: since the usual ArgumentParser.parse_args() calls parse_known_args, we therefore just need to overload the parse_known_args method.
         self._preprocessing()
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
         return self._postprocessing(parsed_args), unparsed_args
 
-
     def _register_dataclass(self, dataclass: Type[Dataclass], dest: str, prefix: str = ""):
         """Recursively registers the given dataclass and all their children
-        (nested) dataclass attributes to be parsed later.
+         (nested) dataclass attributes to be parsed later.
         
         Arguments:
-            dataclass {Type[T]} -- The dataclass to register
-            dest {Destination} -- a Destination NamedTuple used to keep track of where to store the resulting instance and the number of instances.
+            dataclass {Type[Dataclass]} -- The dataclass to register
+            dest {str} -- a string which is to be used to  NamedTuple used to keep track of where to store the resulting instance and the number of instances.
         """
-        logging.debug("Registering dataclass ", dataclass, "destination:", dest, "prefix: ", prefix)
+        
+        print("Registering dataclass ", dataclass, "destination:", dest, "prefix: ", prefix)
 
         wrapper = self._get_or_create_wrapper_for(dataclass, prefix)
         destinations = self._get_destinations_for(dataclass, prefix)
@@ -70,12 +70,14 @@ class ArgumentParser(argparse.ArgumentParser):
                 child_dataclass = wrapped_field.field.type
                 child_attribute_dest = f"{dest}.{wrapped_field.field.name}"
                 logging.debug(f"adding child dataclass of type {child_dataclass} at attribute {child_attribute_dest}")
-                # TODO: debug this, to make sure the prefix makes sense even in weird contexts.
-                if prefix or wrapper.multiple:
+                logging.debug(f"wrapper is multiple: {wrapper.multiple}, wrapper prefix: {wrapper.prefix}")
+                # TODO: Problem: If this is the first dataclass of this type that we see, then we would normally say it doesn't need a prefix.
+                # However, if we see a second instance of this class as we recurse, then we would probably like to have a distinct prefix for each of them.. 
+                if prefix:
                     child_prefix = prefix
                 else:
                     child_prefix = wrapped_field.field.name + "_"
-
+               
                 self._register_dataclass(child_dataclass, child_attribute_dest, child_prefix)
 
             elif wrapped_field.is_tuple_or_list_of_dataclasses:
