@@ -16,7 +16,6 @@ from typing import *
 
 from . import docstring, utils
 from .wrappers import DataclassWrapper, FieldWrapper
-
 Dataclass = TypeVar("Dataclass")
 
 class ArgumentParser(argparse.ArgumentParser):
@@ -25,9 +24,10 @@ class ArgumentParser(argparse.ArgumentParser):
             kwargs["formatter_class"] = utils.Formatter
         super().__init__(*args, **kwargs)
 
+        # two-level dictionary that maps from (dataclass, string_prefix) -> DataclassWrapper. 
         self._wrappers: Dict[Type[Dataclass], Dict[str, DataclassWrapper[Dataclass]]] = defaultdict(dict)
 
-    def add_arguments(self, dataclass: Type[Dataclass], dest: str, argument_names_prefix=""):
+    def add_arguments(self, dataclass: Type[Dataclass], dest: str, prefix=""):
         """Adds corresponding command-line arguments for this class to the parser.
         
         Arguments:
@@ -35,11 +35,27 @@ class ArgumentParser(argparse.ArgumentParser):
         
         Keyword Arguments:
             dest {str} -- The destination attribute of the `argparse.Namespace` where the dataclass instance will be stored after calling `parse_args()`
-            argument_names_prefix {str} -- An optional prefix to add prepend to the names of the argparse arguments which will be generated for this dataclass.
+            prefix {str} -- An optional prefix to add prepend to the names of the argparse arguments which will be generated for this dataclass.
             This can be useful when registering multiple distinct instances of the same dataclass.
+
         """
-        self._register_dataclass(dataclass, dest, prefix=argument_names_prefix)
-    
+        top_level_wrapper = self._register_dataclass(dataclass, dest, prefix=prefix)
+        
+        # now we have a tree structure.
+        for wrapper in iter(top_level_wrapper):
+            logging.debug("adding wrapper:\n", wrapper, "\n")
+            logging.debug(f"adding wrapper {wrapper.dataclass}, prefix: '{wrapper.prefix}', destinations: {wrapper._destinations}")
+            if wrapper.prefix in self._wrappers[wrapper.dataclass]:
+                logging.debug("a wrapper for this already exists!")
+                other = self._wrappers[wrapper.dataclass][wrapper.prefix]
+                other._destinations.extend(wrapper._destinations)
+                other._children.extend(wrapper._children)
+                other.multiple = True
+                del wrapper
+                wrapper = other
+            self._wrappers[wrapper.dataclass][wrapper.prefix] = wrapper
+
+
     def parse_known_args(self, args=None, namespace=None):
         # NOTE: since the usual ArgumentParser.parse_args() calls parse_known_args, we therefore just need to overload the parse_known_args method.
         self._preprocessing()
@@ -55,21 +71,18 @@ class ArgumentParser(argparse.ArgumentParser):
             dest {str} -- a string which is to be used to  NamedTuple used to keep track of where to store the resulting instance and the number of instances.
         """
         
-        print("Registering dataclass ", dataclass, "destination:", dest, "prefix: ", prefix)
-
-        if parent:
-            print(f"Parent prefix: '{parent.prefix}', parent multiple: {parent.multiple}")
-
-        wrapper = self._get_or_create_wrapper_for(dataclass, prefix)
+        logging.debug("Registering dataclass ", dataclass, "destination:", dest, "prefix: ", prefix)
+        wrapper = DataclassWrapper(dataclass, _prefix=prefix)
         destinations = wrapper._destinations
+        
         if parent is not None:
+            logging.debug(f"Parent prefix: '{parent.prefix}', parent multiple: {parent.multiple}")
             wrapper._parent = parent
 
         if dest in destinations:
             self.error(f"Destination attribute {dest} is already used for dataclass of type {dataclass} with prefix '{prefix}'. Make sure all destinations are unique, or use a different prefix!")
         destinations.append(dest)
         
-        children: List[DataclassWrapper] = []
         for wrapped_field in wrapper.fields:
             
             # handle nesting.
@@ -84,8 +97,8 @@ class ArgumentParser(argparse.ArgumentParser):
                 if prefix:
                     child_prefix = prefix
                 else:
-                    child_prefix = wrapped_field.field.name + "_"
-
+                    child_prefix = prefix
+                    # child_prefix = wrapped_field.field.name + "_"
                 # recurse.
                 child_wrapper = self._register_dataclass(child_dataclass, child_attribute_dest, child_prefix, parent=wrapper)
                 wrapper._children.append(child_wrapper)
@@ -96,13 +109,13 @@ class ArgumentParser(argparse.ArgumentParser):
                 """))
 
         if parent is None:
-            print("Top-level is done, children:")
-            print([child.prefix for child in wrapper._children])
+            logging.debug("Top-level is done, children:")
+            logging.debug([child.prefix for child in wrapper._children])
         return wrapper
 
     def _preprocessing(self):
         logging.debug("\nPREPROCESSING\n")
-
+        logging.debug("PREPROCESSING")
         # Create one argument group per dataclass type
         for dataclass in self._wrappers:
             for prefix, wrapper in self._wrappers[dataclass].items():
@@ -117,6 +130,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 )
                 
                 for wrapped_field in wrapper.fields:
+                    logging.debug(f"arg options: {wrapped_field.name}, {wrapped_field.arg_options}")
                     if wrapped_field.arg_options:
                         name = f"--{wrapped_field.name}"
                         group.add_argument(name, **wrapped_field.arg_options)
@@ -142,11 +156,14 @@ class ArgumentParser(argparse.ArgumentParser):
         destinations = constructor_arguments.keys()
         
         nesting_level = lambda destination_attribute: destination_attribute.count(".")
+        
         for destination in sorted(destinations, key=nesting_level, reverse=True):
+            # idea: we will construct the 'tree' of dependencies from the bottom up.
+            
             constructor = wrappers[destination].instantiate_dataclass
             constructor_args = constructor_arguments[destination]    
-
-            instance = constructor(constructor_args)
+            logging.debug(f"destination: '{destination}', constructor_args: {constructor_args}")
+            
 
             if "." in destination:
                 # if this destination is a nested child of another,
@@ -155,10 +172,14 @@ class ArgumentParser(argparse.ArgumentParser):
                 parts = destination.split(".")
                 parent = ".".join(parts[:-1])
                 attribute_in_parent = parts[-1]
+                logging.debug(f"Destination is child in parent {parent} at attribute {attribute_in_parent}")
+                instance = constructor(constructor_args)
                 constructor_arguments[parent][attribute_in_parent] = instance
             else:
                 # if this destination is not a nested child, we set the attribute
                 # on the returned parsed_args.
+                logging.debug(f"Constructing instance for destination {destination}")
+                instance = constructor(constructor_args)
                 setattr(parsed_args, destination, instance)
 
         return parsed_args
@@ -173,14 +194,7 @@ class ArgumentParser(argparse.ArgumentParser):
         Returns:
             DataclassWrapper[Dataclass] -- [description]
         """
-        if prefix not in self._wrappers[dataclass]:
-            wrapper = DataclassWrapper(dataclass, _prefix=prefix)
-            self._wrappers[dataclass][prefix] = wrapper
-        else:
-            wrapper = self._wrappers[dataclass][prefix]
-            logging.debug(f"The dataclass {dataclass} is already registered. Marking it as 'multiple'.")
-            wrapper.multiple = True
-        return wrapper
+        
 
     def _get_constructor_arguments_for_every_destination(self, parsed_args: argparse.Namespace)-> Dict[str, Dict[str, Any]]:
         constructor_arguments: Dict[str, Dict[str, Any]] = {}

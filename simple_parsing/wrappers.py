@@ -3,6 +3,7 @@ import enum
 import logging
 from typing import *
 import argparse
+
 from . import docstring, utils
 
 T = TypeVar("T")
@@ -19,8 +20,11 @@ class FieldWrapper():
     _required: Optional[bool] = dataclasses.field(init=False, default=None)
 
     def __post_init__(self, dataclass: Type[Dataclass]):
-        self._docstring = docstring.get_attribute_docstring(dataclass, self.field.name)
-    
+        try:
+            self._docstring = docstring.get_attribute_docstring(dataclass, self.field.name)
+        except (SystemExit, Exception) as e:
+            logging.error("Couldn't find attribute docstring:", e)
+            self._docstring = docstring.AttributeDocString()
     @property
     def name(self) -> str:
         return self.name_prefix + self.field.name
@@ -142,7 +146,7 @@ class FieldWrapper():
 class DataclassWrapper(Generic[Dataclass]):
     dataclass: Type[Dataclass]
     _prefix: dataclasses.InitVar[str] = ""
-    fields: List[FieldWrapper] = dataclasses.field(init=False, default_factory=list)
+    fields: List[FieldWrapper] = dataclasses.field(init=False, default_factory=list, repr=False)
     _multiple: bool = dataclasses.field(init=False, default=False)
     _required: bool = dataclasses.field(init=False, default=False)
     _argument_names_prefix: str = dataclasses.field(init=False, default="")
@@ -185,6 +189,11 @@ class DataclassWrapper(Generic[Dataclass]):
         for wrapped_field in self.fields:
             wrapped_field.multiple = value
         self._multiple = value
+
+    def __iter__(self):
+        yield self
+        for child in self._children:
+            yield from child
 
     def get_constructor_arguments(self, args: Union[Dict[str, Any], argparse.Namespace], num_instances_to_parse: int = 1) -> List[Dict[str, Any]]:
         """
@@ -247,11 +256,10 @@ class DataclassWrapper(Generic[Dataclass]):
 
         for wrapped_field in self.fields:
             f = wrapped_field.field
-            if not f.init:
+            logging.debug(f"arg options: '{wrapped_field.arg_options}'")
+            if not wrapped_field.arg_options:
                 continue
-            
             value = args_dict[f.name]
-
            
             assert not wrapped_field.is_tuple_or_list_of_dataclasses, "Shouldn't have attributes that are containers of dataclasses!"
             
@@ -277,6 +285,6 @@ class DataclassWrapper(Generic[Dataclass]):
 
             else:
                 constructor_args[f.name] = value
-
+        logging.debug(f"Constructor arguments for dataclass {dataclass}: {constructor_args}")
         instance: T = dataclass(**constructor_args) #type: ignore
         return instance
