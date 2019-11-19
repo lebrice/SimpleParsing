@@ -5,26 +5,17 @@ from typing import *
 import argparse
 
 from . import docstring, utils
-
-T = TypeVar("T")
 Dataclass = TypeVar("Dataclass")
 
 @dataclasses.dataclass
 class FieldWrapper():
     field: dataclasses.Field
-    dataclass: dataclasses.InitVar[Type]
     name_prefix: str = ""
     _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=lambda: {})
     _docstring: Optional[docstring.AttributeDocString] = None
     _multiple: bool = dataclasses.field(init=False, default=False)
     _required: Optional[bool] = dataclasses.field(init=False, default=None)
 
-    def __post_init__(self, dataclass: Type[Dataclass]):
-        try:
-            self._docstring = docstring.get_attribute_docstring(dataclass, self.field.name)
-        except (SystemExit, Exception) as e:
-            logging.error("Couldn't find attribute docstring:", e)
-            self._docstring = docstring.AttributeDocString()
     @property
     def name(self) -> str:
         return self.name_prefix + self.field.name
@@ -158,7 +149,13 @@ class DataclassWrapper(Generic[Dataclass]):
     def __post_init__(self, _prefix: str):
         self.prefix = _prefix
         for field in dataclasses.fields(self.dataclass):
-            self.fields.append(FieldWrapper(field, self.dataclass, name_prefix=self.prefix))
+            new_field_wrapper = FieldWrapper(field, name_prefix=self.prefix)
+            try:
+                new_field_wrapper._docstring = docstring.get_attribute_docstring(self.dataclass, field.name)
+            except (SystemExit, Exception) as e:
+                logging.warning("Couldn't find attribute docstring:", e)
+                new_field_wrapper._docstring = docstring.AttributeDocString()
+            self.fields.append(new_field_wrapper)
 
     @property
     def prefix(self) -> str:
@@ -190,10 +187,16 @@ class DataclassWrapper(Generic[Dataclass]):
             wrapped_field.multiple = value
         self._multiple = value
 
+    @property
+    def descendants(self):
+        for child in self._children:
+            yield child
+            yield from child.descendants
+
     def __iter__(self):
         yield self
-        for child in self._children:
-            yield from child
+        yield from self.descendants
+
 
     def get_constructor_arguments(self, args: Union[Dict[str, Any], argparse.Namespace], num_instances_to_parse: int = 1) -> List[Dict[str, Any]]:
         """
@@ -216,17 +219,17 @@ class DataclassWrapper(Generic[Dataclass]):
 
             for wrapped_field in self.fields:
                 f = wrapped_field.field
+
                 if not f.init:
                     continue
-                
 
                 if wrapped_field.is_dataclass:
                     logging.debug("The wrapped field is a dataclass. continuing, since it will be populated later.")
                     continue
 
                 assert not wrapped_field.is_tuple_or_list_of_dataclasses, "Shouldn't have been allowed"
-                    
                 assert wrapped_field.name in args_dict, f"{f.name} is not in the arguments dict: {args_dict}"
+                
                 value = args_dict[wrapped_field.name]
                                 
                 if self.multiple:
