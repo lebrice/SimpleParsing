@@ -21,7 +21,7 @@ from .wrappers import DataclassWrapper, FieldWrapper
 Dataclass = TypeVar("Dataclass")
 DataclassType = Type[Dataclass]
 
-class PrefixingMode(enum.Enum):
+class ConflictResolution(enum.Enum):
     """Used to determine which action to take when adding arguments for the same dataclass in two different destinations.
     
     - NONE: Dissallow using the same dataclass in two different destinations without explicitly setting a distinct prefix for at least one of them.
@@ -37,16 +37,16 @@ class PrefixingMode(enum.Enum):
     ALWAYS_MERGE = 1
     AUTO = 2
 
-
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, prefixing_mode: PrefixingMode = PrefixingMode.AUTO, *args, **kwargs):
+    def __init__(self, conflict_resolution: ConflictResolution = ConflictResolution.NONE, *args, **kwargs):
         if "formatter_class" not in kwargs:
             kwargs["formatter_class"] = utils.Formatter
         super().__init__(*args, **kwargs)
-        self.prefixing_mode = prefixing_mode
+        # the kind of prefixing mechanism to use.
+        self.conflict_resolution = conflict_resolution
 
         # two-level dictionary that maps from (dataclass, string_prefix) -> DataclassWrapper. 
-        self._wrappers: Dict[Type[DataclassType], Dict[str, DataclassWrapper[DataclassType]]] = defaultdict(dict)
+        self._wrappers: Dict[DataclassType, Dict[str, DataclassWrapper[DataclassType]]] = defaultdict(dict)
 
         # the dictionary that maps from destination to DataclassWrapper.
         self._destinations: Dict[str, DataclassWrapper[DataclassType]] = {}
@@ -63,52 +63,13 @@ class ArgumentParser(argparse.ArgumentParser):
             This can be useful when registering multiple distinct instances of the same dataclass.
 
         """
-        
-
-        
         wrapper = self._register_dataclass(dataclass, dest, prefix=prefix)
-        # self._wrappers[wrapper.dataclass][wrapper.prefix] = wrapper
         logging.debug("adding wrapper:\n", wrapper, "\n")
 
         # iterate over the wrapper and its children (nested) wrappers.
         for child_wrapper in iter(wrapper):
             logging.debug(f"adding wrapper {child_wrapper.dataclass}, prefix: '{child_wrapper.prefix}', destinations: {child_wrapper._destinations}")
             
-            if dataclass in self._wrappers.keys():
-                print("here")
-                # we've already seen this dataclass.
-                # we get the prefixes that are already used.
-                existing_prefixes = self._wrappers[dataclass].keys()
-                if prefix in existing_prefixes:
-                    existing_wrapper = self._wrappers[dataclass][prefix]
-                    if self.prefixing_mode == PrefixingMode.NONE:
-                        print("none")
-                        self.error(textwrap.dedent(f"""\
-                        Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
-                        """))
-
-                    elif self.prefixing_mode == PrefixingMode.EXPLICIT:
-                        print("explicit")
-                        # We don't allow any ambiguous use.
-                        # Every wrapper will have a prefix that will be equal to the full path to each of its arguments.
-                        logging.warning(textwrap.dedent(f"""\
-                        Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
-                        A prefix of {dest} will be used for every argument of this new class.
-                        """))
-                        prefix = dest
-
-                    elif self.prefixing_mode == PrefixingMode.AUTO:
-                        print("auto")
-                        # we'll allow adding another dataclass that will share the same argument. 
-                        # the dataclass will be marked as 'multiple' now, if it wasn't already.
-                        if not existing_wrapper.multiple:
-                            logging.warning(textwrap.dedent(f"""\
-                            Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
-                            Each attribute of this dataclass will be marked as 'Multiple', and will be set in the order they were defined.
-                            """))
-
-
-
 
             if child_wrapper.prefix in self._wrappers[child_wrapper.dataclass]:
                 logging.debug("a wrapper for this already exists, merging them together.")
@@ -142,10 +103,48 @@ class ArgumentParser(argparse.ArgumentParser):
                 Destination attribute {dest} is already used for dataclass of type {dataclass}.
                 Make sure all destinations are unique.
                 """))
+       
+        if dataclass in self._wrappers.keys():
+            print("here")
+            # we've already seen this dataclass.
+            # we get the prefixes that are already used.
+            existing_prefixes = self._wrappers[dataclass].keys()
+            if prefix in existing_prefixes:
+                existing_wrapper = self._wrappers[dataclass][prefix]
+                if self.conflict_resolution == ConflictResolution.NONE:
+                    print("none")
+                    self.error(textwrap.dedent(f"""\
+                    Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
+                    (Conflict Resolution mode is {self.conflict_resolution})
+                    """))
+
+                elif self.conflict_resolution == ConflictResolution.EXPLICIT:
+                    print("explicit")
+                    # We don't allow any ambiguous use.
+                    # Every wrapper will have a prefix that will be equal to the full path to each of its arguments.
+                    logging.warning(textwrap.dedent(f"""\
+                    Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
+                    A prefix of '{dest}.' will be used for every argument of this new class.
+                    (Conflict Resolution mode is {self.conflict_resolution})
+                    """))
+                    prefix = dest + "."
+
+                elif self.conflict_resolution == ConflictResolution.AUTO:
+                    print("auto")
+                    # we'll allow adding another dataclass that will share the same argument. 
+                    # the dataclass will be marked as 'multiple' now, if it wasn't already.
+                    if not existing_wrapper.multiple:
+                        logging.warning(textwrap.dedent(f"""\
+                        Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
+                        Each attribute of this dataclass will be marked as 'Multiple', and will be set in the order they were defined.
+                        (Conflict Resolution mode is {self.conflict_resolution})
+                        """))
 
         wrapper = DataclassWrapper(dataclass, _prefix=prefix)
         destinations = wrapper._destinations
         
+
+
         if parent is not None:
             logging.debug(f"Parent prefix: '{parent.prefix}', parent multiple: {parent.multiple}")
             wrapper._parent = parent
@@ -164,16 +163,8 @@ class ArgumentParser(argparse.ArgumentParser):
                 child_dataclass = wrapped_field.field.type
                 child_attribute_dest = f"{dest}.{wrapped_field.field.name}"
                 logging.debug(f"adding child dataclass of type {child_dataclass} at attribute {child_attribute_dest}")
-                logging.debug(f"wrapper is multiple: {wrapper.multiple}, wrapper prefix: '{wrapper.prefix}'")
-                # TODO: Problem: If this is the first dataclass of this type that we see, then we would normally say it doesn't need a prefix.
-                # However, if we see a second instance of this class as we recurse, then we would probably like to have a distinct prefix for each of them.. 
-                # this kinda-sorta works.
-                if prefix:
-                    child_prefix = prefix
-                else:
-                    child_prefix = prefix
-                    # child_prefix = wrapped_field.field.name + "_"
-                # recurse.
+                logging.debug(f"wrapper is multiple: {wrapper.multiple}, wrapper prefix: '{wrapper.prefix}'")               
+                child_prefix = prefix
                 child_wrapper = self._register_dataclass(child_dataclass, child_attribute_dest, child_prefix, parent=wrapper)
                 wrapper._children.append(child_wrapper)
 

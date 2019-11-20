@@ -2,11 +2,11 @@
 @author: Fabrice Normandin
 """
 from .utils import Formatter, InconsistentArgumentError
-from .parsing import ArgumentParser, PrefixingMode
+from .parsing import ArgumentParser, ConflictResolution
 
 __all__ = [
     "ArgumentParser",
     "InconsistentArgumentError",
     "Formatter",
-    "PrefixingMode",
+    "ConflictResolution",
 ]

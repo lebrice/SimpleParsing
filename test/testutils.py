@@ -3,7 +3,7 @@ from typing import *
 import shlex
 import pytest
 import simple_parsing
-from simple_parsing import InconsistentArgumentError, ArgumentParser, Formatter
+from simple_parsing import InconsistentArgumentError, ArgumentParser, Formatter, ConflictResolution
 from simple_parsing.wrappers import DataclassWrapper
 
 
@@ -20,7 +20,7 @@ Dataclass = TypeVar("Dataclass")
 
 class TestSetup():
     @classmethod
-    def setup(cls: Type[Dataclass], arguments: Optional[str] = "", dest: Optional[str] = None) -> Dataclass:
+    def setup(cls: Type[Dataclass], arguments: Optional[str] = "", dest: Optional[str] = None, conflict_resolution_mode: ConflictResolution = ConflictResolution.NONE) -> Dataclass:
         """Basic setup for a test.
         
         Keyword Arguments:
@@ -30,7 +30,7 @@ class TestSetup():
         Returns:
             {cls}} -- the class's type.
         """
-        parser = simple_parsing.ArgumentParser()
+        parser = simple_parsing.ArgumentParser(conflict_resolution=conflict_resolution_mode)
         if dest is None:
             dest = camel_case(cls.__name__)
         
@@ -46,7 +46,9 @@ class TestSetup():
     
     @classmethod
     def setup_multiple(cls: Type[Dataclass], num_to_parse: int, arguments: Optional[str] = "") -> Tuple[Dataclass, ...]:
-        parser = simple_parsing.ArgumentParser()
+        conflict_resolution_mode: ConflictResolution = ConflictResolution.ALWAYS_MERGE
+
+        parser = simple_parsing.ArgumentParser(conflict_resolution=conflict_resolution_mode)
         class_name = camel_case(cls.__name__)
         for i in range(num_to_parse):
             parser.add_arguments(cls, f"{class_name}_{i}")

@@ -197,7 +197,6 @@ class DataclassWrapper(Generic[Dataclass]):
         yield self
         yield from self.descendants
 
-
     def get_constructor_arguments(self, args: Union[Dict[str, Any], argparse.Namespace], num_instances_to_parse: int = 1) -> List[Dict[str, Any]]:
         """
         Parses the constructor arguments for every instance of the wrapped dataclass from the results of `parser.parse_args()`

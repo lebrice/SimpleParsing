@@ -47,9 +47,9 @@ class TrainConfig:
     # run config to be used during validation.
     valid: RunConfig = RunConfig(log_dir="valid")
 
-from simple_parsing import PrefixingMode
+from simple_parsing import ConflictResolution
 
-parser = ArgumentParser(prefixing_mode=PrefixingMode.EXPLICIT)
+parser = ArgumentParser(conflict_resolution=ConflictResolution.EXPLICIT)
 
 parser.add_arguments(TrainConfig, "train_config")
 

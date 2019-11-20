@@ -7,8 +7,7 @@ from typing import *
 import pytest
 
 from .testutils import TestSetup
-from simple_parsing import (Formatter, InconsistentArgumentError,
-                            ArgumentParser)
+from simple_parsing import *
 
 @dataclass()
 class ClassA():
@@ -148,7 +147,7 @@ class TrainConfig(TestSetup):
 
 
 def test_train_config_example_no_args():
-    config = TrainConfig.setup("")
+    config = TrainConfig.setup("", conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE)
     assert isinstance(config.train, RunConfig)
     import os
     assert config.train.checkpoint_dir == os.path.join("logs","checkpoints")
@@ -158,9 +157,8 @@ def test_train_config_example_no_args():
     
     print(TrainConfig.get_help_text())
 
-
-def test_train_config_example_with_args():
-    config = TrainConfig.setup("--train_log_dir train --train_batch_size 123 --valid_log_dir valid --valid_batch_size 456")
+def test_train_config_example_with_explicit_args():
+    config = TrainConfig.setup("--train..log_dir train --train..batch_size 123 --valid..log_dir valid --valid..batch_size 456", conflict_resolution_mode=ConflictResolution.EXPLICIT)
     import os
     
     assert isinstance(config.train, RunConfig)
