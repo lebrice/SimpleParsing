@@ -16,10 +16,8 @@ from typing import *
 
 from . import docstring, utils
 from .wrappers import DataclassWrapper, FieldWrapper
+from .utils import Dataclass, DataclassType
 
-
-Dataclass = TypeVar("Dataclass")
-DataclassType = Type[Dataclass]
 
 class ConflictResolution(enum.Enum):
     """Used to determine which action to take when adding arguments for the same dataclass in two different destinations.
@@ -46,10 +44,13 @@ class ArgumentParser(argparse.ArgumentParser):
         self.conflict_resolution = conflict_resolution
 
         # two-level dictionary that maps from (dataclass, string_prefix) -> DataclassWrapper. 
-        self._wrappers: Dict[DataclassType, Dict[str, DataclassWrapper[DataclassType]]] = defaultdict(dict)
+        self._wrappers: Dict[DataclassType, Dict[str, DataclassWrapper]] = defaultdict(dict)
 
         # the dictionary that maps from destination to DataclassWrapper.
-        self._destinations: Dict[str, DataclassWrapper[DataclassType]] = {}
+        self._destinations: Dict[str, DataclassWrapper] = {}
+
+        self.constructor_arguments: Dict[str, Dict[str, Any]] = defaultdict(dict)
+
 
     def add_arguments(self, dataclass: DataclassType, dest: str, prefix=""):
         """Adds corresponding command-line arguments for this class to the parser.
@@ -63,23 +64,19 @@ class ArgumentParser(argparse.ArgumentParser):
             This can be useful when registering multiple distinct instances of the same dataclass.
 
         """
+        
+        if dest in self._destinations.keys():
+            self.error(textwrap.dedent(f"""\
+                Destination attribute {dest} is already used for dataclass of type {dataclass}.
+                Make sure all destinations are unique.
+                """))
+
         wrapper = self._register_dataclass(dataclass, dest, prefix=prefix)
         logging.debug("adding wrapper:\n", wrapper, "\n")
 
         # iterate over the wrapper and its children (nested) wrappers.
         for child_wrapper in iter(wrapper):
-            logging.debug(f"adding wrapper {child_wrapper.dataclass}, prefix: '{child_wrapper.prefix}', destinations: {child_wrapper._destinations}")
-            
-
-            if child_wrapper.prefix in self._wrappers[child_wrapper.dataclass]:
-                logging.debug("a wrapper for this already exists, merging them together.")
-                other = self._wrappers[child_wrapper.dataclass][child_wrapper.prefix]
-                other._destinations.extend(child_wrapper._destinations)
-                other._children.extend(child_wrapper._children)
-                other.multiple = True
-                del child_wrapper
-                child_wrapper = other
-            
+            logging.debug(f"adding wrapper {child_wrapper.dataclass}, prefix: '{child_wrapper.prefix}', destinations: {child_wrapper.destinations}")
             self._wrappers[child_wrapper.dataclass][child_wrapper.prefix] = child_wrapper
 
     def parse_known_args(self, args=None, namespace=None):
@@ -88,7 +85,7 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
         return self._postprocessing(parsed_args), unparsed_args
 
-    def _register_dataclass(self, dataclass: DataclassType, dest: str, prefix: str = "", parent=None) -> DataclassWrapper[DataclassType]:
+    def _register_dataclass(self, dataclass: DataclassType, dest: str, prefix: str = "") -> DataclassWrapper[DataclassType]:
         """registers the given dataclass to be parsed later.
         
         Arguments:
@@ -98,86 +95,67 @@ class ArgumentParser(argparse.ArgumentParser):
         
         print(f"Registering dataclass {dataclass} destination: '{dest}' prefix: '{prefix}'")
 
-        if dest in self._destinations.keys():
-            self.error(textwrap.dedent(f"""\
-                Destination attribute {dest} is already used for dataclass of type {dataclass}.
-                Make sure all destinations are unique.
-                """))
-       
+        new_wrapper = DataclassWrapper(dataclass)
+        new_wrapper.prefix = prefix
+        new_wrapper.destinations.append(dest)
+
         if dataclass in self._wrappers.keys():
-            print("here")
             # we've already seen this dataclass.
-            # we get the prefixes that are already used.
             existing_prefixes = self._wrappers[dataclass].keys()
             if prefix in existing_prefixes:
+                # there is already a DataclassWrapper for this dataclass and with this prefix.
+                # we therefore have to handle potential this conflict.
                 existing_wrapper = self._wrappers[dataclass][prefix]
-                if self.conflict_resolution == ConflictResolution.NONE:
-                    print("none")
-                    self.error(textwrap.dedent(f"""\
-                    Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
-                    (Conflict Resolution mode is {self.conflict_resolution})
-                    """))
+                new_wrapper = self._handle_confict(existing_wrapper, new_wrapper)
 
-                elif self.conflict_resolution == ConflictResolution.EXPLICIT:
-                    print("explicit")
-                    # We don't allow any ambiguous use.
-                    # Every wrapper will have a prefix that will be equal to the full path to each of its arguments.
-                    logging.warning(textwrap.dedent(f"""\
-                    Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
-                    A prefix of '{dest}.' will be used for every argument of this new class.
-                    (Conflict Resolution mode is {self.conflict_resolution})
-                    """))
-                    prefix = dest + "."
-
-                elif self.conflict_resolution == ConflictResolution.AUTO:
-                    print("auto")
-                    # we'll allow adding another dataclass that will share the same argument. 
-                    # the dataclass will be marked as 'multiple' now, if it wasn't already.
-                    if not existing_wrapper.multiple:
-                        logging.warning(textwrap.dedent(f"""\
-                        Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
-                        Each attribute of this dataclass will be marked as 'Multiple', and will be set in the order they were defined.
-                        (Conflict Resolution mode is {self.conflict_resolution})
-                        """))
-
-        wrapper = DataclassWrapper(dataclass)
-        wrapper.prefix = prefix
-        destinations = wrapper._destinations
-        
+        return new_wrapper
 
 
-        if parent is not None:
-            logging.debug(f"Parent prefix: '{parent.prefix}', parent multiple: {parent.multiple}")
-            wrapper._parent = parent
+    def _handle_confict(self, existing_wrapper: DataclassWrapper, new_wrapper: DataclassWrapper) -> DataclassWrapper:
+        dataclass = new_wrapper.dataclass
+        dest = new_wrapper.destinations
+        prefix = new_wrapper.prefix
 
-        if dest in destinations:
+        if self.conflict_resolution == ConflictResolution.NONE:
             self.error(textwrap.dedent(f"""\
-                Destination attribute {dest} is already used for dataclass of type {dataclass} with prefix '{prefix}'.
-                Make sure all destinations are unique, or use a different prefix!
-                """))
-        destinations.append(dest)
+            Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
+            (Conflict Resolution mode is {self.conflict_resolution})
+            """))
         
-        for wrapped_field in wrapper.fields:
+        elif self.conflict_resolution == ConflictResolution.ALWAYS_MERGE:
+            if not existing_wrapper.multiple:
+                logging.warning(textwrap.dedent(f"""\
+                Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
+                Each attribute of this dataclass will be marked as 'Multiple', and will be set in the order they were defined.
+                (Conflict Resolution mode is {self.conflict_resolution})
+                """))            
+            existing_wrapper.merge(new_wrapper)
+            del new_wrapper
+            new_wrapper = existing_wrapper
+            # we'll allow adding another dataclass that will share the same argument. 
+            # the dataclass will be marked as 'multiple' now, if it wasn't already.
+
+        elif self.conflict_resolution == ConflictResolution.EXPLICIT:
+            print("explicit")
+            # We don't allow any ambiguous use.
+            # Every wrapper will have a prefix that will be equal to the full path to each of its arguments.
+            logging.warning(textwrap.dedent(f"""\
+            Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
+            A prefix of '{dest}.' will be used for every argument of this new class.
+            (Conflict Resolution mode is {self.conflict_resolution})
+            """))
+            # TODO: handle this, we need to also update the existing wrapper's prefixes.
+            assert not existing_wrapper.multiple, "the existing wrapper can't be multiple, since we're using EXPLICIT conflict resolution mode..."
+            assert len(existing_wrapper.destinations) == 1, f"Should have had only one entry: {existing_wrapper.destinations}"
+            existing_wrapper.prefix = existing_wrapper.destinations[0] + "."
+            new_wrapper.prefix = new_wrapper.destinations[0] + "."
+
+        elif self.conflict_resolution == ConflictResolution.AUTO:
+            print("auto")
+            # IDEA: find the simplest way to tell appart every instance of the classes, and use that as a prefix.
+            raise NotImplementedError("Auto conflict resolution isn't implemented yet.")
             
-            # handle nesting.
-            if wrapped_field.is_dataclass:
-                child_dataclass = wrapped_field.field.type
-                child_attribute_dest = f"{dest}.{wrapped_field.field.name}"
-                logging.debug(f"adding child dataclass of type {child_dataclass} at attribute {child_attribute_dest}")
-                logging.debug(f"wrapper is multiple: {wrapper.multiple}, wrapper prefix: '{wrapper.prefix}'")               
-                child_prefix = prefix
-                child_wrapper = self._register_dataclass(child_dataclass, child_attribute_dest, child_prefix, parent=wrapper)
-                wrapper._children.append(child_wrapper)
-
-            elif wrapped_field.is_tuple_or_list_of_dataclasses:
-                self.error(textwrap.dedent(f"""\
-                Nesting using attributes which are containers of a dataclass isn't supported (yet).
-                """))
-
-        if parent is None:
-            logging.debug("Top-level is done, children:")
-            logging.debug([child.prefix for child in wrapper._children])
-        return wrapper
+        return new_wrapper
 
     def _preprocessing(self):
         logging.debug("\nPREPROCESSING\n")
@@ -189,21 +167,34 @@ class ArgumentParser(argparse.ArgumentParser):
         # Create one argument group per dataclass type
         for dataclass in self._wrappers:
             for prefix, wrapper in self._wrappers[dataclass].items():
-                
                 logging.debug(f"dataclass: {dataclass}, multiple={wrapper.multiple}")
                 
-                destinations = wrapper._destinations
-                names_string = self._get_destination_attributes_string(destinations)
-                group = self.add_argument_group(
-                    dataclass.__qualname__ + names_string,
-                    description=dataclass.__doc__
-                )
+                wrapper.add_arguments(parser=self)
+
+                # group = self.add_argument_group(
+                #     dataclass.__qualname__ + names_string,
+                #     description=dataclass.__doc__
+                # )
                 
-                for wrapped_field in wrapper.fields:
-                    logging.debug(f"arg options: {wrapped_field.name}, {wrapped_field.arg_options}")
-                    if wrapped_field.arg_options:
-                        name = f"--{wrapped_field.name}"
-                        group.add_argument(name, **wrapped_field.arg_options)
+                # for wrapped_field in wrapper.fields:
+                #     logging.debug(f"arg options: {wrapped_field.name}, {wrapped_field.arg_options}")
+                #     if wrapped_field.arg_options:
+                #         name = f"--{wrapped_field.name}"
+                #         wrapped_field.
+                #         # group.add_argument(
+                #         #     name_or_flags: str,
+                #         #     action: Union[str, Type[Action]],
+                #         #     nargs: Union[int, str],
+                        #     const: Any,
+                        #     default: Any,
+                        #     type: Union[Unknown, FileType],
+                        #     choices: Iterable[_T],
+                        #     required: bool,
+                        #     help: str,
+                        #     metavar: Union[str, Tuple[str]],
+                        #     dest: str,
+                        #     version: str
+                        # ) -> Actionname, )
 
     def _postprocessing(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
         """Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
@@ -216,7 +207,8 @@ class ArgumentParser(argparse.ArgumentParser):
             TODO: Try and maybe return a nicer, typed version of parsed_args (a Namespace subclass maybe?)  
         """
         logging.debug("\nPOST PROCESSING\n")
-        constructor_arguments = self._get_constructor_arguments_for_every_destination(parsed_args)
+        constructor_arguments = self.constructor_arguments
+
         wrappers: Dict[str, DataclassWrapper] = self._get_wrapper_for_every_destination()  
         # we now have all the constructor arguments for each instance.
         # we can now sort out the different dependencies, and create the instances.
@@ -253,25 +245,6 @@ class ArgumentParser(argparse.ArgumentParser):
 
         return parsed_args
 
-    def _get_constructor_arguments_for_every_destination(self, parsed_args: argparse.Namespace)-> Dict[str, Dict[str, Any]]:
-        constructor_arguments: Dict[str, Dict[str, Any]] = {}
-
-        for dataclass in self._wrappers:
-            for prefix, wrapper in self._wrappers[dataclass].items():
-                # get all the destinations:
-                destinations = wrapper._destinations
-                logging.debug(f"postprocessing: {parsed_args} {wrapper} {destinations}")
-            
-                total_num_instances = len(destinations)
-                logging.debug(f"total number of instances: {total_num_instances}")
-                constructor_arguments_list: List[Dict[str, Any]] = wrapper.get_constructor_arguments(parsed_args, total_num_instances)
-
-                for destination, instance_arguments in zip(destinations, constructor_arguments_list):
-                    logging.debug(f"attribute {destination} will have arguments: {instance_arguments}")
-                    constructor_arguments[destination] = instance_arguments
-                    # wrappers[destination] = wrapper
-        return constructor_arguments
-    
     def _get_wrapper_for_every_destination(self) -> Dict[str, DataclassWrapper[DataclassType]]:
         """Returns a dictionary where for every key (a destination), we return the associated DataclassWrapper.
         NOTE: multiple destinations can share the same DataclassWrapper instance.
@@ -282,14 +255,8 @@ class ArgumentParser(argparse.ArgumentParser):
         wrapper_for_destination: Dict[str, DataclassWrapper[DataclassType]] = {}
         for dataclass in self._wrappers:
             for prefix, wrapper in self._wrappers[dataclass].items():
-                destinations = wrapper._destinations
+                destinations = wrapper.destinations
                 for dest in destinations:
                     wrapper_for_destination[dest] = wrapper
         return wrapper_for_destination
         
-
-
-    def _get_destination_attributes_string(self, destinations: List[str]) -> str:
-        names = destinations
-        names_string =f""" [{', '.join(f"'{name}'" for name in names)}]"""
-        return names_string

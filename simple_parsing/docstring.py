@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import *
 from argparse import ArgumentTypeError
 
-@dataclass()
+@dataclass(unsafe_hash=True)
 class AttributeDocString():
     """Simple dataclass for holding the comments of a given field.
     """

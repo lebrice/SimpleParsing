@@ -5,132 +5,48 @@ from typing import *
 import argparse
 
 from . import docstring, utils
+from .utils import Dataclass, DataclassType
 
-
-Dataclass = TypeVar("Dataclass")
-
-class CustomAction(argparse.Action):
-    def __init__(self, field: "FieldWrapper"):
-        option_strings = f"--{field.name}"
-        dest = field.name
-        super().__init__(
-            option_strings,
-            dest,
-            nargs=None,
-            const=None,
-            default=None,
-            type=None,
-            choices=None,
-            required=False,
-            help=None,
-            metavar=None
-        )
-
-    def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: Any, option_string: Optional[str] = None):
-        pass
 
 
 @dataclasses.dataclass
-class FieldWrapper():
+class FieldWrapper(argparse.Action):
     field: dataclasses.Field
-    prefix: str = ""
-    _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=lambda: {})
-    _docstring: Optional[docstring.AttributeDocString] = None
+    _parent: "DataclassWrapper" = None
+    
+    _docstring: Optional[docstring.AttributeDocString] = dataclasses.field(init=False, default=None)
     _multiple: bool = dataclasses.field(init=False, default=False)
 
+    _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=dict)
     # the argparse-related options:
-
-    _option_strings: List[str] = dataclasses.field(init=False, default_factory=list, repr=False)
-    _dest: List[str] = dataclasses.field(init=False, default_factory=list, repr=False)
-    _nargs: Optional[Union[str, int]] = dataclasses.field(init=False, default=None, repr=False)
-    _const: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
-    _default: Optional[Any] = dataclasses.field(init=False, default=None, repr=False)
-    _type: Optional[Any] = dataclasses.field(init=False, default=None, repr=False)
-    _choices: Optional[List[Any]] = dataclasses.field(init=False, default=None, repr=False)
-    _required: bool = dataclasses.field(init=False, default=False, repr=False)
-    _help: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
-    _metavar: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
+    # _option_strings: List[str] = dataclasses.field(init=False, default_factory=list, repr=False)
+    # _dest: List[str] = dataclasses.field(init=False, default_factory=list, repr=False)
+    # _nargs: Optional[Union[str, int]] = dataclasses.field(init=False, default=None, repr=False)
+    # _const: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
+    # _default: Optional[Any] = dataclasses.field(init=False, default=None, repr=False)
+    # _type: Optional[Any] = dataclasses.field(init=False, default=None, repr=False)
+    # _choices: Optional[List[Any]] = dataclasses.field(init=False, default=None, repr=False)
+    # _required: bool = dataclasses.field(init=False, default=False, repr=False)
+    # _help: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
+    # _metavar: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
     
     def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: Any, option_string: Optional[str] = None):
-        pass
-
-    @property
-    def option_strings(self):
-        return [f"--{self.name}"]
-
-    @property
-    def dest(self):
-        return self._dest
-
-    @property
-    def nargs(self):
-        return self._nargs
-
-    @property
-    def const(self):
-        return self._const
-
-    @property
-    def default(self):
-        return self._default
-
-    @property
-    def type(self):
-        return self._type
-
-    @property
-    def choices(self):
-        return self._choices
+        print(f"Inside the 'call' of wrapper for {self.name}, values are {values}, option_string={option_string}")
+        key = self.dest
+        value = self.postprocess(values)
+        print(f"setting value of {value} in constructor arguments of parent at key {key}")
+        parser.constructor_arguments[self.dest] # type: ignore
     
-    @property
-    def required(self) -> bool:
-        if self._required is None:
-            self._required = (
-                self.field.default is dataclasses.MISSING and 
-                self.field.default_factory is dataclasses.MISSING # type: ignore
-            )
-        return self._required
-            
-    
-    @required.setter
-    def required(self, value: bool):
-        self._required = value
-
-    @property
-    def help(self):
-        if self._docstring is not None:
-            if self._docstring.docstring_below:
-                arg_options["help"] = self._docstring.docstring_below
-            elif self._docstring.comment_above:
-                arg_options["help"] = self._docstring.comment_above
-            elif self._docstring.comment_inline:
-                arg_options["help"] = self._docstring.comment_inline
-        return self._help
-
-    @property
-    def metavar(self):
-        return self._metavar
-
-    @property
-    def name(self) -> str:
-        return self.prefix + self.field.name
-    
-    
-    @property
-    def arg_options(self) -> Dict[str, Any]:
-        if self._arg_options:
-            return self._arg_options
-        else:
-            self._arg_options = self._get_arg_options()
-            return self._arg_options 
-
-    @property
-    def is_dataclass(self):
-        return dataclasses.is_dataclass(self.field.type)
-
-    @property
-    def is_tuple_or_list_of_dataclasses(self):
-        return utils.is_tuple_or_list_of_dataclasses(self.field.type)
+    def postprocess(self, parsed_values: Any) -> Any:
+        """TODO: apply any corrections from the 'raw' parsed values to the constructor arguments dict.
+        
+        Args:
+            parsed_values (Any): [description]
+        
+        Returns:
+            Any: [description]
+        """
+        return parsed_values
 
     @property
     def multiple(self) -> bool:
@@ -138,96 +54,205 @@ class FieldWrapper():
 
     @multiple.setter
     def multiple(self, value: bool):
-        if value != self._multiple:
-            self._arg_options.clear()
-        self._multiple = value
+        if self._multiple != value:
+            self.arg_options.clear()
+        self._multiple = value 
+    
+    def __key(self):
+        return (self.field, self.name)
 
-    def _get_arg_options(self) -> Dict[str, Any]:
+    def __hash__(self):
+        return hash(self.__key())
+
+    def __eq__(self, other):
+        if isinstance(other, FieldWrapper):
+            return self.__key() == other.__key()
+    
+    @property
+    def arg_options(self) -> Dict[str, Any]:
+        if self._arg_options:
+            return self._arg_options
+        else:
+            self._arg_options = self.get_arg_options()
+        return self._arg_options
+
+    @property
+    def option_strings(self):
+        return [f"--{self.name}"]
+
+    @property
+    def dest(self):
+        return self.name
+
+    @property
+    def nargs(self):
+        return self.arg_options.get("nargs")
+
+    @property
+    def const(self):
+        return self.arg_options.get("const")
+
+    @property
+    def default(self):
+        return self.arg_options.get("default")        
+
+    @property
+    def type(self):
+        return self.arg_options.get("type")
+
+    @property
+    def choices(self):
+        return self.arg_options.get("choices")
+    
+    @property
+    def required(self) -> bool:
+        return self.arg_options.get("required")
+
+    @property
+    def help(self):
+        return None
+
+    @property
+    def metavar(self):
+        return self.arg_options.get("metavar")
+
+    @property
+    def name(self) -> str:
+        return self.prefix + self.field.name
+
+    def get_arg_options(self) -> Dict[str, Any]:
         f = self.field
         multiple = self.multiple
 
         if not f.init:
             return {}
-        elif self.is_dataclass:
-            return {}
-        elif self.is_tuple_or_list_of_dataclasses:
-            return {}
 
-        name = self.name
-        arg_options: Dict[str, Any] = { 
+        elif dataclasses.is_dataclass(self.field.type):
+            assert False, "Shouldn't have created a FieldWrapper for a dataclass in the first place!"
+        elif utils.is_tuple_or_list_of_dataclasses(self.field.type):
+            assert False, "Shouldn't have created a FieldWrapper for a list of dataclasses in the first place!"
+
+        _arg_options: Dict[str, Any] = { 
             "type": f.type,
         }
 
-        
-        if f.default is not dataclasses.MISSING:
-            arg_options["default"] = f.default
-        elif f.default_factory is not dataclasses.MISSING: # type: ignore
-            arg_options["default"] = f.default_factory() # type: ignore
+        help_string = None
+        if self._docstring is not None:
+            if self._docstring.docstring_below:
+                help_string = self._docstring.docstring_below
+            elif self._docstring.comment_above:
+                help_string = self._docstring.comment_above
+            elif self._docstring.comment_inline:
+                help_string = self._docstring.comment_inline
+        _arg_options["help"] = help_string
+
+        if self.field.default is not dataclasses.MISSING:
+            _arg_options["default"] = self.field.default
+        elif self.field.default_factory is not dataclasses.MISSING:
+            _arg_options["default"] = self.field.default_factory()
         else:
-            arg_options["required"] = True
+            pass
+            # _arg_options["required"] = True
+
+        # if f.default is not dataclasses.MISSING:
+        #     _arg_options["default"] = f.default
+        # elif f.default_factory is not dataclasses.MISSING: # type: ignore
+        #     _arg_options["default"] = f.default_factory() # type: ignore
+        # else:
+        #     _arg_options["required"] = True
 
         if enum.Enum in f.type.mro():
-            arg_options["choices"] = list(e.name for e in f.type)
-            arg_options["type"] = str # otherwise we can't parse the enum, as we get a string.
-            if "default" in arg_options:
-                default_value = arg_options["default"]
+            _arg_options["choices"] = list(e.name for e in f.type)
+            _arg_options["type"] = str # otherwise we can't parse the enum, as we get a string.
+            if "default" in _arg_options:
+                default_value = _arg_options["default"]
                 # if the default value is the Enum object, we make it a string
                 if isinstance(default_value, enum.Enum):
-                    arg_options["default"] = default_value.name
+                    _arg_options["default"] = default_value.name
         
         elif utils.is_tuple_or_list(f.type):
             # Check if typing.List or typing.Tuple was used as an annotation, in which case we can automatically convert items to the desired item type.
             # NOTE: we only support tuples with a single type, for simplicity's sake. 
             T = utils.get_argparse_container_type(f.type)
-            arg_options["nargs"] = "*"
+            _arg_options["nargs"] = "*"
             # arg_options["action"] = "append"
             if multiple:
-                arg_options["type"] = utils._parse_multiple_containers(f.type)
+                _arg_options["type"] = utils._parse_multiple_containers(f.type)
             else:
                 # TODO: Supporting the `--a '1 2 3'`, `--a [1,2,3]`, and `--a 1 2 3` at the same time is syntax is kinda hard, and I'm not sure if it's really necessary.
                 # right now, we support --a '1 2 3' '4 5 6' and --a [1,2,3] [4,5,6] only when parsing multiple instances.
                 # arg_options["type"] = utils._parse_container(f.type)
-                arg_options["type"] = T
+                _arg_options["type"] = T
         
         elif f.type is bool:
-            arg_options["default"] = False if f.default is dataclasses.MISSING else f.default
-            arg_options["type"] = utils.str2bool
-            arg_options["nargs"] = "*" if multiple else "?"
+            _arg_options["default"] = False if f.default is dataclasses.MISSING else f.default
+            _arg_options["type"] = utils.str2bool
+            _arg_options["nargs"] = "*" if multiple else "?"
             if f.default is dataclasses.MISSING:
-                arg_options["required"] = True
+                _arg_options["required"] = True
         
         if multiple:
-            required = arg_options.get("required", False)
+            required = _arg_options.get("required", False)
             if required:
-                arg_options["nargs"] = "+"
+                _arg_options["nargs"] = "+"
             else:
-                arg_options["nargs"] = "*"
-                arg_options["default"] = [arg_options["default"]]
+                _arg_options["nargs"] = "*"
+                _arg_options["default"] = [_arg_options["default"]]
 
-        return arg_options
+        return _arg_options
 
 
 @dataclasses.dataclass
 class DataclassWrapper(Generic[Dataclass]):
     dataclass: Type[Dataclass]
+    # dest: List[str] = dataclasses.field(default_factory=list)
+    destinations: List[str] = dataclasses.field(default_factory=list)
     fields: List[FieldWrapper] = dataclasses.field(init=False, default_factory=list, repr=False)
     _multiple: bool = dataclasses.field(init=False, default=False)
     _required: bool = dataclasses.field(init=False, default=False)
     _prefix: str = dataclasses.field(init=False, default="")
     _children: List["DataclassWrapper"] = dataclasses.field(default_factory=list)
     _parent: Optional["DataclassWrapper"] = None
-    _destinations: List[str] = dataclasses.field(default_factory=list)
 
 
     def __post_init__(self):
         for field in dataclasses.fields(self.dataclass):
-            new_field_wrapper = FieldWrapper(field)
-            try:
-                new_field_wrapper._docstring = docstring.get_attribute_docstring(self.dataclass, field.name)
-            except (SystemExit, Exception) as e:
-                logging.warning("Couldn't find attribute docstring:", e)
-                new_field_wrapper._docstring = docstring.AttributeDocString()
-            self.fields.append(new_field_wrapper)
+            if dataclasses.is_dataclass(field.type):
+                # handle a nested dataclass.
+                child_wrapper = DataclassWrapper(field.type)
+                child_wrapper.destinations = [f"{d}.{field.name}" for d in self.destinations]
+                child_wrapper.prefix = self.prefix
+                child_wrapper._parent = self
+                self._children.append(child_wrapper)
+            elif utils.is_tuple_or_list_of_dataclasses(field.type):
+                raise NotImplementedError(f"""\
+                Nesting using attributes which are containers of a dataclass isn't supported (yet).
+                """)
+            else:
+                # regular field.
+                field_wrapper = FieldWrapper(field)
+                try:
+                    field_wrapper._docstring = docstring.get_attribute_docstring(self.dataclass, field.name)
+                except (SystemExit, Exception) as e:
+                    logging.warning("Couldn't find attribute docstring:", e)
+                    field_wrapper._docstring = docstring.AttributeDocString()
+                self.fields.append(field_wrapper)
+
+    def add_arguments(self, parser: argparse.ArgumentParser):
+        names_string = f""" [{', '.join(f"'{dest}'" for dest in self.destinations)}]"""
+        group = parser.add_argument_group(
+            title=self.dataclass.__qualname__ + names_string,
+            description=self.dataclass.__doc__
+        )
+        for wrapped_field in self.fields:
+            for dest in self.destinations:
+                
+                def make_action(*args, **kwargs) -> argparse.Action:
+                    print("args:", args)
+                    print("kwargs:", kwargs)
+                    return wrapped_field
+
+                group.add_argument(wrapped_field.name, action=make_action, **wrapped_field.arg_options)
 
     @property
     def prefix(self) -> str:
@@ -238,6 +263,8 @@ class DataclassWrapper(Generic[Dataclass]):
         self._prefix = value
         for wrapped_field in self.fields:
             wrapped_field.prefix = value
+        for child_wrapper in self._children:
+            child_wrapper.prefix = value
 
     @property
     def required(self) -> bool:
@@ -248,6 +275,8 @@ class DataclassWrapper(Generic[Dataclass]):
         self._required = value
         for wrapped_field in self.fields:
             wrapped_field.required = value
+        for child_wrapper in self._children:
+            child_wrapper.required = value
 
     @property
     def multiple(self) -> bool:
@@ -257,6 +286,8 @@ class DataclassWrapper(Generic[Dataclass]):
     def multiple(self, value: bool):
         for wrapped_field in self.fields:
             wrapped_field.multiple = value
+        for child_wrapper in self._children:
+            child_wrapper.multiple = value
         self._multiple = value
 
     @property
@@ -268,6 +299,18 @@ class DataclassWrapper(Generic[Dataclass]):
     def __iter__(self):
         yield self
         yield from self.descendants
+
+    def merge(self, other: "DataclassWrapper"):
+        """Absorb all the relevant attributes from another wrapper.
+        
+        
+        Args:
+            other (DataclassWrapper): Another instance to absorb into this one.
+        """
+        self.destinations.extend(other.destinations)
+        self._children.extend(other._children)
+        self.multiple = True
+
 
     def get_constructor_arguments(self, args: Union[Dict[str, Any], argparse.Namespace], num_instances_to_parse: int = 1) -> List[Dict[str, Any]]:
         """

@@ -8,6 +8,11 @@ from dataclasses import dataclass
 from typing import *
 
 
+T = TypeVar("T")
+Dataclass = TypeVar("Dataclass")
+DataclassType = Type[Dataclass]
+# DataclassType = Type[Dataclass]
+
 class InconsistentArgumentError(RuntimeError):
     """
     Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
@@ -20,8 +25,6 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelp
     """
     pass
 
-T = TypeVar("T")
-Dataclass = TypeVar("Dataclass")
 
 @dataclass
 class DependenciesGraph:
