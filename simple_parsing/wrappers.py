@@ -5,20 +5,115 @@ from typing import *
 import argparse
 
 from . import docstring, utils
+
+
 Dataclass = TypeVar("Dataclass")
+
+class CustomAction(argparse.Action):
+    def __init__(self, field: "FieldWrapper"):
+        option_strings = f"--{field.name}"
+        dest = field.name
+        super().__init__(
+            option_strings,
+            dest,
+            nargs=None,
+            const=None,
+            default=None,
+            type=None,
+            choices=None,
+            required=False,
+            help=None,
+            metavar=None
+        )
+
+    def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: Any, option_string: Optional[str] = None):
+        pass
+
 
 @dataclasses.dataclass
 class FieldWrapper():
     field: dataclasses.Field
-    name_prefix: str = ""
+    prefix: str = ""
     _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=lambda: {})
     _docstring: Optional[docstring.AttributeDocString] = None
     _multiple: bool = dataclasses.field(init=False, default=False)
-    _required: Optional[bool] = dataclasses.field(init=False, default=None)
+
+    # the argparse-related options:
+
+    _option_strings: List[str] = dataclasses.field(init=False, default_factory=list, repr=False)
+    _dest: List[str] = dataclasses.field(init=False, default_factory=list, repr=False)
+    _nargs: Optional[Union[str, int]] = dataclasses.field(init=False, default=None, repr=False)
+    _const: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
+    _default: Optional[Any] = dataclasses.field(init=False, default=None, repr=False)
+    _type: Optional[Any] = dataclasses.field(init=False, default=None, repr=False)
+    _choices: Optional[List[Any]] = dataclasses.field(init=False, default=None, repr=False)
+    _required: bool = dataclasses.field(init=False, default=False, repr=False)
+    _help: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
+    _metavar: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
+    
+    def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: Any, option_string: Optional[str] = None):
+        pass
+
+    @property
+    def option_strings(self):
+        return [f"--{self.name}"]
+
+    @property
+    def dest(self):
+        return self._dest
+
+    @property
+    def nargs(self):
+        return self._nargs
+
+    @property
+    def const(self):
+        return self._const
+
+    @property
+    def default(self):
+        return self._default
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def choices(self):
+        return self._choices
+    
+    @property
+    def required(self) -> bool:
+        if self._required is None:
+            self._required = (
+                self.field.default is dataclasses.MISSING and 
+                self.field.default_factory is dataclasses.MISSING # type: ignore
+            )
+        return self._required
+            
+    
+    @required.setter
+    def required(self, value: bool):
+        self._required = value
+
+    @property
+    def help(self):
+        if self._docstring is not None:
+            if self._docstring.docstring_below:
+                arg_options["help"] = self._docstring.docstring_below
+            elif self._docstring.comment_above:
+                arg_options["help"] = self._docstring.comment_above
+            elif self._docstring.comment_inline:
+                arg_options["help"] = self._docstring.comment_inline
+        return self._help
+
+    @property
+    def metavar(self):
+        return self._metavar
 
     @property
     def name(self) -> str:
-        return self.name_prefix + self.field.name
+        return self.prefix + self.field.name
     
     
     @property
@@ -36,20 +131,6 @@ class FieldWrapper():
     @property
     def is_tuple_or_list_of_dataclasses(self):
         return utils.is_tuple_or_list_of_dataclasses(self.field.type)
-
-    @property
-    def required(self) -> bool:
-        if self._required is not None:
-            return self._required
-        else:
-            return (
-                self.field.default is dataclasses.MISSING and 
-                self.field.default_factory is dataclasses.MISSING # type: ignore
-            )
-    
-    @required.setter
-    def required(self, value: bool):
-        self._required = value
 
     @property
     def multiple(self) -> bool:
@@ -72,18 +153,11 @@ class FieldWrapper():
         elif self.is_tuple_or_list_of_dataclasses:
             return {}
 
-        name = f"--{f.name}"
+        name = self.name
         arg_options: Dict[str, Any] = { 
             "type": f.type,
         }
 
-        if self._docstring is not None:
-            if self._docstring.docstring_below:
-                arg_options["help"] = self._docstring.docstring_below
-            elif self._docstring.comment_above:
-                arg_options["help"] = self._docstring.comment_above
-            elif self._docstring.comment_inline:
-                arg_options["help"] = self._docstring.comment_inline
         
         if f.default is not dataclasses.MISSING:
             arg_options["default"] = f.default
@@ -136,20 +210,18 @@ class FieldWrapper():
 @dataclasses.dataclass
 class DataclassWrapper(Generic[Dataclass]):
     dataclass: Type[Dataclass]
-    _prefix: dataclasses.InitVar[str] = ""
     fields: List[FieldWrapper] = dataclasses.field(init=False, default_factory=list, repr=False)
     _multiple: bool = dataclasses.field(init=False, default=False)
     _required: bool = dataclasses.field(init=False, default=False)
-    _argument_names_prefix: str = dataclasses.field(init=False, default="")
+    _prefix: str = dataclasses.field(init=False, default="")
     _children: List["DataclassWrapper"] = dataclasses.field(default_factory=list)
     _parent: Optional["DataclassWrapper"] = None
     _destinations: List[str] = dataclasses.field(default_factory=list)
 
 
-    def __post_init__(self, _prefix: str):
-        self.prefix = _prefix
+    def __post_init__(self):
         for field in dataclasses.fields(self.dataclass):
-            new_field_wrapper = FieldWrapper(field, name_prefix=self.prefix)
+            new_field_wrapper = FieldWrapper(field)
             try:
                 new_field_wrapper._docstring = docstring.get_attribute_docstring(self.dataclass, field.name)
             except (SystemExit, Exception) as e:
@@ -159,13 +231,13 @@ class DataclassWrapper(Generic[Dataclass]):
 
     @property
     def prefix(self) -> str:
-        return self._argument_names_prefix
+        return self._prefix
     
     @prefix.setter
     def prefix(self, value: str):
-        self._argument_names_prefix = value
+        self._prefix = value
         for wrapped_field in self.fields:
-            wrapped_field.name_prefix = value
+            wrapped_field.prefix = value
 
     @property
     def required(self) -> bool:

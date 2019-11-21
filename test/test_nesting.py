@@ -158,7 +158,13 @@ def test_train_config_example_no_args():
     print(TrainConfig.get_help_text())
 
 def test_train_config_example_with_explicit_args():
-    config = TrainConfig.setup("--train..log_dir train --train..batch_size 123 --valid..log_dir valid --valid..batch_size 456", conflict_resolution_mode=ConflictResolution.EXPLICIT)
+    config = TrainConfig.setup(
+        "--train.log_dir train "
+        "--train.hparams.batch_size 123 "
+        "--valid.log_dir valid "
+        "--valid.hparams.batch_size 456",
+        conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE
+    )
     import os
     
     assert isinstance(config.train, RunConfig)

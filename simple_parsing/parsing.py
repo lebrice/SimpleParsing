@@ -140,7 +140,8 @@ class ArgumentParser(argparse.ArgumentParser):
                         (Conflict Resolution mode is {self.conflict_resolution})
                         """))
 
-        wrapper = DataclassWrapper(dataclass, _prefix=prefix)
+        wrapper = DataclassWrapper(dataclass)
+        wrapper.prefix = prefix
         destinations = wrapper._destinations
         
 
