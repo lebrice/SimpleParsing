@@ -74,7 +74,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 """))
 
         wrapper = self._register_dataclass(dataclass, dest, prefix=prefix)
-        logging.debug("added wrapper:\n", wrapper, "\n")
+        print("added wrapper:\n", wrapper, "\n")
 
     def parse_known_args(self, args=None, namespace=None):
         # NOTE: since the usual ArgumentParser.parse_args() calls parse_known_args, we therefore just need to overload the parse_known_args method.
@@ -90,7 +90,7 @@ class ArgumentParser(argparse.ArgumentParser):
             dest {str} -- a string which is to be used to  NamedTuple used to keep track of where to store the resulting instance and the number of instances.
         """
         
-        logging.debug(f"Registering dataclass {dataclass} destination: '{dest}' prefix: '{prefix}'")
+        print(f"Registering dataclass {dataclass} destination: '{dest}' prefix: '{prefix}'")
         # construct the wrapper and all its children.
         new_wrapper = DataclassWrapper(dataclass, dest)
         new_wrapper.prefix = prefix
@@ -100,7 +100,7 @@ class ArgumentParser(argparse.ArgumentParser):
             # there is already a DataclassWrapper for this dataclass and with this prefix.
             # we therefore have to handle this conflict.
             new_wrapper = self._handle_confict(existing_wrapper, new_wrapper)
-            logging.debug("after merging, destinations:", new_wrapper.destinations)
+            print("after merging, destinations:", new_wrapper.destinations)
 
         self._wrappers[dataclass][prefix] = new_wrapper        
         for child_wrapper in new_wrapper.descendants:
@@ -111,18 +111,80 @@ class ArgumentParser(argparse.ArgumentParser):
 
 
     def _preprocessing(self):
-        logging.debug("\nPREPROCESSING\n")
-        logging.debug("all wrappers:")
-        logging.debug(self._wrappers)
+        print("\nPREPROCESSING\n")
+        print("all wrappers:")
+        print(self._wrappers)
         # Create one argument group per dataclass type
         for dataclass in self._wrappers:
             for prefix, wrapper in self._wrappers[dataclass].items():
-                logging.debug(f"dataclass: {dataclass}, multiple={wrapper.multiple}")                
+                print(f"Adding arguments for dataclass: {dataclass}, multiple={wrapper.multiple}")                
                 wrapper.add_arguments(parser=self)
 
 
+    def _postprocessing(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+        """Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
+        
+        Arguments:
+            parsed_args {argparse.Namespace} -- the result of calling super().parse_args()
+        
+        Returns:
+            argparse.Namespace -- The namespace, with the added attributes for each dataclass.
+            TODO: Try and maybe return a nicer, typed version of parsed_args (a Namespace subclass maybe?)  
+        """
+        print("\nPOST PROCESSING\n")
+        print(f"parsed args: {parsed_args}")
+        parsed_arg_values = vars(parsed_args)
+        # print(f"parsed args: {parsed_args}")
+        
+        wrappers: Dict[str, DataclassWrapper] = self._get_wrapper_for_every_destination()  
+        
+        # constructor_arguments = {}
+        for wrapper in wrappers.values():
+            for field in wrapper.fields:
+                values = parsed_arg_values.get(field.dest, field.default)
+                field(parser=self, namespace = parsed_args, values=values, option_string = None)
+
+        # we now have all the constructor arguments for each instance.
+        # we can now sort out the different dependencies, and create the instances.
+        print(f"all arguments: {self.constructor_arguments}")
+        destinations = self.constructor_arguments.keys()
+        print(f"all destinations: {destinations}")
+        print(f"Constructor Arguments: {self.constructor_arguments}")
+
+        # we construct the 'tree' of dependencies from the bottom up,
+        # starting with nodes that are children.
+        nesting_level = lambda destination_attribute: destination_attribute.count(".")
+        for destination in sorted(destinations, key=nesting_level, reverse=True):
+            constructor = wrappers[destination].instantiate_dataclass
+            constructor_args = self.constructor_arguments[destination]   
+            print(f"destination: '{destination}', constructor_args: {constructor_args}")
+            instance = constructor(constructor_args)
+            print(f"Instance: {instance}")
+
+            parts = destination.split(".")
+            parent = ".".join(parts[:-1])
+            attribute_in_parent = parts[-1]
+            print(f"Destination '{destination}' is child in parent '{parent}' at attribute '{attribute_in_parent}'")
+            # if this destination is a nested child of another,
+            # we set this instance in the corresponding constructor arguments,
+            # such that the required parameters are set
+            if parent == "":
+                # instance = 
+                print(f"setting attribute '{destination}' on the parsed_args to a value of {instance}")
+                setattr(parsed_args, destination, instance)
+            else:
+                self.constructor_arguments[parent][attribute_in_parent] = instance
+
+
+            # if this destination is not a nested child, we set the attribute
+            # on the returned parsed_args.
+            print(f"parsed args so far:", parsed_args)
+
+        return parsed_args
+
+
     def _handle_confict(self, existing_wrapper: DataclassWrapper, new_wrapper: DataclassWrapper) -> DataclassWrapper:
-        logging.debug(f"Handling conflict. ConflictResolutionMode is {self.conflict_resolution}")
+        print(f"Handling conflict. ConflictResolutionMode is {self.conflict_resolution}")
         dataclass = new_wrapper.dataclass
         dest = new_wrapper.destinations
         prefix = new_wrapper.prefix
@@ -140,12 +202,12 @@ class ArgumentParser(argparse.ArgumentParser):
                 Each attribute of this dataclass will be marked as 'Multiple', and will be set in the order they were defined.
                 (Conflict Resolution mode is {self.conflict_resolution})
                 """))
-            logging.debug("MERGING")
-            logging.debug("Parent:", existing_wrapper._parent)
-            logging.debug("existing wrapper destinations:", existing_wrapper.destinations)
-            logging.debug("new wrapper destinations:", new_wrapper.destinations)
+            print("MERGING")
+            print("Parent:", existing_wrapper._parent)
+            print("existing wrapper destinations:", existing_wrapper.destinations)
+            print("new wrapper destinations:", new_wrapper.destinations)
             existing_wrapper.merge(new_wrapper)
-            logging.debug("(updated) existing wrapper:\n", existing_wrapper)
+            print("(updated) existing wrapper:\n", existing_wrapper)
             del new_wrapper
             new_wrapper = existing_wrapper
             # we'll allow adding another dataclass that will share the same argument. 
@@ -166,61 +228,12 @@ class ArgumentParser(argparse.ArgumentParser):
             new_wrapper.prefix = new_wrapper.destinations[0] + "."
 
         elif self.conflict_resolution == ConflictResolution.AUTO:
-            logging.debug("auto")
+            print("auto")
             # IDEA: find the simplest way to tell appart every instance of the classes, and use that as a prefix.
             raise NotImplementedError("Auto conflict resolution isn't implemented yet.")
         
         return new_wrapper
 
-    def _postprocessing(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
-        """Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
-        
-        Arguments:
-            parsed_args {argparse.Namespace} -- the result of calling super().parse_args()
-        
-        Returns:
-            argparse.Namespace -- The namespace, with the added attributes for each dataclass.
-            TODO: Try and maybe return a nicer, typed version of parsed_args (a Namespace subclass maybe?)  
-        """
-        logging.debug("\nPOST PROCESSING\n")
-        logging.debug(f"parsed args: {parsed_args}")
-        wrappers: Dict[str, DataclassWrapper] = self._get_wrapper_for_every_destination()  
-        # we now have all the constructor arguments for each instance.
-        # we can now sort out the different dependencies, and create the instances.
-        
-        logging.debug(f"all arguments: {self.constructor_arguments}")
-        destinations = self.constructor_arguments.keys()
-        logging.debug(f"all destinations: {destinations}")
-
-        # we construct the 'tree' of dependencies from the bottom up,
-        # starting with nodes that are children.
-        nesting_level = lambda destination_attribute: destination_attribute.count(".")
-        for destination in sorted(destinations, key=nesting_level, reverse=True):
-            
-            constructor = wrappers[destination].instantiate_dataclass
-            constructor_args = self.constructor_arguments[destination]   
-            logging.debug(f"destination: '{destination}', constructor_args: {constructor_args}")
-            instance = constructor(constructor_args)
-            logging.debug(f"Instance: {instance}")
-
-            if "." in destination:
-                # if this destination is a nested child of another,
-                # we set this instance in the corresponding constructor arguments,
-                # such that the required parameters are set
-                parts = destination.split(".")
-                parent = ".".join(parts[:-1])
-                attribute_in_parent = parts[-1]
-                logging.debug(f"Destination is child in parent {parent} at attribute {attribute_in_parent}")
-                self.constructor_arguments[parent][attribute_in_parent] = instance
-            else:
-                
-                # if this destination is not a nested child, we set the attribute
-                # on the returned parsed_args.
-                logging.debug(f"parsed args so far:", parsed_args)
-                logging.debug(f"setting attribute '{destination}' on the aprsed_args to a value of {instance}")
-                setattr(parsed_args, destination, instance)
-
-        return parsed_args
 
     def _get_wrapper_for_every_destination(self) -> Dict[str, DataclassWrapper[DataclassType]]:
         """Returns a dictionary where for every key (a destination), we return the associated DataclassWrapper.
@@ -230,14 +243,14 @@ class ArgumentParser(argparse.ArgumentParser):
             Dict[str, DataclassWrapper[Dataclass]] -- [description]
         """
         wrapper_for_destination: Dict[str, DataclassWrapper[DataclassType]] = {}
-        logging.debug("self._wrappers:", self._wrappers)
+        print("self._wrappers:", self._wrappers)
         for dataclass in self._wrappers.keys():
             for prefix, wrapper in self._wrappers[dataclass].items():
-                logging.debug(f"prefix: '{prefix}', wrapper: {wrapper}")
+                print(f"prefix: '{prefix}', wrapper: {wrapper}")
 
                 for dest in wrapper.destinations:
-                    logging.debug(f"This wrapper will populate the destination '{dest}'.")
+                    print(f"This wrapper will populate the destination '{dest}'.")
                     wrapper_for_destination[dest] = wrapper
-        logging.debug(f"Wrappers for each destinations: {wrapper_for_destination}")
+        print(f"Wrappers for each destinations: {wrapper_for_destination}")
         return wrapper_for_destination
         

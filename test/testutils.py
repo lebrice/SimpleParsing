@@ -44,8 +44,7 @@ class TestSetup():
         try:
             instance: Dataclass = getattr(args, dest) #type: ignore
         except AttributeError as e:
-            print(f"attribute '{dest}' not found in args {args}")
-            raise e
+            pytest.fail(f"attribute '{dest}' not found in args {args}")
         return instance
     
     @classmethod
