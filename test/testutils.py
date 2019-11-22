@@ -41,7 +41,11 @@ class TestSetup():
         else:
             splits = shlex.split(arguments)
             args = parser.parse_args(splits)
-        instance: Dataclass = getattr(args, dest) #type: ignore
+        try:
+            instance: Dataclass = getattr(args, dest) #type: ignore
+        except AttributeError as e:
+            print(f"attribute '{dest}' not found in args {args}")
+            raise e
         return instance
     
     @classmethod

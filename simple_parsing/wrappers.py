@@ -8,12 +8,11 @@ from . import docstring, utils
 from .utils import Dataclass, DataclassType
 
 
-
 @dataclasses.dataclass
 class FieldWrapper(argparse.Action):
     field: dataclasses.Field
-    _parent: "DataclassWrapper" = None
-    
+    parent: "DataclassWrapper"
+    _required: Optional[bool] = dataclasses.field(init=False, default=None)
     _docstring: Optional[docstring.AttributeDocString] = dataclasses.field(init=False, default=None)
     _multiple: bool = dataclasses.field(init=False, default=False)
 
@@ -29,15 +28,55 @@ class FieldWrapper(argparse.Action):
     # _required: bool = dataclasses.field(init=False, default=False, repr=False)
     # _help: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
     # _metavar: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
-    
+
+    def __post_init__(self):
+        try:
+            self._docstring = docstring.get_attribute_docstring(self.parent.dataclass, self.field.name)
+        except (SystemExit, Exception) as e:
+            logging.warning("Couldn't find attribute docstring:", e)
+            self._docstring = docstring.AttributeDocString()
+
     def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: Any, option_string: Optional[str] = None):
-        print(f"Inside the 'call' of wrapper for {self.name}, values are {values}, option_string={option_string}")
-        key = self.dest
-        value = self.postprocess(values)
-        print(f"setting value of {value} in constructor arguments of parent at key {key}")
-        parser.constructor_arguments[self.dest] # type: ignore
+        logging.debug(f"Inside the 'call' of wrapper for {self.name}, values are {values}, option_string={option_string}")
+        from simple_parsing import ArgumentParser
+        parser: ArgumentParser = parser # type: ignore
+        
+        logging.debug(self.name)
+        logging.debug(f"destinations:", self.destinations)
+
+        values = self.duplicate_if_needed(values)
+        for parent_dest, value in zip(self.destinations, values):
+            logging.debug("Before preprocessing the value:", value)
+            value = self.postprocess(value)
+            logging.debug("After postprocessing the value: ", value)
+            logging.debug(f"setting value of {value} in constructor arguments of parent at key '{parent_dest}' and attribute '{self.name}'")
+            parser.constructor_arguments[parent_dest][self.name] = value # type: ignore
     
-    def postprocess(self, parsed_values: Any) -> Any:
+    def duplicate_if_needed(self, parsed_values: Any) -> List[Any]:
+        num_instances_to_parse = len(self.destinations)
+        logging.debug("field preprocess:", parsed_values, "num to parse:", num_instances_to_parse)
+        if self.multiple:
+            assert num_instances_to_parse > 1, "multiple is true but we're expected to instantiate only one instance"
+        else:
+            # TODO: if we do anything with list of dataclasses we might need to chanfieldge this.
+            assert num_instances_to_parse == 1, f"multiple is false but we're expected to instantiate {num_instances_to_parse} instances"
+        
+        instance_arguments: List[Any] = []
+        # what if the attribute is a list? This might complicate things, no?
+        values = parsed_values if isinstance(parsed_values, list) else [parsed_values]
+        logging.debug("values as a list:", values)
+        if len(values) == num_instances_to_parse:
+            return values
+        elif len(values) == 1:
+            return values * num_instances_to_parse
+        else:
+            raise utils.InconsistentArgumentError(
+                f"The field '{self.name}' contains {len(values)} values, but either 1 or {num_instances_to_parse} values were expected."
+            )
+        return parsed_values
+
+
+    def postprocess(self, value: Any) -> Any:
         """TODO: apply any corrections from the 'raw' parsed values to the constructor arguments dict.
         
         Args:
@@ -46,7 +85,29 @@ class FieldWrapper(argparse.Action):
         Returns:
             Any: [description]
         """
-        return parsed_values
+        logging.debug("field postprocessing")
+        logging.debug("value is", value)
+        
+        if enum.Enum in self.field.type.mro():
+            return self.field.type[value]
+        
+        elif utils.is_tuple(self.field.type):
+            return tuple(value)
+        
+        elif utils.is_list(self.field.type):
+            return list(value)
+
+        elif self.field.type is bool:
+            default_value = False if self.field.default is dataclasses.MISSING else self.field.default
+            if value is None:
+                return not default_value
+            elif isinstance(value, bool):
+                return value
+            else:
+                raise RuntimeError(f"bool argument {self.name} isn't bool: {value}")
+
+        else:
+            return value
 
     @property
     def multiple(self) -> bool:
@@ -59,7 +120,7 @@ class FieldWrapper(argparse.Action):
         self._multiple = value 
     
     def __key(self):
-        return (self.field, self.name)
+        return (self.parent.prefix, self.name)
 
     def __hash__(self):
         return hash(self.__key())
@@ -77,11 +138,24 @@ class FieldWrapper(argparse.Action):
         return self._arg_options
 
     @property
+    def destinations(self) -> List[str]:
+        return self.parent.destinations
+
+    @property
     def option_strings(self):
+        prefix = self.parent.prefix
+        if prefix:
+            return [f"--{prefix}.{self.name}"]
         return [f"--{self.name}"]
 
     @property
     def dest(self):
+        parents = []
+        parent = self.parent
+        while parent is not None:
+            parents.append(parent.attribute_name)
+            parent = parent._parent
+        print("getting dest, returning ", self.name)
         return self.name
 
     @property
@@ -105,8 +179,8 @@ class FieldWrapper(argparse.Action):
         return self.arg_options.get("choices")
     
     @property
-    def required(self) -> bool:
-        return self.arg_options.get("required")
+    def required(self):
+        return (self.parent and self.parent.required) or self.arg_options.get("required")
 
     @property
     def help(self):
@@ -118,7 +192,7 @@ class FieldWrapper(argparse.Action):
 
     @property
     def name(self) -> str:
-        return self.prefix + self.field.name
+        return self.field.name
 
     def get_arg_options(self) -> Dict[str, Any]:
         f = self.field
@@ -148,18 +222,11 @@ class FieldWrapper(argparse.Action):
 
         if self.field.default is not dataclasses.MISSING:
             _arg_options["default"] = self.field.default
-        elif self.field.default_factory is not dataclasses.MISSING:
-            _arg_options["default"] = self.field.default_factory()
+        elif self.field.default_factory is not dataclasses.MISSING: # type: ignore
+            _arg_options["default"] = self.field.default_factory() # type: ignore
         else:
-            pass
-            # _arg_options["required"] = True
-
-        # if f.default is not dataclasses.MISSING:
-        #     _arg_options["default"] = f.default
-        # elif f.default_factory is not dataclasses.MISSING: # type: ignore
-        #     _arg_options["default"] = f.default_factory() # type: ignore
-        # else:
-        #     _arg_options["required"] = True
+            _arg_options["default"] = argparse.SUPPRESS
+            _arg_options["required"] = True
 
         if enum.Enum in f.type.mro():
             _arg_options["choices"] = list(e.name for e in f.type)
@@ -193,11 +260,12 @@ class FieldWrapper(argparse.Action):
         
         if multiple:
             required = _arg_options.get("required", False)
+            default = _arg_options.get("default")
             if required:
                 _arg_options["nargs"] = "+"
             else:
                 _arg_options["nargs"] = "*"
-                _arg_options["default"] = [_arg_options["default"]]
+                _arg_options["default"] = [default]
 
         return _arg_options
 
@@ -205,8 +273,9 @@ class FieldWrapper(argparse.Action):
 @dataclasses.dataclass
 class DataclassWrapper(Generic[Dataclass]):
     dataclass: Type[Dataclass]
+    attribute_name: str
     # dest: List[str] = dataclasses.field(default_factory=list)
-    destinations: List[str] = dataclasses.field(default_factory=list)
+    _destinations: List[str] = dataclasses.field(init=False, default_factory=list)
     fields: List[FieldWrapper] = dataclasses.field(init=False, default_factory=list, repr=False)
     _multiple: bool = dataclasses.field(init=False, default=False)
     _required: bool = dataclasses.field(init=False, default=False)
@@ -214,45 +283,67 @@ class DataclassWrapper(Generic[Dataclass]):
     _children: List["DataclassWrapper"] = dataclasses.field(default_factory=list)
     _parent: Optional["DataclassWrapper"] = None
 
+    _registered: Dict[DataclassType, "DataclassWrapper"] = dataclasses.field(init=False, default_factory=dict)
+  
+    def __key(self):
+        return (self.prefix, self.dataclass)
+
+    def __hash__(self):
+        return hash(self.__key())
+
+    def __eq__(self, other):
+        if isinstance(other, FieldWrapper):
+            return self.__key() == other.__key()
 
     def __post_init__(self):
         for field in dataclasses.fields(self.dataclass):
             if dataclasses.is_dataclass(field.type):
+                dataclass = field.type
+                attribute_name = field.name
+                # TODO: check that there isn't already a child created for this dataclass.
                 # handle a nested dataclass.
-                child_wrapper = DataclassWrapper(field.type)
-                child_wrapper.destinations = [f"{d}.{field.name}" for d in self.destinations]
+                child_wrapper = DataclassWrapper(dataclass, attribute_name)
                 child_wrapper.prefix = self.prefix
-                child_wrapper._parent = self
-                self._children.append(child_wrapper)
+                if child_wrapper not in self._children:                    
+                    child_wrapper._parent = self
+                    self._children.append(child_wrapper)
+                
+
             elif utils.is_tuple_or_list_of_dataclasses(field.type):
                 raise NotImplementedError(f"""\
                 Nesting using attributes which are containers of a dataclass isn't supported (yet).
                 """)
             else:
                 # regular field.
-                field_wrapper = FieldWrapper(field)
-                try:
-                    field_wrapper._docstring = docstring.get_attribute_docstring(self.dataclass, field.name)
-                except (SystemExit, Exception) as e:
-                    logging.warning("Couldn't find attribute docstring:", e)
-                    field_wrapper._docstring = docstring.AttributeDocString()
+                field_wrapper = FieldWrapper(field, parent=self)
+                
+                
                 self.fields.append(field_wrapper)
 
     def add_arguments(self, parser: argparse.ArgumentParser):
+        from .parsing import ArgumentParser
+        parser : ArgumentParser = parser # type: ignore
         names_string = f""" [{', '.join(f"'{dest}'" for dest in self.destinations)}]"""
+        title = self.dataclass.__qualname__ + names_string
+        logging.debug("Adding argument group with title", title)
+        
         group = parser.add_argument_group(
-            title=self.dataclass.__qualname__ + names_string,
+            title=title,
             description=self.dataclass.__doc__
         )
-        for wrapped_field in self.fields:
-            for dest in self.destinations:
-                
-                def make_action(*args, **kwargs) -> argparse.Action:
-                    print("args:", args)
-                    print("kwargs:", kwargs)
-                    return wrapped_field
+        assert self.destinations, "destinations shouldn't be empty!"
+        
+        # TODO: this is the place of interest.
+        logging.debug("DESTINATIONS:", self.destinations)
 
-                group.add_argument(wrapped_field.name, action=make_action, **wrapped_field.arg_options)
+        for wrapped_field in self.fields:
+
+            def make_action(*args, **kwargs) -> argparse.Action:
+                logging.debug("args:", args)
+                logging.debug("kwargs:", kwargs)
+                return wrapped_field
+            
+            group.add_argument(wrapped_field.option_strings[0], action=make_action, **wrapped_field.arg_options)
 
     @property
     def prefix(self) -> str:
@@ -261,8 +352,6 @@ class DataclassWrapper(Generic[Dataclass]):
     @prefix.setter
     def prefix(self, value: str):
         self._prefix = value
-        for wrapped_field in self.fields:
-            wrapped_field.prefix = value
         for child_wrapper in self._children:
             child_wrapper.prefix = value
 
@@ -273,8 +362,6 @@ class DataclassWrapper(Generic[Dataclass]):
     @required.setter
     def required(self, value: bool):
         self._required = value
-        for wrapped_field in self.fields:
-            wrapped_field.required = value
         for child_wrapper in self._children:
             child_wrapper.required = value
 
@@ -296,112 +383,37 @@ class DataclassWrapper(Generic[Dataclass]):
             yield child
             yield from child.descendants
 
-    def __iter__(self):
-        yield self
-        yield from self.descendants
+    @property
+    def destinations(self) -> List[str]:
+        # logging.debug(f"getting destinations of {self}")
+        # logging.debug(f"self._destinations is {self._destinations}")
+        # logging.debug(f"Parent is {self._parent}")
+        if not self._destinations:
+            if self._parent:
+                self._destinations = [f"{d}.{self.attribute_name}" for d in self._parent.destinations]
+            else:
+                self._destinations = [self.attribute_name]
+        # logging.debug(f"returning {self._destinations}")
+        return self._destinations
 
     def merge(self, other: "DataclassWrapper"):
         """Absorb all the relevant attributes from another wrapper.
-        
-        
         Args:
             other (DataclassWrapper): Another instance to absorb into this one.
         """
+        logging.debug(f"merging \n{self}\n with \n{other}")
         self.destinations.extend(other.destinations)
-        self._children.extend(other._children)
+        for child, other_child in zip(self.descendants, other.descendants):
+            child.merge(other_child)
         self.multiple = True
 
-
-    def get_constructor_arguments(self, args: Union[Dict[str, Any], argparse.Namespace], num_instances_to_parse: int = 1) -> List[Dict[str, Any]]:
-        """
-        Parses the constructor arguments for every instance of the wrapped dataclass from the results of `parser.parse_args()`
-        """
-        args_dict: Dict[str, Any] = vars(args) if isinstance(args, argparse.Namespace) else args
-        constructor_arguments: List[Dict[str, Any]] = []
-
-        logging.debug(self.dataclass, args_dict, num_instances_to_parse)
-        logging.debug(f"args: {args}")
-        
-        if self.multiple:
-            assert num_instances_to_parse > 1, "multiple is true but we're expected to instantiate only one instance"
-        else:
-            assert num_instances_to_parse == 1, f"multiple is false but we're expected to instantiate {num_instances_to_parse} instances"
-
-        for i in range(num_instances_to_parse):
-            
-            instance_arguments: Dict[str, Union[Any, List]] = {}
-
-            for wrapped_field in self.fields:
-                f = wrapped_field.field
-
-                if not f.init:
-                    continue
-
-                if wrapped_field.is_dataclass:
-                    logging.debug("The wrapped field is a dataclass. continuing, since it will be populated later.")
-                    continue
-
-                assert not wrapped_field.is_tuple_or_list_of_dataclasses, "Shouldn't have been allowed"
-                assert wrapped_field.name in args_dict, f"{f.name} is not in the arguments dict: {args_dict}"
-                
-                value = args_dict[wrapped_field.name]
-                                
-                if self.multiple:
-                    assert isinstance(value, list), f"all fields should have gotten a list default value... ({value})"
-
-                    if len(value) == 1:
-                        instance_arguments[f.name] = value[0]
-                    elif len(value) == num_instances_to_parse:
-                        instance_arguments[f.name] = value[i]
-                    else:
-                        raise utils.InconsistentArgumentError(
-                            f"The field '{f.name}' contains {len(value)} values, but either 1 or {num_instances_to_parse} values were expected."
-                        )
-                else:
-                    instance_arguments[f.name] = value
-            constructor_arguments.append(instance_arguments)
-        return constructor_arguments
-
-    def instantiate_dataclass(self, args_dict: Dict[str, Any]) -> Dataclass:
+    def instantiate_dataclass(self, constructor_args: Dict[str, Any]) -> Dataclass:
         """
         Creates an instance of the dataclass using the given dict of constructor arguments, including nested dataclasses if present.
         """
-        logging.debug(f"args dict: {args_dict}")
+        logging.debug(f"args dict: {constructor_args}")
         
         dataclass = self.dataclass
-        constructor_args: Dict[str, Any] = {}
-
-        for wrapped_field in self.fields:
-            f = wrapped_field.field
-            logging.debug(f"arg options: '{wrapped_field.arg_options}'")
-            if not wrapped_field.arg_options:
-                continue
-            value = args_dict[f.name]
-           
-            assert not wrapped_field.is_tuple_or_list_of_dataclasses, "Shouldn't have attributes that are containers of dataclasses!"
-            
-            if enum.Enum in f.type.mro():
-                constructor_args[f.name] = f.type[value]
-            
-            elif utils.is_tuple(f.type):
-                constructor_args[f.name] = tuple(value)
-            
-            elif utils.is_list(f.type):
-                constructor_args[f.name] = list(value)
-
-            elif f.type is bool:
-                value = args_dict[f.name]
-                constructor_args[f.name] = value
-                default_value = False if f.default is dataclasses.MISSING else f.default
-                if value is None:
-                    constructor_args[f.name] = not default_value
-                elif isinstance(value, bool):
-                    constructor_args[f.name] = value
-                else:
-                    raise RuntimeError(f"bool argument {f.name} isn't bool: {value}")
-
-            else:
-                constructor_args[f.name] = value
         logging.debug(f"Constructor arguments for dataclass {dataclass}: {constructor_args}")
         instance: T = dataclass(**constructor_args) #type: ignore
         return instance
