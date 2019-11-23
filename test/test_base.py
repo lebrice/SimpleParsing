@@ -33,6 +33,32 @@ def test_default_value_is_used_when_no_args_are_provided(some_type: Type, defaul
     assert isinstance(class_a.a, some_type)
 
 
+
+@parametrize(
+    "some_type, default_value",
+    [
+        (int,   123524),
+        (float, 123.456),
+        (str,   "bob"),
+        (bool,  True),
+    ]
+)
+def test_arguments_are_cleaned_up(some_type: Type, default_value):
+    @dataclass()
+    class SomeClass(TestSetup):
+        a: some_type = default_value # type: ignore
+        """some docstring for attribute 'a'"""
+    
+    parser = ArgumentParser()
+    parser.add_arguments(SomeClass, "some_class")
+    args = parser.parse_args("")
+    some_class: SomeClass = args.some_class
+    delattr(args, "some_class")
+    assert args == argparse.Namespace()
+
+
+
+
 @parametrize(
     "some_type, default_value,  arg_value",
     [

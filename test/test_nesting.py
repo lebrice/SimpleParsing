@@ -163,7 +163,7 @@ def test_train_config_example_with_explicit_args():
         "--train.hparams.batch_size 123 "
         "--valid.log_dir valid "
         "--valid.hparams.batch_size 456",
-        conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE
+        conflict_resolution_mode=ConflictResolution.EXPLICIT
     )
     import os
     

@@ -11,22 +11,16 @@ from .utils import Dataclass, DataclassType
 class CustomAction(argparse.Action):
     # TODO: the CustomAction isn't always called!
 
-    def __init__(self, option_strings, dest, field, nargs=None, **kwargs):
+    def __init__(self, option_strings, dest, field, **kwargs):
         self.field = field
-        print(f"Creating Custom Action for field {field}")
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
+        logging.debug(f"Creating Custom Action for field {field}")
         super().__init__(option_strings, dest, **self.field.arg_options)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        print(f"INSIDE CALL: {namespace}, {values}, {option_string}")
-        print("calling field's __call__ method!")
+        logging.debug(f"INSIDE CustomAction's __call__: {namespace}, {values}, {option_string}")
         before = parser.constructor_arguments.copy()
-        print("\nBEFORE:", before)
         result = self.field(parser, namespace, values, option_string)
-        print(f"Result is '{result}'")
         after = parser.constructor_arguments
-        print("\nAFTER:", after)
         # assert before != after, f"before: {before}, after: {after}"
         # setattr(namespace, self.dest, values)
 
@@ -38,19 +32,9 @@ class FieldWrapper(argparse.Action):
     _docstring: Optional[docstring.AttributeDocString] = dataclasses.field(init=False, default=None)
     _multiple: bool = dataclasses.field(init=False, default=False)
 
-    _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=dict)
     # the argparse-related options:
-    # _option_strings: List[str] = dataclasses.field(init=False, default_factory=list, repr=False)
-    # _dest: List[str] = dataclasses.field(init=False, default_factory=list, repr=False)
-    # _nargs: Optional[Union[str, int]] = dataclasses.field(init=False, default=None, repr=False)
-    # _const: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
-    # _default: Optional[Any] = dataclasses.field(init=False, default=None, repr=False)
-    # _type: Optional[Any] = dataclasses.field(init=False, default=None, repr=False)
-    # _choices: Optional[List[Any]] = dataclasses.field(init=False, default=None, repr=False)
-    # _required: bool = dataclasses.field(init=False, default=False, repr=False)
-    # _help: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
-    # _metavar: Optional[str] = dataclasses.field(init=False, default=None, repr=False)
-
+    _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=dict)
+    
     def __post_init__(self):
         try:
             self._docstring = docstring.get_attribute_docstring(self.parent.dataclass, self.field.name)
@@ -59,24 +43,24 @@ class FieldWrapper(argparse.Action):
             self._docstring = docstring.AttributeDocString()
 
     def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: Any, option_string: Optional[str] = None):
-        print(f"Inside the 'call' of wrapper for {self.name}, values are {values}, option_string={option_string}")
+        logging.debug(f"Inside the 'call' of wrapper for {self.name}, values are {values}, option_string={option_string}")
         from simple_parsing import ArgumentParser
         parser: ArgumentParser = parser # type: ignore
         
-        print(f"destinations:", self.destinations)
-
+        logging.debug(f"destinations:", self.destinations)
         values = self.duplicate_if_needed(values)
-        print(f"VALUES IS '{values}'")
+        logging.debug(f"VALUES IS '{values}'")
         for parent_dest, value in zip(self.destinations, values):
-            print("Before preprocessing the value:", value)
+            logging.debug("Before preprocessing the value:", value)
             value = self.postprocess(value)
-            print("After postprocessing the value: ", value)
-            print(f"setting value of {value} in constructor arguments of parent at key '{parent_dest}' and attribute '{self.name}'")
+            logging.debug("After postprocessing the value: ", value)
+            logging.debug(f"setting value of {value} in constructor arguments of parent at key '{parent_dest}' and attribute '{self.name}'")
             parser.constructor_arguments[parent_dest][self.name] = value # type: ignore
     
     def duplicate_if_needed(self, parsed_values: Any) -> List[Any]:
         num_instances_to_parse = len(self.destinations)
         print("field preprocess:", parsed_values, "num to parse:", num_instances_to_parse)
+        
         if self.multiple:
             assert num_instances_to_parse > 1, "multiple is true but we're expected to instantiate only one instance"
         else:
@@ -85,7 +69,26 @@ class FieldWrapper(argparse.Action):
         
         instance_arguments: List[Any] = []
         # what if the attribute is a list? This might complicate things, no?
-        values = parsed_values if isinstance(parsed_values, list) else [parsed_values]
+
+        if utils.is_tuple_or_list(self.field.type):
+            print("Duplicating a list...")
+            nesting_level = utils.get_nesting_level(parsed_values)
+            print("Nesting level:", nesting_level)
+            print("parsed values: ", parsed_values)
+
+            while nesting_level < 2:
+                parsed_values = [parsed_values]
+                nesting_level += 1
+            if nesting_level != 2:
+                print(f"BEWARE, NESTING LEVEL IS OFF THE CHARTS! (nesting level is {nesting_level})")
+            
+            if len(parsed_values) == num_instances_to_parse:
+                values = parsed_values
+            elif len(parsed_values) == 1:
+                values = parsed_values * num_instances_to_parse
+            # values = [parsed_values]
+        else:
+            values = parsed_values if isinstance(parsed_values, list) else [parsed_values]
         print("values as a list:", values)
         if len(values) == num_instances_to_parse:
             return values
@@ -107,7 +110,7 @@ class FieldWrapper(argparse.Action):
         Returns:
             Any: [description]
         """
-        print(f"field postprocessing for value '{value}'")
+        logging.debug(f"field postprocessing for value '{value}'")
         
         if enum.Enum in self.field.type.mro():
             return self.field.type[value]
@@ -166,7 +169,7 @@ class FieldWrapper(argparse.Action):
         while parent is not None:
             parents.append(parent.attribute_name)
             parent = parent._parent
-        print("getting dest, returning ", self.name)
+        logging.debug("getting dest, returning ", self.name)
         return ".".join(parents) + "." + self.name
         # return self.name
 
@@ -250,6 +253,7 @@ class FieldWrapper(argparse.Action):
                     _arg_options["default"] = default_value.name
         
         elif utils.is_tuple_or_list(f.type):
+            print("Adding a list attribute")
             # Check if typing.List or typing.Tuple was used as an annotation, in which case we can automatically convert items to the desired item type.
             # NOTE: we only support tuples with a single type, for simplicity's sake. 
             T = utils.get_argparse_container_type(f.type)
@@ -287,7 +291,6 @@ class DataclassWrapper(Generic[Dataclass]):
     dataclass: Type[Dataclass]
     attribute_name: str
     fields: List[FieldWrapper] = dataclasses.field(init=False, default_factory=list, repr=False)
-    # dest: List[str] = dataclasses.field(default_factory=list)
     _destinations: List[str] = dataclasses.field(init=False, default_factory=list, repr=False)
     _multiple: bool = dataclasses.field(init=False, default=False)
     _required: bool = dataclasses.field(init=False, default=False)
@@ -299,17 +302,15 @@ class DataclassWrapper(Generic[Dataclass]):
         self.destinations
         for field in dataclasses.fields(self.dataclass):
             if dataclasses.is_dataclass(field.type):
+                # handle a nested dataclass.
                 dataclass = field.type
                 attribute_name = field.name
-                # TODO: check that there isn't already a child created for this dataclass.
-                # handle a nested dataclass.
                 child_wrapper = DataclassWrapper(dataclass, attribute_name)
                 child_wrapper.prefix = self.prefix
                 if child_wrapper not in self._children:                    
                     child_wrapper._parent = self
                     self._children.append(child_wrapper)
                 
-
             elif utils.is_tuple_or_list_of_dataclasses(field.type):
                 raise NotImplementedError(f"""\
                 Nesting using attributes which are containers of a dataclass isn't supported (yet).
@@ -317,8 +318,6 @@ class DataclassWrapper(Generic[Dataclass]):
             else:
                 # regular field.
                 field_wrapper = FieldWrapper(field, parent=self)
-                
-                
                 self.fields.append(field_wrapper)
 
     def add_arguments(self, parser: argparse.ArgumentParser):
@@ -326,20 +325,15 @@ class DataclassWrapper(Generic[Dataclass]):
         parser : ArgumentParser = parser # type: ignore
         names_string = f""" [{', '.join(f"'{dest}'" for dest in self.destinations)}]"""
         title = self.dataclass.__qualname__ + names_string
-        print("Adding argument group with title", title)
-        
         group = parser.add_argument_group(
             title=title,
             description=self.dataclass.__doc__
         )
-        assert self.destinations, "destinations shouldn't be empty!"
-        
-        # TODO: this is the place of interest.
-        print("DESTINATIONS:", self.destinations)
 
         for wrapped_field in self.fields:
-            print(f"Adding argument for field '{wrapped_field.name}'")
-            # group.add_argument(wrapped_field.option_strings[0], dest=wrapped_field.dest, action=CustomAction, field=wrapped_field)
+            logging.debug(f"Adding argument for field '{wrapped_field.name}'")
+            # TODO: CustomAction isn't very easy to debug, and is not working. Maybe look into that. Simulating it for now.
+            # group.add_argument(wrapped_field.option_strings[0], dest=wrapped_field.dest, action=CustomAction, field=wrapped_field, **wrapped_field.arg_options)
             group.add_argument(wrapped_field.option_strings[0], dest=wrapped_field.dest, **wrapped_field.arg_options)
 
     @property
@@ -382,15 +376,15 @@ class DataclassWrapper(Generic[Dataclass]):
 
     @property
     def destinations(self) -> List[str]:
-        # print(f"getting destinations of {self}")
-        # print(f"self._destinations is {self._destinations}")
-        # print(f"Parent is {self._parent}")
+        # logging.debug(f"getting destinations of {self}")
+        # logging.debug(f"self._destinations is {self._destinations}")
+        # logging.debug(f"Parent is {self._parent}")
         if not self._destinations:
             if self._parent:
                 self._destinations = [f"{d}.{self.attribute_name}" for d in self._parent.destinations]
             else:
                 self._destinations = [self.attribute_name]
-        # print(f"returning {self._destinations}")
+        # logging.debug(f"returning {self._destinations}")
         return self._destinations
 
     def merge(self, other: "DataclassWrapper"):
@@ -398,7 +392,7 @@ class DataclassWrapper(Generic[Dataclass]):
         Args:
             other (DataclassWrapper): Another instance to absorb into this one.
         """
-        print(f"merging \n{self}\n with \n{other}")
+        logging.debug(f"merging \n{self}\n with \n{other}")
         self.destinations.extend(other.destinations)
         for child, other_child in zip(self.descendants, other.descendants):
             child.merge(other_child)
@@ -408,9 +402,9 @@ class DataclassWrapper(Generic[Dataclass]):
         """
         Creates an instance of the dataclass using the given dict of constructor arguments, including nested dataclasses if present.
         """
-        print(f"args dict: {constructor_args}")
+        logging.debug(f"args dict: {constructor_args}")
         
         dataclass = self.dataclass
-        print(f"Constructor arguments for dataclass {dataclass}: {constructor_args}")
+        logging.debug(f"Constructor arguments for dataclass {dataclass}: {constructor_args}")
         instance: T = dataclass(**constructor_args) #type: ignore
         return instance

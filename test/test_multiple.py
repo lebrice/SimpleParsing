@@ -11,7 +11,7 @@ from simple_parsing import (InconsistentArgumentError,
 
 from .testutils import *
 
-@parametrize("num_instances", [1, 2, 5, 50])
+@parametrize("num_instances", [1, 2, 5])
 @parametrize(
     "some_type, default_value",
     [
@@ -36,7 +36,7 @@ def test_parse_multiple_with_no_arguments_sets_default_value(num_instances: int,
         assert isinstance(c_i.a, some_type)
 
 
-@parametrize("num_instances", [2, 5, 50])
+@parametrize("num_instances", [1, 2, 5])
 @parametrize(
     "some_type, default_value,  passed_value",
     [

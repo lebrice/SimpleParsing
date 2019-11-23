@@ -231,6 +231,21 @@ def setattr_recursive(obj: object, attribute_name: str, value: Any):
         child_object = getattr(obj, parts[0])
         setattr_recursive(child_object, ".".join(parts[1:]), value)
 
+
+def get_nesting_level(possibly_nested_list):
+    if not isinstance(possibly_nested_list, (list, tuple)):
+        return 0
+    elif len(possibly_nested_list) == 0:
+        return 1
+    else:
+        return 1 + max(
+            get_nesting_level(item) for item in possibly_nested_list
+        )
+
+
+
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
+
