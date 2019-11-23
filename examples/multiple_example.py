@@ -7,11 +7,10 @@
 """
 import argparse
 from dataclasses import dataclass, field
-from simple_parsing import ArgumentParser
+from simple_parsing import ArgumentParser, ConflictResolution
 from typing import List
 
-parser = ArgumentParser()
-
+parser = ArgumentParser(conflict_resolution=ConflictResolution.ALWAYS_MERGE)
 
 @dataclass()
 class Config():
