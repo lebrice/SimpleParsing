@@ -48,10 +48,9 @@ class ArgumentParser(argparse.ArgumentParser):
         self.conflict_resolution = conflict_resolution
 
         # two-level dictionary that maps from (dataclass, string_prefix) -> DataclassWrapper. 
-        self._wrappers: Dict[DataclassType, Dict[str, DataclassWrapper]] = defaultdict(dict)
+        self._wrappers: Dict[DataclassType, Dict[str, List[DataclassWrapper]]] = defaultdict(lambda: defaultdict(list))
 
-        # the dictionary that maps from destination to DataclassWrapper.
-        self._destinations: Dict[str, DataclassWrapper] = {}
+        self._fixed_wrappers: Dict[DataclassType, Dict[str, DataclassWrapper]]
 
         self.constructor_arguments: Dict[str, Dict[str, Any]] = defaultdict(dict)
 
@@ -70,13 +69,14 @@ class ArgumentParser(argparse.ArgumentParser):
             This can be useful when registering multiple distinct instances of the same dataclass.
 
         """
-        
-        if dest in self._destinations.keys():
-            self.error(textwrap.dedent(f"""\
-                Destination attribute {dest} is already used for dataclass of type {dataclass}.
-                Make sure all destinations are unique.
-                """))
-        new_wrapper = DataclassWrapper(dataclass, dest)
+        for prefix, wrappers in self._wrappers[dataclass]:
+            destinations = [wrapper.dest for dest in wrappers]
+            if dest in destinations:
+                self.error(textwrap.dedent(f"""\
+                    Destination attribute {dest} is already used for dataclass of type {dataclass}.
+                    Make sure all destinations are unique.
+                    """))
+        new_wrapper: DataclassWrapper[DataclassType] = DataclassWrapper(dataclass, dest)
         new_wrapper.prefix = prefix
         wrapper = self._register_dataclass(new_wrapper)
         logger.debug("added wrapper:\n", wrapper, "\n")
@@ -94,35 +94,33 @@ class ArgumentParser(argparse.ArgumentParser):
             dataclass {Type[Dataclass]} -- The dataclass to register
             dest {str} -- a string which is to be used to  NamedTuple used to keep track of where to store the resulting instance and the number of instances.
         """
-        dataclass = new_wrapper.dataclass
-        prefix = new_wrapper.prefix
-        dest = new_wrapper.dest
-
-        logger.debug(f"Registering dataclass {dataclass} destination: '{dest}' prefix: '{prefix}'")
-        # construct the wrapper and all its children.
-
-        existing_wrapper = self._wrappers[dataclass].get(prefix)
-        if existing_wrapper is not None:
-            # there is already a DataclassWrapper for this dataclass and with this prefix.
-            # we therefore have to handle this conflict.
-            new_wrapper = self._handle_confict(existing_wrapper, new_wrapper)
-
-        self._wrappers[dataclass][prefix] = new_wrapper        
-        for child_wrapper in new_wrapper.descendants:
-            # assert new_wrapper.prefix == prefix
-            self._register_dataclass(child_wrapper)
-
-            # self._wrappers[child_wrapper.dataclass][prefix] = new_wrapper
-
+        print(f"Registering new DataclassWrapper: {new_wrapper}")
+        self._wrappers[new_wrapper.dataclass][new_wrapper.prefix].append(new_wrapper)        
+        for child in new_wrapper.descendants:
+            self._wrappers[child.dataclass][child.prefix].append(child)
         return new_wrapper
 
-
+    def _unregister_dataclass(self, wrapper: DataclassWrapper[DataclassType]):
+        print(f"Unregistering DataclassWrapper {wrapper}")
+        self._remove(wrapper)
+        for child in wrapper.descendants:
+            print(f"\tAlso Unregistering Child DataclassWrapper {child}")
+            self._remove(child)
+    
+    def _remove(self, wrapper: DataclassWrapper):
+        self._wrappers[wrapper.dataclass][wrapper.prefix].remove(wrapper)
+        if len(self._wrappers[wrapper.dataclass][wrapper.prefix]) == 0:
+            self._wrappers[wrapper.dataclass].pop(wrapper.prefix)
+    
     def _preprocessing(self):
         logger.debug("\nPREPROCESSING\n")
+
+        self._fixed_wrappers = self._fix_conflicts()
+        print("Fixed wrappers:", self._fixed_wrappers)
         # Create one argument group per dataclass type
-        for dataclass in self._wrappers:
-            for prefix, wrapper in self._wrappers[dataclass].items():
-                logger.debug(f"Adding arguments for dataclass: {dataclass}, multiple={wrapper.multiple}")                
+        for dataclass in self._fixed_wrappers:
+            for prefix, wrapper in self._fixed_wrappers[dataclass].items():
+                print(f"Adding arguments for dataclass: {dataclass}, multiple={wrapper.multiple}, prefix = '{wrapper.prefix}'")                
                 wrapper.add_arguments(parser=self)
 
 
@@ -205,70 +203,91 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args = argparse.Namespace(**parsed_arg_values)
         return parsed_args
 
+    def _get_conflicting_group(self, all_wrappers: Dict[DataclassType, Dict[str, List[DataclassWrapper[DataclassType]]]]) -> Optional[Tuple[DataclassType, str, List[DataclassWrapper]]]:
+        """Return the dataclass, prefix, and conflicing DataclassWrappers.
+        """
+        for dataclass in all_wrappers.keys():
+            for prefix in all_wrappers[dataclass].keys():
+                wrappers = all_wrappers[dataclass][prefix].copy()
+                if len(wrappers) >= 2:
+                    return dataclass, prefix, wrappers
+        return None
 
-    def _handle_confict(self, existing_wrapper: DataclassWrapper, new_wrapper: DataclassWrapper) -> DataclassWrapper:
-        print(f"Handling conflict. ConflictResolutionMode is {self.conflict_resolution}")
-        dataclass = new_wrapper.dataclass
-        dest = new_wrapper.destinations
-        prefix = new_wrapper.prefix
 
-        if self.conflict_resolution == ConflictResolution.NONE:
-            self.error(textwrap.dedent(f"""\
-            Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
-            (Conflict Resolution mode is {self.conflict_resolution})
-            """))
-        
-        elif self.conflict_resolution == ConflictResolution.ALWAYS_MERGE:
-            if not existing_wrapper.multiple:
+    def _conflict_exists(self, all_wrappers: Dict[DataclassType, Dict[str, List[DataclassWrapper[DataclassType]]]]) -> bool:
+        """Return True whenever a conflict exists (multiple DataclassWrappers share the same dataclass and prefix."""
+        for dataclass in all_wrappers.keys():
+            for prefix, wrappers in all_wrappers[dataclass].items():
+                assert all(wrapper.prefix == prefix for wrapper in wrappers), "Misplaced DataclassWrapper!"
+                if len(wrappers) >= 2:
+                    return True
+        return False
+
+    def _fix_conflicts(self) ->  Dict[DataclassType, Dict[str, DataclassWrapper]]:
+        while self._conflict_exists(self._wrappers):
+            conflict = self._get_conflicting_group(self._wrappers)
+            assert conflict is not None
+            dataclass, prefix, wrappers = conflict
+            print(f"The following {len(wrappers)} wrappers are in conflict, as they share the same dataclass and prefix:", *wrappers, sep="\n")
+            print(f"(Conflict Resolution mode is {self.conflict_resolution})")
+            if self.conflict_resolution == ConflictResolution.NONE:           
+                self.error(
+                    "The following wrappers are in conflict, as they share the same dataclass and prefix:\n" +
+                    "\n".join(str(w) for w in wrappers) +
+                    f"(Conflict Resolution mode is {self.conflict_resolution})"
+                )
+                    
+            elif self.conflict_resolution == ConflictResolution.EXPLICIT:
+                self._fix_conflict_explicit(conflict)
+
+            elif self.conflict_resolution == ConflictResolution.ALWAYS_MERGE:
                 logging.warning(textwrap.dedent(f"""\
-                Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
-                Each attribute of this dataclass will be marked as 'Multiple', and will be set in the order they were defined.
-                (Conflict Resolution mode is {self.conflict_resolution})
-                """))
-            # logger.debug("MERGING")
-            # logger.debug("Parent:", existing_wrapper._parent)
-            # logger.debug("existing wrapper destinations:", existing_wrapper.destinations)
-            # logger.debug("new wrapper destinations:", new_wrapper.destinations)
-            existing_wrapper.merge(new_wrapper)
-            # logger.debug("(updated) existing wrapper:\n", existing_wrapper)
-            del new_wrapper
-            new_wrapper = existing_wrapper
-            # we'll allow adding another dataclass that will share the same argument. 
-            # the dataclass will be marked as 'multiple' now, if it wasn't already.
+                    Each attribute of this dataclass will be marked as 'Multiple', and will be set in the order they were defined.
+                    """))
+                self._fix_conflict_merge(conflict)
 
-        elif self.conflict_resolution == ConflictResolution.EXPLICIT:
-            # We don't allow any ambiguous use.
-            # Every wrapper will have a prefix that will be equal to the full path to each of its arguments.
-            logging.warning(textwrap.dedent(f"""\
-            Dataclass of type {dataclass} is already registered under destination {dest} and with prefix '{prefix}'.
-            A prefix of '{dest}.' will be used for every argument of this new class.
-            (Conflict Resolution mode is {self.conflict_resolution})
-            """))
-            # TODO: handle this, we need to also update the existing wrapper's prefixes.
-            assert not existing_wrapper.multiple, "the existing wrapper can't be multiple, since we're using EXPLICIT conflict resolution mode..."
-            assert len(existing_wrapper.destinations) == 1, f"Should have had only one entry: {existing_wrapper.destinations}"
-            print("new wrapper (before):", new_wrapper)
-            print("existing wrapper (before):", existing_wrapper)
-            # remove the 'old' prefix in self._wrappers
-            self._unregister_dataclass(existing_wrapper)
-            existing_wrapper.explicit = True
-            self._register_dataclass(existing_wrapper)
-            new_wrapper.explicit = True
-            print("new wrapper (after):", new_wrapper)
-            print("existing wrapper (after):", existing_wrapper)
+            elif self.conflict_resolution == ConflictResolution.AUTO:
+                raise NotImplementedError("Auto conflict resolution isn't implemented yet.")
 
-        elif self.conflict_resolution == ConflictResolution.AUTO:
-            logger.debug("auto")
-            # IDEA: find the simplest way to tell appart every instance of the classes, and use that as a prefix.
-            raise NotImplementedError("Auto conflict resolution isn't implemented yet.")
+        assert not self._conflict_exists(self._wrappers)
+        fixed_wrappers: Dict[DataclassType, Dict[str, DataclassWrapper[DataclassType]]] = defaultdict(dict)
+        for dataclass in self._wrappers:
+            for prefix, wrappers in self._wrappers[dataclass].items():
+                assert len(wrappers) == 1
+                wrapper = wrappers[0]
+                assert wrapper.prefix == prefix 
+                fixed_wrappers[dataclass][prefix] = wrapper 
+        return fixed_wrappers
+
+    def _fix_conflict_explicit(self, conflict):
+        # print("fixing explicit conflict: ", conflict)
+
+        dataclass, prefix, wrappers = conflict
+        assert prefix == "", "Wrappers for the same dataclass can't have the same user-set prefix when in EXPLICIT mode!"
+        # remove all wrappers for that prefix
+        for wrapper in wrappers:
+            self._unregister_dataclass(wrapper)
+            wrapper.prefix = wrapper.attribute_name + "."
+            self._register_dataclass(wrapper)
+        assert not self._wrappers[dataclass][prefix], self._wrappers[dataclass][prefix]
+        # remove the prefix from the dict so we don't have to deal with empty lists.
+        self._wrappers[dataclass].pop(prefix)
+
+
+    def _fix_conflict_merge(self, conflict):
+        dataclass, prefix, wrappers = conflict
+        assert len(wrappers) > 1
+        first_wrapper: DataclassWrapper = None
+        for wrapper in wrappers:
+            self._unregister_dataclass(wrapper)
+            if first_wrapper is None:
+                first_wrapper = wrapper
+            else:
+                first_wrapper = first_wrapper.merge(wrapper)
         
-        return new_wrapper
-    
-    def _unregister_dataclass(self, wrapper: DataclassWrapper[DataclassType]):
-        self._wrappers[wrapper.dataclass].pop(wrapper.prefix, None)
-        for wrapper in wrapper.descendants:
-            self._wrappers[wrapper.dataclass].pop(wrapper.prefix, None)
-    
+        assert first_wrapper.multiple
+        self._register_dataclass(first_wrapper)
+
     
     @property
     def _wrapper_for_every_destination(self) -> Dict[str, DataclassWrapper[DataclassType]]:
@@ -279,12 +298,9 @@ class ArgumentParser(argparse.ArgumentParser):
             Dict[str, DataclassWrapper[Dataclass]] -- [description]
         """
         wrapper_for_destination: Dict[str, DataclassWrapper[DataclassType]] = {}
-        print("dataclasses: ", self._wrappers.keys())
-
-        for dataclass in self._wrappers.keys():
-            for prefix, wrapper in self._wrappers[dataclass].items():
+        for dataclass in self._fixed_wrappers.keys():
+            for prefix, wrapper in self._fixed_wrappers[dataclass].items():
                 for dest in wrapper.destinations:
-                    print(f"setting wrapper for destination '{dest}' as {wrapper}")
                     wrapper_for_destination[dest] = wrapper
         return wrapper_for_destination
         
