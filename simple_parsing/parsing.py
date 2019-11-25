@@ -69,8 +69,8 @@ class ArgumentParser(argparse.ArgumentParser):
             This can be useful when registering multiple distinct instances of the same dataclass.
 
         """
-        for prefix, wrappers in self._wrappers[dataclass]:
-            destinations = [wrapper.dest for dest in wrappers]
+        for prefix, wrappers in self._wrappers[dataclass].items():
+            destinations = [wrapper.dest for wrapper in wrappers]
             if dest in destinations:
                 self.error(textwrap.dedent(f"""\
                     Destination attribute {dest} is already used for dataclass of type {dataclass}.
@@ -190,6 +190,8 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_arg_values = vars(parsed_args)
         for wrapper in wrappers.values():
             for field in wrapper.fields:
+                if not field.field.init:
+                    continue
                 values = parsed_arg_values.get(field.dest, field.default)
                 # call the action manually.
                 # this sets the right value in the `self.constructor_arguments` dictionary.
@@ -283,7 +285,7 @@ class ArgumentParser(argparse.ArgumentParser):
             if first_wrapper is None:
                 first_wrapper = wrapper
             else:
-                first_wrapper = first_wrapper.merge(wrapper)
+                first_wrapper.merge(wrapper)
         
         assert first_wrapper.multiple
         self._register_dataclass(first_wrapper)

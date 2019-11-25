@@ -32,7 +32,7 @@ class FieldWrapper(argparse.Action):
     _required: Optional[bool] = dataclasses.field(init=False, default=None)
     _docstring: Optional[docstring.AttributeDocString] = dataclasses.field(init=False, default=None)
     _multiple: bool = dataclasses.field(init=False, default=False)
-
+    _default: Any = dataclasses.field(init=False, default=None)
     # the argparse-related options:
     _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=dict)
     
@@ -186,7 +186,13 @@ class FieldWrapper(argparse.Action):
 
     @property
     def default(self):
+        if self._default is not None:
+            return self._default
         return self.arg_options.get("default")        
+
+    @default.setter
+    def default(self, value: Any):
+        self._default = value
 
     @property
     def type(self):
@@ -302,8 +308,8 @@ class DataclassWrapper(Generic[Dataclass]):
     _children: List["DataclassWrapper"] = dataclasses.field(default_factory=list, repr=False)
     _parent: Optional["DataclassWrapper"] = dataclasses.field(default=None, repr=False)
 
-    _explicit: bool = False
-
+    _field: Optional[dataclasses.Field] = dataclasses.field(default=None)
+    
     def __post_init__(self):
         self.destinations
         for field in dataclasses.fields(self.dataclass):
@@ -311,11 +317,11 @@ class DataclassWrapper(Generic[Dataclass]):
                 # handle a nested dataclass.
                 dataclass = field.type
                 attribute_name = field.name
-                child_wrapper = DataclassWrapper(dataclass, attribute_name)
-                child_wrapper.prefix = self.prefix
-                if child_wrapper not in self._children:                    
-                    child_wrapper._parent = self
-                    self._children.append(child_wrapper)
+                child_wrapper = DataclassWrapper(dataclass, attribute_name, _parent=self)
+                child_wrapper._field = field
+                # TODO: correctly handle the default value for a Dataclass attribute.
+                child_wrapper.prefix = self.prefix                 
+                self._children.append(child_wrapper)
                 
             elif utils.is_tuple_or_list_of_dataclasses(field.type):
                 raise NotImplementedError(f"""\
@@ -331,30 +337,40 @@ class DataclassWrapper(Generic[Dataclass]):
         parser : ArgumentParser = parser # type: ignore
         names_string = f""" [{', '.join(f"'{dest}'" for dest in self.destinations)}]"""
         title = self.dataclass.__qualname__ + names_string
+        description = self.dataclass.__doc__
+
+        default_value = None
+        if self._field:
+            if self._field.default is not dataclasses.MISSING:
+                default_value = self._field.default
+            elif self._field.default_factory is not dataclasses.MISSING: # type: ignore
+                default_value = self._field.default_factory() # type: ignore
+            assert self._parent is not None
+            doc = docstring.get_attribute_docstring(self._parent.dataclass, self._field.name)
+            
+            if doc is not None:
+                if doc.docstring_below:
+                    description = doc.docstring_below
+                elif doc.comment_above:
+                    description = doc.comment_above
+                elif doc.comment_inline:
+                    description = doc.comment_inline
+        
         group = parser.add_argument_group(
             title=title,
-            description=self.dataclass.__doc__
+            description=description
         )
 
+        print("The nested dataclass had a default value of ", default_value)
         for wrapped_field in self.fields:
-            logger.debug(f"Adding argument for field '{wrapped_field.name}'")
-            # TODO: CustomAction isn't very easy to debug, and is not working. Maybe look into that. Simulating it for now.
-            # group.add_argument(wrapped_field.option_strings[0], dest=wrapped_field.dest, action=CustomAction, field=wrapped_field, **wrapped_field.arg_options)
-            group.add_argument(wrapped_field.option_strings[0], dest=wrapped_field.dest, **wrapped_field.arg_options)
-
-    @property
-    def explicit(self) -> bool:
-        return self._explicit
-    
-    @explicit.setter
-    def explicit(self, value):
-        #TODO: Set the naming of every subfield and child as explicit.
-        if value:
-            self._prefix = self.prefix + self.attribute_name + "."
-            for child in self._children:
-                child.explicit = True
-        self._explicit = value
-
+            if wrapped_field.arg_options:
+                    
+                logger.debug(f"Adding argument for field '{wrapped_field.name}'")
+                if default_value is not None:
+                    wrapped_field.default = getattr(default_value, wrapped_field.name, wrapped_field.default)
+                # TODO: CustomAction isn't very easy to debug, and is not working. Maybe look into that. Simulating it for now.
+                # group.add_argument(wrapped_field.option_strings[0], dest=wrapped_field.dest, action=CustomAction, field=wrapped_field, **wrapped_field.arg_options)
+                group.add_argument(wrapped_field.option_strings[0], dest=wrapped_field.dest, **wrapped_field.arg_options)
 
     @property
     def prefix(self) -> str:
@@ -439,6 +455,6 @@ class DataclassWrapper(Generic[Dataclass]):
         logger.debug(f"args dict: {constructor_args}")
         
         dataclass = self.dataclass
-        logger.debug(f"Constructor arguments for dataclass {dataclass}: {constructor_args}")
+        print(f"Constructor arguments for dataclass {dataclass}: {constructor_args}")
         instance: T = dataclass(**constructor_args) #type: ignore
         return instance

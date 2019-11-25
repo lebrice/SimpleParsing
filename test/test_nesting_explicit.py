@@ -11,14 +11,15 @@ from simple_parsing import (Formatter, InconsistentArgumentError,
 
 @dataclass
 class TaskModelParams():
-    num_layers: int = 1
-    num_units: int = 32
-    use_batchnorm: bool = False
-    use_dropout: bool = False
-    dropout_rate: float = 0.1
-    use_likes: bool = False
-    likes_condensing_layers: int = 0
-    likes_condensing_units: int = 0
+    """ Settings for a Model for one of the tasks to be completed. """
+    num_layers: int = 1 # the number of layers to use
+    num_units: int = 32 # the number of dense units
+    use_batchnorm: bool = False # wether or not Batch Normalization is to be used
+    use_dropout: bool = False # wether or not Dropout is to be used
+    dropout_rate: float = 0.1 # the dropout rate
+    use_likes: bool = False # wether or not to use the likes as an input to the model
+    likes_condensing_layers: int = 0 # the number of layers in the model's like-condensing block
+    likes_condensing_units: int = 0 # the number of neurons in the likes condensing block.
 
 
 @dataclass
@@ -51,22 +52,31 @@ class HyperParameters(TestSetup):
     num_text_features: ClassVar[int] = 91
     num_image_features: ClassVar[int] = 63
 
-
     # Gender model settings:
-    gender: TaskModelParams = TaskModelParams(num_layers=1, num_units=32, use_likes=False)
+    gender: TaskModelParams = dataclasses.field(default_factory=lambda: TaskModelParams(num_layers=1, num_units=32, use_likes=False))
 
     # Age Group Model settings:
-    age_group: TaskModelParams = TaskModelParams(num_layers=2, num_units=64, use_likes=True, likes_condensing_layers=1, likes_condensing_units=16)
+    age_group: TaskModelParams = dataclasses.field(default_factory=lambda: TaskModelParams(num_layers=2, num_units=64, use_likes=True, likes_condensing_layers=1, likes_condensing_units=16))
     
     # Personality Model(s) settings:
-    personality: TaskModelParams = TaskModelParams(num_layers=1, num_units=8, use_likes=False)
-    
+    personality: TaskModelParams = dataclasses.field(default_factory=lambda: TaskModelParams(num_layers=1, num_units=8, use_likes=False))
 
 def test_real_use_case():
-    hparams = HyperParameters.setup("--help --age_group.use_likes False", conflict_resolution_mode=ConflictResolution.EXPLICIT)
+    hparams = HyperParameters.setup("--age_group.num_layers 5", conflict_resolution_mode=ConflictResolution.EXPLICIT)
     assert isinstance(hparams, HyperParameters)
-    print(hparams.get_help_text())
-    assert hasattr(hparams, "age_group")
+    # print(hparams.get_help_text())
+    assert hparams.age_group.num_layers == 5
     assert isinstance(hparams.age_group, TaskModelParams)
     assert isinstance(hparams.age_group.use_likes, bool)
     assert hparams.age_group.use_likes == False
+
+if __name__ == "__main__":
+    hparams = HyperParameters()
+    # print(HyperParameters.setup("--help", conflict_resolution_mode=ConflictResolution.EXPLICIT))
+    # exit()
+    print(hparams.age_group)
+    hparams.age_group.num_layers = 123
+
+    hparams = HyperParameters()
+    print(hparams.age_group)
+    exit()
