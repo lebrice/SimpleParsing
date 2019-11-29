@@ -3,12 +3,11 @@ import enum
 import logging
 from typing import *
 import argparse
-
+import enum
 from . import docstring, utils
 from .utils import Dataclass, DataclassType
 
 logger = logging.getLogger(__name__)
-
 class CustomAction(argparse.Action):
     # TODO: the CustomAction isn't always called!
 
@@ -26,13 +25,14 @@ class CustomAction(argparse.Action):
         # setattr(namespace, self.dest, values)
 
 @dataclasses.dataclass
-class FieldWrapper(argparse.Action):
+class FieldWrapper:
     field: dataclasses.Field
     parent: "DataclassWrapper" = dataclasses.field(repr=False)
-    _required: Optional[bool] = dataclasses.field(init=False, default=None)
-    _docstring: Optional[docstring.AttributeDocString] = dataclasses.field(init=False, default=None)
-    _multiple: bool = dataclasses.field(init=False, default=False)
-    _default: Any = dataclasses.field(init=False, default=None)
+    _required: Optional[bool] = None
+    _docstring: Optional[docstring.AttributeDocString] = None
+    _multiple: bool = False
+    _default: Any = None
+    _help: Optional[str] = None
     # the argparse-related options:
     _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=dict)
     
@@ -40,69 +40,57 @@ class FieldWrapper(argparse.Action):
         try:
             self._docstring = docstring.get_attribute_docstring(self.parent.dataclass, self.field.name)
         except (SystemExit, Exception) as e:
-            logging.warning("Couldn't find attribute docstring:", e)
+            logger.warning("Couldn't find attribute docstring:", e)
             self._docstring = docstring.AttributeDocString()
 
     def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: Any, option_string: Optional[str] = None):
         logger.debug(f"Inside the 'call' of wrapper for {self.name}, values are {values}, option_string={option_string}")
         from simple_parsing import ArgumentParser
+        from typing import cast
         parser: ArgumentParser = parser # type: ignore
-        
-        logger.debug(f"destinations:", self.destinations)
-        values = self.duplicate_if_needed(values)
-        logger.debug(f"VALUES IS '{values}'")
-        for parent_dest, value in zip(self.destinations, values):
-            logger.debug("Before preprocessing the value:", value)
-            value = self.postprocess(value)
-            logger.debug("After postprocessing the value: ", value)
-            logger.debug(f"setting value of {value} in constructor arguments of parent at key '{parent_dest}' and attribute '{self.name}'")
-            parser.constructor_arguments[parent_dest][self.name] = value # type: ignore
+        parser = cast(ArgumentParser, parser)
+
+        logger.debug(f"destinations: {self.destinations}")
+        if self.multiple:
+            values = self.duplicate_if_needed(values)
+            logger.debug(f"(replicated the parsed values: '{values}')")
+        else:
+            values = [values]
+
+        logger.debug(f"destinations: {self.destinations}")
+        for destination, value in zip(self.destinations, values):
+            parent_dest, attribute = utils.parent_and_child(destination)
+            logger.debug(f"Before processing the value: {value}")
+            value = self.process(value)
+            logger.debug(f"After processing the value: {value}")
+            logger.debug(f"setting value of {value} in constructor arguments of parent at key '{parent_dest}' and attribute '{attribute}'")
+            parser.constructor_arguments[parent_dest][attribute] = value # type: ignore
     
     def duplicate_if_needed(self, parsed_values: Any) -> List[Any]:
         num_instances_to_parse = len(self.destinations)
-        logger.debug("field preprocess:", parsed_values, "num to parse:", num_instances_to_parse)
+        logger.debug(f"Duplicating raw values. num to parse: {num_instances_to_parse}")
+        logger.debug(f"(raw) parsed values: '{parsed_values}'")
         
-        if self.multiple:
-            assert num_instances_to_parse > 1, "multiple is true but we're expected to instantiate only one instance"
-        else:
-            # TODO: if we do anything with list of dataclasses we might need to chanfieldge this.
-            assert num_instances_to_parse == 1, f"multiple is false but we're expected to instantiate {num_instances_to_parse} instances"
+        assert self.multiple
+        assert num_instances_to_parse > 1, "multiple is true but we're expected to instantiate only one instance"
         
-        instance_arguments: List[Any] = []
-        # what if the attribute is a list? This might complicate things, no?
+        if utils.is_list(self.field.type) and isinstance(parsed_values, tuple):
+            parsed_values = list(parsed_values)
 
-        if utils.is_tuple_or_list(self.field.type):
-            logger.debug("Duplicating a list...")
-            nesting_level = utils.get_nesting_level(parsed_values)
-            logger.debug("Nesting level:", nesting_level)
-            logger.debug("parsed values: ", parsed_values)
+        if not isinstance(parsed_values, (list, tuple)):
+            parsed_values = [parsed_values]
 
-            while nesting_level < 2:
-                parsed_values = [parsed_values]
-                nesting_level += 1
-            if nesting_level != 2:
-                logger.debug(f"BEWARE, NESTING LEVEL IS OFF THE CHARTS! (nesting level is {nesting_level})")
-            
-            if len(parsed_values) == num_instances_to_parse:
-                values = parsed_values
-            elif len(parsed_values) == 1:
-                values = parsed_values * num_instances_to_parse
-            # values = [parsed_values]
-        else:
-            values = parsed_values if isinstance(parsed_values, list) else [parsed_values]
-        logger.debug("values as a list:", values)
-        if len(values) == num_instances_to_parse:
-            return values
-        elif len(values) == 1:
-            return values * num_instances_to_parse
+        if len(parsed_values) == num_instances_to_parse:
+            return parsed_values
+        elif len(parsed_values) == 1:
+            return parsed_values * num_instances_to_parse
         else:
             raise utils.InconsistentArgumentError(
-                f"The field '{self.name}' contains {len(values)} values, but either 1 or {num_instances_to_parse} values were expected."
+                f"The field '{self.name}' contains {len(parsed_values)} values, but either 1 or {num_instances_to_parse} values were expected."
             )
         return parsed_values
 
-
-    def postprocess(self, value: Any) -> Any:
+    def process(self, value: Any) -> Any:
         """TODO: apply any corrections from the 'raw' parsed values to the constructor arguments dict.
         
         Args:
@@ -111,28 +99,34 @@ class FieldWrapper(argparse.Action):
         Returns:
             Any: [description]
         """
-        logger.debug(f"field postprocessing for value '{value}'")
-        
-        if enum.Enum in self.field.type.mro():
-            return self.field.type[value]
-        
+        if utils.is_enum(self.field.type):
+            logger.debug(f"field postprocessing for Enum field '{self.name}' with value '{value}'")
+            return self.process_enum(value)
         elif utils.is_tuple(self.field.type):
-            return tuple(value)
-        
+            # argparse always returns lists by default. If the field was of a Tuple type, we just transform the list to a Tuple.
+            if not isinstance(value, tuple):
+                return tuple(value)
         elif utils.is_list(self.field.type):
-            return list(value)
-
-        elif self.field.type is bool:
-            default_value = False if self.field.default is dataclasses.MISSING else self.field.default
-            if value is None:
-                return not default_value
-            elif isinstance(value, bool):
-                return value
-            else:
-                raise RuntimeError(f"bool argument {self.name} isn't bool: {value}")
-
-        else:
+            if not isinstance(value, list):
+                return list(value)
+        elif utils.is_bool(self.field.type):
+            if value is None and self.default is not None:
+                print("value is None, returning opposite of default")
+                return not self.default
             return value
+        # elif utils.is_
+
+        logger.debug(f"field postprocessing for field of unknown type '{self.field.type}' and of value '{value}'")
+        return value
+
+    def process_enum(self, value: Union[str, enum.Enum]):
+        if isinstance(value, str):
+            value = self.field.type[value]
+        return value
+        
+
+
+
 
     @property
     def multiple(self) -> bool:
@@ -154,7 +148,7 @@ class FieldWrapper(argparse.Action):
 
     @property
     def destinations(self) -> List[str]:
-        return self.parent.destinations
+        return [parent_dest + "." + self.name for parent_dest in self.parent.destinations]
 
     @property
     def option_strings(self):
@@ -164,16 +158,20 @@ class FieldWrapper(argparse.Action):
         return [f"--{self.name}"]
 
     @property
-    def dest(self):
+    def dest(self) -> str:
+        """
+        TODO: It doesn't make much sense to use `dest` here, since we ultimately don't care
+        where the attribute will be stored in the Namespace, we just want to set a value in
+        the constructor arguments in the parser!
+        """
         lineage = []
-        parent = self.parent
+        parent: Optional[DataclassWrapper] = self.parent
         while parent is not None:
             lineage.append(parent.attribute_name)
             parent = parent._parent
         lineage = list(reversed(lineage))
         lineage.append(self.name)
         _dest = ".".join(lineage)
-        logger.debug("getting dest, returning ", _dest)
         return _dest
 
     @property
@@ -188,7 +186,11 @@ class FieldWrapper(argparse.Action):
     def default(self):
         if self._default is not None:
             return self._default
-        return self.arg_options.get("default")        
+        elif self.field.default is not dataclasses.MISSING:
+            return self.field.default
+        elif self.field.default_factory is not dataclasses.MISSING: # type: ignore
+            return self.field.default_factory() # type: ignore
+        return None
 
     @default.setter
     def default(self, value: Any):
@@ -203,12 +205,38 @@ class FieldWrapper(argparse.Action):
         return self.arg_options.get("choices")
     
     @property
-    def required(self):
-        return (self.parent and self.parent.required) or self.arg_options.get("required")
+    def required(self) -> bool:
+        if self._required is not None:
+            return self._required
+        if self.parent and self.parent.required:
+            self._required = True
+        elif self.default is None:
+            self._required = True
+        else:
+            self._required = False
+        return self._required
+
+
+    @required.setter
+    def required(self, value: bool):
+        self._required = value
 
     @property
-    def help(self):
-        return None
+    def help(self) -> Optional[str]:
+        if self._help is not None:
+            return self._help
+        if self._docstring is not None:
+            if self._docstring.docstring_below:
+                self._help = self._docstring.docstring_below
+            elif self._docstring.comment_above:
+                self._help = self._docstring.comment_above
+            elif self._docstring.comment_inline:
+                self._help = self._docstring.comment_inline
+        return self._help
+
+    @help.setter
+    def help(self, value: str):
+        self._help = value
 
     @property
     def metavar(self):
@@ -230,60 +258,56 @@ class FieldWrapper(argparse.Action):
         elif utils.is_tuple_or_list_of_dataclasses(self.field.type):
             assert False, "Shouldn't have created a FieldWrapper for a list of dataclasses in the first place!"
 
-        _arg_options: Dict[str, Any] = { 
-            "type": f.type,
-        }
-
-        help_string = None
-        if self._docstring is not None:
-            if self._docstring.docstring_below:
-                help_string = self._docstring.docstring_below
-            elif self._docstring.comment_above:
-                help_string = self._docstring.comment_above
-            elif self._docstring.comment_inline:
-                help_string = self._docstring.comment_inline
-        _arg_options["help"] = help_string
-
-        if self.field.default is not dataclasses.MISSING:
-            _arg_options["default"] = self.field.default
-        elif self.field.default_factory is not dataclasses.MISSING: # type: ignore
-            _arg_options["default"] = self.field.default_factory() # type: ignore
-        else:
-            # _arg_options["default"] = argparse.SUPPRESS
-            _arg_options["required"] = True
+        _arg_options: Dict[str, Any] = {}
+        _arg_options["type"] = self.field.type        
+        _arg_options["help"] = self.help
+        _arg_options["default"] = self.default
+        _arg_options["required"] = self.required
 
         if enum.Enum in f.type.mro():
             _arg_options["choices"] = list(e.name for e in f.type)
             _arg_options["type"] = str # otherwise we can't parse the enum, as we get a string.
-            if "default" in _arg_options:
-                default_value = _arg_options["default"]
+            if self.default is not None:
                 # if the default value is the Enum object, we make it a string
-                if isinstance(default_value, enum.Enum):
-                    _arg_options["default"] = default_value.name
+                if isinstance(self.default, enum.Enum):
+                    _arg_options["default"] = self.default.name
         
-        elif utils.is_tuple_or_list(f.type):
-            logger.debug("Adding a list attribute")
+        elif utils.is_list(f.type):
             # Check if typing.List or typing.Tuple was used as an annotation, in which case we can automatically convert items to the desired item type.
             # NOTE: we only support tuples with a single type, for simplicity's sake. 
-            T = utils.get_argparse_container_type(f.type)
+            T = utils.get_argparse_type_for_container(self.field.type)
+            logging.debug(f"Adding a List attribute '{self.name}' with items of type '{T}'")
+            _arg_options["nargs"] = "*"
+            _arg_options["type"] = T
+            if self.multiple:
+                _arg_options["type"] = utils._parse_multiple_containers(self.field.type)
+                _arg_options["type"].__name__ = "list_of_lists"
+        
+
+        elif utils.is_tuple(f.type):
+            # NOTE: we only support tuples with a single type, for simplicity's sake. 
+            T = utils.get_argparse_type_for_container(f.type)
+            logging.debug(f"Adding a Tuple attribute '{self.name}' with items of type '{T}'")
             _arg_options["nargs"] = "*"
             # arg_options["action"] = "append"
             if multiple:
                 _arg_options["type"] = utils._parse_multiple_containers(f.type)
+                _arg_options["type"].__name__ = "list_of_lists"
             else:
                 # TODO: Supporting the `--a '1 2 3'`, `--a [1,2,3]`, and `--a 1 2 3` at the same time is syntax is kinda hard, and I'm not sure if it's really necessary.
                 # right now, we support --a '1 2 3' '4 5 6' and --a [1,2,3] [4,5,6] only when parsing multiple instances.
-                # arg_options["type"] = utils._parse_container(f.type)
+                # _arg_options["type"] = utils._parse_container(f.type)
                 _arg_options["type"] = T
+                # _arg_options["type"].__name__ = "container"
+
                 
-        
         elif f.type is bool:
-            _arg_options["default"] = False if f.default is dataclasses.MISSING else f.default
             _arg_options["type"] = utils.str2bool
-            _arg_options["nargs"] = "*" if multiple else "?"
-            if f.default is dataclasses.MISSING:
-                _arg_options["required"] = True
-        
+            if self.default is not None:
+                _arg_options["nargs"] = "?"
+            
+
+
         if multiple:
             required = _arg_options.get("required", False)
             default = _arg_options.get("default")
@@ -300,16 +324,17 @@ class FieldWrapper(argparse.Action):
 class DataclassWrapper(Generic[Dataclass]):
     dataclass: Type[Dataclass]
     attribute_name: str
-    fields: List[FieldWrapper] = dataclasses.field(init=False, default_factory=list, repr=False)
-    _destinations: List[str] = dataclasses.field(init=False, default_factory=list, repr=False)
-    _multiple: bool = dataclasses.field(init=False, default=False)
-    _required: bool = dataclasses.field(init=False, default=False)
-    _prefix: str = dataclasses.field(init=False, default="")
+    fields: List[FieldWrapper] = dataclasses.field(default_factory=list, repr=False)
+    _destinations: List[str] = dataclasses.field(default_factory=list)
+    _multiple: bool = False
+    _required: bool = False
+    _prefix: str = ""
     _children: List["DataclassWrapper"] = dataclasses.field(default_factory=list, repr=False)
     _parent: Optional["DataclassWrapper"] = dataclasses.field(default=None, repr=False)
 
-    _field: Optional[dataclasses.Field] = dataclasses.field(default=None)
-    
+    _field: Optional[dataclasses.Field] = None
+    _default: Optional[Dataclass] = None
+
     def __post_init__(self):
         self.destinations
         for field in dataclasses.fields(self.dataclass):
@@ -332,44 +357,63 @@ class DataclassWrapper(Generic[Dataclass]):
                 field_wrapper = FieldWrapper(field, parent=self)
                 self.fields.append(field_wrapper)
 
+    @property
+    def default(self) -> Optional[Dataclass]:
+        if self._default:
+            return self._default
+        if self._field is None:
+            return None
+        
+        assert self._parent is not None
+        if self._field.default is not dataclasses.MISSING:
+            self._default = self._field.default
+        elif self._field.default_factory is not dataclasses.MISSING: # type: ignore
+            self._default = self._field.default_factory() # type: ignore
+        return self._default
+        
+    @property
+    def description(self) -> Optional[str]:
+        if self._parent and self._field:    
+            doc = docstring.get_attribute_docstring(self._parent.dataclass, self._field.name)            
+            if doc is not None:
+                if doc.docstring_below:
+                    return doc.docstring_below
+                elif doc.comment_above:
+                    return doc.comment_above
+                elif doc.comment_inline:
+                    return doc.comment_inline
+        return self.dataclass.__doc__
+
+    @property
+    def title(self) -> str:
+        names_string = f""" [{', '.join(f"'{dest}'" for dest in self.destinations)}]"""
+        title = self.dataclass.__qualname__ + names_string
+        return title
+
     def add_arguments(self, parser: argparse.ArgumentParser):
         from .parsing import ArgumentParser
         parser : ArgumentParser = parser # type: ignore
-        names_string = f""" [{', '.join(f"'{dest}'" for dest in self.destinations)}]"""
-        title = self.dataclass.__qualname__ + names_string
-        description = self.dataclass.__doc__
-
-        default_value = None
-        if self._field:
-            if self._field.default is not dataclasses.MISSING:
-                default_value = self._field.default
-            elif self._field.default_factory is not dataclasses.MISSING: # type: ignore
-                default_value = self._field.default_factory() # type: ignore
-            assert self._parent is not None
-            doc = docstring.get_attribute_docstring(self._parent.dataclass, self._field.name)
-            
-            if doc is not None:
-                if doc.docstring_below:
-                    description = doc.docstring_below
-                elif doc.comment_above:
-                    description = doc.comment_above
-                elif doc.comment_inline:
-                    description = doc.comment_inline
         
+       
         group = parser.add_argument_group(
-            title=title,
-            description=description
+            title=self.title,
+            description=self.description
         )
 
-        print("The nested dataclass had a default value of ", default_value)
+        if self.default:
+            logger.debug(f"The nested dataclass had a default value of {self.default}")
+            for wrapped_field in self.fields:
+                default_field_value = getattr(self.default, wrapped_field.name, None)
+                if default_field_value is not None:
+                    logger.debug(f"wrapped field at {wrapped_field.dest} has a default value of {wrapped_field.default}")
+                    wrapped_field.default = default_field_value
+
         for wrapped_field in self.fields:
-            if wrapped_field.arg_options:
-                    
+            if wrapped_field.arg_options: 
                 logger.debug(f"Adding argument for field '{wrapped_field.name}'")
-                if default_value is not None:
-                    wrapped_field.default = getattr(default_value, wrapped_field.name, wrapped_field.default)
+                logger.debug(f"Arg options for field '{wrapped_field.name}': {wrapped_field.arg_options}")
                 # TODO: CustomAction isn't very easy to debug, and is not working. Maybe look into that. Simulating it for now.
-                # group.add_argument(wrapped_field.option_strings[0], dest=wrapped_field.dest, action=CustomAction, field=wrapped_field, **wrapped_field.arg_options)
+                # group.add_argument(wrapped_field.option_strings[0], action=CustomAction, field=wrapped_field, **wrapped_field.arg_options)
                 group.add_argument(wrapped_field.option_strings[0], dest=wrapped_field.dest, **wrapped_field.arg_options)
 
     @property
@@ -420,9 +464,9 @@ class DataclassWrapper(Generic[Dataclass]):
         lineage = list(reversed(lineage))
         lineage.append(self.attribute_name)
         _dest = ".".join(lineage)
-        logger.debug("getting dest, returning ", _dest)
+        logger.debug(f"getting dest, returning {_dest}")
         return _dest
-
+           
 
     @property
     def destinations(self) -> List[str]:
@@ -455,6 +499,6 @@ class DataclassWrapper(Generic[Dataclass]):
         logger.debug(f"args dict: {constructor_args}")
         
         dataclass = self.dataclass
-        print(f"Constructor arguments for dataclass {dataclass}: {constructor_args}")
+        logger.debug(f"Constructor arguments for dataclass {dataclass}: {constructor_args}")
         instance: T = dataclass(**constructor_args) #type: ignore
         return instance

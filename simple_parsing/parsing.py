@@ -14,13 +14,14 @@ import warnings
 from collections import defaultdict, namedtuple
 from typing import *
 
+
 # logging.basicConfig(level=logging.WARN)
 # logger = logging.getLogger("simple_parsing")
 logger = logging.getLogger(__name__)
 
 from . import docstring, utils
 from .wrappers import DataclassWrapper, FieldWrapper
-from .utils import Dataclass, DataclassType
+from .utils import Dataclass, DataclassType, Flag, MutableField
 
 
 class ConflictResolution(enum.Enum):
@@ -40,7 +41,7 @@ class ConflictResolution(enum.Enum):
     AUTO = 2
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, conflict_resolution: ConflictResolution = ConflictResolution.NONE, *args, **kwargs):
+    def __init__(self, conflict_resolution: ConflictResolution = ConflictResolution.ALWAYS_MERGE, *args, **kwargs):
         if "formatter_class" not in kwargs:
             kwargs["formatter_class"] = utils.Formatter
         super().__init__(*args, **kwargs)
@@ -79,7 +80,7 @@ class ArgumentParser(argparse.ArgumentParser):
         new_wrapper: DataclassWrapper[DataclassType] = DataclassWrapper(dataclass, dest)
         new_wrapper.prefix = prefix
         wrapper = self._register_dataclass(new_wrapper)
-        logger.debug("added wrapper:\n", wrapper, "\n")
+        logger.debug(f"added wrapper:\n{wrapper}\n")
 
     def parse_known_args(self, args=None, namespace=None):
         # NOTE: since the usual ArgumentParser.parse_args() calls parse_known_args, we therefore just need to overload the parse_known_args method.
@@ -94,17 +95,17 @@ class ArgumentParser(argparse.ArgumentParser):
             dataclass {Type[Dataclass]} -- The dataclass to register
             dest {str} -- a string which is to be used to  NamedTuple used to keep track of where to store the resulting instance and the number of instances.
         """
-        print(f"Registering new DataclassWrapper: {new_wrapper}")
+        logger.debug(f"Registering new DataclassWrapper: {new_wrapper}")
         self._wrappers[new_wrapper.dataclass][new_wrapper.prefix].append(new_wrapper)        
         for child in new_wrapper.descendants:
             self._wrappers[child.dataclass][child.prefix].append(child)
         return new_wrapper
 
     def _unregister_dataclass(self, wrapper: DataclassWrapper[DataclassType]):
-        print(f"Unregistering DataclassWrapper {wrapper}")
+        logger.debug(f"Unregistering DataclassWrapper {wrapper}")
         self._remove(wrapper)
         for child in wrapper.descendants:
-            print(f"\tAlso Unregistering Child DataclassWrapper {child}")
+            logger.debug(f"\tAlso Unregistering Child DataclassWrapper {child}")
             self._remove(child)
     
     def _remove(self, wrapper: DataclassWrapper):
@@ -116,11 +117,11 @@ class ArgumentParser(argparse.ArgumentParser):
         logger.debug("\nPREPROCESSING\n")
 
         self._fixed_wrappers = self._fix_conflicts()
-        print("Fixed wrappers:", self._fixed_wrappers)
+        logger.debug(f"Fixed wrappers: {self._fixed_wrappers}")
         # Create one argument group per dataclass type
         for dataclass in self._fixed_wrappers:
             for prefix, wrapper in self._fixed_wrappers[dataclass].items():
-                print(f"Adding arguments for dataclass: {dataclass}, multiple={wrapper.multiple}, prefix = '{wrapper.prefix}'")                
+                logger.debug(f"Adding arguments for dataclass: {dataclass}, multiple={wrapper.multiple}, prefix = '{wrapper.prefix}'")                
                 wrapper.add_arguments(parser=self)
 
 
@@ -139,7 +140,7 @@ class ArgumentParser(argparse.ArgumentParser):
         
         # create the constructor arguments for each instance by consuming all the attributes from `parsed_args` 
         parsed_args = self._populate_constructor_arguments(parsed_args)
-        print("constructor arguments:", self.constructor_arguments)
+        logger.debug("constructor arguments:", self.constructor_arguments)
         # we now have all the constructor arguments for each instance.
         # we can now sort out the different dependencies, and create the instances.
         wrappers: Dict[str, DataclassWrapper] = self._wrapper_for_every_destination
@@ -184,7 +185,7 @@ class ArgumentParser(argparse.ArgumentParser):
             argparse.Namespace: The namespace, without the consumed arguments.
         """
         wrappers: Dict[str, DataclassWrapper] = self._wrapper_for_every_destination
-        print("wrappers:", wrappers)
+        logger.debug("wrappers:", wrappers)
         # TODO: it would be cleaner if the CustomAction was working!
         # Imitate implementing a custom action:
         parsed_arg_values = vars(parsed_args)
@@ -230,8 +231,8 @@ class ArgumentParser(argparse.ArgumentParser):
             conflict = self._get_conflicting_group(self._wrappers)
             assert conflict is not None
             dataclass, prefix, wrappers = conflict
-            print(f"The following {len(wrappers)} wrappers are in conflict, as they share the same dataclass and prefix:", *wrappers, sep="\n")
-            print(f"(Conflict Resolution mode is {self.conflict_resolution})")
+            logger.debug(f"The following {len(wrappers)} wrappers are in conflict, as they share the same dataclass and prefix:\n" + "\n".join(str(w) for w in wrappers))
+            logger.debug(f"(Conflict Resolution mode is {self.conflict_resolution})")
             if self.conflict_resolution == ConflictResolution.NONE:           
                 self.error(
                     "The following wrappers are in conflict, as they share the same dataclass and prefix:\n" +
@@ -262,14 +263,14 @@ class ArgumentParser(argparse.ArgumentParser):
         return fixed_wrappers
 
     def _fix_conflict_explicit(self, conflict):
-        # print("fixing explicit conflict: ", conflict)
-
+        # logger.debug("fixing explicit conflict: ", conflict)
         dataclass, prefix, wrappers = conflict
         assert prefix == "", "Wrappers for the same dataclass can't have the same user-set prefix when in EXPLICIT mode!"
         # remove all wrappers for that prefix
         for wrapper in wrappers:
             self._unregister_dataclass(wrapper)
-            wrapper.prefix = wrapper.attribute_name + "."
+            # wrapper.prefix = wrapper.attribute_name + "."
+            wrapper.prefix = wrapper.dest + "."
             self._register_dataclass(wrapper)
         assert not self._wrappers[dataclass][prefix], self._wrappers[dataclass][prefix]
         # remove the prefix from the dict so we don't have to deal with empty lists.

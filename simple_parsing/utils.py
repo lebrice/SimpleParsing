@@ -4,8 +4,12 @@ import dataclasses
 import functools
 import re
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field, MISSING, Field
 from typing import *
+from enum import Enum
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 T = TypeVar("T")
@@ -13,6 +17,11 @@ Dataclass = TypeVar("Dataclass")
 DataclassType = Type[Dataclass]
 # DataclassType = Type[Dataclass]
 
+def MutableField(default: Any, init=True, repr=True, hash=None, compare=True, metadata=None) -> Field:
+    return field(default_factory=lambda: default, init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
+
+# Flag = NewType("Flag", bool)
+Flag = bool
 class InconsistentArgumentError(RuntimeError):
     """
     Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
@@ -85,6 +94,8 @@ def camel_case(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
+TRUE_STRINGS: List[str] = ['yes', 'true', 't', 'y', '1']
+FALSE_STRINGS: List[str] = ['no', 'false', 'f', 'n', '0']
 
 def str2bool(v: str) -> bool:
     """
@@ -93,9 +104,9 @@ def str2bool(v: str) -> bool:
     if isinstance(v, bool):
         return v
     v = v.strip()
-    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+    if v.lower() in TRUE_STRINGS:
         return True
-    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+    elif v.lower() in FALSE_STRINGS:
         return False
     else:
         raise argparse.ArgumentTypeError(f"Boolean value expected for argument, received '{v}'")
@@ -129,15 +140,15 @@ def get_item_type(container_type: Type[Container[T]]) -> T:
         list_type {Type} -- A type, preferably one from the Typing module (List, Tuple, etc).
     
     Returns:
-        Type -- the type of the container's items, if found, else None.
+        Type -- the type of the container's items, if found, else Any.
     """
     if container_type in {list, tuple}:
         # the built-in `list` and `tuple` types don't have annotations for their item types.
         return Type[Any]
-    return getattr(container_type, "__args__", tuple([Any]))[0]
+    return getattr(container_type, "__args__", (Type[Any],))[0]
     
 
-def get_argparse_container_type(container_type: Type) -> Type:
+def get_argparse_type_for_container(container_type: Type) -> Type:
     """Gets the argparse 'type' option to be used for a given container type.
     When an annotation is present, the 'type' option of argparse is set to that type.
     if not, then the default value of 'str' is returned.
@@ -151,28 +162,30 @@ def get_argparse_container_type(container_type: Type) -> Type:
     T = get_item_type(container_type)
     return T if T is not None else str
 
+def _mro(t: Type) -> List[Type]:
+    return getattr(t, "mro", lambda: [])()
 
 def is_list(t: Type) -> bool:
-    parent_classes = t.mro()
-    return list in parent_classes
+    return list in _mro(t)
 
 
 def is_tuple(t: Type) -> bool:
-    parent_classes = t.mro()
-    return tuple in parent_classes
+    return tuple in _mro(t)
 
+def is_enum(t: Type) -> bool:
+    return Enum in _mro(t)
+
+def is_bool(t: Type) -> bool:
+    return bool in _mro(t)
 
 def is_tuple_or_list(t: Type) -> bool:
     return is_list(t) or is_tuple(t)
 
-
 def is_tuple_or_list_of_dataclasses(t: Type) -> bool:
     return is_tuple_or_list(t) and dataclasses.is_dataclass(get_item_type(t))
 
-
-
 def _parse_multiple_containers(tuple_or_list: type, append_action: bool = False) -> Callable[[str], List[Any]]:
-    T = get_argparse_container_type(tuple_or_list)
+    T = get_argparse_type_for_container(tuple_or_list)
     factory = tuple if is_tuple(tuple_or_list) else list
     
     result = factory()
@@ -201,12 +214,12 @@ def _parse_multiple_containers(tuple_or_list: type, append_action: bool = False)
 
 
 def _parse_container(tuple_or_list: type,) -> Callable[[str], List[Any]]:
-    T = get_argparse_container_type(tuple_or_list)
+    T = get_argparse_type_for_container(tuple_or_list)
     factory = tuple if is_tuple(tuple_or_list) else list
 
     def parse_fn(v: str) -> List[Any]:
         # TODO: maybe we could use the fact we know this isn't for a list of lists to make this better somehow.
-        # print(f"Parsing a {tuple_or_list} of {T}s, value is: {v}, type is {type(v)}")
+        logger.debug(f"Parsing a {tuple_or_list} of {T}s, value is: '{v}', type is {type(v)}")
         v = v.strip()
         if v.startswith("[") and v.endswith("]"):
             v = v[1:-1]
@@ -218,18 +231,25 @@ def _parse_container(tuple_or_list: type,) -> Callable[[str], List[Any]]:
         str_values = [v.strip() for v in v.split(separator)]
         T_values = [T(v_str) for v_str in str_values]
         values = factory(v for v in T_values)
-        # print("values:", values)
+        logger.debug(f"returning values: {values}")
         return values
 
     return parse_fn
 
 def setattr_recursive(obj: object, attribute_name: str, value: Any):
-    parts = attribute_name.split(".")
-    if len(parts) == 1:
+    if "." not in attribute_name:
         setattr(obj, attribute_name, value)
     else:
+        parts = attribute_name.split(".")
         child_object = getattr(obj, parts[0])
         setattr_recursive(child_object, ".".join(parts[1:]), value)
+
+
+def parent_and_child(destination: str) -> Tuple[str, str]:
+    splits = destination.split(".")
+    parent = ".".join(splits[:-1])
+    attribute_in_parent = splits[-1]
+    return parent, attribute_in_parent
 
 
 def get_nesting_level(possibly_nested_list):
