@@ -150,19 +150,19 @@ def test_train_config_example_no_args():
     config = TrainConfig.setup("", conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE)
     assert isinstance(config.train, RunConfig)
     import os
-    assert config.train.checkpoint_dir == os.path.join("logs","checkpoints")
+    assert config.train.checkpoint_dir == os.path.join("train","checkpoints")
     
     assert isinstance(config.valid, RunConfig)
-    assert config.valid.checkpoint_dir == os.path.join("logs","checkpoints")
+    assert config.valid.checkpoint_dir == os.path.join("valid","checkpoints")
     
     print(TrainConfig.get_help_text())
 
 def test_train_config_example_with_explicit_args():
     config = TrainConfig.setup(
-        "--train.log_dir train "
-        "--train.hparams.batch_size 123 "
-        "--valid.log_dir valid "
-        "--valid.hparams.batch_size 456",
+        "--train_config.train.log_dir train "
+        "--train_config.train.hparams.batch_size 123 "
+        "--train_config.valid.log_dir valid "
+        "--train_config.valid.hparams.batch_size 456",
         conflict_resolution_mode=ConflictResolution.EXPLICIT
     )
     import os

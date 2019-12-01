@@ -8,21 +8,7 @@ from .. import docstring, utils
 from ..utils import Dataclass, DataclassType
 
 logger = logging.getLogger(__name__)
-class CustomAction(argparse.Action):
-    # TODO: the CustomAction isn't always called!
 
-    def __init__(self, option_strings, dest, field, **kwargs):
-        self.field = field
-        logger.debug(f"Creating Custom Action for field {field}")
-        super().__init__(option_strings, dest, **self.field.arg_options)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        logger.debug(f"INSIDE CustomAction's __call__: {namespace}, {values}, {option_string}")
-        before = parser.constructor_arguments.copy()
-        result = self.field(parser, namespace, values, option_string)
-        after = parser.constructor_arguments
-        # assert before != after, f"before: {before}, after: {after}"
-        # setattr(namespace, self.dest, values)
 
 @dataclasses.dataclass
 class FieldWrapper:
@@ -57,6 +43,8 @@ class FieldWrapper:
         else:
             values = [values]
 
+        default_values = self.default
+        logger.debug(f"Default values: {self.default}")
         logger.debug(f"destinations: {self.destinations}")
         for destination, value in zip(self.destinations, values):
             parent_dest, attribute = utils.parent_and_child(destination)
@@ -77,10 +65,17 @@ class FieldWrapper:
         if utils.is_list(self.field.type) and isinstance(parsed_values, tuple):
             parsed_values = list(parsed_values)
 
+        if not self.is_tuple and not self.is_list and isinstance(parsed_values, list):
+            nesting_level = utils.get_nesting_level(parsed_values)
+            if nesting_level == 1 and len(parsed_values) == num_instances_to_parse:
+                pass
+            if nesting_level == 2 and len(parsed_values) == 1 and len(parsed_values[0]) == num_instances_to_parse:
+                return parsed_values[0]
+
         if not isinstance(parsed_values, (list, tuple)):
             parsed_values = [parsed_values]
 
-        if len(parsed_values) == num_instances_to_parse:
+        if len(parsed_values) == num_instances_to_parse:    
             return parsed_values
         elif len(parsed_values) == 1:
             return parsed_values * num_instances_to_parse
@@ -88,16 +83,19 @@ class FieldWrapper:
             raise utils.InconsistentArgumentError(
                 f"The field '{self.name}' contains {len(parsed_values)} values, but either 1 or {num_instances_to_parse} values were expected."
             )
+        
+
+
         return parsed_values
 
     def process(self, value: Any) -> Any:
-        """TODO: apply any corrections from the 'raw' parsed values to the constructor arguments dict.
+        """Apply any corrections from the 'raw' parsed values to the constructor arguments dict.
         
         Args:
             parsed_values (Any): [description]
         
         Returns:
-            Any: [description]
+            Any: The processed value
         """
         if utils.is_enum(self.field.type):
             logger.debug(f"field postprocessing for Enum field '{self.name}' with value '{value}'")
@@ -111,10 +109,10 @@ class FieldWrapper:
                 return list(value)
         elif utils.is_bool(self.field.type):
             if value is None and self.default is not None:
-                print("value is None, returning opposite of default")
+                logger.debug("value is None, returning opposite of default")
                 return not self.default
             return value
-        # elif utils.is_
+        
 
         logger.debug(f"field postprocessing for field of unknown type '{self.field.type}' and of value '{value}'")
         return value
@@ -123,11 +121,7 @@ class FieldWrapper:
         if isinstance(value, str):
             value = self.field.type[value]
         return value
-        
-
-
-
-
+       
     @property
     def multiple(self) -> bool:
         return self._multiple
@@ -165,7 +159,7 @@ class FieldWrapper:
         the constructor arguments in the parser!
         """
         lineage = []
-        parent: Optional[DataclassWrapper] = self.parent
+        parent: Optional["DataclassWrapper"] = self.parent
         while parent is not None:
             lineage.append(parent.attribute_name)
             parent = parent._parent
@@ -264,7 +258,7 @@ class FieldWrapper:
         _arg_options["default"] = self.default
         _arg_options["required"] = self.required
 
-        if enum.Enum in f.type.mro():
+        if utils.is_enum(self.field.type):
             _arg_options["choices"] = list(e.name for e in f.type)
             _arg_options["type"] = str # otherwise we can't parse the enum, as we get a string.
             if self.default is not None:
@@ -282,7 +276,6 @@ class FieldWrapper:
             if self.multiple:
                 _arg_options["type"] = utils._parse_multiple_containers(self.field.type)
                 _arg_options["type"].__name__ = "list_of_lists"
-        
 
         elif utils.is_tuple(f.type):
             # NOTE: we only support tuples with a single type, for simplicity's sake. 
@@ -299,15 +292,12 @@ class FieldWrapper:
                 # _arg_options["type"] = utils._parse_container(f.type)
                 _arg_options["type"] = T
                 # _arg_options["type"].__name__ = "container"
-
-                
+  
         elif f.type is bool:
             _arg_options["type"] = utils.str2bool
             if self.default is not None:
                 _arg_options["nargs"] = "?"
             
-
-
         if multiple:
             required = _arg_options.get("required", False)
             default = _arg_options.get("default")
@@ -319,3 +309,18 @@ class FieldWrapper:
 
         return _arg_options
 
+    @property
+    def is_list(self):
+        return utils.is_list(self.field.type)
+    
+    @property
+    def is_enum(self):
+        return utils.is_enum(self.field.type)
+    
+    @property
+    def is_tuple(self):
+        return utils.is_tuple(self.field.type)
+    
+    @property
+    def is_bool(self):
+        return utils.is_bool(self.field.type)

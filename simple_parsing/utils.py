@@ -165,9 +165,14 @@ def get_argparse_type_for_container(container_type: Type) -> Type:
 def _mro(t: Type) -> List[Type]:
     return getattr(t, "mro", lambda: [])()
 
+def is_subtype_of(some_type: Type):
+    def func(field: Field) -> bool:
+        return some_type in _mro(field.type)
+    return  func
+
+
 def is_list(t: Type) -> bool:
     return list in _mro(t)
-
 
 def is_tuple(t: Type) -> bool:
     return tuple in _mro(t)

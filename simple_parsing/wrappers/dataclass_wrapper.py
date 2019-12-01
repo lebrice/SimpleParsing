@@ -10,6 +10,24 @@ from ..utils import Dataclass, DataclassType
 from .field_wrapper import FieldWrapper
 logger = logging.getLogger(__name__)
 
+
+class CustomAction(argparse.Action):
+    # TODO: the CustomAction isn't always called!
+
+    def __init__(self, option_strings, dest, field, **kwargs):
+        self.field = field
+        logger.debug(f"Creating Custom Action for field {field}")
+        super().__init__(option_strings, dest, **self.field.arg_options)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        logger.debug(f"INSIDE CustomAction's __call__: {namespace}, {values}, {option_string}")
+        before = parser.constructor_arguments.copy()
+        result = self.field(parser, namespace, values, option_string)
+        after = parser.constructor_arguments
+        # assert before != after, f"before: {before}, after: {after}"
+        # setattr(namespace, self.dest, values)
+
+
 @dataclasses.dataclass
 class DataclassWrapper(Generic[Dataclass]):
     dataclass: Type[Dataclass]
@@ -48,7 +66,7 @@ class DataclassWrapper(Generic[Dataclass]):
                 self.fields.append(field_wrapper)
 
     @property
-    def default(self) -> Optional[Dataclass]:
+    def default(self) -> Optional[Union[List[Dataclass], Dataclass]]:
         if self._default:
             return self._default
         if self._field is None:
@@ -60,7 +78,12 @@ class DataclassWrapper(Generic[Dataclass]):
         elif self._field.default_factory is not dataclasses.MISSING: # type: ignore
             self._default = self._field.default_factory() # type: ignore
         return self._default
-        
+    
+    @default.setter
+    def default(self, value: Any):
+        self._default = value
+
+
     @property
     def description(self) -> Optional[str]:
         if self._parent and self._field:    
@@ -93,10 +116,14 @@ class DataclassWrapper(Generic[Dataclass]):
         if self.default:
             logger.debug(f"The nested dataclass had a default value of {self.default}")
             for wrapped_field in self.fields:
-                default_field_value = getattr(self.default, wrapped_field.name, None)
-                if default_field_value is not None:
-                    logger.debug(f"wrapped field at {wrapped_field.dest} has a default value of {wrapped_field.default}")
-                    wrapped_field.default = default_field_value
+                if self.multiple:                    
+                    default_field_value = [getattr(default, wrapped_field.name, wrapped_field.default) for default in self.default]
+                else:
+                    default_field_value = getattr(self.default, wrapped_field.name, wrapped_field.default)
+                
+                logger.debug(f"wrapped field at {wrapped_field.dest} has a default value of {wrapped_field.default}")
+                wrapped_field.default = default_field_value
+                
 
         for wrapped_field in self.fields:
             if wrapped_field.arg_options: 
@@ -177,8 +204,10 @@ class DataclassWrapper(Generic[Dataclass]):
 
     @explicit.setter
     def explicit(self, value: bool):
-        if self._explicit != value:
-            pass
+        if value:
+            self._prefix = self.dest + "."
+            for child in self._children:
+                child.explicit = True
         self._explicit = value
 
 
@@ -190,6 +219,12 @@ class DataclassWrapper(Generic[Dataclass]):
         """
         logger.debug(f"merging \n{self}\n with \n{other}")
         self.destinations.extend(other.destinations)
+        if not isinstance(self.default, list):
+            self.default = [self.default]
+        if not isinstance(other.default, list):
+            other.default = [other.default]
+        self.default.extend(other.default)
+
         for child, other_child in zip(self.descendants, other.descendants):
             child.merge(other_child)
         self.multiple = True

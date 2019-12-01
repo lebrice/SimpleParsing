@@ -250,8 +250,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 self._fix_conflict_merge(conflict)
 
             elif self.conflict_resolution == ConflictResolution.AUTO:
-                self._fix_conflict_explicit(conflict)
-                raise NotImplementedError("Auto conflict resolution isn't implemented yet.")
+                self._fix_conflict_auto(conflict)
 
         assert not self._conflict_exists(self._wrappers)
         fixed_wrappers: Dict[DataclassType, Dict[str, DataclassWrapper[DataclassType]]] = defaultdict(dict)
@@ -281,11 +280,26 @@ class ArgumentParser(argparse.ArgumentParser):
         dataclass, prefix, wrappers = conflict
         assert prefix == "", "Wrappers for the same dataclass can't have the same user-set prefix!"
         # remove all wrappers for that prefix
-        for wrapper in wrappers:
+
+
+
+        prefixes: List[List[str]] = [wrapper.dest.split(".") for wrapper in wrappers]
+        # IDEA:
+        # while the prefixes are the same, starting from the left, remove the first word.
+        first_word = prefixes[0][0]
+        while all(prefix[0] == first_word for prefix in prefixes):
+            prefixes = [prefix[1:] for prefix in prefixes]
+            first_word = prefixes[0][0]
+
+        prefixes = [".".join(prefix) for prefix in prefixes]
+        print(f"Prefixes after: {prefixes}")
+
+        for prefix, wrapper in zip(prefixes, wrappers):
             self._unregister_dataclass(wrapper)
-            # wrapper.prefix = wrapper.attribute_name + "."
-            wrapper.prefix = wrapper.dest + "."
+            print(f"setting a prefix of {prefix} for wrapper {wrapper}")
+            wrapper.prefix = prefix + "."
             self._register_dataclass(wrapper)
+            
         assert not self._wrappers[dataclass][prefix], self._wrappers[dataclass][prefix]
         # remove the prefix from the dict so we don't have to deal with empty lists.
         self._wrappers[dataclass].pop(prefix)
