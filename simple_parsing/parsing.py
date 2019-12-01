@@ -250,6 +250,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 self._fix_conflict_merge(conflict)
 
             elif self.conflict_resolution == ConflictResolution.AUTO:
+                self._fix_conflict_explicit(conflict)
                 raise NotImplementedError("Auto conflict resolution isn't implemented yet.")
 
         assert not self._conflict_exists(self._wrappers)
@@ -269,13 +270,25 @@ class ArgumentParser(argparse.ArgumentParser):
         # remove all wrappers for that prefix
         for wrapper in wrappers:
             self._unregister_dataclass(wrapper)
+            wrapper.explicit = True
+            self._register_dataclass(wrapper)
+        assert not self._wrappers[dataclass][prefix], self._wrappers[dataclass][prefix]
+        # remove the prefix from the dict so we don't have to deal with empty lists.
+        self._wrappers[dataclass].pop(prefix)
+
+    def _fix_conflict_auto(self, conflict):
+        # logger.debug("fixing conflict: ", conflict)
+        dataclass, prefix, wrappers = conflict
+        assert prefix == "", "Wrappers for the same dataclass can't have the same user-set prefix!"
+        # remove all wrappers for that prefix
+        for wrapper in wrappers:
+            self._unregister_dataclass(wrapper)
             # wrapper.prefix = wrapper.attribute_name + "."
             wrapper.prefix = wrapper.dest + "."
             self._register_dataclass(wrapper)
         assert not self._wrappers[dataclass][prefix], self._wrappers[dataclass][prefix]
         # remove the prefix from the dict so we don't have to deal with empty lists.
         self._wrappers[dataclass].pop(prefix)
-
 
     def _fix_conflict_merge(self, conflict):
         dataclass, prefix, wrappers = conflict
