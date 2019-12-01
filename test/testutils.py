@@ -6,7 +6,6 @@ import simple_parsing
 from simple_parsing import InconsistentArgumentError, ArgumentParser, Formatter, ConflictResolution
 from simple_parsing.wrappers import DataclassWrapper
 
-
 from simple_parsing.utils import camel_case
 
 xfail = pytest.mark.xfail
@@ -41,10 +40,8 @@ class TestSetup():
         else:
             splits = shlex.split(arguments)
             args = parser.parse_args(splits)
-        try:
-            instance: Dataclass = getattr(args, dest) #type: ignore
-        except AttributeError as e:
-            pytest.fail(f"attribute '{dest}' not found in args {args}")
+        assert hasattr(args, dest), f"attribute '{dest}' not found in args {args}"
+        instance: Dataclass = getattr(args, dest) #type: ignore
         return instance
     
     @classmethod

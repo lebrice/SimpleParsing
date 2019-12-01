@@ -6,8 +6,10 @@ from typing import *
 
 import pytest
 
-from .testutils import TestSetup
+from . import TestSetup, xfail
 from simple_parsing import *
+
+from .example_use_cases import *
 
 @dataclass()
 class ClassA():
@@ -98,54 +100,7 @@ def test_nesting_multiple_containers_with_args_separator():
     assert c2.c == 6
     assert isinstance(c2, ClassC)
 
-@dataclass
-class HParams:
-    """
-    Model Hyper-parameters
-    """
-    # Number of examples per batch
-    batch_size: int = 32
-    # fixed learning rate passed to the optimizer.
-    learning_rate: float = 0.005 
-    # name of the optimizer class to use
-    optimizer: str = "ADAM"
-    
-    
-    default_num_layers: ClassVar[int] = 10
-    
-    # number of layers.
-    num_layers: int = default_num_layers
-    # the number of neurons at each layer
-    neurons_per_layer: List[int] = field(default_factory=lambda: [128] * HParams.default_num_layers)
-
-
-@dataclass
-class RunConfig:
-    """
-    Group of settings used during a training or validation run.
-    """
-    # the set of hyperparameters for this run.
-    hparams: HParams = HParams()
-    log_dir: str = "logs" # The logging directory where
-    checkpoint_dir: str = field(init=False)
-    
-    def __post_init__(self):
-        """Post-Init to set the fields that shouldn't be constructor arguments."""
-        import os
-        self.checkpoint_dir = os.path.join(self.log_dir, "checkpoints")
-
-
-@dataclass
-class TrainConfig(TestSetup):
-    """
-    Top-level settings for multiple runs.
-    """
-    # run config to be used during training
-    train: RunConfig = RunConfig(log_dir="train")
-    # run config to be used during validation.
-    valid: RunConfig = RunConfig(log_dir="valid")
-
-
+@xfail(reason="need to check this example")
 def test_train_config_example_no_args():
     config = TrainConfig.setup("", conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE)
     assert isinstance(config.train, RunConfig)

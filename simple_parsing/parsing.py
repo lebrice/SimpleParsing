@@ -139,8 +139,23 @@ class ArgumentParser(argparse.ArgumentParser):
         logger.debug(f"parsed args: {parsed_args}")
         
         # create the constructor arguments for each instance by consuming all the attributes from `parsed_args` 
-        parsed_args = self._populate_constructor_arguments(parsed_args)
-        logger.debug("constructor arguments:", self.constructor_arguments)
+        parsed_args = self._consume_constructor_arguments(parsed_args)
+        logger.debug(f"leftover arguments: {parsed_args}")
+        
+        logger.debug(f"Constructor arguments:")
+        for key, args_dict in self.constructor_arguments.items():
+            logger.debug(f"\t{key}: {args_dict}")
+
+        self._set_instances_in_args(parsed_args)
+
+        logger.debug(f"Final parsed args:")
+        for key, value in vars(parsed_args).items():
+            logger.debug(f"\t{key}: {value}")
+           
+        return parsed_args
+
+    def _set_instances_in_args(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+        
         # we now have all the constructor arguments for each instance.
         # we can now sort out the different dependencies, and create the instances.
         wrappers: Dict[str, DataclassWrapper] = self._wrapper_for_every_destination
@@ -159,23 +174,25 @@ class ArgumentParser(argparse.ArgumentParser):
             parent = ".".join(parts[:-1])
             attribute_in_parent = parts[-1]
             
+            # TODO: an issue can arise if there is always a parent! for example, when the hierarchy has a parent without any actual fields, but just nested fields
+            # IDEA: check if all the fields have been set in the constructor args dict..
+
             if parent:
                 # if this instance is an attribute in another dataclass,
                 # we set the value in the parent's constructor arguments
                 # at the associated attribute to this instance.
                 self.constructor_arguments[parent][attribute_in_parent] = instance
+                self.constructor_arguments.pop(destination) # remove the 'args dict' for this child class.
             else:
                 # if this destination is a top-level attribute, we set the attribute
                 # on the returned parsed_args.
                 logger.debug(f"setting attribute '{destination}' on the parsed_args to a value of {instance}")
                 assert not hasattr(parsed_args, destination), "Namespace should not already have a '{destination}' attribute! (namespace: {parsed_args}) "
                 setattr(parsed_args, destination, instance)
-        
-        logger.debug(f"Final parsed args: {parsed_args}")
-        
+                self.constructor_arguments.pop(destination)
         return parsed_args
 
-    def _populate_constructor_arguments(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+    def _consume_constructor_arguments(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
         """Create the constructor arguments for each instance by consuming all the attributes from `parsed_args` 
         
         Args:
@@ -202,9 +219,9 @@ class ArgumentParser(argparse.ArgumentParser):
         deleted_values: Dict[str, Any] = {
             field.dest: parsed_arg_values.pop(field.dest, None) for field in wrapper.fields for wrapper in wrappers.values()
         }
-        logger.debug("deleted values:", deleted_values)
-        parsed_args = argparse.Namespace(**parsed_arg_values)
-        return parsed_args
+        leftover_args = argparse.Namespace(**parsed_arg_values)
+        logger.debug(f"deleted values: {deleted_values}")
+        return leftover_args
 
     def _get_conflicting_group(self, all_wrappers: Dict[DataclassType, Dict[str, List[DataclassWrapper[DataclassType]]]]) -> Optional[Tuple[DataclassType, str, List[DataclassWrapper]]]:
         """Return the dataclass, prefix, and conflicing DataclassWrappers.
@@ -299,7 +316,7 @@ class ArgumentParser(argparse.ArgumentParser):
             print(f"setting a prefix of {prefix} for wrapper {wrapper}")
             wrapper.prefix = prefix + "."
             self._register_dataclass(wrapper)
-            
+
         assert not self._wrappers[dataclass][prefix], self._wrappers[dataclass][prefix]
         # remove the prefix from the dict so we don't have to deal with empty lists.
         self._wrappers[dataclass].pop(prefix)
