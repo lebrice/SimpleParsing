@@ -163,33 +163,30 @@ class ArgumentParser(argparse.ArgumentParser):
         # starting with nodes that are children.
         destinations = self.constructor_arguments.keys()
         nesting_level = lambda destination_attribute: destination_attribute.count(".")
-        
-        for destination in sorted(destinations, key=nesting_level, reverse=True):
-            constructor = wrappers[destination].instantiate_dataclass
+
+        for destination, wrapper in sorted(wrappers.items(), key=lambda k_v: k_v[1].nesting_level, reverse=True):
+            logger.info(f"wrapper name: {wrapper.attribute_name}, destination: {destination}")
+            constructor = wrapper.instantiate_dataclass
             constructor_args = self.constructor_arguments[destination]
             # create the dataclass instance.
             instance = constructor(constructor_args)
-
-            parts = destination.split(".")
-            parent = ".".join(parts[:-1])
-            attribute_in_parent = parts[-1]
             
-            # TODO: an issue can arise if there is always a parent! for example, when the hierarchy has a parent without any actual fields, but just nested fields
-            # IDEA: check if all the fields have been set in the constructor args dict..
-
-            if parent:
+            if wrapper._parent is not None:
+                parts = destination.split(".")
+                parent = ".".join(parts[:-1])
+                attribute_in_parent = parts[-1]
                 # if this instance is an attribute in another dataclass,
                 # we set the value in the parent's constructor arguments
                 # at the associated attribute to this instance.
                 self.constructor_arguments[parent][attribute_in_parent] = instance
-                self.constructor_arguments.pop(destination) # remove the 'args dict' for this child class.
+                # self.constructor_arguments.pop(destination) # remove the 'args dict' for this child class.
+                logger.info(f"Setting a value at attribute {attribute_in_parent} in parent {parent}.")
             else:
                 # if this destination is a top-level attribute, we set the attribute
                 # on the returned parsed_args.
-                logger.debug(f"setting attribute '{destination}' on the parsed_args to a value of {instance}")
+                logger.info(f"setting attribute '{destination}' on the parsed_args to a value of {instance}")
                 assert not hasattr(parsed_args, destination), "Namespace should not already have a '{destination}' attribute! (namespace: {parsed_args}) "
                 setattr(parsed_args, destination, instance)
-                self.constructor_arguments.pop(destination)
         return parsed_args
 
     def _consume_constructor_arguments(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
@@ -348,6 +345,7 @@ class ArgumentParser(argparse.ArgumentParser):
         for dataclass in self._fixed_wrappers.keys():
             for prefix, wrapper in self._fixed_wrappers[dataclass].items():
                 for dest in wrapper.destinations:
+                    assert dest not in wrapper_for_destination
                     wrapper_for_destination[dest] = wrapper
         return wrapper_for_destination
         

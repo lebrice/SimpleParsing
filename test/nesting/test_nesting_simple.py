@@ -100,7 +100,6 @@ def test_nesting_multiple_containers_with_args_separator():
     assert c2.c == 6
     assert isinstance(c2, ClassC)
 
-@xfail(reason="need to check this example")
 def test_train_config_example_no_args():
     config = TrainConfig.setup("", conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE)
     assert isinstance(config.train, RunConfig)

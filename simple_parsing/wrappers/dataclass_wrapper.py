@@ -134,6 +134,15 @@ class DataclassWrapper(Generic[Dataclass]):
                 group.add_argument(wrapped_field.option_strings[0], dest=wrapped_field.dest, **wrapped_field.arg_options)
 
     @property
+    def nesting_level(self) -> int:
+        level = 0
+        parent = self._parent
+        while parent is not None:
+            parent = parent._parent
+            level += 1
+        return level
+
+    @property
     def prefix(self) -> str:
         return self._prefix
     
