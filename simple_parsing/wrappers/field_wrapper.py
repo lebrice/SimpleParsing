@@ -30,7 +30,6 @@ class FieldWrapper:
             self._docstring = docstring.AttributeDocString()
 
     def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: Any, option_string: Optional[str] = None):
-        logger.debug(f"Inside the 'call' of wrapper for {self.name}, values are {values}, option_string={option_string}")
         from simple_parsing import ArgumentParser
         from typing import cast
         parser: ArgumentParser = parser # type: ignore
@@ -45,7 +44,6 @@ class FieldWrapper:
 
         default_values = self.default
         logger.debug(f"Default values: {self.default}")
-        logger.debug(f"destinations: {self.destinations}")
         for destination, value in zip(self.destinations, values):
             parent_dest, attribute = utils.parent_and_child(destination)
             logger.debug(f"Before processing the value: {value}")

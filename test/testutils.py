@@ -1,5 +1,5 @@
 import argparse
-from typing import *
+from typing import Optional, TypeVar, Type, List, Dict, Tuple, Any, Callable
 import shlex
 import pytest
 import simple_parsing
@@ -14,12 +14,11 @@ parametrize = pytest.mark.parametrize
 def xfail_param(*args, reason:str):
     return pytest.param(*args, marks=pytest.mark.xfail(reason=reason))
 
-
 Dataclass = TypeVar("Dataclass")
 
 class TestSetup():
     @classmethod
-    def setup(cls: Type[Dataclass], arguments: Optional[str] = "", dest: Optional[str] = None, conflict_resolution_mode: ConflictResolution = ConflictResolution.NONE) -> Dataclass:
+    def setup(cls: Type[Dataclass], arguments: Optional[str] = "", dest: Optional[str] = None, conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO) -> Dataclass:
         """Basic setup for a test.
         
         Keyword Arguments:
@@ -63,17 +62,14 @@ class TestSetup():
         
 
     @classmethod
-    def get_help_text(cls, multiple=False):
+    def get_help_text(cls, multiple=False, conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO) -> str:
         import contextlib
         from io import StringIO
         f = StringIO()
         with contextlib.suppress(SystemExit), contextlib.redirect_stdout(f):
-            _ = cls.setup("--help")
+            _ = cls.setup("--help", conflict_resolution_mode=conflict_resolution_mode)
         s = f.getvalue()
         return s
-
-
-
 
 
 ListFormattingFunction = Callable[[List[Any]], str]

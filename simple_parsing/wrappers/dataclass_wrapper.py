@@ -42,7 +42,7 @@ class DataclassWrapper(Generic[Dataclass]):
     _parent: Optional["DataclassWrapper"] = dataclasses.field(default=None, repr=False)
 
     _field: Optional[dataclasses.Field] = None
-    _default: Optional[Dataclass] = None
+    _default: List[Dataclass] = dataclasses.field(default_factory=list)
     def __post_init__(self):
         self.destinations
         for field in dataclasses.fields(self.dataclass):
@@ -66,21 +66,20 @@ class DataclassWrapper(Generic[Dataclass]):
                 self.fields.append(field_wrapper)
 
     @property
-    def default(self) -> Optional[Union[List[Dataclass], Dataclass]]:
+    def defaults(self) -> List[Dataclass]:
         if self._default:
             return self._default
         if self._field is None:
-            return None
-        
+            return []
         assert self._parent is not None
         if self._field.default is not dataclasses.MISSING:
-            self._default = self._field.default
+            self._default = [self._field.default]
         elif self._field.default_factory is not dataclasses.MISSING: # type: ignore
-            self._default = self._field.default_factory() # type: ignore
+            self._default = [self._field.default_factory()] # type: ignore
         return self._default
     
-    @default.setter
-    def default(self, value: Any):
+    @defaults.setter
+    def defaults(self, value: List[Dataclass]):
         self._default = value
 
 
@@ -113,13 +112,13 @@ class DataclassWrapper(Generic[Dataclass]):
             description=self.description
         )
 
-        if self.default:
-            logger.debug(f"The nested dataclass had a default value of {self.default}")
+        if self.defaults:
+            logger.info(f"The nested dataclass had a default value of {self.defaults}")
             for wrapped_field in self.fields:
-                if self.multiple:                    
-                    default_field_value = [getattr(default, wrapped_field.name, wrapped_field.default) for default in self.default]
+                if self.multiple:
+                    default_field_value = [getattr(default, wrapped_field.name, wrapped_field.default) for default in self.defaults]
                 else:
-                    default_field_value = getattr(self.default, wrapped_field.name, wrapped_field.default)
+                    default_field_value = getattr(self.defaults[0], wrapped_field.name, wrapped_field.default)
                 
                 logger.debug(f"wrapped field at {wrapped_field.dest} has a default value of {wrapped_field.default}")
                 wrapped_field.default = default_field_value
@@ -228,11 +227,11 @@ class DataclassWrapper(Generic[Dataclass]):
         """
         logger.debug(f"merging \n{self}\n with \n{other}")
         self.destinations.extend(other.destinations)
-        if not isinstance(self.default, list):
-            self.default = [self.default]
-        if not isinstance(other.default, list):
-            other.default = [other.default]
-        self.default.extend(other.default)
+        # if not isinstance(self.default, list):
+        #     self.default = [self.default]
+        # if not isinstance(other.default, list):
+        #     other.default = [other.default]
+        self.defaults.extend(other.defaults)
 
         for child, other_child in zip(self.descendants, other.descendants):
             child.merge(other_child)

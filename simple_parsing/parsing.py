@@ -23,6 +23,7 @@ from . import docstring, utils
 from .wrappers import DataclassWrapper, FieldWrapper
 from .utils import Dataclass, DataclassType, Flag, MutableField
 
+Conflict = Tuple[DataclassType, str, List[DataclassWrapper]]
 
 class ConflictResolution(enum.Enum):
     """Used to determine which action to take when adding arguments for the same dataclass in two different destinations.
@@ -199,10 +200,9 @@ class ArgumentParser(argparse.ArgumentParser):
             argparse.Namespace: The namespace, without the consumed arguments.
         """
         wrappers: Dict[str, DataclassWrapper] = self._wrapper_for_every_destination
-        logger.debug("wrappers:", wrappers)
-        # TODO: it would be cleaner if the CustomAction was working!
-        # Imitate implementing a custom action:
         parsed_arg_values = vars(parsed_args)
+        # TODO: it would be cleaner if the CustomAction was working!
+        # Here we imitate a custom action, by having the FieldWrappers be callables
         for wrapper in wrappers.values():
             for field in wrapper.fields:
                 if not field.field.init:
@@ -220,7 +220,7 @@ class ArgumentParser(argparse.ArgumentParser):
         logger.debug(f"deleted values: {deleted_values}")
         return leftover_args
 
-    def _get_conflicting_group(self, all_wrappers: Dict[DataclassType, Dict[str, List[DataclassWrapper[DataclassType]]]]) -> Optional[Tuple[DataclassType, str, List[DataclassWrapper]]]:
+    def _get_conflicting_group(self, all_wrappers: Dict[DataclassType, Dict[str, List[DataclassWrapper[DataclassType]]]]) -> Optional[Conflict]:
         """Return the dataclass, prefix, and conflicing DataclassWrappers.
         """
         for dataclass in all_wrappers.keys():
@@ -258,9 +258,6 @@ class ArgumentParser(argparse.ArgumentParser):
                 self._fix_conflict_explicit(conflict)
 
             elif self.conflict_resolution == ConflictResolution.ALWAYS_MERGE:
-                logging.warning(textwrap.dedent(f"""\
-                    Each attribute of this dataclass will be marked as 'Multiple', and will be set in the order they were defined.
-                    """))
                 self._fix_conflict_merge(conflict)
 
             elif self.conflict_resolution == ConflictResolution.AUTO:
@@ -292,33 +289,31 @@ class ArgumentParser(argparse.ArgumentParser):
     def _fix_conflict_auto(self, conflict):
         # logger.debug("fixing conflict: ", conflict)
         dataclass, prefix, wrappers = conflict
-        assert prefix == "", "Wrappers for the same dataclass can't have the same user-set prefix!"
-        # remove all wrappers for that prefix
-
-
-
         prefixes: List[List[str]] = [wrapper.dest.split(".") for wrapper in wrappers]
         # IDEA:
         # while the prefixes are the same, starting from the left, remove the first word.
+        # Stop when they become different.
         first_word = prefixes[0][0]
         while all(prefix[0] == first_word for prefix in prefixes):
             prefixes = [prefix[1:] for prefix in prefixes]
             first_word = prefixes[0][0]
 
         prefixes = [".".join(prefix) for prefix in prefixes]
-        print(f"Prefixes after: {prefixes}")
 
         for prefix, wrapper in zip(prefixes, wrappers):
             self._unregister_dataclass(wrapper)
-            print(f"setting a prefix of {prefix} for wrapper {wrapper}")
             wrapper.prefix = prefix + "."
             self._register_dataclass(wrapper)
 
-        assert not self._wrappers[dataclass][prefix], self._wrappers[dataclass][prefix]
-        # remove the prefix from the dict so we don't have to deal with empty lists.
-        self._wrappers[dataclass].pop(prefix)
-
     def _fix_conflict_merge(self, conflict):
+        """Fix conflicts using the merging approach:
+        The first wrapper is kept, and the rest of the wrappers are absorbed into the first wrapper.
+
+        # TODO: check that the ordering of arguments is still preserved!
+        
+        Args:
+            conflict ([type]): [description]
+        """
         dataclass, prefix, wrappers = conflict
         assert len(wrappers) > 1
         first_wrapper: DataclassWrapper = None

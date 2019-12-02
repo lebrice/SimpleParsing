@@ -26,8 +26,8 @@ def test_real_use_case():
 
 if __name__ == "__main__":
     hparams = HyperParameters()
-    # print(HyperParameters.setup("--help", conflict_resolution_mode=ConflictResolution.EXPLICIT))
-    # exit()
+    print(HyperParameters.setup("--help", conflict_resolution_mode=ConflictResolution.EXPLICIT))
+    exit()
     print(hparams.age_group)
     hparams.age_group.num_layers = 123
 
