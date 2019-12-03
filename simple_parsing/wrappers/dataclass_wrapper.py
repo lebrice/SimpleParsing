@@ -113,7 +113,7 @@ class DataclassWrapper(Generic[Dataclass]):
         )
 
         if self.defaults:
-            logger.info(f"The nested dataclass had a default value of {self.defaults}")
+            logger.debug(f"The nested dataclass had a default value of {self.defaults}")
             for wrapped_field in self.fields:
                 if self.multiple:
                     default_field_value = [getattr(default, wrapped_field.name, wrapped_field.default) for default in self.defaults]

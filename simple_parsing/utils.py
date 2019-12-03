@@ -17,8 +17,8 @@ Dataclass = TypeVar("Dataclass")
 DataclassType = Type[Dataclass]
 # DataclassType = Type[Dataclass]
 
-def MutableField(default: Any, init=True, repr=True, hash=None, compare=True, metadata=None) -> Field:
-    return field(default_factory=lambda: default, init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
+def MutableField(default: T, init=True, repr=True, hash=None, compare=True, metadata=None) -> T:
+    return field(default_factory=lambda: default, init=init, repr=repr, hash=hash, compare=compare, metadata=metadata) 
 
 # Flag = NewType("Flag", bool)
 Flag = bool
@@ -197,7 +197,7 @@ def _parse_multiple_containers(tuple_or_list: type, append_action: bool = False)
 
     def parse_fn(v: str) -> List[Any]:
         # nonlocal result
-        print(f"Parsing a {tuple_or_list} of {T}s, value is: {v}, type is {type(v)}")
+        # print(f"Parsing a {tuple_or_list} of {T}s, value is: {v}, type is {type(v)}")
         v = v.strip()
         if v.startswith("[") and v.endswith("]"):
             v = v[1:-1]
@@ -209,7 +209,7 @@ def _parse_multiple_containers(tuple_or_list: type, append_action: bool = False)
         str_values = [v.strip() for v in v.split(separator)]
         T_values = [T(v_str) for v_str in str_values]
         values = factory(v for v in T_values)
-        print("values:", values)
+        # print("values:", values)
         if append_action:
             result += values
             return result

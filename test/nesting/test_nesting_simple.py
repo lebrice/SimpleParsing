@@ -9,24 +9,24 @@ import pytest
 from . import TestSetup, xfail
 from simple_parsing import *
 
-from .example_use_cases import *
+from .example_use_cases import TrainConfig, RunConfig, HParams
 
-@dataclass()
+@dataclass
 class ClassA():
     a: int = 1
 
 
-@dataclass()
+@dataclass
 class ClassB():
     b: int = 2
 
 
-@dataclass()
+@dataclass
 class ClassC():
     c: int = 3
 
 
-@dataclass()
+@dataclass
 class Container1(TestSetup):
     v1: int = 0
     class_a: ClassA = ClassA()

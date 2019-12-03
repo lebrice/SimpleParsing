@@ -166,7 +166,7 @@ class ArgumentParser(argparse.ArgumentParser):
         nesting_level = lambda destination_attribute: destination_attribute.count(".")
 
         for destination, wrapper in sorted(wrappers.items(), key=lambda k_v: k_v[1].nesting_level, reverse=True):
-            logger.info(f"wrapper name: {wrapper.attribute_name}, destination: {destination}")
+            logger.debug(f"wrapper name: {wrapper.attribute_name}, destination: {destination}")
             constructor = wrapper.instantiate_dataclass
             constructor_args = self.constructor_arguments[destination]
             # create the dataclass instance.
@@ -181,11 +181,11 @@ class ArgumentParser(argparse.ArgumentParser):
                 # at the associated attribute to this instance.
                 self.constructor_arguments[parent][attribute_in_parent] = instance
                 # self.constructor_arguments.pop(destination) # remove the 'args dict' for this child class.
-                logger.info(f"Setting a value at attribute {attribute_in_parent} in parent {parent}.")
+                logger.debug(f"Setting a value at attribute {attribute_in_parent} in parent {parent}.")
             else:
                 # if this destination is a top-level attribute, we set the attribute
                 # on the returned parsed_args.
-                logger.info(f"setting attribute '{destination}' on the parsed_args to a value of {instance}")
+                logger.debug(f"setting attribute '{destination}' on the parsed_args to a value of {instance}")
                 assert not hasattr(parsed_args, destination), "Namespace should not already have a '{destination}' attribute! (namespace: {parsed_args}) "
                 setattr(parsed_args, destination, instance)
         return parsed_args

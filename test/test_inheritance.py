@@ -14,19 +14,19 @@ class Base(TestSetup):
     common_attribute: int = 1
 
 
-@dataclass()
+@dataclass
 class ExtendedA(Base):
     a: int = 2
 
-@dataclass()
+@dataclass
 class ExtendedB(Base):
     b: int = 3
 
 
 def inheritance_setup(arguments=""):
     parser = ArgumentParser()
-    parser.add_arguments(ExtendedA)
-    parser.add_arguments(ExtendedB)
+    parser.add_arguments(ExtendedA, "extended_a")
+    parser.add_arguments(ExtendedB, "extended_b")
 
     splits = shlex.split(arguments)
     args = parser.parse_args(splits)
@@ -34,7 +34,6 @@ def inheritance_setup(arguments=""):
     exta = args.extended_a
     extb = args.extended_b
     return exta, extb
-
 
 def test_simple_subclassing_no_args():
     extended = ExtendedA.setup()

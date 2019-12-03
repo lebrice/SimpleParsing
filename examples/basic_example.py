@@ -2,9 +2,8 @@
 from dataclasses import dataclass, field, asdict
 from typing import List, Tuple
 
-import simple_parsing
+from simple_parsing import ArgumentParser, MutableField
 
-parser = simple_parsing.ArgumentParser()
 
 @dataclass
 class Options:
@@ -19,11 +18,12 @@ class Options:
 	flag: bool = False 			# Wether or not we do something
 
 	# This is a list of integers (empty by default)
-	some_integers: List[int] = field(default_factory=list)
+	some_integers: List[int] = MutableField([])
 
 	# Converting the list items to the right type will be taken care of for you!
-	some_floats: List[float] = field(default_factory=list)
+	some_floats: List[float] = MutableField([])
 
+parser = ArgumentParser()
 # add the arguments
 parser.add_arguments(Options, "options")
 
@@ -42,7 +42,6 @@ options_dict = asdict(options)
 # create an instance from a dict
 options_ = Options(**options_dict)
 assert options == options_
-
 
 # save to a file using whichever framework you like (json, yaml, etc.)
 import json

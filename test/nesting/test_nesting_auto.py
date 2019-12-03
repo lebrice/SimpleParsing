@@ -9,7 +9,7 @@ from . import TestSetup
 from simple_parsing import (Formatter, InconsistentArgumentError,
                             ArgumentParser, ConflictResolution)
 
-from .example_use_cases import *
+from .example_use_cases import HyperParameters
 
 def test_real_use_case():
     hparams = HyperParameters.setup(
