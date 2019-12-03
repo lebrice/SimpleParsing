@@ -42,7 +42,7 @@ class ConflictResolution(enum.Enum):
     AUTO = 2
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, conflict_resolution: ConflictResolution = ConflictResolution.ALWAYS_MERGE, *args, **kwargs):
+    def __init__(self, conflict_resolution: ConflictResolution = ConflictResolution.AUTO, *args, **kwargs):
         if "formatter_class" not in kwargs:
             kwargs["formatter_class"] = utils.Formatter
         super().__init__(*args, **kwargs)
