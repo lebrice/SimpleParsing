@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import *
 from argparse import ArgumentTypeError
 
-@dataclass()
+@dataclass(unsafe_hash=True)
 class AttributeDocString():
     """Simple dataclass for holding the comments of a given field.
     """
@@ -16,7 +16,7 @@ class AttributeDocString():
     docstring_below: str = ""
 
 
-def get_attribute_docstring(some_dataclass: type, field_name: str) -> Optional[AttributeDocString]:
+def get_attribute_docstring(some_dataclass: Type, field_name: str) -> Optional[AttributeDocString]:
     """Returns the docstrings of a dataclass field.
     NOTE: a docstring can either be: 
         - An inline comment, starting with <#>
@@ -177,7 +177,7 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
 
             elif triple_single in line_str and triple_double in line_str:
                 #* This handles something stupid like:
-                # @dataclass()
+                # @dataclass
                 # class Bob:
                 #     a: int
                 #     """ hello '''
@@ -204,7 +204,7 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
             parts = line_str.split(token, maxsplit=2)
             if len(parts) == 3:
                 # This takes care of cases like:
-                # @dataclass()
+                # @dataclass
                 # class Bob:
                 #     a: int
                 #     """ hello """

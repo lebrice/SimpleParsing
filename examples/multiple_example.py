@@ -7,20 +7,19 @@
 """
 import argparse
 from dataclasses import dataclass, field
-from simple_parsing import ArgumentParser
+from simple_parsing import ArgumentParser, ConflictResolution
 from typing import List
 
-parser = ArgumentParser()
+parser = ArgumentParser(conflict_resolution=ConflictResolution.ALWAYS_MERGE)
 
-
-@dataclass()
+@dataclass
 class Config():
     """ A class which groups related parameters. """
     run_name: str # Some required parameter.
     some_int: int = 10 # an optional int parameter.
     log_dir: str = "logs" # an optional string parameter.
     """the logging directory to use. (This is an attribute docstring for the log_dir attribute, and shows up when using the "--help" argument!)"""
-    
+
 parser.add_arguments(Config, "train_config")
 parser.add_arguments(Config, "valid_config")
 

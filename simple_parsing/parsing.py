@@ -6,212 +6,341 @@ import collections
 import dataclasses
 import enum
 import inspect
-from collections import namedtuple, defaultdict
-import typing
-from typing import *
+import logging
 import re
+import textwrap
+import typing
+import warnings
+from collections import defaultdict, namedtuple
+from typing import *
 
-from . import utils
-from . import docstring
 
+# logging.basicConfig(level=logging.WARN)
+# logger = logging.getLogger("simple_parsing")
+logger = logging.getLogger(__name__)
 
-class InconsistentArgumentError(RuntimeError):
+from . import docstring, utils
+from .wrappers import DataclassWrapper, FieldWrapper
+from .utils import Dataclass, DataclassType, Flag, MutableField
+
+Conflict = Tuple[DataclassType, str, List[DataclassWrapper]]
+
+class ConflictResolution(enum.Enum):
+    """Used to determine which action to take when adding arguments for the same dataclass in two different destinations.
+    
+    - NONE: Dissallow using the same dataclass in two different destinations without explicitly setting a distinct prefix for at least one of them.
+    - EXPLICIT: When adding arguments for a dataclass that is already present, the argparse arguments for each class will use their full absolute path as a prefix.
+    - ALWAYS_MERGE: When adding arguments for a dataclass that is already present, the arguments for the first and second destinations will be set using the same name, 
+        and the values for each will correspond to the first and second passed values, respectively.
+        This will change the argparse type for that argument into a list of the original item type.
+    - AUTO: TODO:
+    
     """
-    Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
+    NONE = -1
+    EXPLICIT = 0
+    ALWAYS_MERGE = 1
+    AUTO = 2
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, conflict_resolution: ConflictResolution = ConflictResolution.AUTO, *args, **kwargs):
         if "formatter_class" not in kwargs:
             kwargs["formatter_class"] = utils.Formatter
         super().__init__(*args, **kwargs)
+        # the kind of prefixing mechanism to use.
+        self.conflict_resolution = conflict_resolution
 
-        self._args_to_add: Dict[Type, List[str]] = defaultdict(list)
-    
-    def add_arguments(self, dataclass: Type, dest: str):
+        # two-level dictionary that maps from (dataclass, string_prefix) -> DataclassWrapper. 
+        self._wrappers: Dict[DataclassType, Dict[str, List[DataclassWrapper]]] = defaultdict(lambda: defaultdict(list))
+
+        self._fixed_wrappers: Dict[DataclassType, Dict[str, DataclassWrapper]]
+
+        self.constructor_arguments: Dict[str, Dict[str, Any]] = defaultdict(dict)
+
+        # # a set to check which arguments have been added so far.
+        # self.added_arguments: Set[str] = set()
+
+    def add_arguments(self, dataclass: DataclassType, dest: str, prefix=""):
         """Adds corresponding command-line arguments for this class to the parser.
         
         Arguments:
-            dataclass {Type} -- The dataclass for which to add fields as arguments in the parser
+            dataclass {DataclassType} -- The dataclass for which to add fields as arguments in the parser
         
         Keyword Arguments:
-            dest {str} -- The destination key where filled dataclass will be stored after parsing
+            dest {str} -- The destination attribute of the `argparse.Namespace` where the dataclass instance will be stored after calling `parse_args()`
+            prefix {str} -- An optional prefix to add prepend to the names of the argparse arguments which will be generated for this dataclass.
+            This can be useful when registering multiple distinct instances of the same dataclass.
+
         """
+        for prefix, wrappers in self._wrappers[dataclass].items():
+            destinations = [wrapper.dest for wrapper in wrappers]
+            if dest in destinations:
+                self.error(textwrap.dedent(f"""\
+                    Destination attribute {dest} is already used for dataclass of type {dataclass}.
+                    Make sure all destinations are unique.
+                    """))
+        new_wrapper: DataclassWrapper[DataclassType] = DataclassWrapper(dataclass, dest)
+        new_wrapper.prefix = prefix
+        wrapper = self._register_dataclass(new_wrapper)
+        logger.debug(f"added wrapper:\n{wrapper}\n")
+
+    def parse_known_args(self, args=None, namespace=None):
+        # NOTE: since the usual ArgumentParser.parse_args() calls parse_known_args, we therefore just need to overload the parse_known_args method.
+        self._preprocessing()
+        parsed_args, unparsed_args = super().parse_known_args(args, namespace)
+        return self._postprocessing(parsed_args), unparsed_args
+
+    def _register_dataclass(self, new_wrapper: DataclassWrapper[DataclassType]) -> DataclassWrapper[DataclassType]:
+        """registers the given dataclass to be parsed later.
         
-        #TODO: Double-Check this mechanism, just to make sure this is natural and makes sense.
-        # NOTE: about boolean (flag-like) arguments:
-        # If the argument is present with no value, then the opposite of the default value should be used.
-        # For example, say there is an argument called "--no-cache", with a default value of False.
-        # - When we don't pass the argument, (i.e, $> python example.py) the value should be False.
-        # - When we pass the argument, (i.e, $> python example.py --no-cache), the value should be True.
-        # - When we pass the argument with a value, ex: "--no-cache true" or "--no-cache false", the given value should be used 
+        Arguments:
+            dataclass {Type[Dataclass]} -- The dataclass to register
+            dest {str} -- a string which is to be used to  NamedTuple used to keep track of where to store the resulting instance and the number of instances.
+        """
+        logger.debug(f"Registering new DataclassWrapper: {new_wrapper}")
+        self._wrappers[new_wrapper.dataclass][new_wrapper.prefix].append(new_wrapper)        
+        for child in new_wrapper.descendants:
+            self._wrappers[child.dataclass][child.prefix].append(child)
+        return new_wrapper
+
+    def _unregister_dataclass(self, wrapper: DataclassWrapper[DataclassType]):
+        logger.debug(f"Unregistering DataclassWrapper {wrapper}")
+        self._remove(wrapper)
+        for child in wrapper.descendants:
+            logger.debug(f"\tAlso Unregistering Child DataclassWrapper {child}")
+            self._remove(child)
+    
+    def _remove(self, wrapper: DataclassWrapper):
+        self._wrappers[wrapper.dataclass][wrapper.prefix].remove(wrapper)
+        if len(self._wrappers[wrapper.dataclass][wrapper.prefix]) == 0:
+            self._wrappers[wrapper.dataclass].pop(wrapper.prefix)
+    
+    def _preprocessing(self):
+        logger.debug("\nPREPROCESSING\n")
+
+        self._fixed_wrappers = self._fix_conflicts()
+        logger.debug(f"Fixed wrappers: {self._fixed_wrappers}")
+        # Create one argument group per dataclass type
+        for dataclass in self._fixed_wrappers:
+            for prefix, wrapper in self._fixed_wrappers[dataclass].items():
+                logger.debug(f"Adding arguments for dataclass: {dataclass}, multiple={wrapper.multiple}, prefix = '{wrapper.prefix}'")                
+                wrapper.add_arguments(parser=self)
+
+
+    def _postprocessing(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+        """Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
         
-        # Here we store args to add instead of adding them directly in order to handle the case where
-        # multiple of the same dataclass are added as arguments
-        self._args_to_add[dataclass].append(dest)
+        Arguments:
+            parsed_args {argparse.Namespace} -- the result of calling super().parse_args()
+        
+        Returns:
+            argparse.Namespace -- The namespace, with the added attributes for each dataclass.
+            TODO: Try and maybe return a nicer, typed version of parsed_args (a Namespace subclass maybe?)  
+        """
+        logger.debug("\nPOST PROCESSING\n")
+        logger.debug(f"parsed args: {parsed_args}")
+        
+        # create the constructor arguments for each instance by consuming all the attributes from `parsed_args` 
+        parsed_args = self._consume_constructor_arguments(parsed_args)
+        logger.debug(f"leftover arguments: {parsed_args}")
+        
+        logger.debug(f"Constructor arguments:")
+        for key, args_dict in self.constructor_arguments.items():
+            logger.debug(f"\t{key}: {args_dict}")
 
-    
-    def _add_arguments(self, dataclass: Type, multiple=False):
-        names = self._args_to_add[dataclass]
-        names_string =f""" [{', '.join(f"'{name}'" for name in names)}]"""
-        group = self.add_argument_group(
-            dataclass.__qualname__ + names_string,
-            description=dataclass.__doc__
-        )
-        for f in dataclasses.fields(dataclass):
-            if not f.init:
-                continue
-            
-            if dataclasses.is_dataclass(f.type):
-                self._add_arguments(f.type, multiple)
-                # TODO!
-                raise NotImplementedError("Nesting isn't supported yet!")
-            elif utils.is_tuple_or_list(f.type) and dataclasses.is_dataclass(utils.get_item_type(f.type)):
-                self._add_arguments(f.type, True)
-                raise NotImplementedError("Nesting isn't supported yet! (container of dataclasses)")
+        self._set_instances_in_args(parsed_args)
 
-            name = f"--{f.name}"
-            arg_options: Dict[str, Any] = { 
-                "type": f.type,
-            }
-
-            doc = docstring.get_attribute_docstring(dataclass, f.name)
-            if doc is not None:
-                if doc.docstring_below:
-                    arg_options["help"] = doc.docstring_below
-                elif doc.comment_above:
-                    arg_options["help"] = doc.comment_above
-                elif doc.comment_inline:
-                    arg_options["help"] = doc.comment_inline
-            
-            if f.default is not dataclasses.MISSING:
-                arg_options["default"] = f.default
-            elif f.default_factory is not dataclasses.MISSING: # type: ignore
-                arg_options["default"] = f.default_factory() # type: ignore
-            else:
-                arg_options["required"] = True
-                        
-            if enum.Enum in f.type.mro():
-                arg_options["choices"] = list(e.name for e in f.type)
-                arg_options["type"] = str # otherwise we can't parse the enum, as we get a string.
-                if "default" in arg_options:
-                    default_value = arg_options["default"]
-                    # if the default value is the Enum object, we make it a string
-                    if isinstance(default_value, enum.Enum):
-                        arg_options["default"] = default_value.name
-            
-            elif utils.is_tuple_or_list(f.type):
-                # Check if typing.List or typing.Tuple was used as an annotation, in which case we can automatically convert items to the desired item type.
-                # NOTE: we only support tuples with a single type, for simplicity's sake. 
-                T = utils.get_argparse_container_type(f.type)
-                arg_options["nargs"] = "*"
-                if multiple:
-                    arg_options["type"] = utils._parse_multiple_containers(f.type)
-                else:
-                    # TODO: Supporting the `--a '1 2 3'`, `--a [1,2,3]`, and `--a 1 2 3` at the same time is syntax is kinda hard, and I'm not sure if it's really necessary.
-                    # right now, we support --a '1 2 3' '4 5 6' and --a [1,2,3] [4,5,6] only when parsing multiple instances.
-                    # arg_options["type"] = utils._parse_container(f.type)
-                    arg_options["type"] = T
-            
-            elif f.type is bool:
-                arg_options["default"] = False if f.default is dataclasses.MISSING else f.default
-                arg_options["type"] = utils.str2bool
-                arg_options["nargs"] = "*" if multiple else "?"
-                if f.default is dataclasses.MISSING:
-                    arg_options["required"] = True
-            
-            if multiple:
-                required = arg_options.get("required", False)
-                if required:
-                    arg_options["nargs"] = "+"
-                else:
-                    arg_options["nargs"] = "*"
-                    arg_options["default"] = [arg_options["default"]]
-
-            group.add_argument(name, **arg_options)
-
-    def _instantiate_dataclass(self, dataclass: Type, args: argparse.Namespace):
-        """Creates an instance of the dataclass using results of `parser.parse_args()`"""
-        args_dict = vars(args) if isinstance(args, argparse.Namespace) else args
-        # print("args dict:", args_dict)
-        constructor_args: Dict[str, Any] = {}
-        for f in dataclasses.fields(dataclass):
-            if not f.init:
-                continue
-            if dataclasses.is_dataclass(f.type):
-                raise NotImplementedError("Nesting isn't supported yet!")
-
-            if enum.Enum in f.type.mro():
-                constructor_args[f.name] = f.type[args_dict[f.name]]
-            
-            elif utils.is_tuple(f.type):
-                constructor_args[f.name] = tuple(args_dict[f.name])
-            
-            elif utils.is_list(f.type):
-                constructor_args[f.name] = list(args_dict[f.name])
-
-            elif f.type is bool:
-                value = args_dict[f.name]
-                constructor_args[f.name] = value
-                default_value = False if f.default is dataclasses.MISSING else f.default
-                if value is None:
-                    constructor_args[f.name] = not default_value
-                elif isinstance(value, bool):
-                    constructor_args[f.name] = value
-                else:
-                    raise argparse.ArgumentTypeError(f"bool argument {f.name} isn't bool: {value}")
-
-            else:
-                constructor_args[f.name] = args_dict[f.name]
-        return dataclass(**constructor_args) #type: ignore
-    
-    def _instantiate_dataclasses(self, dataclass: Type, args: argparse.Namespace, num_instances_to_parse: int):
-        """Creates multiple instances of the dataclass using results of `parser.parse_args()`"""
-        args_dict: Dict[str, Any] = vars(args)
-
-        instances: List[dataclass] = [] # type: ignore
-        for i in range(num_instances_to_parse):
-            constructor_arguments: Dict[str, Union[Any, List]] = {}
-            for f in dataclasses.fields(dataclass):
-                if not f.init:
-                    continue
-                value = args_dict[f.name]
-                assert isinstance(value, list), f"all fields should have gotten a list default value... ({value})"
-
-                if len(value) == 1:
-                    constructor_arguments[f.name] = value[0]
-                elif len(value) == num_instances_to_parse:
-                    constructor_arguments[f.name] = value[i]
-                else:
-                    raise InconsistentArgumentError(
-                        f"The field '{f.name}' contains {len(value)} values, but either 1 or {num_instances_to_parse} values were expected."
-                    )
-            instances.append(self._instantiate_dataclass(dataclass, constructor_arguments))
-        return instances
-
-
-    def parse_args(self, args=None, namespace=None):
-        # Add (for real this time!) the dataclasses, handling the case where the same dataclass was added multiple times
-        # with different 'dest' strings
-        for dataclass_to_add, destinations in self._args_to_add.items():
-            self._add_arguments(dataclass_to_add, multiple=len(destinations) > 1)
-
-        # Parse the arguments normally
-        parsed_args = super().parse_args(args, namespace)
-
-        # TODO: get a nice typed version of parsed_args (a Namespace)       
-
-        # Instantiate the dataclasses from the parsed arguments and add them to their destination key in the namespace
-        for dataclass_to_add, destinations in self._args_to_add.items():
-            if len(destinations) == 1:
-                dataclass_instance = self._instantiate_dataclass(dataclass_to_add, parsed_args)
-                setattr(parsed_args, destinations[0], dataclass_instance)
-            else:
-                dataclass_instances = self._instantiate_dataclasses(dataclass_to_add, parsed_args, len(destinations))
-                for dataclass_instance, dest in zip(dataclass_instances, destinations):
-                    setattr(parsed_args, dest, dataclass_instance)
-
+        logger.debug(f"Final parsed args:")
+        for key, value in vars(parsed_args).items():
+            logger.debug(f"\t{key}: {value}")
+           
         return parsed_args
+
+    def _set_instances_in_args(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+        
+        # we now have all the constructor arguments for each instance.
+        # we can now sort out the different dependencies, and create the instances.
+        wrappers: Dict[str, DataclassWrapper] = self._wrapper_for_every_destination
+        # we construct the 'tree' of dependencies from the bottom up,
+        # starting with nodes that are children.
+        destinations = self.constructor_arguments.keys()
+        nesting_level = lambda destination_attribute: destination_attribute.count(".")
+
+        for destination, wrapper in sorted(wrappers.items(), key=lambda k_v: k_v[1].nesting_level, reverse=True):
+            logger.debug(f"wrapper name: {wrapper.attribute_name}, destination: {destination}")
+            constructor = wrapper.instantiate_dataclass
+            constructor_args = self.constructor_arguments[destination]
+            # create the dataclass instance.
+            instance = constructor(constructor_args)
+            
+            if wrapper._parent is not None:
+                parts = destination.split(".")
+                parent = ".".join(parts[:-1])
+                attribute_in_parent = parts[-1]
+                # if this instance is an attribute in another dataclass,
+                # we set the value in the parent's constructor arguments
+                # at the associated attribute to this instance.
+                self.constructor_arguments[parent][attribute_in_parent] = instance
+                # self.constructor_arguments.pop(destination) # remove the 'args dict' for this child class.
+                logger.debug(f"Setting a value at attribute {attribute_in_parent} in parent {parent}.")
+            else:
+                # if this destination is a top-level attribute, we set the attribute
+                # on the returned parsed_args.
+                logger.debug(f"setting attribute '{destination}' on the parsed_args to a value of {instance}")
+                assert not hasattr(parsed_args, destination), "Namespace should not already have a '{destination}' attribute! (namespace: {parsed_args}) "
+                setattr(parsed_args, destination, instance)
+        return parsed_args
+
+    def _consume_constructor_arguments(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+        """Create the constructor arguments for each instance by consuming all the attributes from `parsed_args` 
+        
+        Args:
+            parsed_args (argparse.Namespace): the argparse.Namespace returned from super().parse_args().
+        
+        Returns:
+            argparse.Namespace: The namespace, without the consumed arguments.
+        """
+        wrappers: Dict[str, DataclassWrapper] = self._wrapper_for_every_destination
+        parsed_arg_values = vars(parsed_args)
+        # TODO: it would be cleaner if the CustomAction was working!
+        # Here we imitate a custom action, by having the FieldWrappers be callables
+        for wrapper in wrappers.values():
+            for field in wrapper.fields:
+                if not field.field.init:
+                    continue
+                values = parsed_arg_values.get(field.dest, field.default)
+                # call the action manually.
+                # this sets the right value in the `self.constructor_arguments` dictionary.
+                field(parser=self, namespace=parsed_args, values=values, option_string=None)
+
+        #Clean up the 'parsed_args' by deleting all the consumed attributes.
+        deleted_values: Dict[str, Any] = {
+            field.dest: parsed_arg_values.pop(field.dest, None) for field in wrapper.fields for wrapper in wrappers.values()
+        }
+        leftover_args = argparse.Namespace(**parsed_arg_values)
+        logger.debug(f"deleted values: {deleted_values}")
+        return leftover_args
+
+    def _get_conflicting_group(self, all_wrappers: Dict[DataclassType, Dict[str, List[DataclassWrapper[DataclassType]]]]) -> Optional[Conflict]:
+        """Return the dataclass, prefix, and conflicing DataclassWrappers.
+        """
+        for dataclass in all_wrappers.keys():
+            for prefix in all_wrappers[dataclass].keys():
+                wrappers = all_wrappers[dataclass][prefix].copy()
+                if len(wrappers) >= 2:
+                    return dataclass, prefix, wrappers
+        return None
+
+
+    def _conflict_exists(self, all_wrappers: Dict[DataclassType, Dict[str, List[DataclassWrapper[DataclassType]]]]) -> bool:
+        """Return True whenever a conflict exists (multiple DataclassWrappers share the same dataclass and prefix."""
+        for dataclass in all_wrappers.keys():
+            for prefix, wrappers in all_wrappers[dataclass].items():
+                assert all(wrapper.prefix == prefix for wrapper in wrappers), "Misplaced DataclassWrapper!"
+                if len(wrappers) >= 2:
+                    return True
+        return False
+
+    def _fix_conflicts(self) ->  Dict[DataclassType, Dict[str, DataclassWrapper]]:
+        while self._conflict_exists(self._wrappers):
+            conflict = self._get_conflicting_group(self._wrappers)
+            assert conflict is not None
+            dataclass, prefix, wrappers = conflict
+            logger.debug(f"The following {len(wrappers)} wrappers are in conflict, as they share the same dataclass and prefix:\n" + "\n".join(str(w) for w in wrappers))
+            logger.debug(f"(Conflict Resolution mode is {self.conflict_resolution})")
+            if self.conflict_resolution == ConflictResolution.NONE:           
+                self.error(
+                    "The following wrappers are in conflict, as they share the same dataclass and prefix:\n" +
+                    "\n".join(str(w) for w in wrappers) +
+                    f"(Conflict Resolution mode is {self.conflict_resolution})"
+                )
+                    
+            elif self.conflict_resolution == ConflictResolution.EXPLICIT:
+                self._fix_conflict_explicit(conflict)
+
+            elif self.conflict_resolution == ConflictResolution.ALWAYS_MERGE:
+                self._fix_conflict_merge(conflict)
+
+            elif self.conflict_resolution == ConflictResolution.AUTO:
+                self._fix_conflict_auto(conflict)
+
+        assert not self._conflict_exists(self._wrappers)
+        fixed_wrappers: Dict[DataclassType, Dict[str, DataclassWrapper[DataclassType]]] = defaultdict(dict)
+        for dataclass in self._wrappers:
+            for prefix, wrappers in self._wrappers[dataclass].items():
+                assert len(wrappers) == 1
+                wrapper = wrappers[0]
+                assert wrapper.prefix == prefix 
+                fixed_wrappers[dataclass][prefix] = wrapper 
+        return fixed_wrappers
+
+    def _fix_conflict_explicit(self, conflict):
+        # logger.debug("fixing explicit conflict: ", conflict)
+        dataclass, prefix, wrappers = conflict
+        assert prefix == "", "Wrappers for the same dataclass can't have the same user-set prefix when in EXPLICIT mode!"
+        # remove all wrappers for that prefix
+        for wrapper in wrappers:
+            self._unregister_dataclass(wrapper)
+            wrapper.explicit = True
+            self._register_dataclass(wrapper)
+        assert not self._wrappers[dataclass][prefix], self._wrappers[dataclass][prefix]
+        # remove the prefix from the dict so we don't have to deal with empty lists.
+        self._wrappers[dataclass].pop(prefix)
+
+    def _fix_conflict_auto(self, conflict):
+        # logger.debug("fixing conflict: ", conflict)
+        dataclass, prefix, wrappers = conflict
+        prefixes: List[List[str]] = [wrapper.dest.split(".") for wrapper in wrappers]
+        # IDEA:
+        # while the prefixes are the same, starting from the left, remove the first word.
+        # Stop when they become different.
+        first_word = prefixes[0][0]
+        while all(prefix[0] == first_word for prefix in prefixes):
+            prefixes = [prefix[1:] for prefix in prefixes]
+            first_word = prefixes[0][0]
+
+        prefixes = [".".join(prefix) for prefix in prefixes]
+
+        for prefix, wrapper in zip(prefixes, wrappers):
+            self._unregister_dataclass(wrapper)
+            wrapper.prefix = prefix + "."
+            self._register_dataclass(wrapper)
+
+    def _fix_conflict_merge(self, conflict):
+        """Fix conflicts using the merging approach:
+        The first wrapper is kept, and the rest of the wrappers are absorbed into the first wrapper.
+
+        # TODO: check that the ordering of arguments is still preserved!
+        
+        Args:
+            conflict ([type]): [description]
+        """
+        dataclass, prefix, wrappers = conflict
+        assert len(wrappers) > 1
+        first_wrapper: DataclassWrapper = None
+        for wrapper in wrappers:
+            self._unregister_dataclass(wrapper)
+            if first_wrapper is None:
+                first_wrapper = wrapper
+            else:
+                first_wrapper.merge(wrapper)
+        
+        assert first_wrapper.multiple
+        self._register_dataclass(first_wrapper)
+
+    
+    @property
+    def _wrapper_for_every_destination(self) -> Dict[str, DataclassWrapper[DataclassType]]:
+        """Returns a dictionary where for every key (a destination), we return the associated DataclassWrapper.
+        NOTE: multiple destinations can share the same DataclassWrapper instance.
+        
+        Returns:
+            Dict[str, DataclassWrapper[Dataclass]] -- [description]
+        """
+        wrapper_for_destination: Dict[str, DataclassWrapper[DataclassType]] = {}
+        for dataclass in self._fixed_wrappers.keys():
+            for prefix, wrapper in self._fixed_wrappers[dataclass].items():
+                for dest in wrapper.destinations:
+                    assert dest not in wrapper_for_destination
+                    wrapper_for_destination[dest] = wrapper
+        return wrapper_for_destination
+        

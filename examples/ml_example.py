@@ -4,7 +4,7 @@ from dataclasses import dataclass
 # create a parser, 
 parser = simple_parsing.ArgumentParser()
 
-@dataclass()
+@dataclass
 class MyModelHyperParameters():
     """Hyperparameters of MyModel"""
     # Batch size (per-GPU)
@@ -14,14 +14,14 @@ class MyModelHyperParameters():
     # Momentum of the optimizer.
     momentum: float = 0.01
 
-@dataclass()
+@dataclass
 class TrainingConfig():
     """ Settings related to Training"""
     data_dir: str = "data"
     log_dir: str = "logs"
     checkpoint_dir: str = "checkpoints"
 
-@dataclass()
+@dataclass
 class EvalConfig():
     """ Settings related to evaluation """
     eval_dir: str = "eval_data"

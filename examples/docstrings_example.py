@@ -25,7 +25,7 @@ from simple_parsing import ArgumentParser
 
 parser = ArgumentParser()
 
-@dataclass()
+@dataclass
 class DocStringsExample():
     """NOTE: This block of text is the class docstring, and it will show up under
     the name of the class in the --help group for this set of parameters.    

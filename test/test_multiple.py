@@ -11,7 +11,7 @@ from simple_parsing import (InconsistentArgumentError,
 
 from .testutils import *
 
-@parametrize("num_instances", [1, 2, 5, 50])
+@parametrize("num_instances", [1, 2, 5])
 @parametrize(
     "some_type, default_value",
     [
@@ -22,7 +22,7 @@ from .testutils import *
     ]
 )
 def test_parse_multiple_with_no_arguments_sets_default_value(num_instances: int, some_type: Type, default_value: Any):
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: some_type = default_value  # type: ignore
         """some docstring for attribute 'a'"""
@@ -36,7 +36,7 @@ def test_parse_multiple_with_no_arguments_sets_default_value(num_instances: int,
         assert isinstance(c_i.a, some_type)
 
 
-@parametrize("num_instances", [2, 5, 50])
+@parametrize("num_instances", [1, 2, 5])
 @parametrize(
     "some_type, default_value,  passed_value",
     [
@@ -52,7 +52,7 @@ def test_parse_multiple_with_single_arg_value_sets_that_value_for_all_instances(
         passed_value: Any
     ):
 
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: some_type = default_value  # type: ignore
         """some docstring for attribute 'a'"""
@@ -80,7 +80,7 @@ def test_parse_multiple_with_provided_value_for_each_instance(
         passed_values: List[Any]
     ):
 
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: some_type = default_value  # type: ignore
         """some docstring for attribute 'a'"""
@@ -98,7 +98,7 @@ def test_parse_multiple_with_provided_value_for_each_instance(
 
 @parametrize("some_type", [int, float, str, bool])        
 def test_parse_multiple_without_required_arguments(some_type: Type):
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
@@ -109,7 +109,7 @@ def test_parse_multiple_without_required_arguments(some_type: Type):
 @parametrize("container_type", [List, Tuple])
 @parametrize("item_type", [int, float, str, bool])
 def test_parse_multiple_without_required_container_arguments(container_type: Type, item_type: Type):
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: container_type[item_type] # type: ignore
         """some docstring for attribute 'a'"""
@@ -121,7 +121,7 @@ def test_parse_multiple_without_required_container_arguments(container_type: Typ
 @parametrize("container_type", [List, Tuple])
 @parametrize("item_type", [int, float, str, bool])
 def test_parse_multiple_with_arg_name_without_arg_value(container_type: Type, item_type: Type):
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: container_type[item_type] # type: ignore
         """some docstring for attribute 'a'"""

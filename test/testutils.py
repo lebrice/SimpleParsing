@@ -1,10 +1,10 @@
 import argparse
-from typing import *
+from typing import Optional, TypeVar, Type, List, Dict, Tuple, Any, Callable
 import shlex
 import pytest
 import simple_parsing
-from simple_parsing import InconsistentArgumentError, ArgumentParser, Formatter
-
+from simple_parsing import InconsistentArgumentError, ArgumentParser, Formatter, ConflictResolution
+from simple_parsing.wrappers import DataclassWrapper
 
 from simple_parsing.utils import camel_case
 
@@ -14,12 +14,11 @@ parametrize = pytest.mark.parametrize
 def xfail_param(*args, reason:str):
     return pytest.param(*args, marks=pytest.mark.xfail(reason=reason))
 
-
-T = TypeVar("T", bound="TestSetup")
+Dataclass = TypeVar("Dataclass")
 
 class TestSetup():
     @classmethod
-    def setup(cls: Type[T], arguments: Optional[str] = "", dest: Optional[str] = None) -> T:
+    def setup(cls: Type[Dataclass], arguments: Optional[str] = "", dest: Optional[str] = None, conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO) -> Dataclass:
         """Basic setup for a test.
         
         Keyword Arguments:
@@ -29,7 +28,7 @@ class TestSetup():
         Returns:
             {cls}} -- the class's type.
         """
-        parser = simple_parsing.ArgumentParser()
+        parser = simple_parsing.ArgumentParser(conflict_resolution=conflict_resolution_mode)
         if dest is None:
             dest = camel_case(cls.__name__)
         
@@ -40,12 +39,15 @@ class TestSetup():
         else:
             splits = shlex.split(arguments)
             args = parser.parse_args(splits)
-        instance: cls = getattr(args, dest) #type: ignore
+        assert hasattr(args, dest), f"attribute '{dest}' not found in args {args}"
+        instance: Dataclass = getattr(args, dest) #type: ignore
         return instance
     
     @classmethod
-    def setup_multiple(cls: Type[T], num_to_parse: int, arguments: Optional[str] = "") -> Tuple[T, ...]:
-        parser = simple_parsing.ArgumentParser()
+    def setup_multiple(cls: Type[Dataclass], num_to_parse: int, arguments: Optional[str] = "") -> Tuple[Dataclass, ...]:
+        conflict_resolution_mode: ConflictResolution = ConflictResolution.ALWAYS_MERGE
+
+        parser = simple_parsing.ArgumentParser(conflict_resolution=conflict_resolution_mode)
         class_name = camel_case(cls.__name__)
         for i in range(num_to_parse):
             parser.add_arguments(cls, f"{class_name}_{i}")
@@ -60,12 +62,12 @@ class TestSetup():
         
 
     @classmethod
-    def get_help_text(cls, multiple=False):
+    def get_help_text(cls, multiple=False, conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO) -> str:
         import contextlib
         from io import StringIO
         f = StringIO()
         with contextlib.suppress(SystemExit), contextlib.redirect_stdout(f):
-            _ = cls.setup("--help")
+            _ = cls.setup("--help", conflict_resolution_mode=conflict_resolution_mode)
         s = f.getvalue()
         return s
 

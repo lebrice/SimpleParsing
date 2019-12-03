@@ -23,7 +23,7 @@ from .testutils import *
     ]
 )
 def test_default_value_is_used_when_no_args_are_provided(some_type: Type, default_value):
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: some_type = default_value # type: ignore
         """some docstring for attribute 'a'"""
@@ -31,6 +31,32 @@ def test_default_value_is_used_when_no_args_are_provided(some_type: Type, defaul
     class_a = SomeClass.setup()
     assert class_a.a == default_value
     assert isinstance(class_a.a, some_type)
+
+
+
+@parametrize(
+    "some_type, default_value",
+    [
+        (int,   123524),
+        (float, 123.456),
+        (str,   "bob"),
+        (bool,  True),
+    ]
+)
+def test_arguments_are_cleaned_up(some_type: Type, default_value):
+    @dataclass
+    class SomeClass(TestSetup):
+        a: some_type = default_value # type: ignore
+        """some docstring for attribute 'a'"""
+    
+    parser = ArgumentParser()
+    parser.add_arguments(SomeClass, "some_class")
+    args = parser.parse_args("")
+    some_class: SomeClass = args.some_class
+    delattr(args, "some_class")
+    assert args == argparse.Namespace()
+
+
 
 
 @parametrize(
@@ -42,7 +68,7 @@ def test_default_value_is_used_when_no_args_are_provided(some_type: Type, defaul
         (bool,  False,  True),
     ])
 def test_arg_value_is_set_when_args_are_provided(some_type: Type, default_value: Any, arg_value: Any):
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: some_type = default_value # type: ignore
         """some docstring for attribute 'a'"""
@@ -55,7 +81,7 @@ def test_arg_value_is_set_when_args_are_provided(some_type: Type, default_value:
 
 @parametrize("some_type", [int, float, str, bool,])
 def test_not_providing_required_argument_throws_error(some_type):
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
@@ -65,7 +91,7 @@ def test_not_providing_required_argument_throws_error(some_type):
 
 @parametrize("some_type", [int, float, str])
 def test_not_providing_required_argument_name_but_no_value_throws_error(some_type):
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
@@ -78,7 +104,7 @@ class Color(Enum):
     ORANGE = "ORANGE"
     BLUE = "BLUE"
 
-@dataclass()
+@dataclass
 class Base(TestSetup):
     """A simple base-class example"""
     a: int # TODO: finetune this
@@ -86,7 +112,7 @@ class Base(TestSetup):
     b: float = 5.0 # inline comment on attribute 'b'
     c: str = ""
 
-@dataclass()
+@dataclass
 class Extended(Base):
     """ Some extension of base-class `Base` """
     d: int = 5
