@@ -3,7 +3,7 @@ from dataclasses import Field, dataclass, fields
 
 # import numpy as np
 
-@dataclass()
+@dataclass
 class Point:
     """ simple class Point """
     x: float = 0.

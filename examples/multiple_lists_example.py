@@ -1,18 +1,28 @@
 from dataclasses import dataclass, field, fields
 from typing import List
 
-from simple_parsing import ArgumentParser, MutableField
+from simple_parsing import ArgumentParser, MutableField, ConflictResolution
 
-@dataclass()
+@dataclass
 class CNNStack():
     name: str = "stack"
     num_layers: int = 3
     kernel_sizes: List[int] = MutableField([7, 5, 5])
     num_filters: List[int] = MutableField([32,64,64])
 
-if __name__ == "__main__":    
-    #Parsing a single instance of this class can be done like so, using the usual command-line list syntax:
-    parser = ArgumentParser()
+if __name__ == "__main__":
+    # Here, we demonstrate parsing multiple classes each of which has a list attribute.
+    # There are a few options for doing this. For example, if we want to let each instance
+    # have a distinct prefix for its arguments, we could use the ConflictResolution.AUTO option.
+    
+    # Here, we want to create a few instances of `CNNStack` from the command line,
+    # but don't want to have a different prefix for each instance.
+    # To do this, we pass the `ConflictResolution.ALWAYS_MERGE` option to the argument parser constructor.
+    # This creates a single argument for each attribute, that will be set as multiple
+    # (i.e., if the attribute is a `str`, the argument becomes a list of `str`, one for each class instance). 
+    
+    # For more info, check out the docstring of the `ConflictResolution` enum.
+    parser = ArgumentParser(conflict_resolution=ConflictResolution.ALWAYS_MERGE)
     num_stacks = 3
     for i in range(num_stacks):
         parser.add_arguments(CNNStack, f"stack_{i}")

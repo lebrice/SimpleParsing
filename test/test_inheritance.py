@@ -8,7 +8,7 @@ from simple_parsing import ArgumentParser
 from .testutils import *
 
 
-@dataclass()
+@dataclass
 class Base(TestSetup):
     """ Some extension of base-class `Base` """
     common_attribute: int = 1
