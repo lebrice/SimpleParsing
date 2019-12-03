@@ -32,13 +32,13 @@ class Container1(TestSetup):
     class_a: ClassA = ClassA()
     class_b: ClassB = ClassB()
 
-@dataclass()
+@dataclass
 class Container2(TestSetup):
     v2: int = 0
     class_a: ClassA = ClassA()
     class_b: ClassB = ClassB()
 
-@dataclass()
+@dataclass
 class ContainerWithList(TestSetup):
     list_of_class_c: List[ClassC] = field(default_factory=lambda: [ClassC()] * 2)
 

@@ -4,14 +4,14 @@ import pytest
 
 from .testutils import TestSetup
 
-@dataclass()
+@dataclass
 class Base(TestSetup):
     """ Some extension of base-class `Base` """
     a: int = 5
     f: bool = False
 
 
-@dataclass()
+@dataclass
 class Flags(TestSetup):
     a: bool # an example required flag (defaults to False)
     b: bool = True # optional flag 'b'.

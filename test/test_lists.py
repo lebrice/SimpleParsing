@@ -11,7 +11,7 @@ from simple_parsing import ArgumentParser, InconsistentArgumentError
 from .testutils import *
 
 
-@dataclass()
+@dataclass
 class ContainerClass(TestSetup):
     a: Tuple[int]
     b: List[int]
@@ -73,7 +73,7 @@ def test_list_supported_formats(
         item_type: Type,
         passed_values: List[Any],
     ):
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: List[item_type] = field(default_factory=list)  # type: ignore
         """some docstring for attribute 'a'"""
@@ -112,7 +112,7 @@ def test_parse_multiple_with_list_attributes(
         item_type: Type,
         passed_values: List[List[Any]],
     ):
-    @dataclass()
+    @dataclass
     class SomeClass(TestSetup):
         a: List[item_type] = field(default_factory=list)  # type: ignore
         """some docstring for attribute 'a'"""
