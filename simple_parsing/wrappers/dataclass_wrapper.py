@@ -42,16 +42,24 @@ class DataclassWrapper(Generic[Dataclass]):
     _parent: Optional["DataclassWrapper"] = dataclasses.field(default=None, repr=False)
 
     _field: Optional[dataclasses.Field] = None
-    _default: List[Dataclass] = dataclasses.field(default_factory=list)
+    _defaults: List[Dataclass] = dataclasses.field(default_factory=list)
+    
     def __post_init__(self):
-        self.destinations
+        if self._parent:
+            if self._parent.defaults:
+                self.defaults = [getattr(default, self.attribute_name) for default in self._parent.defaults]
+            else:
+                assert self._field is not None
+                default_field_value = utils.default_value(self._field)
+                if default_field_value is not None:
+                    self._defaults = [default_field_value]
+
         for field in dataclasses.fields(self.dataclass):
             if dataclasses.is_dataclass(field.type):
                 # handle a nested dataclass.
                 dataclass = field.type
                 attribute_name = field.name
-                child_wrapper = DataclassWrapper(dataclass, attribute_name, _parent=self)
-                child_wrapper._field = field
+                child_wrapper = DataclassWrapper(dataclass, attribute_name, _parent=self, _field=field)
                 # TODO: correctly handle the default value for a Dataclass attribute.
                 child_wrapper.prefix = self.prefix                 
                 self._children.append(child_wrapper)
@@ -63,24 +71,35 @@ class DataclassWrapper(Generic[Dataclass]):
             else:
                 # regular field.
                 field_wrapper = FieldWrapper(field, parent=self)
+                logger.debug(f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.defaults}")
                 self.fields.append(field_wrapper)
+        
+        
+        logger.info(f"THe dataclass at attribute {self.dest} has default values: {self.defaults}")
+
 
     @property
     def defaults(self) -> List[Dataclass]:
-        if self._default:
-            return self._default
+        if self._defaults:
+            return self._defaults
         if self._field is None:
             return []
         assert self._parent is not None
-        if self._field.default is not dataclasses.MISSING:
-            self._default = [self._field.default]
-        elif self._field.default_factory is not dataclasses.MISSING: # type: ignore
-            self._default = [self._field.default_factory()] # type: ignore
-        return self._default
+        if self._parent.defaults:
+            self._defaults = [getattr(default, self.attribute_name) for default in self._parent.defaults]
+        else:
+            default_field_value = utils.default_value(self._field)
+            if default_field_value is not None:
+                self._defaults = [default_field_value]
+            else:
+                self._defaults = []
+        return self._defaults
     
     @defaults.setter
     def defaults(self, value: List[Dataclass]):
         self._default = value
+        # for child in self._children:
+        #     child.defaults = [getattr(default, child.attribute_name) for default in self._default]
 
 
     @property
@@ -114,14 +133,7 @@ class DataclassWrapper(Generic[Dataclass]):
 
         if self.defaults:
             logger.debug(f"The nested dataclass had a default value of {self.defaults}")
-            for wrapped_field in self.fields:
-                if self.multiple:
-                    default_field_value = [getattr(default, wrapped_field.name, wrapped_field.default) for default in self.defaults]
-                else:
-                    default_field_value = getattr(self.defaults[0], wrapped_field.name, wrapped_field.default)
-                
-                logger.debug(f"wrapped field at {wrapped_field.dest} has a default value of {wrapped_field.default}")
-                wrapped_field.default = default_field_value
+            
                 
 
         for wrapped_field in self.fields:
@@ -195,19 +207,24 @@ class DataclassWrapper(Generic[Dataclass]):
 
     @property
     def destinations(self) -> List[str]:
-        # logger.debug(f"getting destinations of {self}")
-        # logger.debug(f"self._destinations is {self._destinations}")
-        # logger.debug(f"Parent is {self._parent}")
         if not self._destinations:
             if self._parent:
                 self._destinations = [f"{d}.{self.attribute_name}" for d in self._parent.destinations]
             else:
                 self._destinations = [self.attribute_name]
-        # logger.debug(f"returning {self._destinations}")
         return self._destinations
+
+    @destinations.setter
+    def destinations(self, value: List[str]):
+        self._destinations = value
 
     @property
     def explicit(self) -> bool:
+        """Wether or not all the arguments should have an explicit prefix differentiating them.
+        
+        Returns:
+            bool: Wether or not this wrapper (and all its children, if any) are in explicit mode..
+        """
         return self._explicit
 
     @explicit.setter
@@ -218,31 +235,31 @@ class DataclassWrapper(Generic[Dataclass]):
                 child.explicit = True
         self._explicit = value
 
-
-
     def merge(self, other: "DataclassWrapper"):
         """Absorb all the relevant attributes from another wrapper.
         Args:
             other (DataclassWrapper): Another instance to absorb into this one.
         """
-        logger.debug(f"merging \n{self}\n with \n{other}")
-        self.destinations.extend(other.destinations)
-        # if not isinstance(self.default, list):
-        #     self.default = [self.default]
-        # if not isinstance(other.default, list):
-        #     other.default = [other.default]
+        # logger.info(f"merging \n{self}\n with \n{other}")
+        logger.debug(f"self destinations: {self.destinations}")
+        logger.debug(f"other destinations: {other.destinations}")
+        # assert not set(self.destinations).intersection(set(other.destinations)), "shouldn't have overlap in destinations"
+        # self.destinations.extend(other.destinations)
+        for dest in other.destinations:
+            if dest not in self.destinations:
+                self.destinations.append(dest)
+        logger.debug(f"destinations after merge: {self.destinations}")
         self.defaults.extend(other.defaults)
 
-        for child, other_child in zip(self.descendants, other.descendants):
+        for child, other_child in zip(self._children, other._children):
             child.merge(other_child)
         self.multiple = True
 
-    def instantiate_dataclass(self, constructor_args: Dict[str, Any]) -> Dataclass:
+    def instantiate(self, constructor_args: Dict[str, Any]) -> Dataclass:
         """
         Creates an instance of the dataclass using the given dict of constructor arguments, including nested dataclasses if present.
         """
-        logger.debug(f"args dict: {constructor_args}")
-        
+        logger.debug(f"args dict: {constructor_args}")        
         dataclass = self.dataclass
         logger.debug(f"Constructor arguments for dataclass {dataclass}: {constructor_args}")
         instance: T = dataclass(**constructor_args) #type: ignore

@@ -8,20 +8,18 @@ from dataclasses import dataclass, field, MISSING, Field
 from typing import *
 from enum import Enum
 import logging
-
+import builtins
 logger = logging.getLogger(__name__)
 
+builtin_types = [getattr(builtins, d) for d in dir(builtins) if isinstance(getattr(builtins, d), type)]
 
 T = TypeVar("T")
 Dataclass = TypeVar("Dataclass")
 DataclassType = Type[Dataclass]
-# DataclassType = Type[Dataclass]
 
-def MutableField(default: T, init=True, repr=True, hash=None, compare=True, metadata=None) -> T:
+def MutableField(default: T, init: bool = True, repr: bool = True, hash: bool = None, compare: bool = True, metadata: Dict[str, Any] = None) -> T:
     return field(default_factory=lambda: default, init=init, repr=repr, hash=hash, compare=compare, metadata=metadata) 
 
-# Flag = NewType("Flag", bool)
-Flag = bool
 class InconsistentArgumentError(RuntimeError):
     """
     Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
@@ -33,62 +31,6 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelp
     """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
     """
     pass
-
-
-@dataclass
-class DependenciesGraph:
-    children: Dict[str, List[str]]
-    parent: Dict[str, str]
-
-def dependency_graph(destinations: List[str]) -> DependenciesGraph:
-    destination_to_parent: Dict[str, str] = {}
-    destination_to_children: Dict[str, List[str]] = defaultdict(list)
-
-    destinations = sorted(destinations, key=lambda attribute: attribute.count("."))
-    for destination in destinations:
-        parts = destination.split(".")
-        destination_to_parent[destination] = ".".join(parts[:-1])
-        
-        destination_to_children[".".join(parts[:-1])].append(destination)
-        
-    return DependenciesGraph(destination_to_children, destination_to_parent)
-
-
-
-def _sort_dependencies(args_to_add: Dict[Dataclass, List[str]]):
-    """
-    Idea: sort the order in which we instantiate the dataclasses such that we take care of the dependencies
-
-    Things to keep in mind:
-    1- We currently have to parse all instances for any given dataclass at the same time
-    2- We need to pass the (already parsed) child dataclass instances to their parents's somehow, so that they can be used in the constructor if are required.
-    
-    """
-
-    dataclass_to_destinations = args_to_add.copy()
-    destinations_to_dataclass = {}
-
-    for dataclass, destinations in dataclass_to_destinations.items():
-        for destination in destinations:
-            destinations_to_dataclass[destination] = dataclass
-    destinations = sorted(destinations_to_dataclass.keys(), key=lambda attribute: attribute.count("."))
-
-    while destinations:
-        highest_priority = destinations[0]
-        associated_dataclass = destinations_to_dataclass[destination]
-        all_destinations_for_class = dataclass_to_destinations[dataclass]
-        
-        yield dataclass, all_destinations_for_class
-
-        for parsed_destination in all_destinations_for_class:
-            destinations.remove(parsed_destination)
-
-
-
-def list_field(default = None, init: bool =True, repr=True, hash: bool = None, compare: bool =True, metadata: Dict[str, Any] = None) -> dataclasses.Field:
-    """Shorthand for writing a `dataclasses.field()` that will hold a list of values.
-    """
-    return dataclasses.field(default_factory=lambda: default, init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
 
 def camel_case(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
@@ -113,15 +55,23 @@ def str2bool(v: str) -> bool:
 
 
 def get_item_type(container_type: Type[Container[T]]) -> T:
-    """Returns the `type` of the items in the provided container `type`. When no type annotation is found, or no item type is found, returns `typing.Any`.
+    """Returns the `type` of the items in the provided container `type`. When no type annotation is found, or no item type is found, returns `typing.Type[typing.Any]`.
+    Note, if a Tuple container type is passed, only the first argument to the type is actually used.
     >>> import typing
-    >>> get_item_type(typing.List)
-
-    >>> get_item_type(typing.List[int])
+    >>> from typing import List, Tuple
+    >>> get_item_type(list)
+    typing.Type[typing.Any]
+    >>> get_item_type(List)
+    typing.Type[typing.Any]
+    >>> get_item_type(tuple)
+    typing.Type[typing.Any]
+    >>> get_item_type(Tuple)
+    typing.Type[typing.Any]
+    >>> get_item_type(List[int])
     <class 'int'>
-    >>> get_item_type(typing.List[str])
+    >>> get_item_type(List[str])
     <class 'str'>
-    >>> get_item_type(typing.List[float])
+    >>> get_item_type(List[float])
     <class 'float'>
     >>> get_item_type(List[float])
     <class 'float'>
@@ -145,8 +95,11 @@ def get_item_type(container_type: Type[Container[T]]) -> T:
     if container_type in {list, tuple}:
         # the built-in `list` and `tuple` types don't have annotations for their item types.
         return Type[Any]
-    return getattr(container_type, "__args__", (Type[Any],))[0]
-    
+    type_arguments = getattr(container_type, "__args__", [str])
+    if type_arguments:
+        return type_arguments[0]
+    else:
+        return Type[Any]
 
 def get_argparse_type_for_container(container_type: Type) -> Type:
     """Gets the argparse 'type' option to be used for a given container type.
@@ -160,7 +113,9 @@ def get_argparse_type_for_container(container_type: Type) -> Type:
         typing.Type -- the type that should be used in argparse 'type' argument option.
     """
     T = get_item_type(container_type)
-    return T if T is not None else str
+    return T if T is not Type[Any] else str
+
+
 
 def _mro(t: Type) -> List[Type]:
     return getattr(t, "mro", lambda: [])()
@@ -268,6 +223,23 @@ def get_nesting_level(possibly_nested_list):
         )
 
 
+
+def default_value(field: dataclasses.Field) -> Optional[Any]:
+    """Returns the default value of a dataclass field, if available.
+
+    Args:
+        field (dataclasses.Field[T]): The dataclasses.Field to get the default value of.
+
+    Returns:
+        Optional[T]: The default value for that field, if present, or None otherwise.
+    """
+
+    if field.default is not dataclasses.MISSING:
+        return field.default
+    elif field.default_factory is not dataclasses.MISSING:  # type: ignore
+        return field.default_factory()  # type: ignore
+    else:
+        return None
 
 
 if __name__ == "__main__":

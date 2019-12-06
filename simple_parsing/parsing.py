@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 from . import docstring, utils
 from .wrappers import DataclassWrapper, FieldWrapper
-from .utils import Dataclass, DataclassType, Flag, MutableField
+from .utils import Dataclass, DataclassType, MutableField
 
 Conflict = Tuple[DataclassType, str, List[DataclassWrapper]]
 
@@ -118,11 +118,11 @@ class ArgumentParser(argparse.ArgumentParser):
         logger.debug("\nPREPROCESSING\n")
 
         self._fixed_wrappers = self._fix_conflicts()
-        logger.debug(f"Fixed wrappers: {self._fixed_wrappers}")
+        # logger.debug(f"Fixed wrappers: {self._fixed_wrappers}")
         # Create one argument group per dataclass type
         for dataclass in self._fixed_wrappers:
             for prefix, wrapper in self._fixed_wrappers[dataclass].items():
-                logger.debug(f"Adding arguments for dataclass: {dataclass}, multiple={wrapper.multiple}, prefix = '{wrapper.prefix}'")                
+                logger.debug(f"Adding arguments for dataclass: {dataclass} at destinations {wrapper.destinations}, multiple={wrapper.multiple}, prefix = '{wrapper.prefix}'")                
                 wrapper.add_arguments(parser=self)
 
 
@@ -167,7 +167,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         for destination, wrapper in sorted(wrappers.items(), key=lambda k_v: k_v[1].nesting_level, reverse=True):
             logger.debug(f"wrapper name: {wrapper.attribute_name}, destination: {destination}")
-            constructor = wrapper.instantiate_dataclass
+            constructor = wrapper.instantiate
             constructor_args = self.constructor_arguments[destination]
             # create the dataclass instance.
             instance = constructor(constructor_args)
@@ -207,7 +207,7 @@ class ArgumentParser(argparse.ArgumentParser):
             for field in wrapper.fields:
                 if not field.field.init:
                     continue
-                values = parsed_arg_values.get(field.dest, field.default)
+                values = parsed_arg_values.get(field.dest, field.defaults)
                 # call the action manually.
                 # this sets the right value in the `self.constructor_arguments` dictionary.
                 field(parser=self, namespace=parsed_args, values=values, option_string=None)
@@ -245,7 +245,7 @@ class ArgumentParser(argparse.ArgumentParser):
             conflict = self._get_conflicting_group(self._wrappers)
             assert conflict is not None
             dataclass, prefix, wrappers = conflict
-            logger.debug(f"The following {len(wrappers)} wrappers are in conflict, as they share the same dataclass and prefix:\n" + "\n".join(str(w) for w in wrappers))
+            logger.info(f"The following {len(wrappers)} wrappers are in conflict, as they share the same dataclass and prefix:\n" + "\n".join(str(w) for w in wrappers))
             logger.debug(f"(Conflict Resolution mode is {self.conflict_resolution})")
             if self.conflict_resolution == ConflictResolution.NONE:           
                 self.error(
@@ -293,17 +293,50 @@ class ArgumentParser(argparse.ArgumentParser):
         # IDEA:
         # while the prefixes are the same, starting from the left, remove the first word.
         # Stop when they become different.
-        first_word = prefixes[0][0]
-        while all(prefix[0] == first_word for prefix in prefixes):
-            prefixes = [prefix[1:] for prefix in prefixes]
-            first_word = prefixes[0][0]
 
-        prefixes = [".".join(prefix) for prefix in prefixes]
 
-        for prefix, wrapper in zip(prefixes, wrappers):
+        sentences: Dict[int, List[str]] = {
+            i: sentence for i, sentence in enumerate(prefixes)   
+        }
+        index_prefixes = {
+            i: "" for i, sentence in enumerate(prefixes)
+        }
+        print("conflicting prefixes:", prefixes)
+        # TODO: do something here with the prefixes.
+        def differentiate(prefixes: List[List[str]]):
+            result: Dict[str, List[List[str]]] = defaultdict(list)
+            for sentence in prefixes:
+                first_word = sentence[0]
+                result[first_word].append(sentence)
+
+            return_dict = {}
+            for first_word, sentences in result.items():
+                if len(sentences) == 1:
+                    return_dict[first_word] = ".".join(sentences[0])
+                else:
+                    sentences_without_first_word = [sentence[1:] for sentence in sentences]
+                    return_dict[first_word] = differentiate(sentences_without_first_word)
+            return return_dict
+
+        prefix_dict = differentiate(prefixes)
+        print("Prefix dict:", prefix_dict)
+        dest_to_wrapper: Dict[str, DataclassWrapper] = { wrapper.dest: wrapper for wrapper in wrappers }
+        prefix_to_wrapper: Dict[str, DataclassWrapper] = {}
+        for dest, wrapper in dest_to_wrapper.items():
+            parts = dest.split(".")
+            _prefix_dict = prefix_dict
+            while len(parts) > 1:
+                _prefix_dict = _prefix_dict[parts[0]]
+                parts = parts[1:]
+            prefix = _prefix_dict[parts[0]]
+            prefix_to_wrapper[prefix] = wrapper
+        
+        for prefix, wrapper in prefix_to_wrapper.items():
+            logger.info(f"Wrapper for attribute {wrapper.dest} has prefix '{prefix}'.")
             self._unregister_dataclass(wrapper)
             wrapper.prefix = prefix + "."
             self._register_dataclass(wrapper)
+
 
     def _fix_conflict_merge(self, conflict):
         """Fix conflicts using the merging approach:
@@ -339,8 +372,10 @@ class ArgumentParser(argparse.ArgumentParser):
         wrapper_for_destination: Dict[str, DataclassWrapper[DataclassType]] = {}
         for dataclass in self._fixed_wrappers.keys():
             for prefix, wrapper in self._fixed_wrappers[dataclass].items():
+                logger.info(f"prefix: '{prefix}', wrapper destinations: {wrapper.destinations}")
                 for dest in wrapper.destinations:
-                    assert dest not in wrapper_for_destination
+                    assert dest not in wrapper_for_destination, f"There is already a wrapper for destination '{dest}': {wrapper_for_destination[dest]}"
                     wrapper_for_destination[dest] = wrapper
+                    logger.info(f"Setting a wrapper for destination {dest}")
         return wrapper_for_destination
         

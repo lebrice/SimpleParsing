@@ -9,15 +9,16 @@ from ..utils import Dataclass, DataclassType
 
 logger = logging.getLogger(__name__)
 
+from ..utils import T
 
 @dataclasses.dataclass
-class FieldWrapper:
+class FieldWrapper(Generic[T]):
     field: dataclasses.Field
-    parent: "DataclassWrapper" = dataclasses.field(repr=False)
+    parent: Any = dataclasses.field(repr=False)
     _required: Optional[bool] = None
     _docstring: Optional[docstring.AttributeDocString] = None
     _multiple: bool = False
-    _default: Any = None
+    _defaults: Any = None
     _help: Optional[str] = None
     # the argparse-related options:
     _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=dict)
@@ -26,7 +27,7 @@ class FieldWrapper:
         try:
             self._docstring = docstring.get_attribute_docstring(self.parent.dataclass, self.field.name)
         except (SystemExit, Exception) as e:
-            logger.warning("Couldn't find attribute docstring:", e)
+            logger.info("Couldn't find attribute docstring:", e)
             self._docstring = docstring.AttributeDocString()
 
     def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: Any, option_string: Optional[str] = None):
@@ -42,8 +43,8 @@ class FieldWrapper:
         else:
             values = [values]
 
-        default_values = self.default
-        logger.debug(f"Default values: {self.default}")
+        default_values = self.defaults
+        logger.debug(f"Default values: {self.defaults}")
         for destination, value in zip(self.destinations, values):
             parent_dest, attribute = utils.parent_and_child(destination)
             logger.debug(f"Before processing the value: {value}")
@@ -81,39 +82,45 @@ class FieldWrapper:
             raise utils.InconsistentArgumentError(
                 f"The field '{self.name}' contains {len(parsed_values)} values, but either 1 or {num_instances_to_parse} values were expected."
             )
-        
-
-
         return parsed_values
 
-    def process(self, value: Any) -> Any:
-        """Apply any corrections from the 'raw' parsed values to the constructor arguments dict.
+    def process(self, parsed_value: Any) -> Any:
+        """Applies any conversions to the 'raw' parsed value before it is used in the constructor of the dataclass.
         
         Args:
-            parsed_values (Any): [description]
+            parsed_value (Any): The 'raw' parsed value.
         
         Returns:
             Any: The processed value
         """
-        if utils.is_enum(self.field.type):
-            logger.debug(f"field postprocessing for Enum field '{self.name}' with value '{value}'")
-            return self.process_enum(value)
-        elif utils.is_tuple(self.field.type):
+        if self.is_enum:
+            logger.debug(f"field postprocessing for Enum field '{self.name}' with value '{parsed_value}'")
+            return self.process_enum(parsed_value)
+        elif self.is_tuple:
             # argparse always returns lists by default. If the field was of a Tuple type, we just transform the list to a Tuple.
-            if not isinstance(value, tuple):
-                return tuple(value)
-        elif utils.is_list(self.field.type):
-            if not isinstance(value, list):
-                return list(value)
-        elif utils.is_bool(self.field.type):
-            if value is None and self.default is not None:
+            if not isinstance(parsed_value, tuple):
+                return tuple(parsed_value)
+        elif self.is_list:
+            if not isinstance(parsed_value, list):
+                return list(parsed_value)
+        elif self.is_bool:
+            if parsed_value is None and self.defaults is not None:
                 logger.debug("value is None, returning opposite of default")
-                return not self.default
-            return value
-        
+                return not self.defaults
+            return parsed_value
+        elif self.field.type not in utils.builtin_types:
+            try:
+                # if the field has a weird type, we try to call it directly.
+                return self.field.type(parsed_value)
+            except Exception as e:
+                logger.warning(
+                    f"Unable to instantiate the field '{self.name}' of type '{self.field.type}' by using the type as a constructor."
+                    f"Returning the raw parsed value instead ({parsed_value}, of type {type(parsed_value)}). (Caught Exception: {e})"
+                )
+                return parsed_value
 
-        logger.debug(f"field postprocessing for field of unknown type '{self.field.type}' and of value '{value}'")
-        return value
+        logger.debug(f"field postprocessing for field of unknown type '{self.field.type}' and with value '{parsed_value}'")
+        return parsed_value
 
     def process_enum(self, value: Union[str, enum.Enum]):
         if isinstance(value, str):
@@ -157,7 +164,7 @@ class FieldWrapper:
         the constructor arguments in the parser!
         """
         lineage = []
-        parent: Optional["DataclassWrapper"] = self.parent
+        parent = self.parent
         while parent is not None:
             lineage.append(parent.attribute_name)
             parent = parent._parent
@@ -175,18 +182,20 @@ class FieldWrapper:
         return self.arg_options.get("const")
 
     @property
-    def default(self):
-        if self._default is not None:
-            return self._default
-        elif self.field.default is not dataclasses.MISSING:
-            return self.field.default
-        elif self.field.default_factory is not dataclasses.MISSING: # type: ignore
-            return self.field.default_factory() # type: ignore
-        return None
+    def defaults(self) -> Optional[Union[Any, List[Any]]]:
+        # if self._default is not None:
+        #     return self._default
+        if self.parent.defaults:
+            self._defaults = [getattr(default, self.name) for default in self.parent.defaults]
+            if not self.multiple and self._defaults:
+                self._defaults = self._defaults[0]    
+        else:
+            self._defaults = utils.default_value(self.field)
+        return self._defaults
 
-    @default.setter
-    def default(self, value: Any):
-        self._default = value
+    @defaults.setter
+    def defaults(self, value: Any):
+        self._defaults = value
 
     @property
     def type(self):
@@ -202,8 +211,10 @@ class FieldWrapper:
             return self._required
         if self.parent and self.parent.required:
             self._required = True
-        elif self.default is None:
+        elif self.defaults is None:
             self._required = True
+        # elif isinstance(self.defaults, list) and not self.defaults:
+        #     self._required = True
         else:
             self._required = False
         return self._required
@@ -251,24 +262,25 @@ class FieldWrapper:
             assert False, "Shouldn't have created a FieldWrapper for a list of dataclasses in the first place!"
 
         _arg_options: Dict[str, Any] = {}
-        _arg_options["type"] = self.field.type        
+        # TODO: should we explicitly use `str` whenever the type isn't known?
+        _arg_options["type"] = self.field.type if self.field.type in utils.builtin_types else str
         _arg_options["help"] = self.help
-        _arg_options["default"] = self.default
+        _arg_options["default"] = self.defaults
         _arg_options["required"] = self.required
 
         if utils.is_enum(self.field.type):
             _arg_options["choices"] = list(e.name for e in f.type)
             _arg_options["type"] = str # otherwise we can't parse the enum, as we get a string.
-            if self.default is not None:
+            if self.defaults is not None:
                 # if the default value is the Enum object, we make it a string
-                if isinstance(self.default, enum.Enum):
-                    _arg_options["default"] = self.default.name
+                if isinstance(self.defaults, enum.Enum):
+                    _arg_options["default"] = self.defaults.name
         
         elif utils.is_list(f.type):
             # Check if typing.List or typing.Tuple was used as an annotation, in which case we can automatically convert items to the desired item type.
             # NOTE: we only support tuples with a single type, for simplicity's sake. 
             T = utils.get_argparse_type_for_container(self.field.type)
-            logging.debug(f"Adding a List attribute '{self.name}' with items of type '{T}'")
+            logger.debug(f"Adding a List attribute '{self.name}' with items of type '{T}'")
             _arg_options["nargs"] = "*"
             _arg_options["type"] = T
             if self.multiple:
@@ -293,7 +305,7 @@ class FieldWrapper:
   
         elif f.type is bool:
             _arg_options["type"] = utils.str2bool
-            if self.default is not None:
+            if self.defaults is not None:
                 _arg_options["nargs"] = "?"
             
         if multiple:

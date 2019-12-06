@@ -11,20 +11,20 @@ from simple_parsing import *
 
 from .example_use_cases import TrainConfig, RunConfig, HParams
 
+
 @dataclass
-class ClassA():
+class ClassA:
     a: int = 1
 
 
 @dataclass
-class ClassB():
+class ClassB:
     b: int = 2
 
 
 @dataclass
-class ClassC():
+class ClassC:
     c: int = 3
-
 
 @dataclass
 class Container1(TestSetup):

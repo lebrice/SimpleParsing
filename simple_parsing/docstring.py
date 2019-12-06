@@ -3,9 +3,12 @@
 """
 import inspect
 import typing
+import logging
 from dataclasses import dataclass
 from typing import *
 from argparse import ArgumentTypeError
+
+logger = logging.getLogger(__name__)
 
 @dataclass(unsafe_hash=True)
 class AttributeDocString():
@@ -197,7 +200,7 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
                 #     print(f"line {i}: <{line}>")
                 # print(f"token: <{token}>")
                 # print(line_str)
-                raise Warning("Unable to parse attribute docstring")
+                logger.warning("Warning: Unable to parse attribute docstring docstring")
                 return ""
             
             # get the string portion of the line (after a token or possibly between two tokens).
