@@ -200,7 +200,7 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
                 #     print(f"line {i}: <{line}>")
                 # print(f"token: <{token}>")
                 # print(line_str)
-                logger.warning("Warning: Unable to parse attribute docstring docstring")
+                logger.debug(f"Warning: Unable to parse attribute docstring: {line_str}")
                 return ""
             
             # get the string portion of the line (after a token or possibly between two tokens).

@@ -9,9 +9,10 @@ from . import TestSetup
 from simple_parsing import (Formatter, InconsistentArgumentError,
                             ArgumentParser, ConflictResolution)
 
-from .example_use_cases import HyperParameters, TaskModelParams
+from .example_use_cases import HyperParameters, TaskHyperParameters
 
 def test_real_use_case():
+    default = HyperParameters()
     hparams = HyperParameters.setup(
         "--hyper_parameters.age_group.num_layers 5",
         conflict_resolution_mode=ConflictResolution.EXPLICIT
@@ -21,7 +22,7 @@ def test_real_use_case():
     assert hparams.age_group.num_layers == 5
     assert hparams.gender.num_layers == 1
     assert hparams.gender.num_units == 32
-    assert isinstance(hparams.age_group, TaskModelParams)
+    assert isinstance(hparams.age_group, TaskHyperParameters)
     assert hparams.age_group.use_likes == True
 
 if __name__ == "__main__":

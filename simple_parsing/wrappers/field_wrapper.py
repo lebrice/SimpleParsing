@@ -27,7 +27,7 @@ class FieldWrapper(Generic[T]):
         try:
             self._docstring = docstring.get_attribute_docstring(self.parent.dataclass, self.field.name)
         except (SystemExit, Exception) as e:
-            logger.info("Couldn't find attribute docstring:", e)
+            logger.debug(f"Couldn't find attribute docstring: {e}")
             self._docstring = docstring.AttributeDocString()
 
     def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: Any, option_string: Optional[str] = None):

@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from typing import *
 from test.testutils import *
 from simple_parsing import ArgumentParser, MutableField, ConflictResolution
-
+import pytest
+import logging
 T = TypeVar("T", str, int, float)
 
 
@@ -169,4 +170,10 @@ def test_weird_with_duplicates_and_at_different_levels():
     assert aabbccdd.ccdd.dd.d1.d == "ccdd_dd_d_1"
     assert aabbccdd.ccdd.dd.d2.d == "ccdd_dd_d_2"
 
-    # assert False, AABBCCDDWeird.get_help_text()
+
+def test_defaults(datascience_example):
+    HyperParameters, TaskHyperParameters = datascience_example
+    default = HyperParameters()
+    parsed = HyperParameters.setup("")
+    for attr, value in vars(default).items():
+        assert getattr(parsed, attr) == value

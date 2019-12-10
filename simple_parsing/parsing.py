@@ -301,7 +301,7 @@ class ArgumentParser(argparse.ArgumentParser):
         index_prefixes = {
             i: "" for i, sentence in enumerate(prefixes)
         }
-        print("conflicting prefixes:", prefixes)
+        logger.debug(f"conflicting prefixes: {prefixes}")
         # TODO: do something here with the prefixes.
         def differentiate(prefixes: List[List[str]]):
             result: Dict[str, List[List[str]]] = defaultdict(list)
@@ -319,7 +319,7 @@ class ArgumentParser(argparse.ArgumentParser):
             return return_dict
 
         prefix_dict = differentiate(prefixes)
-        print("Prefix dict:", prefix_dict)
+        logger.debug(f"Prefix dict: {prefix_dict}")
         dest_to_wrapper: Dict[str, DataclassWrapper] = { wrapper.dest: wrapper for wrapper in wrappers }
         prefix_to_wrapper: Dict[str, DataclassWrapper] = {}
         for dest, wrapper in dest_to_wrapper.items():
@@ -332,7 +332,7 @@ class ArgumentParser(argparse.ArgumentParser):
             prefix_to_wrapper[prefix] = wrapper
         
         for prefix, wrapper in prefix_to_wrapper.items():
-            logger.info(f"Wrapper for attribute {wrapper.dest} has prefix '{prefix}'.")
+            logger.debug(f"Wrapper for attribute {wrapper.dest} has prefix '{prefix}'.")
             self._unregister_dataclass(wrapper)
             wrapper.prefix = prefix + "."
             self._register_dataclass(wrapper)
@@ -372,10 +372,10 @@ class ArgumentParser(argparse.ArgumentParser):
         wrapper_for_destination: Dict[str, DataclassWrapper[DataclassType]] = {}
         for dataclass in self._fixed_wrappers.keys():
             for prefix, wrapper in self._fixed_wrappers[dataclass].items():
-                logger.info(f"prefix: '{prefix}', wrapper destinations: {wrapper.destinations}")
+                logger.debug(f"prefix: '{prefix}', wrapper destinations: {wrapper.destinations}")
                 for dest in wrapper.destinations:
                     assert dest not in wrapper_for_destination, f"There is already a wrapper for destination '{dest}': {wrapper_for_destination[dest]}"
                     wrapper_for_destination[dest] = wrapper
-                    logger.info(f"Setting a wrapper for destination {dest}")
+                    logger.debug(f"Setting a wrapper for destination {dest}")
         return wrapper_for_destination
         

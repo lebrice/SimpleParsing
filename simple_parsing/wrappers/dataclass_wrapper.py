@@ -75,7 +75,7 @@ class DataclassWrapper(Generic[Dataclass]):
                 self.fields.append(field_wrapper)
         
         
-        logger.info(f"THe dataclass at attribute {self.dest} has default values: {self.defaults}")
+        logger.debug(f"THe dataclass at attribute {self.dest} has default values: {self.defaults}")
 
 
     @property
