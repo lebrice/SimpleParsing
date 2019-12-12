@@ -22,6 +22,8 @@ class HParams:
     num_layers: int = default_num_layers
     # the number of neurons at each layer
     neurons_per_layer: List[int] = field(default_factory=lambda: [128] * HParams.default_num_layers)
+
+
 @dataclass
 class RunConfig:
     """
@@ -42,6 +44,7 @@ class TrainConfig:
     """
     Top-level settings for multiple runs.
     """
+    experiment_name: str = "default"
     # run config to be used during training
     train: RunConfig = RunConfig(log_dir="train")
     # run config to be used during validation.
@@ -49,7 +52,7 @@ class TrainConfig:
 
 from simple_parsing import ConflictResolution
 
-parser = ArgumentParser(conflict_resolution=ConflictResolution.EXPLICIT)
+parser = ArgumentParser(conflict_resolution=ConflictResolution.AUTO)
 parser.add_arguments(TrainConfig, "train_config")
 args = parser.parse_args()
 train_config: TrainConfig = args.train_config
