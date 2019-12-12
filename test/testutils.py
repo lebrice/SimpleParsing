@@ -18,7 +18,12 @@ Dataclass = TypeVar("Dataclass")
 
 class TestSetup():
     @classmethod
-    def setup(cls: Type[Dataclass], arguments: Optional[str] = "", dest: Optional[str] = None, conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO) -> Dataclass:
+    def setup(cls: Type[Dataclass],
+              arguments: Optional[str] = "",
+              dest: Optional[str] = None,
+              conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
+              is_only_argparse_argument=True,              
+              ) -> Dataclass:
         """Basic setup for a test.
         
         Keyword Arguments:
@@ -41,6 +46,9 @@ class TestSetup():
             args = parser.parse_args(splits)
         assert hasattr(args, dest), f"attribute '{dest}' not found in args {args}"
         instance: Dataclass = getattr(args, dest) #type: ignore
+        delattr(args, dest)
+        if is_only_argparse_argument:
+            assert args == argparse.Namespace(), f"Namespace has leftover garbage values: {args}"
         return instance
     
     @classmethod

@@ -211,13 +211,15 @@ class ArgumentParser(argparse.ArgumentParser):
                 # call the action manually.
                 # this sets the right value in the `self.constructor_arguments` dictionary.
                 field(parser=self, namespace=parsed_args, values=values, option_string=None)
-
+                
         #Clean up the 'parsed_args' by deleting all the consumed attributes.
-        deleted_values: Dict[str, Any] = {
-            field.dest: parsed_arg_values.pop(field.dest, None) for field in wrapper.fields for wrapper in wrappers.values()
-        }
+        deleted_values: Dict[str, Any] = {}
+        for wrapper in wrappers.values():
+            for field in wrapper.fields:
+                deleted_values[field.dest] = parsed_arg_values.pop(field.dest, None)
         leftover_args = argparse.Namespace(**parsed_arg_values)
         logger.debug(f"deleted values: {deleted_values}")
+        logger.debug(f"leftover args: {leftover_args}")
         return leftover_args
 
     def _get_conflicting_group(self, all_wrappers: Dict[DataclassType, Dict[str, List[DataclassWrapper[DataclassType]]]]) -> Optional[Conflict]:

@@ -11,7 +11,7 @@ import pytest
 import simple_parsing
 
 from .testutils import *
-
+from .test_examples.dataclasses_with_methods import HyperParameters
 
 @parametrize(
     "some_type, default_value",
@@ -32,6 +32,29 @@ def test_default_value_is_used_when_no_args_are_provided(some_type: Type, defaul
     assert class_a.a == default_value
     assert isinstance(class_a.a, some_type)
 
+
+
+@parametrize(
+    "some_type, default_value,  arg_value",
+    [
+        (int,   0,      1234),
+        (float, 0.,     123.456),
+        (str,   "",     "bobby_boots"),
+        (bool,  False,  True),
+    ])
+def test_works_fine_with_other_argparse_arguments(some_type: Type, default_value: Any, arg_value: Any):
+    @dataclass
+    class SomeClass:
+        a: some_type = default_value # type: ignore
+        """some docstring for attribute 'a'"""
+    parser = ArgumentParser()
+    parser.add_argument("--x", type=int)
+    parser.add_arguments(SomeClass, dest="some_class")
+
+    x = 123
+    args = parser.parse_args(shlex.split(f"--x {x} --a {arg_value}"))
+    assert args == argparse.Namespace(some_class=SomeClass(a=arg_value), x=x)
+    
 
 
 @parametrize(
