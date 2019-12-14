@@ -11,7 +11,7 @@ import pytest
 import simple_parsing
 
 from .testutils import *
-from .test_examples.dataclasses_with_methods import HyperParameters
+# from test.test_examples.dataclasses_with_methods import HyperParameters
 
 @parametrize(
     "some_type, default_value",
