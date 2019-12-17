@@ -2,7 +2,45 @@ import pytest
 from dataclasses import dataclass, field
 from typing import *
 import logging
-from . import TestSetup
+from .testutils import TestSetup
+
+# List of simple attributes to use in test:
+simple_arguments: List[Tuple[Type, Any, Any]] = [
+    # type, passed value, expected (parsed) value
+    (int,   "123",  123),
+    (int,   123,    123),
+    (int,   "-1",     -1),
+
+    (float, "123.0",  123.0),
+    (float, "'0.0'",  0.0),
+    (float, "0.123",  0.123),
+    (float, "0.123",  0.123),
+    (float, 0.123,  0.123),
+    (float, 123,  123.0),
+
+    (bool, "True",  True),
+    (bool, "False",  False),
+    (bool, "true",  True),
+    (bool, "false",  False),
+    (bool, "yes",  True),
+    (bool, "no",  False),
+    (bool, "T",  True),
+    (bool, "F",  False),
+
+    (str, "bob", "bob"),
+    (str, "'bob'", "bob"),
+    (str, "''", ""),
+    (str, "[123]", "[123]"),
+    (str, "123", "123"),
+]
+
+@pytest.fixture(params=simple_arguments)
+def simple_attribute(request):
+    """ Test fixture that produces an tuple of (type, passed value, expected value) """
+    some_type, passed_value, expected_value = request.param
+    logging.debug(f"Attribute type: {some_type}, passed value: '{passed_value}', expected: '{expected_value}'")
+    return request.param
+
 
 @pytest.fixture
 def no_stdout(capsys, caplog):
@@ -17,7 +55,6 @@ def no_stdout(capsys, caplog):
     assert captured.out == ""
     assert captured.err == ""
 
-
 @pytest.fixture
 def no_warnings(caplog):
     yield
@@ -30,11 +67,21 @@ def no_warnings(caplog):
                 "warning messages encountered during testing: {}".format(messages)
             )
 
+@pytest.fixture
+def silent(no_stdout, no_warnings):
+    """
+    Test fixture that will make a test fail if it prints anything to stdout or 
+    logs warnings
+    """
+    pass
+
+
+from simple_parsing.utils import JsonSerializable
 
 @pytest.fixture
 def datascience_example():
     @dataclass
-    class TaskHyperParameters(TestSetup):
+    class TaskHyperParameters(TestSetup, JsonSerializable):
         """
         HyperParameters for a task-specific model
         """
@@ -63,9 +110,9 @@ def datascience_example():
         # Wether or not a task-specific Embedding layer should be used on the 'likes' features.
         # When set to 'True', it is expected that there no shared embedding is used.
         embed_likes: bool = False
-
+    
     @dataclass
-    class HyperParameters(TestSetup):
+    class HyperParameters(TestSetup, JsonSerializable):
         """Hyperparameters of our model."""
         # the batch size
         batch_size: int = 128

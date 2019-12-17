@@ -22,8 +22,7 @@ class HParams(TestSetup):
     learning_rate: float = 0.005 
     # name of the optimizer class to use
     optimizer: str = "ADAM"
-    
-    
+
     default_num_layers: ClassVar[int] = 10
     
     # number of layers.

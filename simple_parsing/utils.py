@@ -9,6 +9,8 @@ from typing import *
 from enum import Enum
 import logging
 import builtins
+import json
+
 logger = logging.getLogger(__name__)
 
 builtin_types = [getattr(builtins, d) for d in dir(builtins) if isinstance(getattr(builtins, d), type)]
@@ -240,6 +242,52 @@ def default_value(field: dataclasses.Field) -> Optional[Any]:
         return field.default_factory()  # type: ignore
     else:
         return None
+
+
+class JsonSerializable:
+    """
+    Enables reading and writing a Dataclass to a JSON file.
+    
+    >>> from dataclasses import dataclass
+    >>> from simple_parsing.utils import JsonSerializable
+    >>> @dataclass
+    ... class Config(JsonSerializable):
+    ...   a: int = 123
+    ...   b: str = "456"
+    ... 
+    >>> config = Config()
+    >>> config
+    Config(a=123, b='456')
+    >>> config.save_json("config.json")
+    >>> config_ = Config.load_json("config.json")
+    >>> config_
+    Config(a=123, b='456')
+    >>> assert config == config_
+    >>> import os
+    >>> os.remove("config.json")
+    """
+
+    def save_json(self, path: str):
+        with open(path, "w") as f:
+            dict_ = dataclasses.asdict(self)
+            json.dump(dict_, f, indent=1)
+
+    @staticmethod
+    def from_dict(dataclass: Type[Dataclass], d: Dict[str, Any]) -> Dataclass:
+        for field in dataclasses.fields(dataclass):
+            if dataclasses.is_dataclass(field.type):
+                # nested dataclass:
+                args_dict = d[field.name]
+                nested_instance = JsonSerializable.from_dict(field.type, args_dict)
+                d[field.name] = nested_instance
+        return dataclass(**d) # type: ignore
+
+    @classmethod
+    def load_json(cls, path: str):
+        with open(path) as f:
+            args_dict = json.load(f)
+        return JsonSerializable.from_dict(cls, args_dict)
+
 
 
 if __name__ == "__main__":

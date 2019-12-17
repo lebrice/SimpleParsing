@@ -60,3 +60,13 @@ class Temperature(enum.IntEnum):
 ])
 def test_is_enum(t: Type):
     assert utils.is_enum(t)
+
+
+def test_json_serializable(datascience_example, tmpdir):
+    HyperParameters, _ = datascience_example
+    hparams = HyperParameters()
+    import os
+    filename = "hparams.json"
+    hparams.save_json(os.path.join(tmpdir,  filename))
+    hparams_ = HyperParameters.load_json(os.path.join(tmpdir, filename))
+    assert hparams == hparams_

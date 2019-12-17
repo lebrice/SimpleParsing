@@ -11,7 +11,7 @@ from simple_parsing import (Formatter, InconsistentArgumentError,
 
 from .example_use_cases import HyperParameters
 
-def test_real_use_case():
+def test_real_use_case(no_warnings, no_stdout):
     hparams = HyperParameters.setup(
         "--age_group.num_layers 5 "
         "--age_group.num_units 65 "

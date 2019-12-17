@@ -11,76 +11,54 @@ import pytest
 import simple_parsing
 
 from .testutils import *
-# from test.test_examples.dataclasses_with_methods import HyperParameters
 
-@parametrize(
-    "some_type, default_value",
-    [
-        (int,   123524),
-        (float, 123.456),
-        (str,   "bob"),
-        (bool,  True),
-    ]
-)
-def test_default_value_is_used_when_no_args_are_provided(some_type: Type, default_value):
+
+def test_basic_required_argument(simple_attribute, silent):
+    some_type, passed_value, expected_value = simple_attribute
     @dataclass
-    class SomeClass(TestSetup):
-        a: some_type = default_value # type: ignore
-        """some docstring for attribute 'a'"""
+    class SomeDataclass(TestSetup):
+        some_attribute: some_type # type: ignore
     
-    class_a = SomeClass.setup()
-    assert class_a.a == default_value
-    assert isinstance(class_a.a, some_type)
+    actual = SomeDataclass.setup(f"--some_attribute {passed_value}")
+    assert actual.some_attribute == expected_value
+    assert isinstance(actual.some_attribute, some_type)
 
 
+def test_not_passing_required_argument_raises_error(simple_attribute):
+    some_type, passed_value, expected_value = simple_attribute
+    @dataclass
+    class SomeDataclass(TestSetup):
+        some_attribute: some_type # type: ignore
+    
+    with pytest.raises(SystemExit):
+        actual = SomeDataclass.setup("")
 
-@parametrize(
-    "some_type, default_value,  arg_value",
-    [
-        (int,   0,      1234),
-        (float, 0.,     123.456),
-        (str,   "",     "bobby_boots"),
-        (bool,  False,  True),
-    ])
-def test_works_fine_with_other_argparse_arguments(some_type: Type, default_value: Any, arg_value: Any):
+
+def test_basic_optional_argument(simple_attribute, silent):
+    some_type, _, expected_value = simple_attribute
+    @dataclass
+    class SomeDataclass(TestSetup):
+        some_attribute: some_type = expected_value# type: ignore
+    
+    actual = SomeDataclass.setup("")
+    assert actual.some_attribute == expected_value
+    assert isinstance(actual.some_attribute, some_type)
+
+
+def test_works_fine_with_other_argparse_arguments(simple_attribute):
+    some_type, passed_value, expected_value = simple_attribute
     @dataclass
     class SomeClass:
-        a: some_type = default_value # type: ignore
+        a: some_type # type: ignore
         """some docstring for attribute 'a'"""
+    
     parser = ArgumentParser()
     parser.add_argument("--x", type=int)
     parser.add_arguments(SomeClass, dest="some_class")
 
     x = 123
-    args = parser.parse_args(shlex.split(f"--x {x} --a {arg_value}"))
-    assert args == argparse.Namespace(some_class=SomeClass(a=arg_value), x=x)
-    
-
-
-@parametrize(
-    "some_type, default_value",
-    [
-        (int,   123524),
-        (float, 123.456),
-        (str,   "bob"),
-        (bool,  True),
-    ]
-)
-def test_arguments_are_cleaned_up(some_type: Type, default_value):
-    @dataclass
-    class SomeClass(TestSetup):
-        a: some_type = default_value # type: ignore
-        """some docstring for attribute 'a'"""
-    
-    parser = ArgumentParser()
-    parser.add_arguments(SomeClass, "some_class")
-    args = parser.parse_args("")
-    some_class: SomeClass = args.some_class
-    delattr(args, "some_class")
-    assert args == argparse.Namespace()
-
-
-
+    args = parser.parse_args(shlex.split(f"--x {x} --a {passed_value}"))
+    assert args == argparse.Namespace(some_class=SomeClass(a=expected_value), x=x)
 
 @parametrize(
     "some_type, default_value,  arg_value",

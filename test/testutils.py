@@ -47,8 +47,7 @@ class TestSetup():
         assert hasattr(args, dest), f"attribute '{dest}' not found in args {args}"
         instance: Dataclass = getattr(args, dest) #type: ignore
         delattr(args, dest)
-        if is_only_argparse_argument:
-            assert args == argparse.Namespace(), f"Namespace has leftover garbage values: {args}"
+        assert args == argparse.Namespace(), f"Namespace has leftover garbage values: {args}"
         return instance
     
     @classmethod
