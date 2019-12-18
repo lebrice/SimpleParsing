@@ -4,7 +4,7 @@
 
 SimpleParsing allows you to group related command-line arguments into dataclasses and let the ArgumentParser take care of creating the arguments for you. 
 
-## Documentation: [SimpleParsing Repo](https://github.com/lebrice/SimpleParsing/tree/master/docs)
+## Documentation (Work In Progress): [simple-parsing docs](https://github.com/lebrice/SimpleParsing/tree/master/docs)
 
 ## installation
 | python version |                command                  |
