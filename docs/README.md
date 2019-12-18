@@ -1,19 +1,7 @@
-Welcome to the SimpleParsing wiki!
-[![Build Status](https://travis-ci.org/lebrice/SimpleParsing.svg?branch=master)](https://travis-ci.org/lebrice/SimpleParsing)
+# Simple-Parsing Documentation
 
-# Simple, Elegant Argument Parsing
+SimpleParsing allows you to group related command-line arguments into neat, reusable dataclasses and let the ArgumentParser take care of creating the arguments for you. 
 
-SimpleParsing allows you to group related command-line arguments into dataclasses and let the ArgumentParser take care of creating the arguments for you. 
-
-## Documentation: [SimpleParsing Repo](https://github.com/lebrice/SimpleParsing/tree/master/docs)
-
-## installation
-| python version |                command                  |
-|----------------|-----------------------------------------|
-|>= 3.7          | `pip install simple-parsing`            |
-|== 3.6.X        | `pip install dataclasses simple-parsing`|
-
-## Documentation
 1. Intro to Python's `@dataclass`:
      - The official [dataclasses module documentation](https://docs.python.org/3.7/library/dataclasses.html)
      - [dataclass_example.py](examples/dataclasses/dataclass_example.py): a simple toy example showing an example of a dataclass
