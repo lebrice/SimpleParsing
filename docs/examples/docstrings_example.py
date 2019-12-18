@@ -2,10 +2,10 @@
 A simple example to demonstrate the 'attribute docstrings' mechanism of simpleparse.
     
 A docstring can either be: 
-    - An inline comment after the attribute definition
-    - A single or multi-line comment on the preceding line(s)
-    - A single or multi-line docstring on the following line(s), starting
-    with either <\"\"\"> or <'''> and ending with the same token.
+    - A comment on the same line as the attribute definition
+    - A single or multi-line comment on line(s) preceding the attribute definition 
+    - A single or multi-line docstring on the line(s) following the attribute
+    definition, starting with either <\"\"\"> or <'''> and ending with the same token.
 
 When more than one docstring options are present, one of them is chosen to
 be used as the '--help' text of the attribute, according to the following ordering:

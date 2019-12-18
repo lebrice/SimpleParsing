@@ -52,8 +52,9 @@ class TrainConfig:
 
 from simple_parsing import ConflictResolution
 
-parser = ArgumentParser(conflict_resolution=ConflictResolution.AUTO)
-parser.add_arguments(TrainConfig, "train_config")
-args = parser.parse_args()
-train_config: TrainConfig = args.train_config
-pprint(asdict(train_config), compact=True)
+if __name__ == "__main__":
+    parser = ArgumentParser(conflict_resolution=ConflictResolution.AUTO)
+    parser.add_arguments(TrainConfig, "train_config")
+    args = parser.parse_args()
+    train_config: TrainConfig = args.train_config
+    pprint(asdict(train_config), compact=True)

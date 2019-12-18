@@ -27,11 +27,12 @@ class Options:
 
 parser.add_arguments(Options, dest="options")
 
-args = parser.parse_args()
-print(vars(args))
-# retrieve the parsed values:
-batch_size = args.batch_size
-options: Options = args.options
+if __name__ == "__main__":    
+    args = parser.parse_args()
+    print(vars(args))
+    # retrieve the parsed values:
+    batch_size = args.batch_size
+    options: Options = args.options
 
 """$ python ./examples/basic_example_after.py --help
 usage: basic_example_after.py [-h] [--batch_size int] --some_required_int int

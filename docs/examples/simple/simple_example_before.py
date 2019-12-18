@@ -22,15 +22,16 @@ group.add_argument("--log_dir", type=str, default="/logs",
 group.add_argument("--flag", action="store_true",
                    default=False, help="Wether or not to do something")
 
-args = parser.parse_args()
-print(vars(args))
+if __name__ == "__main__":  
+    args = parser.parse_args()
+    print(vars(args))
 
-batch_size = args.batch_size
-some_required_int = args.some_required_int
-some_float = args.some_float
-name = args.name
-log_dir = args.log_dir
-flag = args.flag
+    batch_size = args.batch_size
+    some_required_int = args.some_required_int
+    some_float = args.some_float
+    name = args.name
+    log_dir = args.log_dir
+    flag = args.flag
 
 """$ python examples/basic_example_before.py --help
 usage: basic_example_before.py [-h] [--batch_size BATCH_SIZE]
