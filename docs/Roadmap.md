@@ -5,7 +5,7 @@
     * `list` attributes
     * `tuple` attributes
 * Parsing of multiple instances of a given dataclass, for the above-mentioned attribute types
+* Nested parsing of instances (dataclasses within dataclasses)
 
 ## Possible Future Enhancements: 
-* Nested parsing of instances (dataclasses within dataclasses)
 * Parsing two different dataclasses which share a base class (this currently would cause a conflict for the base class arguments.
