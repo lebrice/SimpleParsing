@@ -1,4 +1,4 @@
-## Use-Case Example: ML Scripts <a name="ml-example"></a>
+## Use-Case Example: ML Scripts
 Let's look at a great use-case for `simple-parsing`: ugly ML code:
 ### Before:
 ```python

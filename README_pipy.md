@@ -57,7 +57,7 @@ Options ['options']:
 ## Documentation (Work In Progress): [simple-parsing docs](https://github.com/lebrice/SimpleParsing)
 
 ## Features 
-- [Automatic "--help" strings](examples/docstrings_example.py)
+- [Automatic "--help" strings](https://github.com/lebrice/SimpleParsing/tree/master/examples/docstrings_example.py)
 
     As developers, we want to make it easy for people coming into our projects to understand how to run them. However, a user-friendly `--help` message is often hard to write and to maintain, especially as the number of arguments increases.
 
@@ -84,18 +84,18 @@ Options ['options']:
     Options(experiment_name='validation', learning_rate=0.0001)
     ```
         
-    These prefixes can also be set explicitly, or not be used at all. For more info, take a look at the [Prefix Example](examples/prefix_example.py)
+    These prefixes can also be set explicitly, or not be used at all. For more info, take a look at the [Prefix Example](https://github.com/lebrice/SimpleParsing/tree/master/examples/prefix_example.py)
 
-- [**Inheritance**!](examples/inheritance_example.py)
-You can easily customize an existing argument class by extending it and adding your own attributes, which helps promote code reuse accross projects. For more info, take a look at the [inheritance example](examples/inheritance_example.py)
+- [**Inheritance**!](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance_example.py)
+You can easily customize an existing argument class by extending it and adding your own attributes, which helps promote code reuse accross projects. For more info, take a look at the [inheritance example](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance_example.py)
 
-- [**Nesting**!](examples/nesting_example.py): Dataclasses can be nested within dataclasses, as deep as you need!
-- [**Easy serialization**](examples/dataclasses/hyperparameters_example.py): Since dataclasses are just regular classes, its easy to add methods for easy serialization/deserialization to popular formats like `json` or `yaml`. 
-- [Easier parsing of lists and tuples](examples/lists_example.py) : This is sometimes tricky to do with regular `argparse`, but `simple-parsing` makes it a lot easier by using the python's builtin type annotations to automatically convert the values to the right type for you.
+- [**Nesting**!](https://github.com/lebrice/SimpleParsing/tree/master/examples/nesting_example.py): Dataclasses can be nested within dataclasses, as deep as you need!
+- [**Easy serialization**](https://github.com/lebrice/SimpleParsing/tree/master/examples/dataclasses/hyperparameters_example.py): Since dataclasses are just regular classes, its easy to add methods for easy serialization/deserialization to popular formats like `json` or `yaml`. 
+- [Easier parsing of lists and tuples](https://github.com/lebrice/SimpleParsing/tree/master/examples/lists_example.py) : This is sometimes tricky to do with regular `argparse`, but `simple-parsing` makes it a lot easier by using the python's builtin type annotations to automatically convert the values to the right type for you.
 
-    As an added feature, by using these type annotations, `simple-parsing` allows you to parse nested lists or tuples, as can be seen in [this example](examples/multiple_lists_example.py)
+    As an added feature, by using these type annotations, `simple-parsing` allows you to parse nested lists or tuples, as can be seen in [this example](https://github.com/lebrice/SimpleParsing/tree/master/examples/multiple_lists_example.py)
 
-- [Enums support](examples/enums_example.py)
+- [Enums support](https://github.com/lebrice/SimpleParsing/tree/master/examples/enums_example.py)
 
 - (More to come!)
 
@@ -104,7 +104,7 @@ You can easily customize an existing argument class by extending it and adding y
 Specifying command-line arguments in Python is usually done using the `ArgumentParser` class from the  `argparse` package, whereby command-line arguments are added one at a time using the `parser.add_argument(name, **options)` method, like so:
 ### Before
 ```python
-""" (examples/basic_example_before.py)
+""" (https://github.com/lebrice/SimpleParsing/tree/master/examples/basic_example_before.py)
 An example script without simple_parsing.
 """
 from dataclasses import dataclass, asdict
@@ -140,7 +140,7 @@ While this works great when you only have a few command-line arguments, this bec
 `simple-parsing` extends the regular `ArgumentParser` by making use of python's amazing new [dataclasses](https://docs.python.org/3/library/dataclasses.html), allowing you to define your arguments in a simple, elegant, easily maintainable, and object-oriented manner:
 
 ```python
-""" (examples/basic_example_after.py)
+""" (https://github.com/lebrice/SimpleParsing/tree/master/examples/basic_example_after.py)
 An example script with simple_parsing.
 """
 from dataclasses import dataclass, asdict
@@ -174,108 +174,4 @@ print(vars(args))
 batch_size = args.batch_size
 options: Options = args.options
 ```
-<!-- 
-## Features:
 
-### - Automatically generates a helpful `--help` message:
-```console
-$ python ./examples/basic_example_after.py --help
-usage: basic_example_after.py [-h] [--batch_size int] --some_required_int int
-                              [--some_float float] [--name str]
-                              [--log_dir str] [--flag [str2bool]]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --batch_size int      some help string for this argument (default: 32)
-
-Options ['options']:
-  Set of Options for this script. (Note: this docstring will be used as the
-  group description)
-
-  --some_required_int int
-                        Some required int parameter (NOTE: this comment will
-                        be used as the help text for the argument) (default:
-                        None)
-  --some_float float    An optional float parameter (default: 1.23)
-  --name str            The name of some important experiment (default:
-                        default)
-  --log_dir str         an optional string parameter (default: /logs)
-  --flag [str2bool]     Wether or not to do something (default: False)
-```
-
-### - Modular and Reusable:
-With SimpleParsing, you can easily add similar groups of command-line arguments by simply reusing the dataclasses you define! There is no longer need for any copy-pasting of blocks, or adding prefixes everywhere by hand.
-
-Instead, SimpleParsing's ArgumentParser detects when more than one instance of the same `@dataclass` needs to be parsed, and automatically adds the relevant prefix to each argument automatically for you:
-```python
-    parser.add_arguments(Options, dest="train") # prefix = "train."
-    parser.add_arguments(Options, dest="valid") # prefix = "valid."
-    args = parser.parse_args()
-    train_options: Options = args.train
-    valid_options: Options = args.valid
-```
-```console
-$ python examples/basic_example_after.py \
-    --train.some_required_int 123 \
-    --valid.some_required_int 456
-{
-    'batch_size': 128,
-    'train': Options(some_required_int=123, some_float=1.23, name='default', log_dir='/logs', flag=False),
-    'valid': Options(some_required_int=456, some_float=1.23, name='default', log_dir='/logs', flag=False)
-}
-```
-
-Prefixes can also be set explicitly, or not be used at all. For more info, take a look at the [Prefix Example](examples/prefix_example.py)
-
-### - Inheritance!
-You can easily add new, specialized arguments by extending an existing dataclass and adding your own custom arguments!
-
-## - __Nesting__!
-You can even put dataclasses within dataclasses! The sky is the limit!
-For more info, take a look at the [Nesting Example](examples/nesting_example.py)
-
-## - Argument dataclasses can also have methods!
-Using Dataclasses, you can add methods in your argument dataclasses, further promoting the "Seperation of Concerns" principle, by keeping all the logic related to argument parsing in the same place!
-
-```python
-
-## - Argument dataclasses can also have methods!
-import json
-from dataclasses import dataclass, asdict
-
-from simple_parsing import ArgumentParser
-parser = ArgumentParser()
-
-@dataclass
-class HyperParameters:
-    batch_size: int = 32
-    optimizer: str = "ADAM"
-    learning_rate: float = 1e-4
-    max_epochs: int = 100
-    l1_reg: float = 1e-5
-    l2_reg: float = 1e-5
-
-    def save(self, path: str):
-        with open(path, "w") as f:
-            config_dict = asdict(self)
-            json.dump(config_dict, f, indent=1)
-    
-    @classmethod
-    def load(cls, path: str):
-        with open(path, "r") as f:
-            config_dict = json.load(f)
-            return cls(**config_dict)
-
-
-parser.add_arguments(HyperParameters, dest="hparams")
-
-args = parser.parse_args()
-
-hparams: HyperParameters = args.hparams
-print(hparams)
-
-# save and load from a json file: 
-hparams.save("hyperparameters.json")
-_hparams = HyperParameters.load("hyperparameters.json")
-assert hparams == _hparams
-``` -->

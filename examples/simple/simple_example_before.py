@@ -1,4 +1,4 @@
-""" (examples/basic_example.py)
+""" (examples/simple/simple_example_before.py)
 An example script without simple_parsing.
 """
 from dataclasses import dataclass, asdict
