@@ -1,5 +1,4 @@
 """Example of how to create multiple instances of a class from the command-line.
-
 # NOTE: If your dataclass has a list attribute, and you wish to parse multiple instances of that class from the command line, 
 # simply enclose each list with single or double quotes.
 # For this example, something like:

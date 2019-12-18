@@ -57,13 +57,13 @@ Options ['options']:
 ## Documentation (Work In Progress): [simple-parsing docs](https://github.com/lebrice/SimpleParsing)
 
 ## Features 
-- [Automatic "--help" strings](https://github.com/lebrice/SimpleParsing/tree/master/examples/docstrings_example.py)
+- **Automatic "--help" strings**
 
     As developers, we want to make it easy for people coming into our projects to understand how to run them. However, a user-friendly `--help` message is often hard to write and to maintain, especially as the number of arguments increases.
 
     With `simple-parsing`, your arguments and their decriptions are defined in the same place, making your code easier to read, write, and maintain.
 
-- Modular, Reusable Arguments *(no more copy-pasting!)*
+- **Modular, Reusable Arguments *(no more copy-pasting!)***
         
     When you need to add a new group of command-line arguments similar to an existing one, instead of copy-pasting a block of `argparse` code and renaming variables, you can reuse your argument class, and let the `ArgumentParser` take care of adding `relevant` prefixes to the arguments for you:
 
@@ -84,18 +84,19 @@ Options ['options']:
     Options(experiment_name='validation', learning_rate=0.0001)
     ```
         
-    These prefixes can also be set explicitly, or not be used at all. For more info, take a look at the [Prefix Example](https://github.com/lebrice/SimpleParsing/tree/master/examples/prefix_example.py)
+    These prefixes can also be set explicitly, or not be used at all. For more info, take a look at the [Prefixing Guide](https://github.com/lebrice/SimpleParsing/tree/master/examples/prefixing)
 
-- [**Inheritance**!](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance_example.py)
-You can easily customize an existing argument class by extending it and adding your own attributes, which helps promote code reuse accross projects. For more info, take a look at the [inheritance example](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance_example.py)
+- **Inheritance**!
+You can easily customize an existing argument class by extending it and adding your own attributes, which helps promote code reuse accross projects. For more info, take a look at the [inheritance example](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance)
 
-- [**Nesting**!](https://github.com/lebrice/SimpleParsing/tree/master/examples/nesting_example.py): Dataclasses can be nested within dataclasses, as deep as you need!
+- **Nesting**!: Dataclasses can be nested within dataclasses, as deep as you need!
 - [**Easy serialization**](https://github.com/lebrice/SimpleParsing/tree/master/examples/dataclasses/hyperparameters_example.py): Since dataclasses are just regular classes, its easy to add methods for easy serialization/deserialization to popular formats like `json` or `yaml`. 
-- [Easier parsing of lists and tuples](https://github.com/lebrice/SimpleParsing/tree/master/examples/lists_example.py) : This is sometimes tricky to do with regular `argparse`, but `simple-parsing` makes it a lot easier by using the python's builtin type annotations to automatically convert the values to the right type for you.
 
-    As an added feature, by using these type annotations, `simple-parsing` allows you to parse nested lists or tuples, as can be seen in [this example](https://github.com/lebrice/SimpleParsing/tree/master/examples/multiple_lists_example.py)
+- **Easier parsing of lists and tuples**: This is sometimes tricky to do with regular `argparse`, but `simple-parsing` makes it a lot easier by using the standard type annotations of the `typing` module to automatically convert the parsed values to the right type for you.
 
-- [Enums support](https://github.com/lebrice/SimpleParsing/tree/master/examples/enums_example.py)
+    As an added feature, by using these type annotations, `simple-parsing` allows you to parse nested lists or tuples, as can be seen in [this example](https://github.com/lebrice/SimpleParsing/tree/master/examples/merging/multiple_lists_example.py)
+
+- Enums support
 
 - (More to come!)
 
@@ -104,7 +105,7 @@ You can easily customize an existing argument class by extending it and adding y
 Specifying command-line arguments in Python is usually done using the `ArgumentParser` class from the  `argparse` package, whereby command-line arguments are added one at a time using the `parser.add_argument(name, **options)` method, like so:
 ### Before
 ```python
-""" (https://github.com/lebrice/SimpleParsing/tree/master/examples/basic_example_before.py)
+""" (https://github.com/lebrice/SimpleParsing/tree/master/examples/simple/basic_example_before.py)
 An example script without simple_parsing.
 """
 from dataclasses import dataclass, asdict
