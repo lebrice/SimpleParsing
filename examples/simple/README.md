@@ -36,37 +36,27 @@ While this works great when you only have a few command-line arguments, this bec
 
 ## After:
 
-`simple-parsing` extends the regular `ArgumentParser` by making use of python's amazing new [dataclasses](https://docs.python.org/3/library/dataclasses.html), allowing you to define your arguments in a simple, elegant, easily maintainable, and object-oriented manner:
+`simple-parsing` extends the regular `ArgumentParser` by making use of python's amazing new [dataclasses](https://docs.python.org/3/library/dataclasses.html) and type annotations, allowing you to define your arguments in a simple, elegant, easily maintainable, and object-oriented manner:
 
 ```python
-""" (examples/basic_example_after.py)
-An example script with simple_parsing.
-"""
 from dataclasses import dataclass, asdict
+
+# from argparse import ArgumentParser
 from simple_parsing import ArgumentParser
 
 parser = ArgumentParser()
-# `ArgumentParser` is a subclass of `argparse.ArgumentParser`,
-# hence we can add arguments in exactly the same way as before if we want to:
-parser.add_argument("--batch_size", default=32, type=int, help="some help string for this argument")
 
-# But why do that, when you could instead be doing this!
+# we can add arguments the same way as before if we want to:
+parser.add_argument("--batch_size", default=32, type=int, help="batch size")
+
 @dataclass
 class Options:
-    """ Set of Options for this script.
-    (Note: this docstring will be used as the group description)
-    """
-    # Some required int parameter
-    # (NOTE: this comment will be used as the help text for the argument)
-    some_required_int: int
-    # An optional float parameter
-    some_float: float = 1.23
-    # The name of some important experiment
-    name: str = "default"
-    # an optional string parameter   
-    log_dir: str = "/logs"
-    # Wether or not to do something
-    flag: bool = False
+    """Set of Options for this script."""
+    some_required_int: int    # Some required int parameter
+    some_float: float = 1.23  # An optional float parameter
+    name: str = "default"     # The name of some important experiment   
+    log_dir: str = "/logs"    # an optional string parameter
+    flag: bool = False        # Wether or not to do something
 
 parser.add_arguments(Options, dest="options")
 
