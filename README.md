@@ -55,7 +55,9 @@ Options ['options']:
 |== 3.6.X        | `pip install dataclasses simple-parsing`|
 
 
-## [Documentation (Work In Progress)](https://github.com/lebrice/SimpleParsing)
+## [Examples](examples/README.md)
+
+## [API Documentation](docs/README.md) (Under construction)
 
 ## Features 
 - [Automatic "--help" strings](examples/docstrings/README.md)

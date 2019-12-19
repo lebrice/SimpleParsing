@@ -54,7 +54,13 @@ Options ['options']:
 |>= 3.7          | `pip install simple-parsing`            |
 |== 3.6.X        | `pip install dataclasses simple-parsing`|
 
-## Documentation (Work In Progress): [simple-parsing repo](https://github.com/lebrice/SimpleParsing)
+
+## [Project GitHub Repository](https://github.com/lebrice/SimpleParsing)
+
+## [Examples](https://github.com/lebrice/SimpleParsing/tree/master/examples)
+
+## [API Documentation](https://github.com/lebrice/SimpleParsing/tree/master/docs) (Under construction)
+
 
 ## Features 
 - **Automatic "--help" strings**
@@ -101,78 +107,6 @@ You can easily customize an existing argument class by extending it and adding y
 - (More to come!)
 
 
-## Example
-Specifying command-line arguments in Python is usually done using the `ArgumentParser` class from the  `argparse` package, whereby command-line arguments are added one at a time using the `parser.add_argument(name, **options)` method, like so:
-### Before
-```python
-""" (https://github.com/lebrice/SimpleParsing/tree/master/examples/simple/basic_example_before.py)
-An example script without simple_parsing.
-"""
-from dataclasses import dataclass, asdict
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-
-parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-
-parser.add_argument("--batch_size", default=32, type=int, help="some help string for this argument")
-
-group  = parser.add_argument_group(title="Options", description="Set of Options for this script")
-group.add_argument("--some_required_int", type=int, required=True, help="Some required int parameter")
-group.add_argument("--some_float", type=float, default=1.23, help="An optional float parameter")
-group.add_argument("--name", type=str, default="default", help="The name of some important experiment")
-group.add_argument("--log_dir", type=str, default="/logs", help="An optional string parameter")
-group.add_argument("--flag", action="store_true", default=False, help="Wether or not to do something")
-
-args = parser.parse_args()
-print(vars(args))
-
-# retrieve the parsed values:
-batch_size = args.batch_size
-some_required_int = args.some_required_int
-some_float = args.some_float
-name = args.name
-log_dir = args.log_dir
-flag = args.flag
-```
-
-While this works great when you only have a few command-line arguments, this become very tedious to read, to use, and to maintain as the number of command-line arguments grows.
-
-### After
-
-`simple-parsing` extends the regular `ArgumentParser` by making use of python's amazing new [dataclasses](https://docs.python.org/3/library/dataclasses.html), allowing you to define your arguments in a simple, elegant, easily maintainable, and object-oriented manner:
-
-```python
-""" (https://github.com/lebrice/SimpleParsing/tree/master/examples/basic_example_after.py)
-An example script with simple_parsing.
-"""
-from dataclasses import dataclass, asdict
-from simple_parsing import ArgumentParser
-
-parser = ArgumentParser()
-# same as before:
-parser.add_argument("--batch_size", default=32, type=int, help="some help string for this argument")
-
-# But why do that, when you could instead be doing this!
-@dataclass
-class Options:
-    """ Set of Options for this script.
-    
-    (Note: this docstring will be used as the group description,
-    while the comments next to the attributes will be used as the
-    help text for the arguments.)
-    """
-    some_required_int: int      # Some required int parameter
-    some_float: float = 1.23    # An optional float parameter
-    name: str = "default"       # The name of some important experiment   
-    log_dir: str = "/logs"      # an optional string parameter
-    flag: bool = False          # Wether or not to do something
-
-parser.add_arguments(Options, dest="options")
-
-args = parser.parse_args()
-print(vars(args))
-
-# retrieve the parsed values:
-batch_size = args.batch_size
-options: Options = args.options
-```
+## Examples:
+Additional examples for each of the above-mentioned features can be found in the [the project repository.](https://github.com/lebrice/SimpleParsing/tree/master/examples)
 
