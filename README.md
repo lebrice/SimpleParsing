@@ -54,8 +54,8 @@ Options ['options']:
 |>= 3.7          | `pip install simple-parsing`            |
 |== 3.6.X        | `pip install dataclasses simple-parsing`|
 
-## Documentation (Work In Progress): [simple-parsing docs](https://github.com/lebrice/SimpleParsing)
 
+## [Documentation (Work In Progress)](https://github.com/lebrice/SimpleParsing)
 
 ## Features 
 - [Automatic "--help" strings](examples/docstrings/README.md)
@@ -99,6 +99,7 @@ You can easily customize an existing argument class by extending it and adding y
 - [Enums support](examples/enums/README.md)
 
 - (More to come!)
+
 
 ## Examples:
 Additional examples for all the features mentioned above can be found in the [examples folder](examples/README.md)

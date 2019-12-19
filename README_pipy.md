@@ -54,7 +54,7 @@ Options ['options']:
 |>= 3.7          | `pip install simple-parsing`            |
 |== 3.6.X        | `pip install dataclasses simple-parsing`|
 
-## Documentation (Work In Progress): [simple-parsing docs](https://github.com/lebrice/SimpleParsing)
+## Documentation (Work In Progress): [simple-parsing repo](https://github.com/lebrice/SimpleParsing)
 
 ## Features 
 - **Automatic "--help" strings**
