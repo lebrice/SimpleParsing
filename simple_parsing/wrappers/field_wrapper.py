@@ -276,6 +276,10 @@ class FieldWrapper(Generic[T]):
                 if isinstance(self.defaults, enum.Enum):
                     _arg_options["default"] = self.defaults.name
         
+        elif "choices" in self.field.metadata:
+            choices = self.field.metadata["choices"]
+            _arg_options["choices"] = choices
+
         elif utils.is_list(f.type):
             # Check if typing.List or typing.Tuple was used as an annotation, in which case we can automatically convert items to the desired item type.
             # NOTE: we only support tuples with a single type, for simplicity's sake. 

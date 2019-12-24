@@ -13,7 +13,6 @@ class Base(TestSetup):
     """ Some extension of base-class `Base` """
     common_attribute: int = 1
 
-
 @dataclass
 class ExtendedA(Base):
     a: int = 2

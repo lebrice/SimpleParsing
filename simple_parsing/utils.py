@@ -1,26 +1,60 @@
 """Utility functions"""
 import argparse
+import builtins
 import dataclasses
 import functools
+import json
+import logging
 import re
 from collections import defaultdict
-from dataclasses import dataclass, field, MISSING, Field
-from typing import *
+from dataclasses import MISSING, Field, dataclass, field
 from enum import Enum
-import logging
-import builtins
-import json
+from functools import partial
+from typing import *
 
 logger = logging.getLogger(__name__)
 
 builtin_types = [getattr(builtins, d) for d in dir(builtins) if isinstance(getattr(builtins, d), type)]
 
 T = TypeVar("T")
+K = TypeVar("K")
+V = TypeVar("V")
+
 Dataclass = TypeVar("Dataclass")
 DataclassType = Type[Dataclass]
 
-def MutableField(default: T, init: bool = True, repr: bool = True, hash: bool = None, compare: bool = True, metadata: Dict[str, Any] = None) -> T:
-    return field(default_factory=lambda: default, init=init, repr=repr, hash=hash, compare=compare, metadata=metadata) 
+SimpleValueType = Union[bool, int, float, str]
+SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]]
+
+
+def list_field(*default_items: SimpleValueType, **kwargs) -> List[T]:
+    """shorthand function for setting a `list` attribute on a dataclass,
+    so that every instance of the dataclass doesn't share the same list.
+
+    Accepts any of the arguments of the `dataclasses.field` function.
+
+    Returns:
+        List[T]: a `dataclasses.field` of type `list`, containing the `default_items`. 
+    """
+    return MutableField(list, default_items, **kwargs)
+
+
+def dict_field(*default_items: Tuple[K, V], **kwargs) -> Dict[K, V]:
+    return MutableField(dict, default_items, **kwargs)
+
+
+def set_field(*default_items: T, **kwargs) -> Set[T]:
+    return MutableField(set, default_items, **kwargs)
+
+
+def MutableField(_type: Type[T], *args, init: bool = True, repr: bool = True, hash: bool = None, compare: bool = True, metadata: Dict[str, Any] = None, **kwargs) -> T:
+    return field(default_factory=partial(_type, *args, **kwargs), init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
+
+def choice(*options: T, default=None) -> T:
+    if default is not None and default not in options:
+        raise ValueError(f"Default value of {default} is not a valid option! (options: {options})")
+    return field(default=default, metadata={"choices": options})
+
 
 class InconsistentArgumentError(RuntimeError):
     """
@@ -290,7 +324,7 @@ class JsonSerializable:
 
 
 
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
-
