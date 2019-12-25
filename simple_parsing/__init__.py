@@ -1,7 +1,7 @@
 """Simple, Elegant Argument parsing.
 @author: Fabrice Normandin
 """
-from .utils import Formatter, InconsistentArgumentError, MutableField
+from .utils import Formatter, InconsistentArgumentError, MutableField, choice
 from .parsing import ArgumentParser, ConflictResolution
 
 __all__ = [
@@ -9,5 +9,6 @@ __all__ = [
     "InconsistentArgumentError",
     "Formatter",
     "ConflictResolution",
-    "MutableField"
+    "MutableField",
+    "choice",
 ]
