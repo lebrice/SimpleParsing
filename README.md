@@ -45,10 +45,8 @@ Options ['options']:
 ```
 
 ## installation
-| python version |                command                  |
-|----------------|-----------------------------------------|
-|>= 3.7          | `pip install simple-parsing`            |
-|== 3.6.X        | `pip install dataclasses simple-parsing`|
+
+`pip install simple-parsing`
 
 ## [Examples](examples/README.md)
 
