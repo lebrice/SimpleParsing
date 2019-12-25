@@ -1,62 +1,46 @@
 [![Build Status](https://travis-ci.org/lebrice/SimpleParsing.svg?branch=master)](https://travis-ci.org/lebrice/SimpleParsing)
 
 # Simple, Elegant Argument Parsing <!-- omit in toc -->
-
-
-`simple-parsing` extends the capabilities of the builtin `argparse` module by allowing you to group related command-line arguments into neat, reusable [dataclasses](https://docs.python.org/3.7/library/dataclasses.html) and let the ArgumentParser take care of creating the arguments for you.
+`simple-parsing` helps you parse arguments easier. Using the power of Python [dataclasses](https://docs.python.org/3.7/library/dataclasses.html), you can now define groups of `argparse` arguments in a way that is easier for people to read, write, and maintain, while using fewer lines of code. Argument groups are reusable and extendable, and can even be nested!
 
 ```python
 # examples/demo.py
-import argparse
 from dataclasses import dataclass
-
 import simple_parsing
 
-assert issubclass(simple_parsing.ArgumentParser, argparse.ArgumentParser)
-
 parser = simple_parsing.ArgumentParser()
+parser.add_argument("--foo", type=int, default=123, help="foo help string")
 
 @dataclass
 class Options:
-    """ Group of command-line arguments for this script """
-    log_dir: str                # a required string parameter
-    learning_rate: float = 1e-4 # An optional float parameter
+    """ Help string for this group of command-line arguments """
+    log_dir: str                # Help string for a required str argument
+    learning_rate: float = 1e-4 # Help string for a float argument
 
-# you can add arguments as you usual would
-parser.add_argument("--foo", dest="foo", type=int, default=123)
-
-# or let the parser create the arguments for you
 parser.add_arguments(Options, dest="options")
 
-args = parser.parse_args()
-
-foo: int = args.foo             # get the parsed 'foo' value
-options: Options = args.options # get the parsed Options instance  
-print("foo:", foo)
-print("options:", options)
-
+args = parser.parse_args("--log_dir logs --foo 123".split())
+print(args.foo)     # 123
+print(args.options) # Options(log_dir='logs', learning_rate=0.0001)
 ```
 
-what you get for free:
+Additionally, `simple-parsing` makes it easier to document your arguments by generating `"--help"` strings directly from your source code!
 
 ```console
-$ python examples/demo.py --log_dir "logs"
-foo: 123
-options: Options(log_dir='logs', learning_rate=0.0001)
-
 $ python examples/demo.py --help
 usage: demo.py [-h] [--foo int] --log_dir str [--learning_rate float]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --foo int
+  --foo int             foo help string (default: 123)
 
 Options ['options']:
-  Group of command-line arguments for this script
+  Help string for this group of command-line arguments
 
-  --log_dir str         a required string parameter (default: None)
+  --log_dir str         Help string for a required str argument (default:
+                        None)
   --learning_rate float
-                        An optional float parameter (default: 0.0001)
+                        Help string for a float argument (default: 0.0001)
 ```
 
 ## installation
