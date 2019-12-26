@@ -7,7 +7,7 @@ import pytest
 
 import simple_parsing
 from simple_parsing import ArgumentParser, InconsistentArgumentError
-
+from simple_parsing.utils import list_field
 from .testutils import *
 
 
@@ -15,8 +15,8 @@ from .testutils import *
 class ContainerClass(TestSetup):
     a: Tuple[int]
     b: List[int]
-    c: Tuple[str] = field(default_factory=tuple)
-    d: List[int] = field(default_factory=list)
+    c: Tuple[str] = tuple()
+    d: List[int] = list_field()
 
 
 
@@ -39,7 +39,7 @@ def test_required_attributes_works():
     assert args is None
 
     args = ContainerClass.setup("--a 4 --b 5")
-    assert args
+    assert args is not None
 
 
 def test_default_value():
@@ -65,7 +65,7 @@ def test_default_value():
         (int,   [1, 2]),
         (float, [1.1, 2.1]),
         (str,   ["a", "b"]),
-        # (bool,  [True, True]),
+        (bool,  [True, True]),
     ]
 )
 def test_list_supported_formats(
@@ -73,6 +73,7 @@ def test_list_supported_formats(
         item_type: Type,
         passed_values: List[Any],
     ):
+
     @dataclass
     class SomeClass(TestSetup):
         a: List[item_type] = field(default_factory=list)  # type: ignore
@@ -112,6 +113,7 @@ def test_parse_multiple_with_list_attributes(
         item_type: Type,
         passed_values: List[List[Any]],
     ):
+    
     @dataclass
     class SomeClass(TestSetup):
         a: List[item_type] = field(default_factory=list)  # type: ignore

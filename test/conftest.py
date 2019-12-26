@@ -1,10 +1,13 @@
-import pytest
+import logging
 from dataclasses import dataclass, field
 from typing import *
-import logging
-from .testutils import TestSetup
+
+import pytest
 
 from simple_parsing import choice
+from simple_parsing.utils import JsonSerializable
+
+from .testutils import TestSetup
 
 # List of simple attributes to use in test:
 simple_arguments: List[Tuple[Type, Any, Any]] = [
@@ -78,10 +81,12 @@ def silent(no_stdout, no_warnings):
     pass
 
 
-from simple_parsing.utils import JsonSerializable
 
 @pytest.fixture
 def TaskHyperParameters():
+    """ Test fixture that gives a good example use-case from a real datascience
+    project.
+    """
     @dataclass
     class TaskHyperParameters(TestSetup, JsonSerializable):
         """
@@ -90,7 +95,7 @@ def TaskHyperParameters():
         name: str                       # name of the task
         num_layers: int = 1             # number of dense layers
         num_units: int = 8              # units per layer
-        activation: str = "tanh"        # activation function
+        activation: str = choice("tanh", "relu", "linear", default="tanh") # activation function
         use_batchnorm: bool = False     # wether or not to use batch normalization after each dense layer
         use_dropout: bool = True        # wether or not to use dropout after each dense layer
         dropout_rate: float = 0.1       # the dropout rate

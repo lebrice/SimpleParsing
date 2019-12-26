@@ -26,6 +26,36 @@ DataclassType = Type[Dataclass]
 SimpleValueType = Union[bool, int, float, str]
 SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]]
 
+"""
+shorthand function for setting a `list` attribute on a dataclass,
+    so that every instance of the dataclass doesn't share the same list.
+
+    Accepts any of the arguments of the `dataclasses.field` function.
+
+"""
+
+def choice(*choices: T, default=None) -> T:
+    """ Makes a regular attribute, whose value, when parsed from the 
+    command-line, can only be one contained in `choices`, with a default value 
+    of `default`.
+        
+    Returns a regular `dataclasses.field()`, but with metadata which indicates  
+    the allowed values.
+    
+    Args:
+        default (T, optional): The default value of the field. Defaults to None,
+        in which case the command-line argument is required.
+    
+    Raises:
+        ValueError: If the default value isn't part of the given choices.
+    
+    Returns:
+        T: the result of the usual `dataclasses.field()` function (a dataclass field/attribute).
+    """
+    if default is not None and default not in choices:
+        raise ValueError(f"Default value of {default} is not a valid option! (options: {choices})")
+    return field(default=default, metadata={"choices": choices})
+
 
 def list_field(*default_items: SimpleValueType, **kwargs) -> List[T]:
     """shorthand function for setting a `list` attribute on a dataclass,
@@ -39,7 +69,19 @@ def list_field(*default_items: SimpleValueType, **kwargs) -> List[T]:
     return MutableField(list, default_items, **kwargs)
 
 
-def dict_field(*default_items: Tuple[K, V], **kwargs) -> Dict[K, V]:
+def dict_field(default_items: Union[Dict[K,V], Iterable[Tuple[K, V]]] = None, **kwargs) -> Dict[K, V]:
+    """shorthand function for setting a `dict` attribute on a dataclass,
+    so that every instance of the dataclass doesn't share the same `dict`.
+
+    Accepts any of the arguments of the `dataclasses.field` function.
+    
+    Returns:
+        Dict[K, V]: a `dataclasses.Field` of type `Dict[K, V]`, containing the `default_items`. 
+    """
+    if default_items is None:
+        default_items = []
+    elif isinstance(default_items, dict):
+        default_items = default_items.items()
     return MutableField(dict, default_items, **kwargs)
 
 
@@ -50,10 +92,6 @@ def set_field(*default_items: T, **kwargs) -> Set[T]:
 def MutableField(_type: Type[T], *args, init: bool = True, repr: bool = True, hash: bool = None, compare: bool = True, metadata: Dict[str, Any] = None, **kwargs) -> T:
     return field(default_factory=partial(_type, *args, **kwargs), init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
 
-def choice(*options: T, default=None) -> T:
-    if default is not None and default not in options:
-        raise ValueError(f"Default value of {default} is not a valid option! (options: {options})")
-    return field(default=default, metadata={"choices": options})
 
 
 class InconsistentArgumentError(RuntimeError):
@@ -278,6 +316,16 @@ def default_value(field: dataclasses.Field) -> Optional[Any]:
         return None
 
 
+def from_dict(dataclass: Type[Dataclass], d: Dict[str, Any]) -> Dataclass:
+    for field in dataclasses.fields(dataclass):
+        if dataclasses.is_dataclass(field.type):
+            # nested dataclass:
+            args_dict = d[field.name]
+            nested_instance = from_dict(field.type, args_dict)
+            d[field.name] = nested_instance
+    return dataclass(**d) # type: ignore
+
+
 class JsonSerializable:
     """
     Enables reading and writing a Dataclass to a JSON file.
@@ -306,23 +354,11 @@ class JsonSerializable:
             dict_ = dataclasses.asdict(self)
             json.dump(dict_, f, indent=1)
 
-    @staticmethod
-    def from_dict(dataclass: Type[Dataclass], d: Dict[str, Any]) -> Dataclass:
-        for field in dataclasses.fields(dataclass):
-            if dataclasses.is_dataclass(field.type):
-                # nested dataclass:
-                args_dict = d[field.name]
-                nested_instance = JsonSerializable.from_dict(field.type, args_dict)
-                d[field.name] = nested_instance
-        return dataclass(**d) # type: ignore
-
     @classmethod
     def load_json(cls, path: str):
         with open(path) as f:
             args_dict = json.load(f)
-        return JsonSerializable.from_dict(cls, args_dict)
-
-
+        return from_dict(cls, args_dict)
 
 
 if __name__ == "__main__":

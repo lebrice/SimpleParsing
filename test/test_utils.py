@@ -92,3 +92,62 @@ def test_json_serializable(HyperParameters, tmpdir):
     hparams.save_json(os.path.join(tmpdir,  filename))
     hparams_ = HyperParameters.load_json(os.path.join(tmpdir, filename))
     assert hparams == hparams_
+
+
+def test_list_field():
+    @dataclass
+    class A:
+        a: List[str] = utils.list_field("bob", "john", "bart")
+    
+    a1 = A()
+    a2 = A()
+    assert id(a1.a) != id(a2.a)
+
+
+def test_set_field():
+    @dataclass
+    class A:
+        a: Set[str] = utils.set_field("bob", "john", "bart")
+    
+    a1 = A()
+    a2 = A()
+    assert id(a1.a) != id(a2.a)
+
+def test_dict_field():
+    default = {"bob": 0, "john": 1, "bart": 2}
+    
+    @dataclass
+    class A:
+        a: Dict[str, int] = utils.dict_field(default)
+    
+    a1 = A()
+    print(a1.a)
+    assert a1.a == default
+    a2 = A()
+    assert id(a1.a) != id(a2.a)
+
+
+def test_dict_field_with_keyword_args():
+    default = {"bob": 0, "john": 1, "bart": 2}
+    
+    @dataclass
+    class A(TestSetup):
+        a: Dict[str, int] = utils.dict_field(bob=0, john=1, bart=2)
+    
+    a1 = A()
+    a2 = A()
+    assert a1.a == a2.a == default
+    assert id(a1.a) != id(a2.a)
+
+
+def test_dict_field_without_args():
+    default = {}
+    
+    @dataclass
+    class A(TestSetup):
+        a: Dict[str, int] = utils.dict_field()
+    
+    a1 = A()
+    a2 = A()
+    assert a1.a == a2.a == default
+    assert id(a1.a) != id(a2.a)
