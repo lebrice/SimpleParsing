@@ -171,8 +171,7 @@ def test_weird_with_duplicates_and_at_different_levels():
     assert aabbccdd.ccdd.dd.d2.d == "ccdd_dd_d_2"
 
 
-def test_defaults(datascience_example):
-    HyperParameters, TaskHyperParameters = datascience_example
+def test_defaults(HyperParameters):
     default = HyperParameters()
     parsed = HyperParameters.setup("")
     for attr, value in vars(default).items():

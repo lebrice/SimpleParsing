@@ -9,10 +9,9 @@ from . import TestSetup
 from simple_parsing import (Formatter, InconsistentArgumentError,
                             ArgumentParser, ConflictResolution)
 
-from .example_use_cases import HyperParameters
 
-def test_real_use_case(silent, datascience_example):
-    HyperParameters, TaskHyperParameters = datascience_example    
+def test_real_use_case(silent, HyperParameters):
+    HyperParameters
     hparams = HyperParameters.setup(
         "--age_group.num_layers 5 "
         "--age_group.num_units 65 "
@@ -26,14 +25,3 @@ def test_real_use_case(silent, datascience_example):
     assert hparams.age_group.num_layers == 5
     assert hparams.age_group.num_units == 65
     assert hparams.age_group.use_likes == True
-
-if __name__ == "__main__":
-    hparams = HyperParameters()
-    # print(HyperParameters.setup("--help", conflict_resolution_mode=ConflictResolution.EXPLICIT))
-    # exit()
-    print(hparams.age_group)
-    hparams.age_group.num_layers = 123
-
-    hparams = HyperParameters()
-    print(hparams.age_group)
-    exit()

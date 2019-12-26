@@ -85,8 +85,7 @@ def test_is_enum(t: Type):
     assert utils.is_enum(t)
 
 
-def test_json_serializable(datascience_example, tmpdir):
-    HyperParameters, _ = datascience_example
+def test_json_serializable(HyperParameters, tmpdir):
     hparams = HyperParameters()
     import os
     filename = "hparams.json"
