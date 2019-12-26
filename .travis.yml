@@ -4,7 +4,7 @@ python:
 - '3.7'
 - '3.8'
 install:
-- bash ./install.sh
+- pip install -e .
 script:
 - pytest
 deploy:
