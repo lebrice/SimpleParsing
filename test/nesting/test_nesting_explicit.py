@@ -9,9 +9,9 @@ from . import TestSetup
 from simple_parsing import (Formatter, InconsistentArgumentError,
                             ArgumentParser, ConflictResolution)
 
-from .example_use_cases import HyperParameters, TaskHyperParameters
 
-def test_real_use_case():
+def test_real_use_case(silent, datascience_example):
+    HyperParameters, TaskHyperParameters = datascience_example
     default = HyperParameters()
     hparams = HyperParameters.setup(
         "--hyper_parameters.age_group.num_layers 5",

@@ -9,9 +9,9 @@ from . import TestSetup
 from simple_parsing import (Formatter, InconsistentArgumentError,
                             ArgumentParser, ConflictResolution)
 
-from .example_use_cases import *
 
-def test_hparam_use_case():
+def test_hparam_use_case(silent, datascience_example):
+    HyperParameters, TaskHyperParameters = datascience_example
     hparams = HyperParameters.setup(
         "--num_layers 5 6 7",
         conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE
