@@ -57,8 +57,10 @@ def no_stdout(capsys, caplog):
     with caplog.at_level(logging.DEBUG):
         yield
     captured = capsys.readouterr()
-    assert captured.out == ""
-    assert captured.err == ""
+    if captured.out != "":
+        pytest.fail(f"Test generated some output in stdout: '{captured.out}'")
+    if captured.err != "":
+        pytest.fail(f"Test generated some output in stderr: '{captured.err}'")
 
 @pytest.fixture
 def no_warnings(caplog):

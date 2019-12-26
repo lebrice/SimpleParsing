@@ -175,7 +175,7 @@ def get_item_type(container_type: Type[Container[T]]) -> T:
     else:
         return Type[Any]
 
-def get_argparse_type_for_container(container_type: Type) -> Type:
+def get_argparse_type_for_container(container_type: Type) -> Union[Type, Callable[[str], bool]]:
     """Gets the argparse 'type' option to be used for a given container type.
     When an annotation is present, the 'type' option of argparse is set to that type.
     if not, then the default value of 'str' is returned.
@@ -187,12 +187,16 @@ def get_argparse_type_for_container(container_type: Type) -> Type:
         typing.Type -- the type that should be used in argparse 'type' argument option.
     """
     T = get_item_type(container_type)
-    return T if T is not Type[Any] else str
-
+    if T is bool:
+        return str2bool
+    if T is Type[Any]:
+        return str
+    return T
 
 
 def _mro(t: Type) -> List[Type]:
     return getattr(t, "mro", lambda: [])()
+
 
 def is_subtype_of(some_type: Type):
     def func(field: Field) -> bool:
@@ -203,20 +207,26 @@ def is_subtype_of(some_type: Type):
 def is_list(t: Type) -> bool:
     return list in _mro(t)
 
+
 def is_tuple(t: Type) -> bool:
     return tuple in _mro(t)
+
 
 def is_enum(t: Type) -> bool:
     return Enum in _mro(t)
 
+
 def is_bool(t: Type) -> bool:
     return bool in _mro(t)
+
 
 def is_tuple_or_list(t: Type) -> bool:
     return is_list(t) or is_tuple(t)
 
+
 def is_tuple_or_list_of_dataclasses(t: Type) -> bool:
     return is_tuple_or_list(t) and dataclasses.is_dataclass(get_item_type(t))
+
 
 def _parse_multiple_containers(tuple_or_list: type, append_action: bool = False) -> Callable[[str], List[Any]]:
     T = get_argparse_type_for_container(tuple_or_list)

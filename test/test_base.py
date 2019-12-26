@@ -30,7 +30,7 @@ def test_not_passing_required_argument_raises_error(simple_attribute):
     class SomeDataclass(TestSetup):
         some_attribute: some_type # type: ignore
     
-    with pytest.raises(SystemExit):
+    with raises(argparse.ArgumentError):
         actual = SomeDataclass.setup("")
 
 
@@ -86,7 +86,7 @@ def test_not_providing_required_argument_throws_error(some_type):
     class SomeClass(TestSetup):
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
-    with pytest.raises(SystemExit):
+    with raises(argparse.ArgumentError):
         class_a = SomeClass.setup("")
 
 
@@ -97,7 +97,7 @@ def test_not_providing_required_argument_name_but_no_value_throws_error(some_typ
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
 
-    with pytest.raises(SystemExit):
+    with raises(argparse.ArgumentError):
         class_a = SomeClass.setup("--a")
 
 class Color(Enum):

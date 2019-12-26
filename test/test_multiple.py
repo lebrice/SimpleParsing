@@ -21,7 +21,7 @@ from .testutils import *
         (bool,  True),
     ]
 )
-def test_parse_multiple_with_no_arguments_sets_default_value(num_instances: int, some_type: Type, default_value: Any):
+def test_parse_multiple_with_no_arguments_sets_default_value(num_instances: int, some_type: Type, default_value: Any, silent):
     @dataclass
     class SomeClass(TestSetup):
         a: some_type = default_value  # type: ignore
@@ -49,7 +49,8 @@ def test_parse_multiple_with_single_arg_value_sets_that_value_for_all_instances(
         num_instances: int,
         some_type: Type,
         default_value: Any,
-        passed_value: Any
+        passed_value: Any,
+        silent
     ):
 
     @dataclass
@@ -77,7 +78,8 @@ def test_parse_multiple_with_single_arg_value_sets_that_value_for_all_instances(
 def test_parse_multiple_with_provided_value_for_each_instance(
         some_type: Type,
         default_value: Any,
-        passed_values: List[Any]
+        passed_values: List[Any],
+        silent
     ):
 
     @dataclass
@@ -103,7 +105,7 @@ def test_parse_multiple_without_required_arguments(some_type: Type):
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
 
-    with pytest.raises(SystemExit):
+    with raises(argparse.ArgumentError):
         some_class = SomeClass.setup_multiple(2, "")
 
 @parametrize("container_type", [List, Tuple])
@@ -113,8 +115,7 @@ def test_parse_multiple_without_required_container_arguments(container_type: Typ
     class SomeClass(TestSetup):
         a: container_type[item_type] # type: ignore
         """some docstring for attribute 'a'"""
-
-    with pytest.raises(SystemExit):
+    with raises(argparse.ArgumentError):
         _ = SomeClass.setup_multiple(3, "")
 
 
@@ -126,7 +127,7 @@ def test_parse_multiple_with_arg_name_without_arg_value(container_type: Type, it
         a: container_type[item_type] # type: ignore
         """some docstring for attribute 'a'"""
 
-    with pytest.raises(SystemExit):
+    with raises(argparse.ArgumentError):
         _ = SomeClass.setup_multiple(3, "--a")
 
 

@@ -11,16 +11,29 @@ from simple_parsing.utils import list_field
 from .testutils import *
 
 
-@dataclass
-class ContainerClass(TestSetup):
-    a: Tuple[int]
-    b: List[int]
-    c: Tuple[str] = tuple()
-    d: List[int] = list_field()
+def test_list_one_element(simple_attribute):
+    some_type, passed_value, expected_value = simple_attribute
+    
+    @dataclass
+    class Container(TestSetup):
+        a: List[some_type] = list_field()
 
+    c = Container.setup("")
+    assert c.a == []
+    c = Container.setup(f"--a {passed_value}")
+    assert c.a == [expected_value], Container.get_help_text()
 
+@pytest.fixture
+def ContainerClass():   
+    @dataclass
+    class ContainerClass(TestSetup):
+        a: Tuple[int]
+        b: List[int]
+        c: Tuple[str] = tuple()
+        d: List[int] = list_field()
+    return ContainerClass
 
-def test_single_element_list():
+def test_single_element_list(ContainerClass):
     container = ContainerClass.setup("--a 1 --b 4 --c 7 --d 10")
     assert container.a == (1,)
     assert container.b == [4]
@@ -28,7 +41,7 @@ def test_single_element_list():
     assert container.d == [10]
 
 
-def test_required_attributes_works():
+def test_required_attributes_works(ContainerClass):
     args = None
     with suppress(SystemExit), pytest.raises(ArgumentError):
         args = ContainerClass.setup("--b 4")
@@ -42,7 +55,7 @@ def test_required_attributes_works():
     assert args is not None
 
 
-def test_default_value():
+def test_default_value(ContainerClass):
     container = ContainerClass.setup("--a 1 2 3 --b 4 5 6")
     assert container.a == (1, 2, 3)
     assert container.b == [4, 5, 6]
@@ -113,7 +126,7 @@ def test_parse_multiple_with_list_attributes(
         item_type: Type,
         passed_values: List[List[Any]],
     ):
-    
+
     @dataclass
     class SomeClass(TestSetup):
         a: List[item_type] = field(default_factory=list)  # type: ignore

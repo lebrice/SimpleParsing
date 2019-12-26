@@ -1,12 +1,15 @@
 import argparse
-from typing import Optional, TypeVar, Type, List, Dict, Tuple, Any, Callable
 import shlex
-import pytest
-import simple_parsing
-from simple_parsing import InconsistentArgumentError, ArgumentParser, Formatter, ConflictResolution
-from simple_parsing.wrappers import DataclassWrapper
+from contextlib import contextmanager, suppress
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
 
+import pytest
+
+import simple_parsing
+from simple_parsing import (ArgumentParser, ConflictResolution, Formatter,
+                            InconsistentArgumentError)
 from simple_parsing.utils import camel_case
+from simple_parsing.wrappers import DataclassWrapper
 
 xfail = pytest.mark.xfail
 parametrize = pytest.mark.parametrize
@@ -15,6 +18,11 @@ def xfail_param(*args, reason:str):
     return pytest.param(*args, marks=pytest.mark.xfail(reason=reason))
 
 Dataclass = TypeVar("Dataclass")
+
+@contextmanager
+def raises(exception):
+    with suppress(SystemExit), pytest.raises(exception):
+        yield
 
 class TestSetup():
     @classmethod
@@ -118,5 +126,3 @@ def format_lists_using_single_quotes(list_of_lists: List[List[Any]])-> str:
         format_list_using_single_quotes(value_list)
         for value_list in list_of_lists
     )
-
-
