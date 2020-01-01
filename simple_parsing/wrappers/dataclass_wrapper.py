@@ -1,39 +1,23 @@
+import argparse
 import dataclasses
 import enum
 import logging
 from typing import *
-import argparse
-import enum
+from typing import cast
+
 from .. import docstring, utils
 from ..utils import Dataclass, DataclassType
-
 from .field_wrapper import FieldWrapper
+
 logger = logging.getLogger(__name__)
-
-
-class CustomAction(argparse.Action):
-    # TODO: the CustomAction isn't always called!
-
-    def __init__(self, option_strings, dest, field, **kwargs):
-        self.field = field
-        logger.debug(f"Creating Custom Action for field {field}")
-        super().__init__(option_strings, dest, **self.field.arg_options)
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        logger.debug(f"INSIDE CustomAction's __call__: {namespace}, {values}, {option_string}")
-        before = parser.constructor_arguments.copy()
-        result = self.field(parser, namespace, values, option_string)
-        after = parser.constructor_arguments
-        # assert before != after, f"before: {before}, after: {after}"
-        # setattr(namespace, self.dest, values)
 
 
 @dataclasses.dataclass
 class DataclassWrapper(Generic[Dataclass]):
     dataclass: Type[Dataclass]
     attribute_name: str
-    fields: List[FieldWrapper] = dataclasses.field(default_factory=list, repr=False)
-    _destinations: List[str] = dataclasses.field(default_factory=list)
+    fields: List[FieldWrapper] = dataclasses.field(default_factory=list, repr=False, init=False)
+    _destinations: List[str] = dataclasses.field(default_factory=list, init=False)
     _multiple: bool = False
     _required: bool = False
     _explicit: bool = False
@@ -41,41 +25,46 @@ class DataclassWrapper(Generic[Dataclass]):
     _children: List["DataclassWrapper"] = dataclasses.field(default_factory=list, repr=False)
     _parent: Optional["DataclassWrapper"] = dataclasses.field(default=None, repr=False)
 
+    # the field of the parent, which contains this child dataclass.
     _field: Optional[dataclasses.Field] = None
+    # the default values
     _defaults: List[Dataclass] = dataclasses.field(default_factory=list)
     
     def __post_init__(self):
-        if self._parent:
-            if self._parent.defaults:
-                self.defaults = [getattr(default, self.attribute_name) for default in self._parent.defaults]
-            else:
-                assert self._field is not None
-                default_field_value = utils.default_value(self._field)
-                if default_field_value is not None:
-                    self._defaults = [default_field_value]
-
         for field in dataclasses.fields(self.dataclass):
             if dataclasses.is_dataclass(field.type):
-                # handle a nested dataclass.
-                dataclass = field.type
-                attribute_name = field.name
-                child_wrapper = DataclassWrapper(dataclass, attribute_name, _parent=self, _field=field)
-                # TODO: correctly handle the default value for a Dataclass attribute.
-                child_wrapper.prefix = self.prefix                 
+                # handle a nested dataclass attribute
+                dataclass, attribute_name = field.type, field.name
+                child_wrapper = DataclassWrapper(dataclass, attribute_name, _prefix=self._prefix, _parent=self, _field=field)
                 self._children.append(child_wrapper)
                 
             elif utils.is_tuple_or_list_of_dataclasses(field.type):
-                raise NotImplementedError(f"""\
-                Nesting using attributes which are containers of a dataclass isn't supported (yet).
-                """)
+                raise NotImplementedError(f"Nesting using attributes which are containers of a dataclass isn't supported (yet).")
             else:
-                # regular field.
-                field_wrapper = FieldWrapper(field, parent=self)
+                # a normal attribute
+                field_wrapper: FieldWrapper = FieldWrapper(field, parent=self)
                 logger.debug(f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.defaults}")
                 self.fields.append(field_wrapper)
         
-        
         logger.debug(f"THe dataclass at attribute {self.dest} has default values: {self.defaults}")
+
+
+    def add_arguments(self, parser: argparse.ArgumentParser):
+        from ..parsing import ArgumentParser
+        
+        parser = cast(ArgumentParser, parser)
+        
+        group = parser.add_argument_group(
+            title=self.title,
+            description=self.description
+        )
+        for wrapped_field in self.fields:
+            if wrapped_field.arg_options:
+                logger.debug(f"Arg options for field '{wrapped_field.name}': {wrapped_field.arg_options}")
+                # TODO: CustomAction isn't very easy to debug, and is not working. Maybe look into that. Simulating it for now.
+                
+                # from .actions import CustomAction
+                group.add_argument(*wrapped_field.option_strings, **wrapped_field.arg_options)
 
 
     @property
@@ -94,13 +83,16 @@ class DataclassWrapper(Generic[Dataclass]):
             else:
                 self._defaults = []
         return self._defaults
-    
+
     @defaults.setter
     def defaults(self, value: List[Dataclass]):
         self._default = value
-        # for child in self._children:
-        #     child.defaults = [getattr(default, child.attribute_name) for default in self._default]
 
+    @property
+    def title(self) -> str:
+        names_string = f""" [{', '.join(f"'{dest}'" for dest in self.destinations)}]"""
+        title = self.dataclass.__qualname__ + names_string
+        return title
 
     @property
     def description(self) -> Optional[str]:
@@ -114,35 +106,6 @@ class DataclassWrapper(Generic[Dataclass]):
                 elif doc.comment_inline:
                     return doc.comment_inline
         return self.dataclass.__doc__
-
-    @property
-    def title(self) -> str:
-        names_string = f""" [{', '.join(f"'{dest}'" for dest in self.destinations)}]"""
-        title = self.dataclass.__qualname__ + names_string
-        return title
-
-    def add_arguments(self, parser: argparse.ArgumentParser):
-        from ..parsing import ArgumentParser
-        parser : ArgumentParser = parser # type: ignore
-        
-       
-        group = parser.add_argument_group(
-            title=self.title,
-            description=self.description
-        )
-
-        if self.defaults:
-            logger.debug(f"The nested dataclass had a default value of {self.defaults}")
-            
-                
-
-        for wrapped_field in self.fields:
-            if wrapped_field.arg_options: 
-                logger.debug(f"Adding argument for field '{wrapped_field.name}'")
-                logger.debug(f"Arg options for field '{wrapped_field.name}': {wrapped_field.arg_options}")
-                # TODO: CustomAction isn't very easy to debug, and is not working. Maybe look into that. Simulating it for now.
-                # group.add_argument(wrapped_field.option_strings[0], action=CustomAction, field=wrapped_field, **wrapped_field.arg_options)
-                group.add_argument(wrapped_field.option_strings[0], dest=wrapped_field.dest, **wrapped_field.arg_options)
 
     @property
     def nesting_level(self) -> int:
@@ -254,13 +217,3 @@ class DataclassWrapper(Generic[Dataclass]):
         for child, other_child in zip(self._children, other._children):
             child.merge(other_child)
         self.multiple = True
-
-    def instantiate(self, constructor_args: Dict[str, Any]) -> Dataclass:
-        """
-        Creates an instance of the dataclass using the given dict of constructor arguments, including nested dataclasses if present.
-        """
-        logger.debug(f"args dict: {constructor_args}")        
-        dataclass = self.dataclass
-        logger.debug(f"Constructor arguments for dataclass {dataclass}: {constructor_args}")
-        instance: T = dataclass(**constructor_args) #type: ignore
-        return instance

@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List, Tuple
 
-from simple_parsing import ArgumentParser, MutableField
+from simple_parsing import ArgumentParser
+from simple_parsing.utils import list_field
 
 
 @dataclass
@@ -15,9 +16,9 @@ class Example():
     # When using a list attribute, the dataclasses module requires us to use `dataclass.field()`, 
     # so each instance of this class has a different list, rather than them sharing the same list. 
     # To simplify this, you can use `MutableField(value)` which is just a shortcut for `field(default_factory=lambda: value)`.
-    some_floats: List[float] = MutableField([3.14, 2.56])
+    some_floats: List[float] = list_field(3.14, 2.56)
 
-    some_list_of_strings: List[str] = MutableField(["default_1", "default_2"])
+    some_list_of_strings: List[str] = list_field("default_1", "default_2")
     """This list has a default value of ["default_1", "default_2"]."""
 
 

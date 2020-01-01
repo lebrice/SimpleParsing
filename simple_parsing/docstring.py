@@ -153,7 +153,7 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
     first_line = line
     i = line
     end_line: int
-    token: str = None
+    token: Optional[str] = None
     triple_single = "'''"
     triple_double = '"""'
     # print("finding docstring starting from line", line)

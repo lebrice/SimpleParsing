@@ -11,6 +11,28 @@ from simple_parsing import (InconsistentArgumentError,
 
 from .testutils import *
 
+
+def test_multiple_at_same_dest_throws_error():
+    @dataclass
+    class SomeClass:
+        a: int = 123
+
+    parser = ArgumentParser()
+    parser.add_arguments(SomeClass, "some_class")
+    with raises(argparse.ArgumentError):
+        parser.add_arguments(SomeClass, "some_class")
+
+@xfail(reason="Not sure if this syntax should also be allowed...")
+def test_multiple_append_syntax():
+    @dataclass
+    class SomeClass(TestSetup):
+        a: int = 123
+
+    c1, c2, c3 = SomeClass.setup_multiple(3, arguments="--a 1 --a 2 --a 3")
+    assert c1.a == 1
+    assert c2.a == 2
+    assert c3.a == 3
+
 @parametrize("num_instances", [1, 2, 5])
 @parametrize(
     "some_type, default_value",

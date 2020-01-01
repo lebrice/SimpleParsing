@@ -1,15 +1,15 @@
+import argparse
 import dataclasses
 import enum
 import logging
 from typing import *
-import argparse
-import enum
+from typing import cast
+
 from .. import docstring, utils
-from ..utils import Dataclass, DataclassType
+from ..utils import Dataclass, DataclassType, T
 
 logger = logging.getLogger(__name__)
 
-from ..utils import T
 
 @dataclasses.dataclass
 class FieldWrapper(Generic[T]):
@@ -18,7 +18,7 @@ class FieldWrapper(Generic[T]):
     _required: Optional[bool] = None
     _docstring: Optional[docstring.AttributeDocString] = None
     _multiple: bool = False
-    _defaults: Any = None
+    _defaults: Optional[Union[T,List[T]]] = None
     _help: Optional[str] = None
     # the argparse-related options:
     _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=dict)
@@ -31,29 +31,49 @@ class FieldWrapper(Generic[T]):
             self._docstring = docstring.AttributeDocString()
 
     def __call__(self, parser: argparse.ArgumentParser, namespace: argparse.Namespace, values: Any, option_string: Optional[str] = None):
-        from simple_parsing import ArgumentParser
-        from typing import cast
-        parser: ArgumentParser = parser # type: ignore
-        parser = cast(ArgumentParser, parser)
+        """Immitates a custom Action, which sets the corresponding value from `values` at the right destination in the `constructor_arguments` of the parser.
+        
+        # TODO: Could be simplified by removing unused arguments, if we decide that there is no real value in implementing a CustomAction class.
 
-        logger.debug(f"destinations: {self.destinations}")
+        Args:
+            parser (argparse.ArgumentParser): the `simple_parsing.ArgumentParser` used.
+            namespace (argparse.Namespace): (unused).
+            values (Any): The parsed values for the argument.
+            option_string (Optional[str], optional): (unused). Defaults to None.
+        """
+        from simple_parsing import ArgumentParser
+        parser = cast(ArgumentParser, parser)
+        
+        logger.info(f"__call__ of field for destinations {self.destinations}, Namespace: {namespace}, values: {values}")
+        
         if self.multiple:
             values = self.duplicate_if_needed(values)
             logger.debug(f"(replicated the parsed values: '{values}')")
         else:
             values = [values]
 
-        default_values = self.defaults
-        logger.debug(f"Default values: {self.defaults}")
         for destination, value in zip(self.destinations, values):
-            parent_dest, attribute = utils.parent_and_child(destination)
-            logger.debug(f"Before processing the value: {value}")
-            value = self.process(value)
-            logger.debug(f"After processing the value: {value}")
+            parent_dest, attribute = utils.split_parent_and_child(destination)
+            value = self.postprocess(value)
             logger.debug(f"setting value of {value} in constructor arguments of parent at key '{parent_dest}' and attribute '{attribute}'")
             parser.constructor_arguments[parent_dest][attribute] = value # type: ignore
+            logger.info(f"Constructor arguments so far: {parser.constructor_arguments}")
     
     def duplicate_if_needed(self, parsed_values: Any) -> List[Any]:
+        """Duplicates the passed argument values if needed, such that each instance gets a value.
+
+        For example, if we expected 3 values for an argument, and a single value was passed,
+        then we duplicate it so that each of the three instances get the same value.
+        
+        Args:
+            parsed_values (Any): The parsed value(s)
+        
+        Raises:
+            utils.InconsistentArgumentError: If the number of arguments passed is inconsistent (neither 1 or the number of instances)
+        
+        Returns:
+            List[Any]: The list of parsed values, of the right length.
+        """
         num_instances_to_parse = len(self.destinations)
         logger.debug(f"Duplicating raw values. num to parse: {num_instances_to_parse}")
         logger.debug(f"(raw) parsed values: '{parsed_values}'")
@@ -66,8 +86,6 @@ class FieldWrapper(Generic[T]):
 
         if not self.is_tuple and not self.is_list and isinstance(parsed_values, list):
             nesting_level = utils.get_nesting_level(parsed_values)
-            if nesting_level == 1 and len(parsed_values) == num_instances_to_parse:
-                pass
             if nesting_level == 2 and len(parsed_values) == 1 and len(parsed_values[0]) == num_instances_to_parse:
                 return parsed_values[0]
 
@@ -84,48 +102,46 @@ class FieldWrapper(Generic[T]):
             )
         return parsed_values
 
-    def process(self, parsed_value: Any) -> Any:
+    def postprocess(self, raw_parsed_value: Any) -> Any:
         """Applies any conversions to the 'raw' parsed value before it is used in the constructor of the dataclass.
         
         Args:
-            parsed_value (Any): The 'raw' parsed value.
+            raw_parsed_value (Any): The 'raw' parsed value.
         
         Returns:
             Any: The processed value
         """
         if self.is_enum:
-            logger.debug(f"field postprocessing for Enum field '{self.name}' with value '{parsed_value}'")
-            return self.process_enum(parsed_value)
+            logger.debug(f"field postprocessing for Enum field '{self.name}' with value: {raw_parsed_value}'")
+            if isinstance(raw_parsed_value, str):
+                raw_parsed_value = self.field.type[raw_parsed_value]
+            return raw_parsed_value
+
         elif self.is_tuple:
             # argparse always returns lists by default. If the field was of a Tuple type, we just transform the list to a Tuple.
-            if not isinstance(parsed_value, tuple):
-                return tuple(parsed_value)
-        elif self.is_list:
-            if not isinstance(parsed_value, list):
-                return list(parsed_value)
+            if not isinstance(raw_parsed_value, tuple):
+                return tuple(raw_parsed_value)
+
         elif self.is_bool:
-            if parsed_value is None and self.defaults is not None:
+            if raw_parsed_value is None and self.defaults is not None:
                 logger.debug("value is None, returning opposite of default")
                 return not self.defaults
-            return parsed_value
+            return raw_parsed_value
+
         elif self.field.type not in utils.builtin_types:
             try:
                 # if the field has a weird type, we try to call it directly.
-                return self.field.type(parsed_value)
+                return self.field.type(raw_parsed_value)
             except Exception as e:
                 logger.warning(
                     f"Unable to instantiate the field '{self.name}' of type '{self.field.type}' by using the type as a constructor."
-                    f"Returning the raw parsed value instead ({parsed_value}, of type {type(parsed_value)}). (Caught Exception: {e})"
+                    f"Returning the raw parsed value instead ({raw_parsed_value}, of type {type(raw_parsed_value)}). (Caught Exception: {e})"
                 )
-                return parsed_value
+                return raw_parsed_value
 
-        logger.debug(f"field postprocessing for field of unknown type '{self.field.type}' and with value '{parsed_value}'")
-        return parsed_value
+        logger.debug(f"field postprocessing for field of type '{self.field.type}' and with value '{raw_parsed_value}'")
+        return raw_parsed_value
 
-    def process_enum(self, value: Union[str, enum.Enum]):
-        if isinstance(value, str):
-            value = self.field.type[value]
-        return value
        
     @property
     def multiple(self) -> bool:
@@ -150,11 +166,9 @@ class FieldWrapper(Generic[T]):
         return [parent_dest + "." + self.name for parent_dest in self.parent.destinations]
 
     @property
-    def option_strings(self):
+    def option_strings(self) -> List[str]:
         prefix: str = self.parent.prefix
-        if prefix:
-            return [f"--{prefix}{self.name}"]
-        return [f"--{self.name}"]
+        return [f"--{prefix}{self.name}"]
 
     @property
     def dest(self) -> str:
@@ -256,70 +270,64 @@ class FieldWrapper(Generic[T]):
         if not f.init:
             return {}
 
-        elif dataclasses.is_dataclass(self.field.type):
-            assert False, "Shouldn't have created a FieldWrapper for a dataclass in the first place!"
-        elif utils.is_tuple_or_list_of_dataclasses(self.field.type):
-            assert False, "Shouldn't have created a FieldWrapper for a list of dataclasses in the first place!"
+        assert not dataclasses.is_dataclass(self.field.type), "Shouldn't have created a FieldWrapper for a dataclass in the first place!"
+        assert not utils.is_tuple_or_list_of_dataclasses(self.field.type), "Shouldn't have created a FieldWrapper for a list of dataclasses in the first place!"
 
         _arg_options: Dict[str, Any] = {}
-        # TODO: should we explicitly use `str` whenever the type isn't known?
-        _arg_options["type"] = self.field.type if self.field.type in utils.builtin_types else str
+        # TODO: should we explicitly use `str` whenever the type isn't a builtin type? or try to use it as a constructor?
+        _arg_options["type"] = self.field.type
         _arg_options["help"] = self.help
         _arg_options["default"] = self.defaults
         _arg_options["required"] = self.required
-
-        if utils.is_enum(self.field.type):
-            _arg_options["choices"] = list(e.name for e in f.type)
-            _arg_options["type"] = str # otherwise we can't parse the enum, as we get a string.
-            if self.defaults is not None:
-                # if the default value is the Enum object, we make it a string
-                if isinstance(self.defaults, enum.Enum):
-                    _arg_options["default"] = self.defaults.name
+        _arg_options["dest"] = self.dest
         
-        elif self.field.metadata and "choices" in self.field.metadata:
-            choices = self.field.metadata["choices"]
-            _arg_options["choices"] = choices
+        if self.is_enum:
+            # we actually parse enums as string, and convert them back to enums in the `process` method.
+            _arg_options["choices"] = list(e.name for e in f.type)
+            _arg_options["type"] = str 
+            # if the default value is an Enum, we convert it to a string.
+            if self.defaults:
+                enum_to_str = lambda e: e.name if isinstance(e, enum.Enum) else e
+                if not self.multiple:                
+                    _arg_options["default"] = enum_to_str(self.defaults)
+                else:
+                    _arg_options["default"] = [enum_to_str(default) for default in self.defaults]
+        
+        elif self.is_choice:
+            _arg_options["choices"] = self.field.metadata["choices"]
 
-        elif utils.is_list(f.type):
+        elif self.is_list:
             # Check if typing.List or typing.Tuple was used as an annotation, in which case we can automatically convert items to the desired item type.
-            # NOTE: we only support tuples with a single type, for simplicity's sake. 
             T = utils.get_argparse_type_for_container(self.field.type)
             logger.debug(f"Adding a List attribute '{self.name}' with items of type '{T}'")
             _arg_options["nargs"] = "*"
             _arg_options["type"] = T
+
             if self.multiple:
                 _arg_options["type"] = utils._parse_multiple_containers(self.field.type)
-                _arg_options["type"].__name__ = "list_of_lists"
+                _arg_options["type"].__name__ = utils.get_type_name(f.type)
 
-        elif utils.is_tuple(f.type):
-            # NOTE: we only support tuples with a single type, for simplicity's sake. 
-            T = utils.get_argparse_type_for_container(f.type)
+        elif self.is_tuple:
+            T = utils.get_argparse_type_for_container(self.field.type)
             logging.debug(f"Adding a Tuple attribute '{self.name}' with items of type '{T}'")
-            _arg_options["nargs"] = "*"
-            # arg_options["action"] = "append"
-            if multiple:
+            _arg_options["nargs"] = utils.get_container_nargs(f.type)
+            _arg_options["type"] = utils._parse_container(f.type)
+
+            if self.multiple:
+                type_arguments = utils.get_type_arguments(f.type)
                 _arg_options["type"] = utils._parse_multiple_containers(f.type)
-                _arg_options["type"].__name__ = "list_of_lists"
-            else:
-                # TODO: Supporting the `--a '1 2 3'`, `--a [1,2,3]`, and `--a 1 2 3` at the same time is syntax is kinda hard, and I'm not sure if it's really necessary.
-                # right now, we support --a '1 2 3' '4 5 6' and --a [1,2,3] [4,5,6] only when parsing multiple instances.
-                # _arg_options["type"] = utils._parse_container(f.type)
-                _arg_options["type"] = T
-                # _arg_options["type"].__name__ = "container"
-  
+                _arg_options["type"].__name__ = utils.get_type_name(f.type)
+        
         elif f.type is bool:
             _arg_options["type"] = utils.str2bool
             if self.defaults is not None:
                 _arg_options["nargs"] = "?"
             
-        if multiple:
-            required = _arg_options.get("required", False)
-            default = _arg_options.get("default")
-            if required:
+        if self.multiple:
+            if self.required:
                 _arg_options["nargs"] = "+"
             else:
                 _arg_options["nargs"] = "*"
-                _arg_options["default"] = [default]
 
         return _arg_options
 
@@ -330,7 +338,11 @@ class FieldWrapper(Generic[T]):
     @property
     def is_enum(self):
         return utils.is_enum(self.field.type)
-    
+
+    @property
+    def is_choice(self):
+        return self.field.metadata and "choices" in self.field.metadata
+
     @property
     def is_tuple(self):
         return utils.is_tuple(self.field.type)

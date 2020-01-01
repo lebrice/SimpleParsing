@@ -228,27 +228,41 @@ def is_tuple_or_list_of_dataclasses(t: Type) -> bool:
     return is_tuple_or_list(t) and dataclasses.is_dataclass(get_item_type(t))
 
 
-def _parse_multiple_containers(tuple_or_list: type, append_action: bool = False) -> Callable[[str], List[Any]]:
-    T = get_argparse_type_for_container(tuple_or_list)
-    factory = tuple if is_tuple(tuple_or_list) else list
+def get_type_arguments(container_type: Type) -> List[Type]:
+    return getattr(container_type, "__args__", [])
+
+
+def get_type_name(some_type: Type):
+    result = getattr(some_type, "__name__", str(some_type))
+    type_arguments = get_type_arguments(some_type)
+    if type_arguments:
+        result += f"[{','.join(get_type_name(T) for T in type_arguments)}]"
+    return result
+
+
+def get_container_nargs(container_type: Type) -> Union[int, str]:
+    if is_tuple(container_type):
+        type_arguments = getattr(container_type, "__args__", [])
+        if type_arguments and Ellipsis not in type_arguments:
+            nargs = len(type_arguments)
+            if nargs == 1:
+                # a `Tuple[int]` annotation can be interpreted as "a tuple of an unknown number of ints".
+                return "*"
+            return nargs
+
+    return "*"
+        
+
+def _parse_multiple_containers(container_type: type, append_action: bool = False) -> Callable[[str], List[Any]]:
+    T = get_argparse_type_for_container(container_type)
+    factory = tuple if is_tuple(container_type) else list
     
     result = factory()
+    def parse_fn(value: str):
+        logger.info(f"parsing multiple {container_type} of {T}s, value is: '{value}'")
+        values = _parse_container(container_type)(value)
+        logger.info(f"parsing result is '{values}'")
 
-    def parse_fn(v: str) -> List[Any]:
-        # nonlocal result
-        # print(f"Parsing a {tuple_or_list} of {T}s, value is: {v}, type is {type(v)}")
-        v = v.strip()
-        if v.startswith("[") and v.endswith("]"):
-            v = v[1:-1]
-        
-        separator = " "
-        for sep in [","]: # TODO: maybe add support for other separators?
-            if sep in v:
-                separator = sep
-        str_values = [v.strip() for v in v.split(separator)]
-        T_values = [T(v_str) for v_str in str_values]
-        values = factory(v for v in T_values)
-        # print("values:", values)
         if append_action:
             result += values
             return result
@@ -257,28 +271,59 @@ def _parse_multiple_containers(tuple_or_list: type, append_action: bool = False)
     return parse_fn
 
 
-def _parse_container(tuple_or_list: type,) -> Callable[[str], List[Any]]:
-    T = get_argparse_type_for_container(tuple_or_list)
-    factory = tuple if is_tuple(tuple_or_list) else list
+def _parse_container(container_type: Type[Container]) -> Callable[[str], List[Any]]:
+    T = get_argparse_type_for_container(container_type)
+    factory = tuple if is_tuple(container_type) else list
+    import ast
 
-    def parse_fn(v: str) -> List[Any]:
-        # TODO: maybe we could use the fact we know this isn't for a list of lists to make this better somehow.
-        logger.debug(f"Parsing a {tuple_or_list} of {T}s, value is: '{v}', type is {type(v)}")
-        v = v.strip()
+    result: List[Any] = []
+
+    def _parse(value: str) -> List[Any]:
+        logger.info(f"Parsing a {container_type} of {T}s, value is: '{value}'")
+        try:
+            values = _parse_literal(value)
+        except Exception as e:
+            logger.debug(f"Exception while trying to parse '{value}' as a literal: {type(e)}: {e}")
+            # if it doesnt work, fall back to the parse_fn.
+            values = _fallback_parse(value)
+
+        # we do the default 'argparse' action, which is to add the values to a bigger list of values.
+        # result.extend(values)
+        logger.debug(f"returning values: {values}")
+        return values
+
+    def _parse_literal(value: str) -> Union[List[Any], Any]:
+        """ try to parse the string to a python expression directly.
+        (useful for nested lists or tuples.)
+        """
+        literal = ast.literal_eval(value) 
+        logger.debug(f"Parsed literal: {literal}")
+        if not isinstance(literal, (list, tuple)):
+            # we were passed a single-element container, like "--some_list 1", which should give [1].
+            # We therefore return the literal itself, and argparse will append it.
+            return T(literal)
+        else:
+            container = literal
+            values = factory(T(v) for v in container)
+            return values
+
+    def _fallback_parse(v: str) -> List[Any]:
+        v = ' '.join(v.split())
         if v.startswith("[") and v.endswith("]"):
             v = v[1:-1]
-        
+
         separator = " "
         for sep in [","]: # TODO: maybe add support for other separators?
             if sep in v:
                 separator = sep
+
         str_values = [v.strip() for v in v.split(separator)]
         T_values = [T(v_str) for v_str in str_values]
         values = factory(v for v in T_values)
-        logger.debug(f"returning values: {values}")
         return values
 
-    return parse_fn
+    _parse.__name__ = T.__name__
+    return _parse
 
 def setattr_recursive(obj: object, attribute_name: str, value: Any):
     if "." not in attribute_name:
@@ -289,7 +334,7 @@ def setattr_recursive(obj: object, attribute_name: str, value: Any):
         setattr_recursive(child_object, ".".join(parts[1:]), value)
 
 
-def parent_and_child(destination: str) -> Tuple[str, str]:
+def split_parent_and_child(destination: str) -> Tuple[str, str]:
     splits = destination.split(".")
     parent = ".".join(splits[:-1])
     attribute_in_parent = splits[-1]
@@ -369,6 +414,31 @@ class JsonSerializable:
         with open(path) as f:
             args_dict = json.load(f)
         return from_dict(cls, args_dict)
+
+
+def trie(sentences: List[List[str]]) -> Dict[str, Union[str, Dict]]:
+    """Given a list of sentences, creates a trie as a nested dicts of word strings.
+    
+    Args:
+        sentences (List[List[str]]): a list of sentences
+    
+    Returns:
+        Dict[str, Union[str, Dict[str, ...]]]: A tree where each node is a word in a sentence.
+        Sentences which begin with the same words share the first nodes, etc. 
+    """
+    first_word_to_sentences: Dict[str, List[List[str]]] = defaultdict(list)
+    for sentence in sentences:
+        first_word = sentence[0]
+        first_word_to_sentences[first_word].append(sentence)
+
+    return_dict: Dict[str, Union[str, Dict]] = {}
+    for first_word, sentences in first_word_to_sentences.items():
+        if len(sentences) == 1:
+            return_dict[first_word] = ".".join(sentences[0])
+        else:
+            sentences_without_first_word = [sentence[1:] for sentence in sentences]
+            return_dict[first_word] = trie(sentences_without_first_word)
+    return return_dict
 
 
 if __name__ == "__main__":

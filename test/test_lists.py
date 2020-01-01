@@ -133,16 +133,6 @@ def test_parse_multiple_with_list_attributes(
         """some docstring for attribute 'a'"""
 
     arguments = "--a " + list_of_lists_formatting_function(passed_values)
-    print(arguments)
-
-    classes = SomeClass.setup_multiple(3, arguments)
-
-    assert len(classes) == 3
-    for i, c_i in enumerate(classes):
-        assert c_i.a == passed_values[i]
-        assert isinstance(c_i, SomeClass)
-        assert len(c_i.a) == 2
-        assert all(
-            isinstance(v, item_type) for v in c_i.a
-        )
+    classes = list(SomeClass.setup_multiple(3, arguments))
+    assert classes == [SomeClass(a=value) for value in passed_values]
 

@@ -13,16 +13,16 @@ For more info, check out the docstring of the `ConflictResolution` enum.
 """
 
 from dataclasses import dataclass, field, fields
-from typing import List
+from typing import List, Tuple
 
 from simple_parsing import ArgumentParser, MutableField, ConflictResolution
-
+from simple_parsing.utils import list_field
 @dataclass
 class CNNStack():
     name: str = "stack"
     num_layers: int = 3
-    kernel_sizes: List[int] = MutableField([7, 5, 5])
-    num_filters: List[int] = MutableField([32,64,64])
+    kernel_sizes: Tuple[int,int,int] = (7, 5, 5)
+    num_filters: List[int] = list_field(32,64,64)
 
 if __name__ == "__main__":
     parser = ArgumentParser(conflict_resolution=ConflictResolution.ALWAYS_MERGE)
