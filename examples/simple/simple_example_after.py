@@ -2,7 +2,7 @@
 An example script with simple_parsing.
 """
 from dataclasses import dataclass, asdict
-from simple_parsing import ArgumentParser
+from simple_parsing import ArgumentParser, choice
 
 parser = ArgumentParser()
 # same as before:
@@ -22,11 +22,10 @@ class Options:
     name: str = "default"       # The name of some important experiment   
     log_dir: str = "/logs"      # an optional string parameter
     flag: bool = False          # Wether or not to do something
-
+    optimizer: str = choice("ADAM", "SGD", "RMSPROP", default="ADAM") # Which optimizer to use
 parser.add_arguments(Options, dest="options")
 
 args = parser.parse_args()
-print(vars(args))
 
 # retrieve the parsed values:
 batch_size = args.batch_size

@@ -21,6 +21,8 @@ group.add_argument("--log_dir", type=str, default="/logs",
                    help="An optional string parameter")
 group.add_argument("--flag", action="store_true",
                    default=False, help="Wether or not to do something")
+group.add_argument("--optimizer", default="ADAM", choices=["ADAM", "SGD", "RMSPROP"], help="Optimizer to use")
+
 
 if __name__ == "__main__":  
     args = parser.parse_args()
@@ -33,11 +35,12 @@ if __name__ == "__main__":
     log_dir = args.log_dir
     flag = args.flag
 
-"""$ python examples/basic_example_before.py --help
-usage: basic_example_before.py [-h] [--batch_size BATCH_SIZE]
-                               --some_required_int SOME_REQUIRED_INT
-                               [--some_float SOME_FLOAT] [--name NAME]
-                               [--log_dir LOG_DIR] [--flag]
+"""$ python examples/simple/simple_example_before.py --help
+usage: simple_example_before.py [-h] [--batch_size BATCH_SIZE]
+                                --some_required_int SOME_REQUIRED_INT
+                                [--some_float SOME_FLOAT] [--name NAME]
+                                [--log_dir LOG_DIR] [--flag]
+                                [--optimizer {ADAM,SGD,RMSPROP}]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -55,6 +58,8 @@ Options:
                         default)
   --log_dir LOG_DIR     An optional string parameter (default: /logs)
   --flag                Wether or not to do something (default: False)
+  --optimizer {ADAM,SGD,RMSPROP}
+                        Optimizer to use (default: ADAM)
 """
 
 """$ python examples/basic_example_before.py --some_required_int 123

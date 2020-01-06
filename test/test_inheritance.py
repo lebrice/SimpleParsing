@@ -62,7 +62,7 @@ def test_subclasses_with_same_base_class_with_args():
     assert ext.ext_c.c == 40
 
 
-@xfail(reason="TODO: merging is not working yet since we are doing per-dataclass conflict resolution, and not per-field.")
+@xfail(reason="TODO: merging is not working yet with triangle inheritance, because we are merging the two classes, instead of merging the fields.")
 def test_subclasses_with_same_base_class_with_args_merge():
     ext = Inheritance.setup(
         "--a 10 30 --b 20 --c 40",

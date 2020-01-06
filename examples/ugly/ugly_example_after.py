@@ -8,7 +8,7 @@ import torch
 import torch.nn.parallel
 import torch.backends.cudnn as cudnn
 import torch.utils.data
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import *
 
 from simple_parsing import choice
@@ -159,7 +159,7 @@ class RenderingParams:
     render_img_size: int = 128  # Width/height of the rendering image
     splats_radius: float = 0.05 # radius of the splats (fix)
     est_normals: bool = False   # Estimate normals from splat positions.
-    
+    n_splats: int = field(init=False)
     same_view: bool = False # before we add conditioning on cam pose, this is necessary
     """ data with view fixed """
     
@@ -184,61 +184,44 @@ class Parameters:
     # other (misc) settings
     other: OtherParams = OtherParams()
 
-    def __post_init__(self):        
-        self.parser = simple_parsing.ArgumentParser()
-        self.initialized = False
-
-    def initialize(self):
-        """Initialize."""
-        # Define training set depending on the user name
-        username = getpass.getuser()
-        default_root = "default_root"
-        default_out = "default_output"
-        
-        # Add dataset parameters.
-        self.parser.add_arguments(DatasetParams, dest="dataset")
-        
-        self.parser.add_arguments(DatasetParams, dest="dataset")
-
-
-
-    def parse(self):
-        """Parse."""
-        if not self.initialized:
-            self.initialize()
-        self.opt = self.parser.parse_args()
-        print(self.opt)
-
+    def __post_init__(self):
+        """ Post-initialization code """
         # Make output folder
         try:
-            os.makedirs(self.opt.out_dir)
+            os.makedirs(self.other.out_dir)
         except OSError:
             pass
 
         # Set render number of channels
-        if self.opt.render_type == 'img':
-            self.opt.render_img_nc = 3
-        elif self.opt.render_type == 'depth':
-            self.opt.render_img_nc = 1
+        if self.rendering.render_type == 'img':
+            self.rendering.render_img_nc = 3
+        elif self.rendering.render_type == 'depth':
+            self.rendering.render_img_nc = 1
         else:
             raise ValueError('Unknown rendering type')
 
         # Set random seed
-        if self.opt.manualSeed is None:
-            self.opt.manualSeed = random.randint(1, 10000)
-        print("Random Seed: ", self.opt.manualSeed)
-        random.seed(self.opt.manualSeed)
-        torch.manual_seed(self.opt.manualSeed)
-        if not self.opt.no_cuda:
-            torch.cuda.manual_seed_all(self.opt.manualSeed)
+        if self.other.manualSeed is None:
+            self.other.manualSeed = random.randint(1, 10000)
+        print("Random Seed: ", self.other.manualSeed)
+        random.seed(self.other.manualSeed)
+        torch.manual_seed(self.other.manualSeed)
+        if not self.other.no_cuda:
+            torch.cuda.manual_seed_all(self.other.manualSeed)
 
         # Set number of splats param
-        self.opt.n_splats = self.opt.splats_img_size*self.opt.splats_img_size
-
+        self.rendering.n_splats = self.rendering.splats_img_size ** 2
+        
         # Check CUDA is selected
         cudnn.benchmark = True
-        if torch.cuda.is_available() and self.opt.no_cuda:
+        if torch.cuda.is_available() and self.other.no_cuda:
             print("WARNING: You have a CUDA device, so you should "
                   "probably run with --cuda")
 
-        return self.opt
+    @classmethod
+    def parse(cls):
+        parser = simple_parsing.ArgumentParser()
+        parser.add_arguments(cls, dest="parameters")
+        args = parser.parse_args()
+        instance: Parameters = args.parameters
+        return instance
