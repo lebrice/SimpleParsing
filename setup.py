@@ -5,11 +5,10 @@ with open("README_pypi.md", "r") as fh:
 print("PACKAGES FOUND:", setuptools.find_packages())
 import sys
 print(sys.version_info)
-print()
 
 setuptools.setup(
     name="simple_parsing",
-    version="0.0.3.post6",
+    version="0.0.4",
     author="Fabrice Normandin",
     author_email="fabrice.normandin@gmail.com",
     description="A small utility for simplifying and cleaning up argument parsing scripts.",
