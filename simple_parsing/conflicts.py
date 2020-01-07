@@ -168,7 +168,7 @@ class ConflictResolver:
                 wrappers: List[DataclassWrapper] = [field.parent for field in fields]
                 dataclasses = [wrapper.dataclass for wrapper in wrappers]
                 prefixes = [wrapper.prefix for wrapper in wrappers]
-                return dataclasses[0], prefixes[0], wrappers
+                return Conflict(dataclasses[0], prefixes[0], wrappers)
         return None
 
 

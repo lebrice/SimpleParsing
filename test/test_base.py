@@ -45,7 +45,7 @@ def test_basic_optional_argument(simple_attribute, silent):
     assert isinstance(actual.some_attribute, some_type)
 
 
-def test_works_fine_with_other_argparse_arguments(simple_attribute):
+def test_works_fine_with_other_argparse_arguments(simple_attribute, silent):
     some_type, passed_value, expected_value = simple_attribute
     @dataclass
     class SomeClass:
@@ -150,3 +150,16 @@ def test_enum_attributes_work():
 
     ext = Extended.setup("--a 5")
     assert ext.e == Color.BLUE
+
+def test_passing_default_value(simple_attribute, silent):
+    some_type, passed_value, expected_value = simple_attribute
+    @dataclass
+    class SomeClass(TestSetup):
+        a: some_type = passed_value #type: ignore 
+        """some docstring for attribute 'a' """
+    
+    parser = ArgumentParser()
+    some_class = SomeClass.setup(default=SomeClass(expected_value))
+    assert some_class.a == expected_value
+
+

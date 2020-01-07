@@ -29,6 +29,7 @@ class TestSetup():
     def setup(cls: Type[Dataclass],
               arguments: Optional[str] = "",
               dest: Optional[str] = None,
+              default: Optional[Dataclass] = None,
               conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
               is_only_argparse_argument=True,              
               ) -> Dataclass:
@@ -45,7 +46,7 @@ class TestSetup():
         if dest is None:
             dest = camel_case(cls.__name__)
         
-        parser.add_arguments(cls, dest=dest)
+        parser.add_arguments(cls, dest=dest, default=default)
 
         if arguments is None:
             args = parser.parse_args()

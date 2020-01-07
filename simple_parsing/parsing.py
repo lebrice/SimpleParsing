@@ -34,7 +34,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self._conflict_resolver = ConflictResolver(self.conflict_resolution)
         self._wrappers: List[DataclassWrapper] = []
 
-    def add_arguments(self, dataclass: DataclassType, dest: str, prefix=""):
+    def add_arguments(self, dataclass: DataclassType, dest: str, prefix="", default=None):
         """Adds corresponding command-line arguments for this class to the parser.
         
         Arguments:
@@ -52,7 +52,7 @@ class ArgumentParser(argparse.ArgumentParser):
                     Destination attribute {dest} is already used for dataclass of type {dataclass}.
                     Make sure all destinations are unique.
                     """))
-        new_wrapper: DataclassWrapper[DataclassType] = DataclassWrapper(dataclass, dest, _prefix=prefix)
+        new_wrapper: DataclassWrapper[DataclassType] = DataclassWrapper(dataclass, dest, _prefix=prefix, default=default)
         self._wrappers.append(new_wrapper)
 
     def parse_known_args(self, args=None, namespace=None):

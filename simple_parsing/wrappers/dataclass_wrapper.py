@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 class DataclassWrapper(Generic[Dataclass]):
     dataclass: Type[Dataclass]
     attribute_name: str
+    default: dataclasses.InitVar[Optional[Dataclass]] = None
+
     fields: List[FieldWrapper] = dataclasses.field(default_factory=list, repr=False, init=False)
     _destinations: List[str] = dataclasses.field(default_factory=list, init=False)
     _multiple: bool = False
@@ -30,7 +32,10 @@ class DataclassWrapper(Generic[Dataclass]):
     # the default values
     _defaults: List[Dataclass] = dataclasses.field(default_factory=list)
     
-    def __post_init__(self):
+    def __post_init__(self, default: Dataclass):
+        if default:
+            self.defaults = [default]
+
         for field in dataclasses.fields(self.dataclass):
             if dataclasses.is_dataclass(field.type):
                 # handle a nested dataclass attribute
@@ -46,24 +51,18 @@ class DataclassWrapper(Generic[Dataclass]):
                 logger.debug(f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.defaults}")
                 self.fields.append(field_wrapper)
         
-        logger.debug(f"THe dataclass at attribute {self.dest} has default values: {self.defaults}")
+        logger.debug(f"The dataclass at attribute {self.dest} has default values: {self.defaults}")
 
 
     def add_arguments(self, parser: argparse.ArgumentParser):
         from ..parsing import ArgumentParser
-        
         parser = cast(ArgumentParser, parser)
         
-        group = parser.add_argument_group(
-            title=self.title,
-            description=self.description
-        )
+        group = parser.add_argument_group(title=self.title, description=self.description)
         for wrapped_field in self.fields:
             if wrapped_field.arg_options:
                 logger.debug(f"Arg options for field '{wrapped_field.name}': {wrapped_field.arg_options}")
                 # TODO: CustomAction isn't very easy to debug, and is not working. Maybe look into that. Simulating it for now.
-                
-                # from .actions import CustomAction
                 group.add_argument(*wrapped_field.option_strings, **wrapped_field.arg_options)
 
 
@@ -86,7 +85,7 @@ class DataclassWrapper(Generic[Dataclass]):
 
     @defaults.setter
     def defaults(self, value: List[Dataclass]):
-        self._default = value
+        self._defaults = value
 
     @property
     def title(self) -> str:
