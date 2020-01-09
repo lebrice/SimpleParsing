@@ -34,19 +34,11 @@ def test_multiple_append_syntax():
     assert c3.a == 3
 
 @parametrize("num_instances", [1, 2, 5])
-@parametrize(
-    "some_type, default_value",
-    [
-        (int,   123524),
-        (float, 123.456),
-        (str,   "bob"),
-        (bool,  True),
-    ]
-)
-def test_parse_multiple_with_no_arguments_sets_default_value(num_instances: int, some_type: Type, default_value: Any, silent):
+def test_parse_multiple_with_no_arguments_sets_default_value(num_instances: int, simple_attribute, silent):
+    some_type, passed_value, expected_value = simple_attribute
     @dataclass
     class SomeClass(TestSetup):
-        a: some_type = default_value  # type: ignore
+        a: some_type = expected_value  # type: ignore
         """some docstring for attribute 'a'"""
 
     classes = SomeClass.setup_multiple(num_instances, "")
@@ -54,30 +46,20 @@ def test_parse_multiple_with_no_arguments_sets_default_value(num_instances: int,
     for i in range(num_instances):
         c_i = classes[i]
         assert isinstance(c_i, SomeClass)
-        assert c_i.a == default_value
+        assert c_i.a == expected_value
         assert isinstance(c_i.a, some_type)
 
 
 @parametrize("num_instances", [1, 2, 5])
-@parametrize(
-    "some_type, default_value,  passed_value",
-    [
-        (int,   123524,     12),
-        (float, 123.456,    -12.3),
-        (str,   "bob",      "random"),
-        (bool,  True,       False),
-    ])
 def test_parse_multiple_with_single_arg_value_sets_that_value_for_all_instances(
         num_instances: int,
-        some_type: Type,
-        default_value: Any,
-        passed_value: Any,
-        silent
+        simple_attribute,
+        silent,
     ):
-
+    some_type, passed_value, expected_value = simple_attribute
     @dataclass
     class SomeClass(TestSetup):
-        a: some_type = default_value  # type: ignore
+        a: some_type = expected_value  # type: ignore
         """some docstring for attribute 'a'"""
     classes = SomeClass.setup_multiple(num_instances, f"--a {passed_value}")
 
@@ -85,7 +67,7 @@ def test_parse_multiple_with_single_arg_value_sets_that_value_for_all_instances(
     for i in range(num_instances):
         c_i = classes[i]
         assert isinstance(c_i, SomeClass)
-        assert c_i.a == passed_value
+        assert c_i.a == expected_value
         assert isinstance(c_i.a, some_type)
 
 
