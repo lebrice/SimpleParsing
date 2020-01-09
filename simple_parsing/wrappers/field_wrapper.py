@@ -128,13 +128,16 @@ class FieldWrapper(Generic[T]):
                 return not self.defaults
             return raw_parsed_value
 
+        elif self.is_list:
+            return list(raw_parsed_value)
+
         elif self.field.type not in utils.builtin_types:
             try:
                 # if the field has a weird type, we try to call it directly.
                 return self.field.type(raw_parsed_value)
             except Exception as e:
                 logger.warning(
-                    f"Unable to instantiate the field '{self.name}' of type '{self.field.type}' by using the type as a constructor."
+                    f"Unable to instantiate the field '{self.name}' of type '{self.field.type}' by using the type as a constructor. "
                     f"Returning the raw parsed value instead ({raw_parsed_value}, of type {type(raw_parsed_value)}). (Caught Exception: {e})"
                 )
                 return raw_parsed_value
