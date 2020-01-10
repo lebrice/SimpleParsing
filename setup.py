@@ -2,7 +2,8 @@ import setuptools
 
 with open("README_pypi.md", "r") as fh:
     long_description = fh.read()
-print("PACKAGES FOUND:", setuptools.find_packages())
+packages = setuptools.find_namespace_packages(include=['simple_parsing*'])
+print("PACKAGES FOUND:", packages)
 import sys
 print(sys.version_info)
 
@@ -15,7 +16,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/lebrice/SimpleParsing",
-    packages=["simple_parsing"],
+    packages=packages,
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
