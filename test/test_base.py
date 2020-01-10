@@ -161,3 +161,15 @@ def test_passing_default_value(simple_attribute, silent):
     parser = ArgumentParser()
     some_class = SomeClass.setup(default=SomeClass(expected_value))
     assert some_class.a == expected_value
+
+def test_parsing_twice_throws_error():
+    @dataclass
+    class Foo:
+        a: int = 123
+
+    parser = ArgumentParser()
+    parser.add_arguments(Foo, dest="foo")
+    args = parser.parse_args("")
+    assert args.foo.a == 123, vars(args)
+    args = parser.parse_args("--a 456".split())
+    assert args.foo.a == 456, vars(args)
