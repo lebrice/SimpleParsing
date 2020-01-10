@@ -34,6 +34,9 @@ class ArgumentParser(argparse.ArgumentParser):
         self._conflict_resolver = ConflictResolver(self.conflict_resolution)
         self._wrappers: List[DataclassWrapper] = []
 
+        self._preprocessing_done: bool = False
+
+
     def add_arguments(self, dataclass: DataclassType, dest: str, prefix="", default=None):
         """Adds corresponding command-line arguments for this class to the parser.
         
@@ -66,12 +69,17 @@ class ArgumentParser(argparse.ArgumentParser):
     def _preprocessing(self) -> None:
         """Resolve potential conflicts before actually adding all the required arguments."""
         logger.debug("\nPREPROCESSING\n")
+        if self._preprocessing_done:
+            return
+
         self._wrappers = self._conflict_resolver.resolve_conflicts(self._wrappers)
         
         # Create one argument group per dataclass
         for wrapper in self._wrappers:
             logger.debug(f"Adding arguments for dataclass: {wrapper.dataclass} at destinations {wrapper.destinations}")                
             wrapper.add_arguments(parser=self)
+        
+        self._preprocessing_done = True
 
 
     def _postprocessing(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
