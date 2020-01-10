@@ -93,6 +93,14 @@ def MutableField(_type: Type[T], *args, init: bool = True, repr: bool = True, ha
     return field(default_factory=partial(_type, *args, **kwargs), init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
 
 
+def subparsers(subcommands: Dict[str, Type[T]], default: str = None) -> Union[T, Any]:
+    if default is not None and default not in subcommands:
+        raise ValueError(f"Default value of {default} is not a valid subparser! (subcommand: {subcommands})")
+    return field(default=default, metadata={
+        "subparsers": subcommands,
+        "default": default,
+    })
+
 
 class InconsistentArgumentError(RuntimeError):
     """
@@ -101,31 +109,35 @@ class InconsistentArgumentError(RuntimeError):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+
 class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
     """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
     """
     pass
 
+
 def camel_case(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
+
 TRUE_STRINGS: List[str] = ['yes', 'true', 't', 'y', '1']
 FALSE_STRINGS: List[str] = ['no', 'false', 'f', 'n', '0']
 
-def str2bool(v: str) -> bool:
+
+def str2bool(raw_value: Union[str, bool]) -> bool:
     """
     Taken from https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
     """
-    if isinstance(v, bool):
-        return v
-    v = v.strip()
-    if v.lower() in TRUE_STRINGS:
+    if isinstance(raw_value, bool):
+        return raw_value
+    v = raw_value.strip().lower()
+    if v in TRUE_STRINGS:
         return True
-    elif v.lower() in FALSE_STRINGS:
+    elif v in FALSE_STRINGS:
         return False
     else:
-        raise argparse.ArgumentTypeError(f"Boolean value expected for argument, received '{v}'")
+        raise argparse.ArgumentTypeError(f"Boolean value expected for argument, received '{raw_value}'")
 
 
 def get_item_type(container_type: Type[Container[T]]) -> T:
