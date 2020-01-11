@@ -9,7 +9,7 @@ from typing import *
 
 import pytest
 import simple_parsing
-
+import test
 from .testutils import TestSetup
 
 from simple_parsing.utils import subparsers
@@ -32,8 +32,11 @@ class GlobalOptions(TestSetup):
     }, default="train")
     global_arg: str = "something"
 
+# options = GlobalOptions.setup("train --lr 0.1 --train_path bob")
+# print(options)
 
 def test_required_subparser():
-    
-    options = GlobalOptions.setup("train --lr 0.1 --train_path bob".split())
-    assert isinstance(options.mode, )
+    options = GlobalOptions.setup("train --lr 0.1 --train_path bob")
+    assert isinstance(options.mode, TrainOptions)
+    assert options.mode.lr == 0.1
+    assert options.mode.train_path == "bob"

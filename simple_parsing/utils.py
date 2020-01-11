@@ -102,6 +102,13 @@ def subparsers(subcommands: Dict[str, Type[T]], default: str = None) -> Union[T,
     })
 
 
+def is_subparser_field(field: Field) -> bool:
+    if is_union(field.type):
+        type_arguments = get_type_arguments(field.type)
+        return all(map(dataclasses.is_dataclass, type_arguments))
+    return bool(field.metadata.get("subparsers", {}))
+
+
 class InconsistentArgumentError(RuntimeError):
     """
     Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
@@ -234,6 +241,23 @@ def is_bool(t: Type) -> bool:
 
 def is_tuple_or_list(t: Type) -> bool:
     return is_list(t) or is_tuple(t)
+
+def is_union(t: Type) -> bool:
+    """Returns wether or not the given Type annotation is a variant (or subclass) of typing.Union
+    
+    Args:
+        t (Type): some type annotation
+    
+    Returns:
+        bool: Wether this type represents a Union type.
+
+    >>> from typing import *
+    >>> is_union(Union[int, str])
+    True
+    >>> is_union(Tuple[int, str])
+    False
+    """
+    return getattr(t, "origin", "") == "union"
 
 
 def is_tuple_or_list_of_dataclasses(t: Type) -> bool:

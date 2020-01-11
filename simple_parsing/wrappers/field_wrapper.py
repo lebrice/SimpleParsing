@@ -339,17 +339,22 @@ class FieldWrapper(Generic[T]):
         return utils.is_list(self.field.type)
     
     @property
-    def is_enum(self):
+    def is_enum(self) -> bool:
         return utils.is_enum(self.field.type)
 
     @property
-    def is_choice(self):
+    def is_choice(self) -> bool:
         return self.field.metadata and "choices" in self.field.metadata
 
     @property
-    def is_tuple(self):
+    def is_tuple(self) -> bool:
         return utils.is_tuple(self.field.type)
     
     @property
-    def is_bool(self):
+    def is_bool(self) -> bool:
         return utils.is_bool(self.field.type)
+    
+    @property
+    def is_subparser(self) -> bool:
+        return utils.is_subparser_field(self.field)
+
