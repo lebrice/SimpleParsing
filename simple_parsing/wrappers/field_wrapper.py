@@ -20,6 +20,7 @@ class FieldWrapper(Generic[T]):
     _multiple: bool = False
     _defaults: Optional[Union[T,List[T]]] = None
     _help: Optional[str] = None
+    _metavar: Optional[str] = None
     # the argparse-related options:
     _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=dict)
     
@@ -130,6 +131,9 @@ class FieldWrapper(Generic[T]):
 
         elif self.is_list:
             return list(raw_parsed_value)
+
+        elif self.is_subparser:
+            return raw_parsed_value
 
         elif self.field.type not in utils.builtin_types:
             try:
@@ -259,8 +263,12 @@ class FieldWrapper(Generic[T]):
         self._help = value
 
     @property
-    def metavar(self):
-        return self.arg_options.get("metavar")
+    def metavar(self) -> Optional[str]:
+        return self._metavar
+
+    @metavar.setter
+    def metavar(self, value: str):
+        self._metavar = value
 
     @property
     def name(self) -> str:
@@ -344,7 +352,7 @@ class FieldWrapper(Generic[T]):
 
     @property
     def is_choice(self) -> bool:
-        return self.field.metadata and "choices" in self.field.metadata
+        return bool(self.field.metadata) and "choices" in self.field.metadata
 
     @property
     def is_tuple(self) -> bool:

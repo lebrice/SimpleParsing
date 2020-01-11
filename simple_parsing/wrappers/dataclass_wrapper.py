@@ -64,8 +64,12 @@ class DataclassWrapper(Generic[Dataclass]):
             if wrapped_field.is_subparser:
                 # if all the type arguments of the Union are dataclasses, 
                 # add subparsers for each dataclass type in the field.
-                subparsers = parser.add_subparsers(title=wrapped_field.name, description="subparser for field ")
                 subparsers_dict = wrapped_field.field.metadata.get("subparsers", None)
+
+                subparsers = parser.add_subparsers(
+                    title=wrapped_field.name,
+                    description=wrapped_field.help,
+                )
                 
                 for subcommand, dataclass_type in subparsers_dict.items():
                     subparser: ArgumentParser = subparsers.add_parser(subcommand) # type: ignore
