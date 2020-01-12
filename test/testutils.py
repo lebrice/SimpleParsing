@@ -10,7 +10,6 @@ from simple_parsing import (ArgumentParser, ConflictResolution, Formatter,
                             InconsistentArgumentError)
 from simple_parsing.utils import camel_case
 from simple_parsing.wrappers import DataclassWrapper
-from .conftest import *
 xfail = pytest.mark.xfail
 parametrize = pytest.mark.parametrize
 
