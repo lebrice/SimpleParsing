@@ -133,7 +133,12 @@ class InconsistentArgumentError(RuntimeError):
 class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
     """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
     """
-    pass
+    def _get_default_metavar_for_optional(self, action):
+        return getattr(action.type, "__name__", "")
+
+    def _get_default_metavar_for_positional(self, action):
+        return getattr(action.type, "__name__", "")
+
 
 
 def camel_case(name):

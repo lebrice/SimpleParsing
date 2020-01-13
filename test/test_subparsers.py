@@ -54,7 +54,6 @@ def test_required_subparser():
     assert options.mode.metric == "some_metric"
     assert options.mode.test_path == Path("./john")
 
-@xfail(reason="Invoking --help on the parent parser fails, because of the Parser's Formatter class and a metavar issue.")
 def test_help_text_works():
     from contextlib import suppress
     with suppress(SystemExit):
