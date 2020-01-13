@@ -119,6 +119,7 @@ def test_command_tree():
     assert prog.command.subcommand.value == "jack"
     assert prog.execute() == "jack"
 
+
 if __name__ == "__main__":
     import sys
     print("ARGS:", " ".join(sys.argv[1:]))

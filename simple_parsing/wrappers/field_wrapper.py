@@ -367,6 +367,10 @@ class FieldWrapper(Generic[T]):
         return utils.is_subparser_field(self.field)
     
     @property
+    def type_arguments(self) -> List[Type]:
+        return utils.get_type_arguments(self.field.type)
+
+    @property
     def subparsers_dict(self) -> Dict[str, Type]:
         if "subparsers" in self.field.metadata:
             return self.field.metadata["subparsers"]
@@ -375,3 +379,19 @@ class FieldWrapper(Generic[T]):
             return {
                 dataclass_type.__name__.lower(): dataclass_type for dataclass_type in type_arguments
             }
+    
+    def add_subparsers(self, parser: argparse.ArgumentParser):
+        if self.is_subparser:
+            # if all the type arguments of the Union are dataclasses, 
+            # add subparsers for each dataclass type in the field.
+            subparsers = parser.add_subparsers(
+                title=self.name,
+                description=self.help,
+                dest=self.dest
+            )
+            subparsers.required = True
+
+            for subcommand, dataclass_type in self.subparsers_dict.items():
+                subparser: ArgumentParser = subparsers.add_parser(subcommand) # type: ignore
+                subparser.add_arguments(dataclass_type, dest=self.dest)
+

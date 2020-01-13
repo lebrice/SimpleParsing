@@ -130,7 +130,7 @@ class InconsistentArgumentError(RuntimeError):
         super().__init__(*args, **kwargs)
 
 
-class Formatter(argparse.ArgumentDefaultsHelpFormatter):
+class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
     """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
     """
     pass

@@ -62,19 +62,8 @@ class DataclassWrapper(Generic[Dataclass]):
 
         for wrapped_field in self.fields:
             if wrapped_field.is_subparser:
-                # if all the type arguments of the Union are dataclasses, 
-                # add subparsers for each dataclass type in the field.
-                subparsers_dict = wrapped_field.subparsers_dict
-
-                subparsers = parser.add_subparsers(
-                    title=wrapped_field.name,
-                    description=wrapped_field.help,
-                )
+                wrapped_field.add_subparsers(parser)
                 
-                for subcommand, dataclass_type in subparsers_dict.items():
-                    subparser: ArgumentParser = subparsers.add_parser(subcommand) # type: ignore
-                    subparser.add_arguments(dataclass_type, dest=wrapped_field.dest)
-
             elif wrapped_field.arg_options:
                 logger.debug(f"Arg options for field '{wrapped_field.name}': {wrapped_field.arg_options}")
                 # TODO: CustomAction isn't very easy to debug, and is not working. Maybe look into that. Simulating it for now.
