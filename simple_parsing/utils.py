@@ -16,9 +16,11 @@ logger = logging.getLogger(__name__)
 
 builtin_types = [getattr(builtins, d) for d in dir(builtins) if isinstance(getattr(builtins, d), type)]
 
-T = TypeVar("T")
 K = TypeVar("K")
+T = TypeVar("T")
+U = TypeVar("U")
 V = TypeVar("V")
+W = TypeVar("W")
 
 Dataclass = TypeVar("Dataclass")
 DataclassType = Type[Dataclass]
@@ -92,8 +94,19 @@ def set_field(*default_items: T, **kwargs) -> Set[T]:
 def MutableField(_type: Type[T], *args, init: bool = True, repr: bool = True, hash: bool = None, compare: bool = True, metadata: Dict[str, Any] = None, **kwargs) -> T:
     return field(default_factory=partial(_type, *args, **kwargs), init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
 
+@overload
+def subparsers(subcommands: Dict[str, Union[Type[T], Type[U], Type[V], Type[W]]]) -> Union[T, U, V, W]: pass
 
-def subparsers(subcommands: Dict[str, Type[T]], default: str = None) -> Union[T, Any]:
+@overload
+def subparsers(subcommands: Dict[str, Union[Type[T], Type[U], Type[V]]]) -> Union[T, U, V]: pass
+
+@overload
+def subparsers(subcommands: Dict[str, Union[Type[T], Type[U]]]) -> Union[T, U]: pass
+
+@overload
+def subparsers(subcommands: Dict[str, Union[Type[T]]]) -> Union[T, U]: pass
+
+def subparsers(subcommands: Dict[str, Type], default=None) -> Any:
     if default is not None and default not in subcommands:
         raise ValueError(f"Default value of {default} is not a valid subparser! (subcommand: {subcommands})")
     return field(default=default, metadata={
@@ -117,7 +130,7 @@ class InconsistentArgumentError(RuntimeError):
         super().__init__(*args, **kwargs)
 
 
-class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
+class Formatter(argparse.ArgumentDefaultsHelpFormatter):
     """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
     """
     pass
@@ -254,10 +267,12 @@ def is_union(t: Type) -> bool:
     >>> from typing import *
     >>> is_union(Union[int, str])
     True
+    >>> is_union(Union[int, str, float])
+    True
     >>> is_union(Tuple[int, str])
     False
     """
-    return getattr(t, "origin", "") == "union"
+    return getattr(t, "__origin__", "") == Union
 
 
 def is_tuple_or_list_of_dataclasses(t: Type) -> bool:

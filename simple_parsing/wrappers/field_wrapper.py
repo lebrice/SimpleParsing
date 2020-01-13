@@ -365,4 +365,13 @@ class FieldWrapper(Generic[T]):
     @property
     def is_subparser(self) -> bool:
         return utils.is_subparser_field(self.field)
-
+    
+    @property
+    def subparsers_dict(self) -> Dict[str, Type]:
+        if "subparsers" in self.field.metadata:
+            return self.field.metadata["subparsers"]
+        else:
+            type_arguments = utils.get_type_arguments(self.field.type)
+            return {
+                dataclass_type.__name__.lower(): dataclass_type for dataclass_type in type_arguments
+            }
