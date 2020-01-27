@@ -159,8 +159,8 @@ class ConflictResolver:
         conflicts: Dict[str, List[FieldWrapper]] = defaultdict(list)
         for wrapper in all_wrappers:
             for field in wrapper.fields:
-                # TODO: figure out a better "identifier" to use?
-                conflicts[field.option_strings[0]].append(field)
+                for option in field.option_strings:    
+                    conflicts[option].append(field)
         
         for argument_name, fields in conflicts.items():
             if len(fields) > 1:
@@ -177,7 +177,8 @@ class ConflictResolver:
         arg_names: Set[str] = set()
         for wrapper in all_wrappers:
             for field in wrapper.fields:
-                if field.option_strings[0] in arg_names:
-                    return True
-                arg_names.add(field.option_strings[0])
+                for option in field.option_strings:
+                    if option in arg_names:
+                        return True
+                    arg_names.add(option)
         return False

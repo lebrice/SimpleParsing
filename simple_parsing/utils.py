@@ -7,7 +7,7 @@ import json
 import logging
 import re
 from collections import defaultdict
-from dataclasses import MISSING, Field, dataclass, field
+from dataclasses import MISSING, _MISSING_TYPE, Field, dataclass
 from enum import Enum
 from functools import partial
 from typing import *
@@ -56,7 +56,7 @@ def choice(*choices: T, default=None) -> T:
     """
     if default is not None and default not in choices:
         raise ValueError(f"Default value of {default} is not a valid option! (options: {choices})")
-    return field(default=default, metadata={"choices": choices})
+    return _field(default=default, metadata={"choices": choices})
 
 
 def list_field(*default_items: SimpleValueType, **kwargs) -> List[T]:
@@ -92,27 +92,28 @@ def set_field(*default_items: T, **kwargs) -> Set[T]:
 
 
 def MutableField(_type: Type[T], *args, init: bool = True, repr: bool = True, hash: bool = None, compare: bool = True, metadata: Dict[str, Any] = None, **kwargs) -> T:
-    return field(default_factory=partial(_type, *args, **kwargs), init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
+    return _field(default_factory=partial(_type, *args, **kwargs), init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
 
-@overload
-def subparsers(subcommands: Dict[str, Union[Type[T], Type[U], Type[V], Type[W]]]) -> Union[T, U, V, W]: pass
-
-@overload
-def subparsers(subcommands: Dict[str, Union[Type[T], Type[U], Type[V]]]) -> Union[T, U, V]: pass
-
-@overload
-def subparsers(subcommands: Dict[str, Union[Type[T], Type[U]]]) -> Union[T, U]: pass
-
-@overload
-def subparsers(subcommands: Dict[str, Union[Type[T]]]) -> Union[T, U]: pass
 
 def subparsers(subcommands: Dict[str, Type], default=None) -> Any:
     if default is not None and default not in subcommands:
         raise ValueError(f"Default value of {default} is not a valid subparser! (subcommand: {subcommands})")
-    return field(default=default, metadata={
+    return _field(default=default, metadata={
         "subparsers": subcommands,
         "default": default,
     })
+
+
+def _field(*,
+           aliases: List[str] = None,
+           metadata: Dict[str, Any] = None,
+           **kwargs) -> T:
+    metadata = {} if metadata is None else metadata
+    if aliases:
+        metadata.update({"aliases": aliases})
+    return dataclasses.field(metadata=metadata, **kwargs)
+
+
 
 
 def is_subparser_field(field: Field) -> bool:
