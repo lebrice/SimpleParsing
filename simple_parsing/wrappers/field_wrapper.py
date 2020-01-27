@@ -20,6 +20,7 @@ class FieldWrapper(Generic[T]):
     _multiple: bool = False
     _defaults: Optional[Union[T,List[T]]] = None
     _help: Optional[str] = None
+    _metavar: Optional[str] = None
     # the argparse-related options:
     _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=dict)
     
@@ -130,6 +131,9 @@ class FieldWrapper(Generic[T]):
 
         elif self.is_list:
             return list(raw_parsed_value)
+
+        elif self.is_subparser:
+            return raw_parsed_value
 
         elif self.field.type not in utils.builtin_types:
             try:
@@ -259,8 +263,12 @@ class FieldWrapper(Generic[T]):
         self._help = value
 
     @property
-    def metavar(self):
-        return self.arg_options.get("metavar")
+    def metavar(self) -> Optional[str]:
+        return self._metavar
+
+    @metavar.setter
+    def metavar(self, value: str):
+        self._metavar = value
 
     @property
     def name(self) -> str:
@@ -339,17 +347,51 @@ class FieldWrapper(Generic[T]):
         return utils.is_list(self.field.type)
     
     @property
-    def is_enum(self):
+    def is_enum(self) -> bool:
         return utils.is_enum(self.field.type)
 
     @property
-    def is_choice(self):
-        return self.field.metadata and "choices" in self.field.metadata
+    def is_choice(self) -> bool:
+        return bool(self.field.metadata) and "choices" in self.field.metadata
 
     @property
-    def is_tuple(self):
+    def is_tuple(self) -> bool:
         return utils.is_tuple(self.field.type)
     
     @property
-    def is_bool(self):
+    def is_bool(self) -> bool:
         return utils.is_bool(self.field.type)
+    
+    @property
+    def is_subparser(self) -> bool:
+        return utils.is_subparser_field(self.field)
+    
+    @property
+    def type_arguments(self) -> List[Type]:
+        return utils.get_type_arguments(self.field.type)
+
+    @property
+    def subparsers_dict(self) -> Dict[str, Type]:
+        if "subparsers" in self.field.metadata:
+            return self.field.metadata["subparsers"]
+        else:
+            type_arguments = utils.get_type_arguments(self.field.type)
+            return {
+                dataclass_type.__name__.lower(): dataclass_type for dataclass_type in type_arguments
+            }
+    
+    def add_subparsers(self, parser: argparse.ArgumentParser):
+        if self.is_subparser:
+            # if all the type arguments of the Union are dataclasses, 
+            # add subparsers for each dataclass type in the field.
+            subparsers = parser.add_subparsers(
+                title=self.name,
+                description=self.help,
+                dest=self.dest
+            )
+            subparsers.required = True
+
+            for subcommand, dataclass_type in self.subparsers_dict.items():
+                subparser: ArgumentParser = subparsers.add_parser(subcommand) # type: ignore
+                subparser.add_arguments(dataclass_type, dest=self.dest)
+

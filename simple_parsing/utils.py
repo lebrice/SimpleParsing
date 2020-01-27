@@ -16,9 +16,11 @@ logger = logging.getLogger(__name__)
 
 builtin_types = [getattr(builtins, d) for d in dir(builtins) if isinstance(getattr(builtins, d), type)]
 
-T = TypeVar("T")
 K = TypeVar("K")
+T = TypeVar("T")
+U = TypeVar("U")
 V = TypeVar("V")
+W = TypeVar("W")
 
 Dataclass = TypeVar("Dataclass")
 DataclassType = Type[Dataclass]
@@ -92,6 +94,32 @@ def set_field(*default_items: T, **kwargs) -> Set[T]:
 def MutableField(_type: Type[T], *args, init: bool = True, repr: bool = True, hash: bool = None, compare: bool = True, metadata: Dict[str, Any] = None, **kwargs) -> T:
     return field(default_factory=partial(_type, *args, **kwargs), init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
 
+@overload
+def subparsers(subcommands: Dict[str, Union[Type[T], Type[U], Type[V], Type[W]]]) -> Union[T, U, V, W]: pass
+
+@overload
+def subparsers(subcommands: Dict[str, Union[Type[T], Type[U], Type[V]]]) -> Union[T, U, V]: pass
+
+@overload
+def subparsers(subcommands: Dict[str, Union[Type[T], Type[U]]]) -> Union[T, U]: pass
+
+@overload
+def subparsers(subcommands: Dict[str, Union[Type[T]]]) -> Union[T, U]: pass
+
+def subparsers(subcommands: Dict[str, Type], default=None) -> Any:
+    if default is not None and default not in subcommands:
+        raise ValueError(f"Default value of {default} is not a valid subparser! (subcommand: {subcommands})")
+    return field(default=default, metadata={
+        "subparsers": subcommands,
+        "default": default,
+    })
+
+
+def is_subparser_field(field: Field) -> bool:
+    if is_union(field.type):
+        type_arguments = get_type_arguments(field.type)
+        return all(map(dataclasses.is_dataclass, type_arguments))
+    return bool(field.metadata.get("subparsers", {}))
 
 
 class InconsistentArgumentError(RuntimeError):
@@ -101,31 +129,40 @@ class InconsistentArgumentError(RuntimeError):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+
 class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
     """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
     """
-    pass
+    def _get_default_metavar_for_optional(self, action):
+        return getattr(action.type, "__name__", "")
+
+    def _get_default_metavar_for_positional(self, action):
+        return getattr(action.type, "__name__", "")
+
+
 
 def camel_case(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
+
 TRUE_STRINGS: List[str] = ['yes', 'true', 't', 'y', '1']
 FALSE_STRINGS: List[str] = ['no', 'false', 'f', 'n', '0']
 
-def str2bool(v: str) -> bool:
+
+def str2bool(raw_value: Union[str, bool]) -> bool:
     """
     Taken from https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
     """
-    if isinstance(v, bool):
-        return v
-    v = v.strip()
-    if v.lower() in TRUE_STRINGS:
+    if isinstance(raw_value, bool):
+        return raw_value
+    v = raw_value.strip().lower()
+    if v in TRUE_STRINGS:
         return True
-    elif v.lower() in FALSE_STRINGS:
+    elif v in FALSE_STRINGS:
         return False
     else:
-        raise argparse.ArgumentTypeError(f"Boolean value expected for argument, received '{v}'")
+        raise argparse.ArgumentTypeError(f"Boolean value expected for argument, received '{raw_value}'")
 
 
 def get_item_type(container_type: Type[Container[T]]) -> T:
@@ -222,6 +259,25 @@ def is_bool(t: Type) -> bool:
 
 def is_tuple_or_list(t: Type) -> bool:
     return is_list(t) or is_tuple(t)
+
+def is_union(t: Type) -> bool:
+    """Returns wether or not the given Type annotation is a variant (or subclass) of typing.Union
+    
+    Args:
+        t (Type): some type annotation
+    
+    Returns:
+        bool: Wether this type represents a Union type.
+
+    >>> from typing import *
+    >>> is_union(Union[int, str])
+    True
+    >>> is_union(Union[int, str, float])
+    True
+    >>> is_union(Tuple[int, str])
+    False
+    """
+    return getattr(t, "__origin__", "") == Union
 
 
 def is_tuple_or_list_of_dataclasses(t: Type) -> bool:

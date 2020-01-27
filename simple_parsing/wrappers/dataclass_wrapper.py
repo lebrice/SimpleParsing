@@ -59,8 +59,12 @@ class DataclassWrapper(Generic[Dataclass]):
         parser = cast(ArgumentParser, parser)
         
         group = parser.add_argument_group(title=self.title, description=self.description)
+
         for wrapped_field in self.fields:
-            if wrapped_field.arg_options:
+            if wrapped_field.is_subparser:
+                wrapped_field.add_subparsers(parser)
+                
+            elif wrapped_field.arg_options:
                 logger.debug(f"Arg options for field '{wrapped_field.name}': {wrapped_field.arg_options}")
                 # TODO: CustomAction isn't very easy to debug, and is not working. Maybe look into that. Simulating it for now.
                 group.add_argument(*wrapped_field.option_strings, **wrapped_field.arg_options)

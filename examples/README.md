@@ -15,3 +15,4 @@
 
 - [Enums Example](enums/README.md)
 
+- [Subparsers Example](subparsers/README.md)
