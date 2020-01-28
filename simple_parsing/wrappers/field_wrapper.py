@@ -185,9 +185,8 @@ class FieldWrapper(Generic[T]):
                 dashes = "-"
                 name = alias[1:]
             elif len(alias) == 1:
-                dashes += "-"
-            option = f"{dashes}{self.prefix}{alias}"
-            
+                dashes = "-"
+            option = f"{dashes}{self.prefix}{name}"
             _option_strings.append(option)
         return _option_strings
 
