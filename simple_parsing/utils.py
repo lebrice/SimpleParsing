@@ -7,7 +7,7 @@ import json
 import logging
 import re
 from collections import defaultdict
-from dataclasses import MISSING, Field, dataclass, field
+from dataclasses import MISSING, _MISSING_TYPE, Field, dataclass
 from enum import Enum
 from functools import partial
 from typing import *
@@ -28,15 +28,8 @@ DataclassType = Type[Dataclass]
 SimpleValueType = Union[bool, int, float, str]
 SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]]
 
-"""
-shorthand function for setting a `list` attribute on a dataclass,
-    so that every instance of the dataclass doesn't share the same list.
 
-    Accepts any of the arguments of the `dataclasses.field` function.
-
-"""
-
-def choice(*choices: T, default=None) -> T:
+def choice(*choices: T, default=None, **kwargs) -> T:
     """ Makes a regular attribute, whose value, when parsed from the 
     command-line, can only be one contained in `choices`, with a default value 
     of `default`.
@@ -56,7 +49,7 @@ def choice(*choices: T, default=None) -> T:
     """
     if default is not None and default not in choices:
         raise ValueError(f"Default value of {default} is not a valid option! (options: {choices})")
-    return field(default=default, metadata={"choices": choices})
+    return field(default=default, choices=choices, **kwargs)
 
 
 def list_field(*default_items: SimpleValueType, **kwargs) -> List[T]:
@@ -94,17 +87,6 @@ def set_field(*default_items: T, **kwargs) -> Set[T]:
 def MutableField(_type: Type[T], *args, init: bool = True, repr: bool = True, hash: bool = None, compare: bool = True, metadata: Dict[str, Any] = None, **kwargs) -> T:
     return field(default_factory=partial(_type, *args, **kwargs), init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
 
-@overload
-def subparsers(subcommands: Dict[str, Union[Type[T], Type[U], Type[V], Type[W]]]) -> Union[T, U, V, W]: pass
-
-@overload
-def subparsers(subcommands: Dict[str, Union[Type[T], Type[U], Type[V]]]) -> Union[T, U, V]: pass
-
-@overload
-def subparsers(subcommands: Dict[str, Union[Type[T], Type[U]]]) -> Union[T, U]: pass
-
-@overload
-def subparsers(subcommands: Dict[str, Union[Type[T]]]) -> Union[T, U]: pass
 
 def subparsers(subcommands: Dict[str, Type], default=None) -> Any:
     if default is not None and default not in subcommands:
@@ -114,6 +96,27 @@ def subparsers(subcommands: Dict[str, Type], default=None) -> Any:
         "default": default,
     })
 
+
+def field(*,
+          default: Union[T, _MISSING_TYPE] = MISSING,
+          default_factory: Callable[[], T] = None,
+          aliases: List[str] = None,
+          choices: Tuple[T, ...] = None,
+          **field_kwargs) -> T:
+    metadata: Dict[str, Any] = field_kwargs.get("metadata", {})
+    if aliases:
+        metadata.update({"aliases": aliases})
+    if choices:
+        metadata.update({"choices": choices})
+    field_kwargs["metadata"] = metadata
+    
+    if default is MISSING:
+        assert default_factory is not None
+        return dataclasses.field(default_factory=default_factory, **field_kwargs)
+    else:
+        assert not isinstance(default, _MISSING_TYPE)
+        return dataclasses.field(default=default, **field_kwargs)
+        
 
 def is_subparser_field(field: Field) -> bool:
     if is_union(field.type):

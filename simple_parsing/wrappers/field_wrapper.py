@@ -174,8 +174,29 @@ class FieldWrapper(Generic[T]):
 
     @property
     def option_strings(self) -> List[str]:
-        prefix: str = self.parent.prefix
-        return [f"--{prefix}{self.name}"]
+        _option_strings = [f"--{self.prefix}{self.name}"]
+        for alias in self.aliases:
+            dashes: str = "--"
+            name: str = alias
+            if alias.startswith("--"):
+                dashes = "--"
+                name = alias[2:]
+            elif alias.startswith("-"):
+                dashes = "-"
+                name = alias[1:]
+            elif len(alias) == 1:
+                dashes = "-"
+            option = f"{dashes}{self.prefix}{name}"
+            _option_strings.append(option)
+        return _option_strings
+
+    @property
+    def prefix(self) -> str:
+        return self.parent.prefix
+
+    @property
+    def aliases(self) -> List[str]:
+        return self.field.metadata.get("aliases", [])
 
     @property
     def dest(self) -> str:
@@ -305,6 +326,7 @@ class FieldWrapper(Generic[T]):
                     _arg_options["default"] = [enum_to_str(default) for default in self.defaults]
         
         elif self.is_choice:
+            assert self.field.metadata
             _arg_options["choices"] = self.field.metadata["choices"]
 
         elif self.is_list:

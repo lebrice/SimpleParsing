@@ -162,6 +162,7 @@ def test_passing_default_value(simple_attribute, silent):
     some_class = SomeClass.setup(default=SomeClass(expected_value))
     assert some_class.a == expected_value
 
+
 def test_parsing_twice_throws_error():
     @dataclass
     class Foo:
