@@ -29,6 +29,69 @@ SimpleValueType = Union[bool, int, float, str]
 SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]]
 
 
+
+def field(*,
+          aliases: List[str] = None,
+          default: Union[T, _MISSING_TYPE] = MISSING,
+          default_factory: Callable[[], T] = None,
+          init: bool = True,
+          repr: bool = True,
+          hash: bool = None,
+          compare: bool = True,
+          metadata: Dict[str, Any] = None,
+          **custom_argparse_args) -> T:
+    """Calls the `dataclasses.field` function, and leftover arguments are fed directly to the `ArgumentParser.add_argument(*option_strings, **kwargs)` method.
+    
+    Parameters
+    ----------
+    aliases : List[str], optional
+        Additional option_strings to pass to the `add_argument` method, by default None
+    default : Union[T, _MISSING_TYPE], optional
+        The default field value (same as in `dataclasses.field`), by default MISSING
+    default_factory : Callable[[], T], optional
+        (same as in `dataclasses.field`), by default None
+    init : bool, optional
+        (same as in `dataclasses.field`), by default True
+    repr : bool, optional
+        (same as in `dataclasses.field`), by default True
+    hash : bool, optional
+        (same as in `dataclasses.field`), by default None
+    compare : bool, optional
+        (same as in `dataclasses.field`), by default True
+    metadata : Dict[str, Any], optional
+        (same as in `dataclasses.field`), by default None
+    
+    Returns
+    -------
+    T
+        The value returned by the `dataclasses.field` function.
+    """
+    _metadata: Dict[str, Any] = metadata if metadata is not None else {}
+    if aliases:
+        _metadata.update({"aliases": aliases})
+    if custom_argparse_args:
+        _metadata.update({"custom_args": custom_argparse_args})
+
+    if default_factory is not None:
+        return dataclasses.field(
+            default_factory=default_factory,
+            init=init,
+            repr=repr,
+            hash=hash,
+            compare=compare,
+            metadata=_metadata
+        )
+    else:
+        return dataclasses.field(
+            default=default,
+            init=init,
+            repr=repr,
+            hash=hash,
+            compare=compare,
+            metadata=_metadata
+        )
+
+
 def choice(*choices: T, default=None, **kwargs) -> T:
     """ Makes a regular attribute, whose value, when parsed from the 
     command-line, can only be one contained in `choices`, with a default value 
@@ -97,26 +160,7 @@ def subparsers(subcommands: Dict[str, Type], default=None) -> Any:
     })
 
 
-def field(*,
-          default: Union[T, _MISSING_TYPE] = MISSING,
-          default_factory: Callable[[], T] = None,
-          aliases: List[str] = None,
-          choices: Tuple[T, ...] = None,
-          **field_kwargs) -> T:
-    metadata: Dict[str, Any] = field_kwargs.get("metadata", {})
-    if aliases:
-        metadata.update({"aliases": aliases})
-    if choices:
-        metadata.update({"choices": choices})
-    field_kwargs["metadata"] = metadata
-    
-    if default is MISSING:
-        assert default_factory is not None
-        return dataclasses.field(default_factory=default_factory, **field_kwargs)
-    else:
-        assert not isinstance(default, _MISSING_TYPE)
-        return dataclasses.field(default=default, **field_kwargs)
-        
+
 
 def is_subparser_field(field: Field) -> bool:
     if is_union(field.type):

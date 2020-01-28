@@ -166,7 +166,18 @@ class FieldWrapper(Generic[T]):
             return self._arg_options
         else:
             self._arg_options = self.get_arg_options()
+            self._arg_options.update(self.custom_args)
         return self._arg_options
+
+    @property
+    def custom_args(self) -> Dict[str, Any]:
+        """Custom argparse options that overwrite those in `arg_options`.
+        
+        Can be set by using the `field` function, passing in a keyword argument
+        that would usually be passed to the parser.add_argument(
+        *option_strings, **kwargs) method. 
+        """
+        return self.field.metadata.get("custom_args", {})
 
     @property
     def destinations(self) -> List[str]:
@@ -325,10 +336,6 @@ class FieldWrapper(Generic[T]):
                 else:
                     _arg_options["default"] = [enum_to_str(default) for default in self.defaults]
         
-        elif self.is_choice:
-            assert self.field.metadata
-            _arg_options["choices"] = self.field.metadata["choices"]
-
         elif self.is_list:
             # Check if typing.List or typing.Tuple was used as an annotation, in which case we can automatically convert items to the desired item type.
             T = utils.get_argparse_type_for_container(self.field.type)
