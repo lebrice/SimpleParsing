@@ -30,7 +30,6 @@ class TestSetup():
               dest: Optional[str] = None,
               default: Optional[Dataclass] = None,
               conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
-              is_only_argparse_argument=True,              
               ) -> Dataclass:
         """Basic setup for a test.
         

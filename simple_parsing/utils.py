@@ -544,6 +544,31 @@ def trie(sentences: List[List[str]]) -> Dict[str, Union[str, Dict]]:
     return return_dict
 
 
+def keep_keys(d: Dict, keys_to_keep: Iterable[str]) -> Tuple[Dict, Dict]:
+    """Removes all the keys in `d` that aren't in `keys`.
+    
+    Parameters
+    ----------
+    d : Dict
+        Some dictionary.
+    keys_to_keep : Iterable[str]
+        The set of keys to keep
+    
+    Returns
+    -------
+    Tuple[Dict, Dict]
+        The same dictionary (with all the unwanted keys removed) as well as a
+        new dict containing only the removed item.
+    
+    """
+    d_keys = set(d.keys()) # save a copy since we will modify the dict.
+    removed = {}
+    for key in d_keys:
+        if key not in keys_to_keep:
+            removed[key] = d.pop(key)
+    return d, removed
+
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
