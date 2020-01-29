@@ -20,7 +20,6 @@ class DataclassWrapper(Generic[Dataclass]):
 
     fields: List[FieldWrapper] = dataclasses.field(default_factory=list, repr=False, init=False)
     _destinations: List[str] = dataclasses.field(default_factory=list, init=False)
-    _multiple: bool = False
     _required: bool = False
     _explicit: bool = False
     _prefix: str = ""
@@ -48,7 +47,7 @@ class DataclassWrapper(Generic[Dataclass]):
             else:
                 # a normal attribute
                 field_wrapper: FieldWrapper = FieldWrapper(field, parent=self)
-                logger.debug(f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.defaults}")
+                logger.debug(f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.default}")
                 self.fields.append(field_wrapper)
         
         logger.debug(f"The dataclass at attribute {self.dest} has default values: {self.defaults}")
@@ -141,15 +140,7 @@ class DataclassWrapper(Generic[Dataclass]):
 
     @property
     def multiple(self) -> bool:
-        return self._multiple
-
-    @multiple.setter
-    def multiple(self, value: bool):
-        for wrapped_field in self.fields:
-            wrapped_field.multiple = value
-        for child_wrapper in self._children:
-            child_wrapper.multiple = value
-        self._multiple = value
+        return len(self.destinations) > 1
 
     @property
     def descendants(self):
@@ -217,6 +208,9 @@ class DataclassWrapper(Generic[Dataclass]):
         logger.debug(f"destinations after merge: {self.destinations}")
         self.defaults.extend(other.defaults)
 
+        for field_wrapper in self.fields:
+            field_wrapper.default = None
+
         for child, other_child in zip(self._children, other._children):
             child.merge(other_child)
-        self.multiple = True
+        

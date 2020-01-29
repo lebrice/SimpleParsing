@@ -456,22 +456,22 @@ def get_nesting_level(possibly_nested_list):
 
 
 
-def default_value(field: dataclasses.Field) -> Optional[Any]:
-    """Returns the default value of a dataclass field, if available.
+def default_value(field: dataclasses.Field) -> Union[T, _MISSING_TYPE]:
+    """Returns the default value of a field in a dataclass, if available.
+    When not available, returns `dataclasses.MISSING`.
 
     Args:
-        field (dataclasses.Field[T]): The dataclasses.Field to get the default value of.
+        field (dataclasses.Field): The dataclasses.Field to get the default value of.
 
     Returns:
-        Optional[T]: The default value for that field, if present, or None otherwise.
+        Union[T, _MISSING_TYPE]: The default value for that field, if present, or None otherwise.
     """
-
     if field.default is not dataclasses.MISSING:
         return field.default
     elif field.default_factory is not dataclasses.MISSING:  # type: ignore
         return field.default_factory()  # type: ignore
     else:
-        return None
+        return dataclasses.MISSING
 
 
 def from_dict(dataclass: Type[Dataclass], d: Dict[str, Any]) -> Dataclass:

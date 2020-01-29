@@ -1,13 +1,13 @@
 import argparse
-
+import shlex
 from dataclasses import dataclass
-
-from test.testutils import TestSetup, raises
-
-from simple_parsing import ArgumentParser
-from simple_parsing.utils import field
 from typing import Any
 
+import pytest
+from simple_parsing import ArgumentParser
+from simple_parsing.utils import field
+
+from .testutils import TestSetup, raises, TestParser
 
 def test_custom_args():
     @dataclass
@@ -61,16 +61,42 @@ def test_custom_nargs():
 
 
 
-def test_custom_store_actions():
-    """Shows that you can use 'nargs' with the field() function. """
-    @dataclass
-    class Foo(TestSetup):
-        debug: bool = field(aliases=["-d", "-debug"],  action="store_true")
-        verbose: bool = field(aliases=["-v", "-verb"], action="store_true")
-        no_pruning: bool = field(action="store_false")
+@dataclass
+class Foo:
+    flag: bool = field(aliases=["-f", "-flag"],  action="store_true")
+    # wether or not to store some value.
+    no_cache: bool = field(action="store_false")
+
+
+def test_store_true_action(parser: TestParser[Foo]):
+    parser.add_arguments(Foo, "foo")
+    foo = parser("--flag")
+    assert foo.flag == True
+
+    foo = parser("")
+    assert foo.flag == False
+
+    foo = parser("-f")
+    assert foo.flag == True
+
+    foo = parser("-flag")
+    assert foo.flag == True
+
+
+def test_store_false_action(parser: TestParser[Foo]):
+    parser.add_arguments(Foo, "foo")
     
-    foo: Foo = Foo.setup("--verbose --no_pruning")
-    assert foo.debug == False
-    assert foo.verbose == True
-    assert foo.no_pruning == False
-    
+    foo = parser("--no-cache")
+    assert foo.no_cache == False
+
+    foo = parser("")
+    assert foo.no_cache == True
+
+
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--foo', action='store_const', const=42)
+    args = parser.parse_args()
+    print(args)

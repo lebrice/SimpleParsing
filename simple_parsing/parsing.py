@@ -66,6 +66,10 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args = self._postprocessing(parsed_args)
         return parsed_args, unparsed_args
 
+    def print_help(self, file=None):
+        self._preprocessing()
+        return super().print_help(file)
+
     def _preprocessing(self) -> None:
         """Resolve potential conflicts before actually adding all the required arguments."""
         logger.debug("\nPREPROCESSING\n")
@@ -161,7 +165,15 @@ class ArgumentParser(argparse.ArgumentParser):
             for field in wrapper.fields:
                 if not field.field.init:
                     continue
-                values = parsed_arg_values.get(field.dest, field.defaults)
+                # TODO: need to get rid of the confusing `defaults` attribute:
+                # values = []
+                # for dest in field.destinations:
+                #     default_for_dest = field.get_default(dest)
+                #     value = parsed_arg_values.get(dest, default_for_dest)
+                #     values.append(value)
+
+                values = parsed_arg_values.get(field.dest, field.default)
+
                 # call the "action" for the given attribute.
                 # this sets the right value in the `self.constructor_arguments` dictionary.
                 field(parser=self, namespace=parsed_args, values=values, option_string=None)

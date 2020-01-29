@@ -1,15 +1,16 @@
 import argparse
 import shlex
 from contextlib import contextmanager, suppress
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
+from typing import (Any, Callable, Dict, Generic, List, Optional, Tuple, Type,
+                    TypeVar)
 
 import pytest
-
 import simple_parsing
 from simple_parsing import (ArgumentParser, ConflictResolution, Formatter,
                             InconsistentArgumentError)
 from simple_parsing.utils import camel_case
 from simple_parsing.wrappers import DataclassWrapper
+
 xfail = pytest.mark.xfail
 parametrize = pytest.mark.parametrize
 
@@ -22,6 +23,37 @@ Dataclass = TypeVar("Dataclass")
 def raises(exception):
     with suppress(SystemExit), pytest.raises(exception):
         yield
+
+
+T = TypeVar("T")
+
+
+class TestParser(simple_parsing.ArgumentParser, Generic[T]):
+    __test__ = False
+    """ A parser subclass just used for testing.
+    Makes the retrieval of the arguments a bit easier to read.
+    """
+    def __init__(self, *args, **kwargs):
+        self._current_dest = None
+        self._current_dataclass = None
+        super().__init__(*args, **kwargs)
+
+    def add_arguments(self, dataclass, dest, prefix='', default=None):
+        if self._current_dest == dest and self._current_dataclass == dataclass:
+            return # already added arguments for that dataclass.
+        self._current_dest = dest
+        self._current_dataclass = dataclass
+        return super().add_arguments(
+            dataclass,
+            dest,
+            prefix=prefix,
+            default=default
+        )
+    
+    def __call__(self, args: str) -> T:
+        namespace = self.parse_args(shlex.split(args))
+        return getattr(namespace, self._current_dest)
+
 
 class TestSetup():
     @classmethod

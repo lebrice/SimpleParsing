@@ -19,7 +19,7 @@ class AttributeDocString():
     docstring_below: str = ""
 
 
-def get_attribute_docstring(some_dataclass: Type, field_name: str) -> Optional[AttributeDocString]:
+def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeDocString:
     """Returns the docstrings of a dataclass field.
     NOTE: a docstring can either be: 
         - An inline comment, starting with <#>
@@ -59,8 +59,7 @@ def get_attribute_docstring(some_dataclass: Type, field_name: str) -> Optional[A
     # we didn't find the attribute.
     mro = inspect.getmro(some_dataclass)
     if len(mro) == 1:
-        raise Warning(f"Couldn't find the given attribute name '{field_name}' within the given class.")
-        return None
+        raise RuntimeWarning(f"Couldn't find the given attribute name '{field_name}' within the given class.")
     base_class = mro[1]
     return get_attribute_docstring(base_class, field_name)
     
