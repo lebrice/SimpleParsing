@@ -2,7 +2,7 @@ import argparse
 import shlex
 from contextlib import contextmanager, suppress
 from typing import (Any, Callable, Dict, Generic, List, Optional, Tuple, Type,
-                    TypeVar)
+                    TypeVar, cast)
 
 import pytest
 import simple_parsing
@@ -20,8 +20,18 @@ def xfail_param(*args, reason:str):
 Dataclass = TypeVar("Dataclass")
 
 @contextmanager
-def raises(exception):
-    with suppress(SystemExit), pytest.raises(exception):
+def raises(exception=argparse.ArgumentError, match=None):
+    with suppress(SystemExit), pytest.raises(exception, match=match):
+        yield
+
+@contextmanager
+def raises_missing_required_arg():
+    with raises(match="the following arguments are required"):
+        yield
+    
+@contextmanager
+def raises_expected_n_args(n: int):
+    with raises(match=f"expected {2} arguments"):
         yield
 
 
@@ -38,7 +48,7 @@ class TestParser(simple_parsing.ArgumentParser, Generic[T]):
         self._current_dataclass = None
         super().__init__(*args, **kwargs)
 
-    def add_arguments(self, dataclass, dest, prefix='', default=None):
+    def add_arguments(self, dataclass: Type[T], dest, prefix='', default=None):
         if self._current_dest == dest and self._current_dataclass == dataclass:
             return # already added arguments for that dataclass.
         self._current_dest = dest
@@ -52,7 +62,9 @@ class TestParser(simple_parsing.ArgumentParser, Generic[T]):
     
     def __call__(self, args: str) -> T:
         namespace = self.parse_args(shlex.split(args))
-        return getattr(namespace, self._current_dest)
+        value = getattr(namespace, self._current_dest)
+        value = cast(T, value)
+        return value
 
 
 class TestSetup():
@@ -87,6 +99,8 @@ class TestSetup():
         instance: Dataclass = getattr(args, dest) #type: ignore
         delattr(args, dest)
         assert args == argparse.Namespace(), f"Namespace has leftover garbage values: {args}"
+        
+        instance = cast(Dataclass, instance)
         return instance
     
     @classmethod

@@ -452,14 +452,20 @@ class FieldWrapper():
     def required(self) -> bool:
         if self._required is not None:
             return self._required
+        
         if self.action_str.startswith("store_"):
             # all the store_* actions do not require a value.
             self._required = False
-        elif self.nargs in {"?", "*"}:
-            self._required = False
         elif self.parent.required:
             # if the parent dataclass is required, then this attribute is too.
+            # TODO: does that make sense though?
             self._required = True
+
+        elif self.nargs in {"?", "*"}:
+            self._required = False
+        elif self.nargs == "+":
+            self._required = True
+
         elif self.default is None:
             self._required = True
         elif self.is_reused:

@@ -37,7 +37,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing_done: bool = False
 
 
-    def add_arguments(self, dataclass: DataclassType, dest: str, prefix="", default=None):
+    def add_arguments(self, dataclass: Type, dest: str, prefix="", default=None):
         """Adds corresponding command-line arguments for this class to the parser.
         
         Arguments:
