@@ -13,17 +13,17 @@ import typing
 import warnings
 from argparse import Namespace
 from typing import Dict, Type, Any, List, Sequence, Text
-
+from collections import defaultdict
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
-from .utils import Dataclass
+from .utils import Dataclass, split_dest
 from .wrappers import DataclassWrapper, FieldWrapper
 
 logger = logging.getLogger(__name__)
 
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, conflict_resolution = ConflictResolution.AUTO, *args, **kwargs):
+    def __init__(self, conflict_resolution=ConflictResolution.AUTO, *args, **kwargs):
         
         # add the Formatter, if there is none.
         if "formatter_class" not in kwargs:
@@ -32,8 +32,9 @@ class ArgumentParser(argparse.ArgumentParser):
         super().__init__(*args, **kwargs)
 
         self.conflict_resolution = conflict_resolution
-        # constructor arguments for the dataclass instances. (a Dict[dest, [attribute, value]])
-        self.constructor_arguments: Dict[str, Dict[str, Any]] = collections.defaultdict(dict)
+        # constructor arguments for the dataclass instances.
+        # (a Dict[dest, [attribute, value]])
+        self.constructor_arguments = defaultdict(dict)
 
         self._conflict_resolver = ConflictResolver(self.conflict_resolution)
         self._wrappers: List[DataclassWrapper] = []
@@ -99,11 +100,14 @@ class ArgumentParser(argparse.ArgumentParser):
         if self._preprocessing_done:
             return
 
-        self._wrappers = self._conflict_resolver.resolve_conflicts(self._wrappers)
+        self._wrappers = self._conflict_resolver.resolve(self._wrappers)
         
         # Create one argument group per dataclass
         for wrapper in self._wrappers:
-            logger.debug(f"Adding arguments for dataclass: {wrapper.dataclass} at destinations {wrapper.destinations}")                
+            logger.debug(
+                f"Adding arguments for dataclass: {wrapper.dataclass} "
+                f"at destinations {wrapper.destinations}"
+            )                
             wrapper.add_arguments(parser=self)
         
         self._preprocessing_done = True
@@ -133,7 +137,8 @@ class ArgumentParser(argparse.ArgumentParser):
         """
         logger.debug("\nPOST PROCESSING\n")
         logger.debug(f"(raw) parsed args: {parsed_args}")
-        # create the constructor arguments for each instance by consuming all the relevant attributes from `parsed_args` 
+        # create the constructor arguments for each instance by consuming all
+        # the relevant attributes from `parsed_args` 
         parsed_args = self._consume_constructor_arguments(parsed_args)
         parsed_args = self._set_instances_in_namespace(parsed_args)        
         return parsed_args
@@ -163,69 +168,88 @@ class ArgumentParser(argparse.ArgumentParser):
             corresponding destinations.
         """
         # sort the wrappers so as to construct the leaf nodes first.
-        nesting_lvl = lambda w: w.nesting_level
-        sorted_wrappers = sorted(self._wrappers, key=nesting_lvl, reverse=True)
+        sorted_wrappers: List[DataclassWrapper] = sorted( 
+            self._wrappers,
+            key=lambda w: w.nesting_level,
+            reverse=True
+        )
         
         for wrapper in sorted_wrappers:
             for destination in wrapper.destinations:
-                logger.debug(f"wrapper name: {wrapper.attribute_name}, destination: {destination}")
-                
-                # instantiate the dataclass by passing the constructor arguments to the constructor.
-                # NOTE: for now, this might prevent users from having required InitVars in their dataclasses,
-                # as we can't pass the value to the constructor. Might be fine though.
+                # instantiate the dataclass by passing the constructor arguments
+                # to the constructor.
+                # TODO: for now, this might prevent users from having required
+                # InitVars in their dataclasses, as we can't pass the value to
+                # the constructor. Might be fine though.
                 constructor = wrapper.dataclass
                 constructor_args = self.constructor_arguments[destination]
                 instance = constructor(**constructor_args)
                 
                 if wrapper._parent is not None:
-                    parent_key, attribute_in_parent = utils.split_parent_and_child(destination)
-                    logger.debug(f"Setting a value at attribute {attribute_in_parent} in parent {parent_key}.")
-                    self.constructor_arguments[parent_key][attribute_in_parent] = instance
+                    parent_key, attr = utils.split_dest(destination)
+                    logger.debug(
+                        f"Setting a value at attribute {attr} in "
+                        f"parent at key {parent_key}."
+                    )
+                    self.constructor_arguments[parent_key][attr] = instance
                     
-                    # TODO: not needed, but might be a good thing to do?
-                    # self.constructor_arguments.pop(destination) # remove the 'args dict' for this child class.
                 else:
-                    # if this destination is not a nested class, we set the attribute
-                    # on the returned Namespace.
-                    logger.debug(f"setting attribute '{destination}' on the Namespace to a value of {instance}")
-                    assert not hasattr(parsed_args, destination), f"Namespace should not already have a '{destination}' attribute! (namespace: {parsed_args}) "
+                    # if this destination is not a nested class, we set the
+                    # attribute on the returned Namespace.
+                    logger.debug(
+                        f"setting attribute '{destination}' on the Namespace "
+                        f"to a value of {instance}"
+                    )
+                    assert not hasattr(parsed_args, destination), (
+                        f"Namespace should not already have a '{destination}' "
+                        f"attribute! (namespace: {parsed_args}) "
+                    )
                     setattr(parsed_args, destination, instance)
+
+                # TODO: not needed, but might be a good thing to do?
+                # remove the 'args dict' for this child class.
+                self.constructor_arguments.pop(destination)
+        
+        assert not self.constructor_arguments
         return parsed_args
 
     def _consume_constructor_arguments(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
-        """Create the constructor arguments for each instance by consuming all the attributes from `parsed_args` 
+        """Create the constructor arguments for each instance.
         
-        Here we imitate a custom action, by having the FieldWrappers be callables
+        Creates the arguments by consuming all the attributes from
+        `parsed_args`.
+        Here we imitate a custom action, by having the FieldWrappers be
+        callables that set their value in the `constructor_args` attribute.
         
-        Args:
-            parsed_args (argparse.Namespace): the argparse.Namespace returned from super().parse_args().
+        Parameters
+        ----------
+        parsed_args : argparse.Namespace
+            the argparse.Namespace returned from super().parse_args().
         
-        Returns:
-            argparse.Namespace: The namespace, without the consumed arguments.
+        Returns
+        -------
+        argparse.Namespace
+            The namespace, without the consumed arguments.
         """
         parsed_arg_values = vars(parsed_args)
         for wrapper in self._wrappers:
             for field in wrapper.fields:
                 if not field.field.init:
+                    # The field isn't an argument of the dataclass constructor.
                     continue
-                # TODO: need to get rid of the confusing `defaults` attribute:
-                # values = []
-                # for dest in field.destinations:
-                #     default_for_dest = field.get_default(dest)
-                #     value = parsed_arg_values.get(dest, default_for_dest)
-                #     values.append(value)
-
                 values = parsed_arg_values.get(field.dest, field.default)
 
-                # call the "action" for the given attribute.
-                # this sets the right value in the `self.constructor_arguments` dictionary.
-                field(parser=self, namespace=parsed_args, values=values, option_string=None)
+                # call the "action" for the given attribute. This sets the right
+                # value in the `self.constructor_arguments` dictionary.
+                field(parser=self, namespace=parsed_args, values=values)
 
-        # "Clean up" the Namespace by returning a new Namespace without the consumed attributes.
+        # "Clean up" the Namespace by returning a new Namespace without the
+        # consumed attributes.
         deleted_values: Dict[str, Any] = {}
         for wrapper in self._wrappers:
             for field in wrapper.fields:
-                deleted_values[field.dest] = parsed_arg_values.pop(field.dest, None)
+                value = parsed_arg_values.pop(field.dest, None)
+                deleted_values[field.dest] = value
         leftover_args = argparse.Namespace(**parsed_arg_values)
         logger.debug(f"deleted values: {deleted_values}")
         logger.debug(f"leftover args: {leftover_args}")

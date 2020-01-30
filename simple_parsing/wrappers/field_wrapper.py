@@ -105,7 +105,7 @@ class FieldWrapper():
             values = [values]
 
         for destination, value in zip(self.destinations, values):
-            parent_dest, attribute = utils.split_parent_and_child(destination)
+            parent_dest, attribute = utils.split_dest(destination)
             value = self.postprocess(value)
             logger.debug(f"setting value of {value} in constructor arguments of parent at key '{parent_dest}' and attribute '{attribute}'")
             parser.constructor_arguments[parent_dest][attribute] = value # type: ignore
@@ -371,11 +371,7 @@ class FieldWrapper():
 
     @property
     def dest(self) -> str:
-        """
-        TODO: It doesn't make much sense to use `dest` here, since we ultimately don't care
-        where the attribute will be stored in the Namespace, we just want to set a value in
-        the constructor arguments in the parser!
-        """
+        """Where the attribute will be stored in the Namespace."""
         lineage = []
         parent = self.parent
         while parent is not None:

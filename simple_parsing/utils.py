@@ -442,7 +442,7 @@ def setattr_recursive(obj: object, attribute_name: str, value: Any):
         setattr_recursive(child_object, ".".join(parts[1:]), value)
 
 
-def split_parent_and_child(destination: str) -> Tuple[str, str]:
+def split_dest(destination: str) -> Tuple[str, str]:
     splits = destination.split(".")
     parent = ".".join(splits[:-1])
     attribute_in_parent = splits[-1]

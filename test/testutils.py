@@ -48,7 +48,7 @@ class TestParser(simple_parsing.ArgumentParser, Generic[T]):
         self._current_dataclass = None
         super().__init__(*args, **kwargs)
 
-    def add_arguments(self, dataclass: Type[T], dest, prefix='', default=None):
+    def add_arguments(self, dataclass: Type, dest, prefix='', default=None):
         if self._current_dest == dest and self._current_dataclass == dataclass:
             return # already added arguments for that dataclass.
         self._current_dest = dest

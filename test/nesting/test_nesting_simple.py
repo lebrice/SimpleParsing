@@ -1,7 +1,7 @@
 import argparse
 import dataclasses
 import shlex
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import *
 
 import pytest

@@ -10,7 +10,7 @@ from argparse import ArgumentTypeError
 
 logger = logging.getLogger(__name__)
 
-@dataclass(unsafe_hash=True)
+@dataclass
 class AttributeDocString():
     """Simple dataclass for holding the comments of a given field.
     """
@@ -22,9 +22,9 @@ class AttributeDocString():
 def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeDocString:
     """Returns the docstrings of a dataclass field.
     NOTE: a docstring can either be: 
-        - An inline comment, starting with <#>
-        - A Comment on the preceding line, starting with <#>
-        - A docstring on the following line, starting with either <\"\"\"> or <'''>
+    - An inline comment, starting with <#>
+    - A Comment on the preceding line, starting with <#>
+    - A docstring on the following line, starting with either <\"\"\"> or <'''>
     
     Arguments:
         some_dataclass {type} -- a dataclass
@@ -37,29 +37,38 @@ def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeD
     code_lines: List[str] = source.splitlines()
     # the first line is the class definition, we skip it.
     start_line_index = 1
-    # starting at the second line, there might be the docstring for the class. We want to skip over that until we reach an attribute definition.
-    while start_line_index < len(code_lines) and not _contains_attribute_definition(code_lines[start_line_index]):
+    # starting at the second line, there might be the docstring for the class.
+    # We want to skip over that until we reach an attribute definition.
+    while start_line_index < len(code_lines):
+        if _contains_attribute_definition(code_lines[start_line_index]):
+            break
         start_line_index += 1
 
-    # for i, line in zip(range(start_line_index, len(code_lines)), code_lines[start_line_index:]):
-    #     print(f"line {i}: <{line}>")
-    #     print("Has attribute definition:", contains_attribute_definition(line))
-
-    lines_with_attribute_defs = [(index, line) for index, line in enumerate(code_lines) if _contains_attribute_definition(line)]
+    lines_with_attribute_defs = [
+        (index, line) for index, line in enumerate(code_lines)
+        if _contains_attribute_definition(line)
+    ]
     for i, line in lines_with_attribute_defs:
         parts: List[str] = line.split(":", maxsplit=1)
         if parts[0].strip() == field_name:
-            # print("FOUND LINE AT INDEX", i)
-            comment_above = _get_comment_ending_at_line(code_lines, i-1)
-            comment_inline = _get_inline_comment_at_line(code_lines, i)
+            # we found the line with the definition of this field.
+            comment_above   = _get_comment_ending_at_line(code_lines, i-1)
+            comment_inline  = _get_inline_comment_at_line(code_lines, i)
             docstring_below = _get_docstring_starting_at_line(code_lines, i+1)
-            complete_docstring = AttributeDocString(comment_above, comment_inline, docstring_below)
-            # print(f"\nComplete docstring for field '{field_name}':", complete_docstring, "\n\n")
+            complete_docstring = AttributeDocString(
+                comment_above,
+                comment_inline,
+                docstring_below
+            )
             return complete_docstring
+    
     # we didn't find the attribute.
     mro = inspect.getmro(some_dataclass)
     if len(mro) == 1:
-        raise RuntimeWarning(f"Couldn't find the given attribute name '{field_name}' within the given class.")
+        raise RuntimeWarning(
+            f"Couldn't find the given attribute name {field_name}' within the "
+            "given class."
+        )
     base_class = mro[1]
     return get_attribute_docstring(base_class, field_name)
     
@@ -74,8 +83,14 @@ def _contains_attribute_definition(line_str: str) -> bool:
         bool -- True if there is an attribute definition in the line. False if there isn't.
     """
     parts = line_str.split("#", maxsplit=1)
-    part_before_potential_comment = parts[0].strip()
-    return ":" in part_before_potential_comment
+    before_comment = parts[0].strip()
+    parts = before_comment.split(":")
+    if len(parts) != 2:
+        return False
+    attr_name = parts[0]
+    attr_type = parts[1]
+    return not attr_name.isspace() and not attr_type.isspace()
+
 
 def _is_empty(line_str: str) -> bool:
     return line_str.strip() == ""

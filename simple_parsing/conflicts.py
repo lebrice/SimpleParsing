@@ -60,7 +60,7 @@ class ConflictResolver:
         self._wrappers: List[DataclassWrapper] = []
         self.conflict_resolution = conflict_resolution
 
-    def resolve_conflicts(self, wrappers: List[DataclassWrapper]) -> List[DataclassWrapper]:
+    def resolve(self, wrappers: List[DataclassWrapper]) -> List[DataclassWrapper]:
         for wrapper in wrappers:
             self._register(wrapper)
         

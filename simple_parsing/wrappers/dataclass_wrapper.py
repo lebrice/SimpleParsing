@@ -4,7 +4,7 @@ import enum
 import logging
 from typing import *
 from typing import cast
-
+from dataclasses import _MISSING_TYPE, MISSING
 from .. import docstring, utils
 from ..utils import Dataclass, DataclassType
 from .field_wrapper import FieldWrapper
@@ -77,13 +77,16 @@ class DataclassWrapper(Generic[Dataclass]):
             return []
         assert self._parent is not None
         if self._parent.defaults:
-            self._defaults = [getattr(default, self.attribute_name) for default in self._parent.defaults]
+            self._defaults = [
+                getattr(default, self.attribute_name)
+                for default in self._parent.defaults
+            ]
         else:
             default_field_value = utils.default_value(self._field)
-            if default_field_value is not None:
-                self._defaults = [default_field_value]
-            else:
+            if isinstance(default_field_value, _MISSING_TYPE):
                 self._defaults = []
+            else:
+                self._defaults = [default_field_value]
         return self._defaults
 
     @defaults.setter
