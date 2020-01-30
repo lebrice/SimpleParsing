@@ -36,7 +36,7 @@ class ConflictResolutionError(argparse.ArgumentError):
 class Conflict(NamedTuple):
     dataclass: Type
     prefix: str
-    wrappers: List
+    wrappers: List[DataclassWrapper]
 
 
 
@@ -52,7 +52,7 @@ class ConflictResolver:
         while self._conflict_exists(self._wrappers):
             conflict = self._get_conflicting_group(self._wrappers)
             assert conflict is not None
-            dataclass, prefix, wrappers = conflict
+            _, _, wrappers = conflict
             logger.info(f"The following {len(wrappers)} wrappers are in conflict, as they share the same dataclass and prefix:\n" + "\n".join(str(w) for w in wrappers))
             logger.debug(f"(Conflict Resolution mode is {self.conflict_resolution})")
             if self.conflict_resolution == ConflictResolution.NONE:           
@@ -88,36 +88,38 @@ class ConflictResolver:
             self._wrappers.remove(child)
 
 
-    def _fix_conflict_explicit(self, conflict):
+    def _fix_conflict_explicit(self, conflict: Conflict):
         logger.debug(f"fixing explicit conflict: {conflict}")
-        dataclass, prefix, wrappers = conflict
-        assert prefix == "", "Wrappers for the same dataclass can't have the same user-set prefix when in EXPLICIT mode!"
+        assert conflict.prefix == "", "Wrappers for the same dataclass can't have the same user-set prefix when in EXPLICIT mode!"
         # remove all wrappers for that prefix
-        for wrapper in wrappers:
+        for wrapper in conflict.wrappers:
             self._unregister(wrapper)
             wrapper.explicit = True
             self._register(wrapper)
 
 
-    def _fix_conflict_auto(self, conflict):
+    def _fix_conflict_auto(self, conflict: Conflict):
         # logger.debug("fixing conflict: ", conflict)
-        dataclass, prefix, wrappers = conflict
-        prefixes: List[List[str]] = [wrapper.dest.split(".") for wrapper in wrappers]
+        prefixes: List[List[str]] = [
+            wrapper.dest.split(".") for wrapper in conflict.wrappers
+        ]
         logger.debug(f"conflicting prefixes: {prefixes}")
 
         prefix_dict = utils.trie(prefixes)
         
         logger.debug(f"Prefix dict: {prefix_dict}")
-        dest_to_wrapper: Dict[str, DataclassWrapper] = { wrapper.dest: wrapper for wrapper in wrappers }
+        dest_to_wrapper = {
+            wrapper.dest: wrapper for wrapper in conflict.wrappers
+        }
         prefix_to_wrapper: Dict[str, DataclassWrapper] = {}
         for dest, wrapper in dest_to_wrapper.items():
             parts = dest.split(".")
             _prefix_dict = prefix_dict
             while len(parts) > 1:
-                _prefix_dict = _prefix_dict[parts[0]]
+                _prefix_dict = _prefix_dict[parts[0]]  # type: ignore
                 parts = parts[1:]
             prefix = _prefix_dict[parts[0]]
-            prefix_to_wrapper[prefix] = wrapper
+            prefix_to_wrapper[prefix] = wrapper  # type: ignore
         
         for prefix, wrapper in prefix_to_wrapper.items():
             logger.debug(f"Wrapper for attribute {wrapper.dest} has prefix '{prefix}'.")

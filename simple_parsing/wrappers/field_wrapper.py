@@ -354,12 +354,11 @@ class FieldWrapper():
         ]
         options.extend(additional_options)
         dashes.extend(additional_dashes)
-
-        option_strings = set(
-            f"{dash}{option}"
-            for dash, option in zip(dashes, options)
-        )
         # remove duplicates by creating a set.
+        option_strings = set(
+            f"{dash}{option}" for dash, option in zip(dashes, options)
+        )
+        # TODO: possibly sort the option strings, if argparse doesn't do it already.
         return option_strings
 
     @property

@@ -33,7 +33,7 @@ SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[Si
 def field(*,
           aliases: List[str] = None,
           default: Union[T, _MISSING_TYPE] = MISSING,
-          default_factory: Callable[[], T] = None,
+          default_factory: Union[Callable[[], T], _MISSING_TYPE] = MISSING,
           init: bool = True,
           repr: bool = True,
           hash: bool = None,
@@ -48,7 +48,7 @@ def field(*,
         Additional option_strings to pass to the `add_argument` method, by default None
     default : Union[T, _MISSING_TYPE], optional
         The default field value (same as in `dataclasses.field`), by default MISSING
-    default_factory : Callable[[], T], optional
+    default_factory : Union[Callable[[], T], _MISSING_TYPE], optional
         (same as in `dataclasses.field`), by default None
     init : bool, optional
         (same as in `dataclasses.field`), by default True
@@ -72,17 +72,8 @@ def field(*,
     if custom_argparse_args:
         _metadata.update({"custom_args": custom_argparse_args})
 
-    if default_factory is not None:
-        return dataclasses.field(
-            default_factory=default_factory,
-            init=init,
-            repr=repr,
-            hash=hash,
-            compare=compare,
-            metadata=_metadata
-        )
-    else:
-        return dataclasses.field(
+    if default is not MISSING:
+        return dataclasses.field( #type: ignore
             default=default,
             init=init,
             repr=repr,
@@ -90,9 +81,19 @@ def field(*,
             compare=compare,
             metadata=_metadata
         )
+    else:
+        return dataclasses.field( # type: ignore
+            default_factory=default_factory,
+            init=init,
+            repr=repr,
+            hash=hash,
+            compare=compare,
+            metadata=_metadata
+        )
+        
 
 
-def choice(*choices: T, default=None, **kwargs) -> T:
+def choice(*choices: T, default: T = None, **kwargs) -> T:
     """ Makes a regular attribute, whose value, when parsed from the 
     command-line, can only be one contained in `choices`, with a default value 
     of `default`.
@@ -112,7 +113,11 @@ def choice(*choices: T, default=None, **kwargs) -> T:
     """
     if default is not None and default not in choices:
         raise ValueError(f"Default value of {default} is not a valid option! (options: {choices})")
-    return field(default=default, choices=choices, **kwargs)
+    return field(default=default, choices=choices, **kwargs) # type: ignore
+
+@dataclass
+class Bob:
+    a: str = choice("1", "2", "3", default="1")
 
 
 def list_field(*default_items: SimpleValueType, **kwargs) -> List[T]:

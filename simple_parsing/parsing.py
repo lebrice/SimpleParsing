@@ -11,20 +11,24 @@ import re
 import textwrap
 import typing
 import warnings
-from typing import *
+from argparse import Namespace
+from typing import Dict, Type, Any, List, Sequence, Text
 
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
-from .utils import DataclassType
+from .utils import Dataclass
 from .wrappers import DataclassWrapper, FieldWrapper
 
 logger = logging.getLogger(__name__)
 
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, conflict_resolution: ConflictResolution = ConflictResolution.AUTO, *args, **kwargs):
+    def __init__(self, conflict_resolution = ConflictResolution.AUTO, *args, **kwargs):
+        
+        # add the Formatter, if there is none.
         if "formatter_class" not in kwargs:
             kwargs["formatter_class"] = utils.Formatter
+
         super().__init__(*args, **kwargs)
 
         self.conflict_resolution = conflict_resolution
@@ -35,32 +39,51 @@ class ArgumentParser(argparse.ArgumentParser):
         self._wrappers: List[DataclassWrapper] = []
 
         self._preprocessing_done: bool = False
-
-
-    def add_arguments(self, dataclass: Type, dest: str, prefix="", default=None):
-        """Adds corresponding command-line arguments for this class to the parser.
         
-        Arguments:
-            dataclass {DataclassType} -- The dataclass for which to add fields as arguments in the parser
+    def add_arguments(self,
+                      dataclass: Type[Dataclass],
+                      dest: str,
+                      prefix: str = "",
+                      default: Dataclass = None):
+        """Adds command-line arguments for the fields of `dataclass`.
         
-        Keyword Arguments:
-            dest {str} -- The destination attribute of the `argparse.Namespace` where the dataclass instance will be stored after calling `parse_args()`
-            prefix {str} -- An optional prefix to add prepend to the names of the argparse arguments which will be generated for this dataclass.
-            This can be useful when registering multiple distinct instances of the same dataclass.
-
+        Parameters
+        ----------
+        dataclass : Type[Dataclass]
+            The dataclass for which to add fields as arguments in the parser.
+        dest : str
+            The destination attribute of the `argparse.Namespace` where the
+            dataclass instance will be stored after calling `parse_args()`
+        prefix : str, optional
+            An optional prefix to add prepend to the names of the argparse
+            arguments which will be generated for this dataclass.
+            This can be useful when registering multiple distinct instances of
+            the same dataclass, by default ""
+        default : Dataclass, optional
+            An instance of the dataclass type to get default values from, by
+            default None
         """
         for wrapper in self._wrappers:
             if wrapper.dest == dest:
-                self.error(textwrap.dedent(f"""\
-                    Destination attribute {dest} is already used for dataclass of type {dataclass}.
-                    Make sure all destinations are unique.
-                    """))
-        new_wrapper: DataclassWrapper[DataclassType] = DataclassWrapper(dataclass, dest, _prefix=prefix, default=default)
+                self.error(
+                    f"Destination attribute {dest} is already used for "
+                    f"dataclass of type {dataclass}. Make sure all destinations"
+                    f" are unique."
+                )
+        new_wrapper = DataclassWrapper(
+            dataclass,
+            dest,
+            _prefix=prefix,
+            default=default
+        )
         self._wrappers.append(new_wrapper)
 
-    def parse_known_args(self, args=None, namespace=None):
-        # NOTE: since the usual ArgumentParser.parse_args() calls parse_known_args,
-        # we therefore just need to overload the parse_known_args method to support both.
+    def parse_known_args(self,
+                         args: Sequence[Text] = None,
+                         namespace: Namespace = None):
+        # NOTE: since the usual ArgumentParser.parse_args() calls
+        # parse_known_args, we therefore just need to overload the 
+        # parse_known_args method to support both.
         self._preprocessing()
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
         parsed_args = self._postprocessing(parsed_args)
@@ -71,7 +94,7 @@ class ArgumentParser(argparse.ArgumentParser):
         return super().print_help(file)
 
     def _preprocessing(self) -> None:
-        """Resolve potential conflicts before actually adding all the required arguments."""
+        """Resolve potential conflicts and actual add all the arguments."""
         logger.debug("\nPREPROCESSING\n")
         if self._preprocessing_done:
             return
@@ -86,42 +109,62 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing_done = True
 
 
-    def _postprocessing(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
-        """Instantiate the dataclasses from the parsed arguments and set them to their destination attribute in the namespace
+    def _postprocessing(self, parsed_args: Namespace) -> Namespace:
+        """Process the namespace by extract the fields and creating the objects.
         
-        Arguments:
-            parsed_args {argparse.Namespace} -- the result of calling super().parse_args(...) or super().parse_known_args(...)
+        Instantiate the dataclasses from the parsed arguments and set them at
+        their destination attribute in the namespace.
+                
+        Parameters
+        ----------
+        parsed_args : Namespace
+            the result of calling `super().parse_args(...)` or
+            `super().parse_known_args(...)`.
+            TODO: Try and maybe return a nicer, typed version of parsed_args.  
+    
         
-        Returns:
-            argparse.Namespace -- The namespace, with the added attributes for each dataclass.
-            TODO: Try and maybe return a nicer, typed version of parsed_args (a Namespace subclass maybe?)  
+        Returns
+        -------
+        Namespace
+            The original Namespace, with all the arguments corresponding to the
+            dataclass fields removed, and with the added dataclass instances.
+            Also keeps whatever arguments were added in the traditional fashion,
+            i.e. with `parser.add_argument(...)`. 
         """
         logger.debug("\nPOST PROCESSING\n")
         logger.debug(f"(raw) parsed args: {parsed_args}")
-        
         # create the constructor arguments for each instance by consuming all the relevant attributes from `parsed_args` 
         parsed_args = self._consume_constructor_arguments(parsed_args)
-        logger.debug(f"leftover arguments: {parsed_args}")
-        
-        parsed_args = self._set_instances_in_namespace(parsed_args)
+        parsed_args = self._set_instances_in_namespace(parsed_args)        
         return parsed_args
 
     def _set_instances_in_namespace(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
-        """We now have all the constructor arguments for each instance.
-        We can now sort out the dependencies, create the instances, and set them as attributes of the Namespace.
+        """Create the instances set them at their destination in the namespace.
         
-        Since the dataclasses might have nested children, and we need to pass all the constructor arguments when
-        calling the dataclass constructors, we create the instances in a "bottom-up" fashion,
-        creating the deepest objects first, and then setting their value in the `constructor_arguments` dict.
-
-        Args:
-            parsed_args (argparse.Namespace): the "raw" Namespace that comes out of the parser.parse_known_args() call.
+        We now have all the constructor arguments for each instance.
+        We can now sort out the dependencies, create the instances, and set them
+        as attributes of the Namespace.
         
-        Returns:
-            argparse.Namespace: The transformed namespace.
+        Since the dataclasses might have nested children, and we need to pass
+        all the constructor arguments when calling the dataclass constructors,
+        we create the instances in a "bottom-up" fashion, creating the deepest
+        objects first, and then setting their value in the
+        `constructor_arguments` dict.
+        
+        Parameters
+        ----------
+        parsed_args : argparse.Namespace
+            The 'raw' Namespace that is produced by `parse_args`.
+        
+        Returns
+        -------
+        argparse.Namespace
+            The transformed namespace with the instances set at their 
+            corresponding destinations.
         """
         # sort the wrappers so as to construct the leaf nodes first.
-        sorted_wrappers: List[DataclassWrapper] = sorted(self._wrappers, key=lambda w: w.nesting_level, reverse=True)
+        nesting_lvl = lambda w: w.nesting_level
+        sorted_wrappers = sorted(self._wrappers, key=nesting_lvl, reverse=True)
         
         for wrapper in sorted_wrappers:
             for destination in wrapper.destinations:
