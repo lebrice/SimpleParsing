@@ -1,6 +1,7 @@
 import logging
 from dataclasses import dataclass, field
 from typing import *
+import shlex
 
 import pytest
 
@@ -39,12 +40,20 @@ simple_arguments: List[Tuple[Type, Any, Any]] = [
     (str, "123", "123"),
 ]
 
+
 @pytest.fixture(params=simple_arguments)
 def simple_attribute(request):
     """ Test fixture that produces an tuple of (type, passed value, expected value) """
     some_type, passed_value, expected_value = request.param
     logging.debug(f"Attribute type: {some_type}, passed value: '{passed_value}', expected: '{expected_value}'")
     return request.param
+
+
+@pytest.fixture(scope="module")
+def parser():
+    from .testutils import TestParser
+    _parser = TestParser()
+    return _parser
 
 
 @pytest.fixture

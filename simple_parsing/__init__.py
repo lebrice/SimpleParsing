@@ -1,11 +1,13 @@
 """Simple, Elegant Argument parsing.
 @author: Fabrice Normandin
 """
-from .utils import Formatter, InconsistentArgumentError, MutableField, choice, subparsers
+from . import utils, wrappers
 from .parsing import ArgumentParser, ConflictResolution
-from . import wrappers, utils
+from .utils import (Formatter, InconsistentArgumentError, MutableField, choice,
+                    field, subparsers)
 
 __all__ = [
-    "Formatter", "InconsistentArgumentError", "MutableField", "choice", "subparsers",
+    "Formatter", "InconsistentArgumentError", "MutableField", "choice",
+    "field", "subparsers",
     "ArgumentParser", "ConflictResolution",
 ]

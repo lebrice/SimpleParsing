@@ -10,11 +10,10 @@ from simple_parsing.utils import field
 def test_aliases_with_given_dashes():
     @dataclass
     class Foo(TestSetup):
-        output_dir: str = field(default="/out", aliases=["-o", "--out"])
+        output_dir: str = field(default="/out", alias=["-o", "--out"])
 
     foo = Foo.setup("--output_dir /bob")
     assert foo.output_dir == "/bob"
-
 
     foo = Foo.setup("-o /cat")
     assert foo.output_dir == "/cat"
@@ -26,7 +25,7 @@ def test_aliases_with_given_dashes():
 def test_aliases_without_dashes():
     @dataclass
     class Foo(TestSetup):
-        output_dir: str = field(default="/out", aliases=["o", "out"])
+        output_dir: str = field(default="/out", alias=["o", "out"])
 
     foo = Foo.setup("--output_dir /bob")
     assert foo.output_dir == "/bob"

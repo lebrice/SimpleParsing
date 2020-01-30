@@ -4,7 +4,6 @@ from test.testutils import *
 from simple_parsing import ArgumentParser, MutableField, ConflictResolution
 import pytest
 import logging
-T = TypeVar("T", str, int, float)
 
 
 def simple_tree_structure(some_type: Type[T], default_value_function: Callable[[str], T]):

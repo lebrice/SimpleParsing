@@ -14,7 +14,8 @@ from typing import *
 
 logger = logging.getLogger(__name__)
 
-builtin_types = [getattr(builtins, d) for d in dir(builtins) if isinstance(getattr(builtins, d), type)]
+builtin_types = [getattr(builtins, d) for d in dir(
+    builtins) if isinstance(getattr(builtins, d), type)]
 
 K = TypeVar("K")
 T = TypeVar("T")
@@ -26,30 +27,123 @@ Dataclass = TypeVar("Dataclass")
 DataclassType = Type[Dataclass]
 
 SimpleValueType = Union[bool, int, float, str]
-SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]]
+SimpleIterable = Union[List[SimpleValueType],
+                       Dict[Any, SimpleValueType], Set[SimpleValueType]]
 
 
-def choice(*choices: T, default=None, **kwargs) -> T:
+def foo(a: int = 123, b: str = None) -> float:
+    """[summary]
+
+    [extended_summary]
+
+    Parameters
+    ----------
+    - a : int, optional
+        [description], by default 123
+    - b : str, optional
+        [description], by default None
+
+    Returns
+    -------
+    float
+        [description]
+    """
+
+
+def field(*,
+          alias: Union[str, List[str]] = None,
+          default: Union[T, _MISSING_TYPE] = MISSING,
+          default_factory: Union[Callable[[], T], _MISSING_TYPE] = MISSING,
+          init: bool = True,
+          repr: bool = True,
+          hash: bool = None,
+          compare: bool = True,
+          metadata: Dict[str, Any] = None,
+          **custom_argparse_args) -> T:
+    """Calls the `dataclasses.field` function, and leftover arguments are fed
+    directly to the `ArgumentParser.add_argument(*option_strings, **kwargs)`
+    method.
+
+    Parameters
+    ----------
+    alias : List[str], optional
+        Additional option_strings to pass to the `add_argument` method, by
+        default None
+    default : Union[T, _MISSING_TYPE], optional
+        The default field value (same as in `dataclasses.field`), by default MISSING
+    default_factory : Union[Callable[[], T], _MISSING_TYPE], optional
+        (same as in `dataclasses.field`), by default None
+    init : bool, optional
+        (same as in `dataclasses.field`), by default True
+    repr : bool, optional
+        (same as in `dataclasses.field`), by default True
+    hash : bool, optional
+        (same as in `dataclasses.field`), by default None
+    compare : bool, optional
+        (same as in `dataclasses.field`), by default True
+    metadata : Dict[str, Any], optional
+        (same as in `dataclasses.field`), by default None
+
+    Returns
+    -------
+    T
+        The value returned by the `dataclasses.field` function.
+    """
+    _metadata: Dict[str, Any] = metadata if metadata is not None else {}
+    if alias:
+        _metadata.update({
+            "alias": alias if isinstance(alias, list) else [alias]
+        })
+    if custom_argparse_args:
+        _metadata.update({"custom_args": custom_argparse_args})
+
+    if default is not MISSING:
+        return dataclasses.field(  # type: ignore
+            default=default,
+            init=init,
+            repr=repr,
+            hash=hash,
+            compare=compare,
+            metadata=_metadata
+        )
+    else:
+        return dataclasses.field(  # type: ignore
+            default_factory=default_factory,
+            init=init,
+            repr=repr,
+            hash=hash,
+            compare=compare,
+            metadata=_metadata
+        )
+
+
+def choice(*choices: T, default: T = None, **kwargs) -> T:
     """ Makes a regular attribute, whose value, when parsed from the 
     command-line, can only be one contained in `choices`, with a default value 
     of `default`.
-        
+
     Returns a regular `dataclasses.field()`, but with metadata which indicates  
     the allowed values.
-    
+
     Args:
         default (T, optional): The default value of the field. Defaults to None,
         in which case the command-line argument is required.
-    
+
     Raises:
         ValueError: If the default value isn't part of the given choices.
-    
+
     Returns:
         T: the result of the usual `dataclasses.field()` function (a dataclass field/attribute).
     """
     if default is not None and default not in choices:
-        raise ValueError(f"Default value of {default} is not a valid option! (options: {choices})")
-    return field(default=default, choices=choices, **kwargs)
+        raise ValueError(
+            f"Default value of {default} is not a valid option! (options: {choices})")
+    return field(default=default, choices=choices, **kwargs)  # type: ignore
+
+
+@dataclass
+class Bob:
+    a: str = choice("1", "2", "3", default="1")
 
 
 def list_field(*default_items: SimpleValueType, **kwargs) -> List[T]:
@@ -64,12 +158,12 @@ def list_field(*default_items: SimpleValueType, **kwargs) -> List[T]:
     return MutableField(list, default_items, **kwargs)
 
 
-def dict_field(default_items: Union[Dict[K,V], Iterable[Tuple[K, V]]] = None, **kwargs) -> Dict[K, V]:
+def dict_field(default_items: Union[Dict[K, V], Iterable[Tuple[K, V]]] = None, **kwargs) -> Dict[K, V]:
     """shorthand function for setting a `dict` attribute on a dataclass,
     so that every instance of the dataclass doesn't share the same `dict`.
 
     Accepts any of the arguments of the `dataclasses.field` function.
-    
+
     Returns:
         Dict[K, V]: a `dataclasses.Field` of type `Dict[K, V]`, containing the `default_items`. 
     """
@@ -90,33 +184,13 @@ def MutableField(_type: Type[T], *args, init: bool = True, repr: bool = True, ha
 
 def subparsers(subcommands: Dict[str, Type], default=None) -> Any:
     if default is not None and default not in subcommands:
-        raise ValueError(f"Default value of {default} is not a valid subparser! (subcommand: {subcommands})")
+        raise ValueError(
+            f"Default value of {default} is not a valid subparser! (subcommand: {subcommands})")
     return field(default=default, metadata={
         "subparsers": subcommands,
         "default": default,
     })
 
-
-def field(*,
-          default: Union[T, _MISSING_TYPE] = MISSING,
-          default_factory: Callable[[], T] = None,
-          aliases: List[str] = None,
-          choices: Tuple[T, ...] = None,
-          **field_kwargs) -> T:
-    metadata: Dict[str, Any] = field_kwargs.get("metadata", {})
-    if aliases:
-        metadata.update({"aliases": aliases})
-    if choices:
-        metadata.update({"choices": choices})
-    field_kwargs["metadata"] = metadata
-    
-    if default is MISSING:
-        assert default_factory is not None
-        return dataclasses.field(default_factory=default_factory, **field_kwargs)
-    else:
-        assert not isinstance(default, _MISSING_TYPE)
-        return dataclasses.field(default=default, **field_kwargs)
-        
 
 def is_subparser_field(field: Field) -> bool:
     if is_union(field.type):
@@ -129,6 +203,7 @@ class InconsistentArgumentError(RuntimeError):
     """
     Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -136,12 +211,12 @@ class InconsistentArgumentError(RuntimeError):
 class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
     """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
     """
+
     def _get_default_metavar_for_optional(self, action):
         return getattr(action.type, "__name__", "")
 
     def _get_default_metavar_for_positional(self, action):
         return getattr(action.type, "__name__", "")
-
 
 
 def camel_case(name):
@@ -165,7 +240,8 @@ def str2bool(raw_value: Union[str, bool]) -> bool:
     elif v in FALSE_STRINGS:
         return False
     else:
-        raise argparse.ArgumentTypeError(f"Boolean value expected for argument, received '{raw_value}'")
+        raise argparse.ArgumentTypeError(
+            f"Boolean value expected for argument, received '{raw_value}'")
 
 
 def get_item_type(container_type: Type[Container[T]]) -> T:
@@ -202,7 +278,7 @@ def get_item_type(container_type: Type[Container[T]]) -> T:
 
     Arguments:
         list_type {Type} -- A type, preferably one from the Typing module (List, Tuple, etc).
-    
+
     Returns:
         Type -- the type of the container's items, if found, else Any.
     """
@@ -215,14 +291,15 @@ def get_item_type(container_type: Type[Container[T]]) -> T:
     else:
         return Type[Any]
 
+
 def get_argparse_type_for_container(container_type: Type) -> Union[Type, Callable[[str], bool]]:
     """Gets the argparse 'type' option to be used for a given container type.
     When an annotation is present, the 'type' option of argparse is set to that type.
     if not, then the default value of 'str' is returned.
-    
+
     Arguments:
         container_type {Type} -- A container type (ideally a typing.Type such as List, Tuple, along with an item annotation: List[str], Tuple[int, int], etc.)
-    
+
     Returns:
         typing.Type -- the type that should be used in argparse 'type' argument option.
     """
@@ -241,7 +318,7 @@ def _mro(t: Type) -> List[Type]:
 def is_subtype_of(some_type: Type):
     def func(field: Field) -> bool:
         return some_type in _mro(field.type)
-    return  func
+    return func
 
 
 def is_list(t: Type) -> bool:
@@ -263,12 +340,13 @@ def is_bool(t: Type) -> bool:
 def is_tuple_or_list(t: Type) -> bool:
     return is_list(t) or is_tuple(t)
 
+
 def is_union(t: Type) -> bool:
     """Returns wether or not the given Type annotation is a variant (or subclass) of typing.Union
-    
+
     Args:
         t (Type): some type annotation
-    
+
     Returns:
         bool: Wether this type represents a Union type.
 
@@ -310,15 +388,17 @@ def get_container_nargs(container_type: Type) -> Union[int, str]:
             return nargs
 
     return "*"
-        
+
 
 def _parse_multiple_containers(container_type: type, append_action: bool = False) -> Callable[[str], List[Any]]:
     T = get_argparse_type_for_container(container_type)
     factory = tuple if is_tuple(container_type) else list
-    
+
     result = factory()
+
     def parse_fn(value: str):
-        logger.info(f"parsing multiple {container_type} of {T}s, value is: '{value}'")
+        logger.info(
+            f"parsing multiple {container_type} of {T}s, value is: '{value}'")
         values = _parse_container(container_type)(value)
         logger.info(f"parsing result is '{values}'")
 
@@ -342,7 +422,8 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
         try:
             values = _parse_literal(value)
         except Exception as e:
-            logger.debug(f"Exception while trying to parse '{value}' as a literal: {type(e)}: {e}")
+            logger.debug(
+                f"Exception while trying to parse '{value}' as a literal: {type(e)}: {e}")
             # if it doesnt work, fall back to the parse_fn.
             values = _fallback_parse(value)
 
@@ -355,7 +436,7 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
         """ try to parse the string to a python expression directly.
         (useful for nested lists or tuples.)
         """
-        literal = ast.literal_eval(value) 
+        literal = ast.literal_eval(value)
         logger.debug(f"Parsed literal: {literal}")
         if not isinstance(literal, (list, tuple)):
             # we were passed a single-element container, like "--some_list 1", which should give [1].
@@ -372,7 +453,7 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
             v = v[1:-1]
 
         separator = " "
-        for sep in [","]: # TODO: maybe add support for other separators?
+        for sep in [","]:  # TODO: maybe add support for other separators?
             if sep in v:
                 separator = sep
 
@@ -384,6 +465,7 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
     _parse.__name__ = T.__name__
     return _parse
 
+
 def setattr_recursive(obj: object, attribute_name: str, value: Any):
     if "." not in attribute_name:
         setattr(obj, attribute_name, value)
@@ -393,7 +475,7 @@ def setattr_recursive(obj: object, attribute_name: str, value: Any):
         setattr_recursive(child_object, ".".join(parts[1:]), value)
 
 
-def split_parent_and_child(destination: str) -> Tuple[str, str]:
+def split_dest(destination: str) -> Tuple[str, str]:
     splits = destination.split(".")
     parent = ".".join(splits[:-1])
     attribute_in_parent = splits[-1]
@@ -411,23 +493,22 @@ def get_nesting_level(possibly_nested_list):
         )
 
 
-
-def default_value(field: dataclasses.Field) -> Optional[Any]:
-    """Returns the default value of a dataclass field, if available.
+def default_value(field: dataclasses.Field) -> Union[T, _MISSING_TYPE]:
+    """Returns the default value of a field in a dataclass, if available.
+    When not available, returns `dataclasses.MISSING`.
 
     Args:
-        field (dataclasses.Field[T]): The dataclasses.Field to get the default value of.
+        field (dataclasses.Field): The dataclasses.Field to get the default value of.
 
     Returns:
-        Optional[T]: The default value for that field, if present, or None otherwise.
+        Union[T, _MISSING_TYPE]: The default value for that field, if present, or None otherwise.
     """
-
     if field.default is not dataclasses.MISSING:
         return field.default
     elif field.default_factory is not dataclasses.MISSING:  # type: ignore
         return field.default_factory()  # type: ignore
     else:
-        return None
+        return dataclasses.MISSING
 
 
 def from_dict(dataclass: Type[Dataclass], d: Dict[str, Any]) -> Dataclass:
@@ -437,13 +518,13 @@ def from_dict(dataclass: Type[Dataclass], d: Dict[str, Any]) -> Dataclass:
             args_dict = d[field.name]
             nested_instance = from_dict(field.type, args_dict)
             d[field.name] = nested_instance
-    return dataclass(**d) # type: ignore
+    return dataclass(**d)  # type: ignore
 
 
 class JsonSerializable:
     """
     Enables reading and writing a Dataclass to a JSON file.
-    
+
     >>> from dataclasses import dataclass
     >>> from simple_parsing.utils import JsonSerializable
     >>> @dataclass
@@ -477,10 +558,10 @@ class JsonSerializable:
 
 def trie(sentences: List[List[str]]) -> Dict[str, Union[str, Dict]]:
     """Given a list of sentences, creates a trie as a nested dicts of word strings.
-    
+
     Args:
         sentences (List[List[str]]): a list of sentences
-    
+
     Returns:
         Dict[str, Union[str, Dict[str, ...]]]: A tree where each node is a word in a sentence.
         Sentences which begin with the same words share the first nodes, etc. 
@@ -495,9 +576,35 @@ def trie(sentences: List[List[str]]) -> Dict[str, Union[str, Dict]]:
         if len(sentences) == 1:
             return_dict[first_word] = ".".join(sentences[0])
         else:
-            sentences_without_first_word = [sentence[1:] for sentence in sentences]
+            sentences_without_first_word = [
+                sentence[1:] for sentence in sentences]
             return_dict[first_word] = trie(sentences_without_first_word)
     return return_dict
+
+
+def keep_keys(d: Dict, keys_to_keep: Iterable[str]) -> Tuple[Dict, Dict]:
+    """Removes all the keys in `d` that aren't in `keys`.
+
+    Parameters
+    ----------
+    d : Dict
+        Some dictionary.
+    keys_to_keep : Iterable[str]
+        The set of keys to keep
+
+    Returns
+    -------
+    Tuple[Dict, Dict]
+        The same dictionary (with all the unwanted keys removed) as well as a
+        new dict containing only the removed item.
+
+    """
+    d_keys = set(d.keys())  # save a copy since we will modify the dict.
+    removed = {}
+    for key in d_keys:
+        if key not in keys_to_keep:
+            removed[key] = d.pop(key)
+    return d, removed
 
 
 if __name__ == "__main__":

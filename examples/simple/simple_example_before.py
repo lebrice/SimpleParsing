@@ -1,7 +1,7 @@
 """ (examples/simple/simple_example_before.py)
 An example script without simple_parsing.
 """
-from dataclasses import dataclass, asdict
+
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
@@ -21,10 +21,11 @@ group.add_argument("--log_dir", type=str, default="/logs",
                    help="An optional string parameter")
 group.add_argument("--flag", action="store_true",
                    default=False, help="Wether or not to do something")
-group.add_argument("--optimizer", default="ADAM", choices=["ADAM", "SGD", "RMSPROP"], help="Optimizer to use")
+group.add_argument("--optimizer", default="ADAM",
+                   choices=["ADAM", "SGD", "RMSPROP"], help="Optimizer to use")
 
 
-if __name__ == "__main__":  
+if __name__ == "__main__":
     args = parser.parse_args()
     print(vars(args))
 

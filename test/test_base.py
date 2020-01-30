@@ -163,7 +163,7 @@ def test_passing_default_value(simple_attribute, silent):
     assert some_class.a == expected_value
 
 
-def test_parsing_twice_throws_error():
+def test_parsing_twice():
     @dataclass
     class Foo:
         a: int = 123
