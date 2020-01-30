@@ -26,10 +26,10 @@ class FieldWrapper():
     attributes just autogenerate the argument of the same name of the 
     above-mentioned `add_argument` function. The `arg_options` attribute fills 
     in the rest and may overwrite these values, depending on the type of field. 
-    
+
     The `field` argument is the actually wrapped `dataclasses.Field` instance.
     """
-    
+
     field: dataclasses.Field
     parent: Any = dataclasses.field(repr=False)
 
@@ -42,12 +42,20 @@ class FieldWrapper():
     _metavar: Optional[str] = None
     _default: Optional[Union[Any, List[Any]]] = None
     # the argparse-related options:
-    _arg_options: Dict[str, Any] = dataclasses.field(init=False, default_factory=dict)
+    _arg_options: Dict[str, Any] = dataclasses.field(
+        init=False, default_factory=dict)
+
+    # Wether or not `simple_parsing` should add option_string variants where
+    # underscores in attribute names are replaced with dashes.
+    # For example, when set to `True`, "--no-cache" and "--no_cache" could both
+    # be used to point to the same attribute `no_cache` on some dataclass.
+    # TODO: This can often make "--help" messages a bit crowded
+    add_dash_variants: ClassVar[bool] = False
 
     @property
     def arg_options(self) -> Dict[str, Any]:
         """Dictionary of values to be passed to the `add_argument` method.
-        
+
         The main feature of this package is to infer these arguments 
         automatically using features of the built-in `dataclasses` package, as
         well as Python's type annotations.
@@ -83,7 +91,7 @@ class FieldWrapper():
         """Immitates a custom Action, which sets the corresponding value from
         `values` at the right destination in the `constructor_arguments` of the
         parser.
-        
+
         TODO: Could be simplified by removing unused arguments, if we decide
         that there is no real value in implementing a CustomAction class.
 
@@ -95,9 +103,12 @@ class FieldWrapper():
         """
         from simple_parsing import ArgumentParser
         parser = cast(ArgumentParser, parser)
-        
-        logger.info(f"__call__ of field for destinations {self.destinations}, Namespace: {namespace}, values: {values}")
-        
+
+        logger.info(
+            f"__call__ of field for destinations {self.destinations}, "
+            f"Namespace: {namespace}, values: {values}"
+        )
+
         if self.is_reused:
             values = self.duplicate_if_needed(values)
             logger.debug(f"(replicated the parsed values: '{values}')")
@@ -107,10 +118,15 @@ class FieldWrapper():
         for destination, value in zip(self.destinations, values):
             parent_dest, attribute = utils.split_dest(destination)
             value = self.postprocess(value)
-            logger.debug(f"setting value of {value} in constructor arguments of parent at key '{parent_dest}' and attribute '{attribute}'")
-            parser.constructor_arguments[parent_dest][attribute] = value # type: ignore
-            logger.debug(f"Constructor arguments so far: {parser.constructor_arguments}")
-    
+            logger.debug(
+                f"setting value of {value} in constructor arguments of parent "
+                f"at key '{parent_dest}' and attribute '{attribute}'"
+            )
+            # type: ignore
+            parser.constructor_arguments[parent_dest][attribute] = value
+            logger.debug(
+                f"Constructor arguments so far: {parser.constructor_arguments}")
+
     def get_arg_options(self) -> Dict[str, Any]:
         if not self.field.init:
             return {}
@@ -128,43 +144,53 @@ class FieldWrapper():
             # we actually parse enums as string, and convert them back to enums
             # in the `process` method.
             _arg_options["choices"] = list(e.name for e in self.type)
-            _arg_options["type"] = str 
+            _arg_options["type"] = str
             # if the default value is an Enum, we convert it to a string.
             if self.default:
-                enum_to_str = lambda e: e.name if isinstance(e, Enum) else e
+                def enum_to_str(e): return e.name if isinstance(e, Enum) else e
                 if self.is_reused:
-                    _arg_options["default"] = [enum_to_str(default) for default in self.default]
+                    _arg_options["default"] = [enum_to_str(
+                        default) for default in self.default]
                 else:
                     _arg_options["default"] = enum_to_str(self.default)
-        
+
         elif self.is_list:
-            # Check if typing.List or typing.Tuple was used as an annotation, in which case we can automatically convert items to the desired item type.
+            # Check if typing.List or typing.Tuple was used as an annotation, in
+            # which case we can automatically convert items to the desired item
+            # type.
             T = utils.get_argparse_type_for_container(self.type)
-            logger.debug(f"Adding a List attribute '{self.name}' with items of type '{T}'")
+            logger.debug(
+                f"Adding a List attribute '{self.name}'"
+                f"with items of type '{T}'"
+            )
             _arg_options["nargs"] = "*"
             _arg_options["type"] = T
 
             if self.is_reused:
-                _arg_options["type"] = utils._parse_multiple_containers(self.type)
-                _arg_options["type"].__name__ = utils.get_type_name(self.type)
+                type_fn = utils._parse_multiple_containers(self.type)
+                type_fn.__name__ = utils.get_type_name(self.type)
+                _arg_options["type"] = type_fn
 
         elif self.is_tuple:
             T = utils.get_argparse_type_for_container(self.type)
-            logging.debug(f"Adding a Tuple attribute '{self.name}' with items of type '{T}'")
+            logging.debug(
+                f"Adding a Tuple attribute '{self.name}' "
+                f"with items of type '{T}'"
+            )
             _arg_options["nargs"] = utils.get_container_nargs(self.type)
             _arg_options["type"] = utils._parse_container(self.type)
 
             if self.is_reused:
-                type_arguments = utils.get_type_arguments(self.type)
-                _arg_options["type"] = utils._parse_multiple_containers(self.type)
-                _arg_options["type"].__name__ = utils.get_type_name(self.type)
-        
+                type_fn = utils._parse_multiple_containers(self.type)
+                type_fn.__name__ = utils.get_type_name(self.type)
+                _arg_options["type"] = type_fn
+
         elif self.is_bool:
             _arg_options["type"] = utils.str2bool
             _arg_options["type"].__name__ = "bool"
             # if self.default is not None:
             _arg_options["nargs"] = "?"
-            
+
         if self.is_reused:
             if self.required:
                 _arg_options["nargs"] = "+"
@@ -173,74 +199,83 @@ class FieldWrapper():
 
         return _arg_options
 
-
-
     def duplicate_if_needed(self, parsed_values: Any) -> List[Any]:
         """Duplicates the passed argument values if needed, such that each instance gets a value.
 
         For example, if we expected 3 values for an argument, and a single value was passed,
         then we duplicate it so that each of the three instances get the same value.
-        
+
         Args:
             parsed_values (Any): The parsed value(s)
-        
+
         Raises:
             utils.InconsistentArgumentError: If the number of arguments passed is inconsistent (neither 1 or the number of instances)
-        
+
         Returns:
             List[Any]: The list of parsed values, of the right length.
         """
         num_instances_to_parse = len(self.destinations)
-        logger.debug(f"Duplicating raw values. num to parse: {num_instances_to_parse}")
+        logger.debug(f"num to parse: {num_instances_to_parse}")
         logger.debug(f"(raw) parsed values: '{parsed_values}'")
-        
+
         assert self.is_reused
         assert num_instances_to_parse > 1, "multiple is true but we're expected to instantiate only one instance"
-        
+
         if utils.is_list(self.type) and isinstance(parsed_values, tuple):
             parsed_values = list(parsed_values)
 
         if not self.is_tuple and not self.is_list and isinstance(parsed_values, list):
             nesting_level = utils.get_nesting_level(parsed_values)
-            if nesting_level == 2 and len(parsed_values) == 1 and len(parsed_values[0]) == num_instances_to_parse:
+            if (
+                nesting_level == 2 and len(parsed_values) == 1 and
+                len(parsed_values[0]) == num_instances_to_parse
+            ):
                 return parsed_values[0]
 
         if not isinstance(parsed_values, (list, tuple)):
             parsed_values = [parsed_values]
 
-        if len(parsed_values) == num_instances_to_parse:    
+        if len(parsed_values) == num_instances_to_parse:
             return parsed_values
         elif len(parsed_values) == 1:
             return parsed_values * num_instances_to_parse
         else:
             raise utils.InconsistentArgumentError(
-                f"The field '{self.name}' contains {len(parsed_values)} values, but either 1 or {num_instances_to_parse} values were expected."
+                f"The field '{self.name}' contains {len(parsed_values)} values,"
+                f" but either 1 or {num_instances_to_parse} values were "
+                f"expected."
             )
         return parsed_values
 
     def postprocess(self, raw_parsed_value: Any) -> Any:
-        """Applies any conversions to the 'raw' parsed value before it is used in the constructor of the dataclass.
-        
+        """Applies any conversions to the 'raw' parsed value before it is used
+        in the constructor of the dataclass.
+
         Args:
             raw_parsed_value (Any): The 'raw' parsed value.
-        
+
         Returns:
             Any: The processed value
         """
         if self.is_enum:
-            logger.debug(f"field postprocessing for Enum field '{self.name}' with value: {raw_parsed_value}'")
+            logger.debug(
+                f"field postprocessing for Enum field '{self.name}' with value:"
+                f" {raw_parsed_value}'"
+            )
             if isinstance(raw_parsed_value, str):
                 raw_parsed_value = self.type[raw_parsed_value]
             return raw_parsed_value
 
         elif self.is_tuple:
-            # argparse always returns lists by default. If the field was of a Tuple type, we just transform the list to a Tuple.
+            # argparse always returns lists by default. If the field was of a
+            # Tuple type, we just transform the list to a Tuple.
             if not isinstance(raw_parsed_value, tuple):
                 return tuple(raw_parsed_value)
 
         elif self.is_bool:
             if raw_parsed_value is None and self.default is not None:
-                logger.debug("value is None, returning opposite of the default value")
+                logger.debug(
+                    "value is None, returning opposite of the default value")
                 return not self.default
             return raw_parsed_value
 
@@ -256,18 +291,24 @@ class FieldWrapper():
                 return self.type(raw_parsed_value)
             except Exception as e:
                 logger.warning(
-                    f"Unable to instantiate the field '{self.name}' of type '{self.type}' by using the type as a constructor. "
-                    f"Returning the raw parsed value instead ({raw_parsed_value}, of type {type(raw_parsed_value)}). (Caught Exception: {e})"
+                    f"Unable to instantiate the field '{self.name}' of type "
+                    f"'{self.type}' by using the type as a constructor. "
+                    f"Returning the raw parsed value instead "
+                    f"({raw_parsed_value}, of type {type(raw_parsed_value)}). "
+                    f"(Caught Exception: {e})"
                 )
                 return raw_parsed_value
 
-        logger.debug(f"field postprocessing for field of type '{self.type}' and with value '{raw_parsed_value}'")
+        logger.debug(
+            f"field postprocessing for field of type '{self.type}' and with "
+            f"value '{raw_parsed_value}'"
+        )
         return raw_parsed_value
-   
+
     @property
     def is_reused(self) -> bool:
         return len(self.destinations) > 1
-    
+
     @property
     def action(self) -> Union[str, Type[argparse.Action]]:
         """The `action` argument to be passed to `add_argument(...)`."""
@@ -282,7 +323,7 @@ class FieldWrapper():
     @property
     def custom_arg_options(self) -> Dict[str, Any]:
         """Custom argparse options that overwrite those in `arg_options`.
-        
+
         Can be set by using the `field` function, passing in a keyword argument
         that would usually be passed to the parser.add_argument(
         *option_strings, **kwargs) method. 
@@ -291,12 +332,17 @@ class FieldWrapper():
 
     @property
     def destinations(self) -> List[str]:
-        return [parent_dest + "." + self.name for parent_dest in self.parent.destinations]
+        return [
+            f"{parent_dest}.{self.name}"
+            for parent_dest in self.parent.destinations
+        ]
 
     @property
     def option_strings(self) -> Set[str]:
         """Generates the `option_strings` argument to the `add_argument` call. 
-        
+
+        `parser.add_argument(*name_or_flags, **arg_options)`
+
         ## Notes:
         - Additional names for the same argument can be added via the `field`
         function.
@@ -306,17 +352,17 @@ class FieldWrapper():
         - If an alias contained leading dashes, either single or double, the
         same number of dashes will be used, even in the case where a prefix is 
         added.
-        
-        For an illustration of this, see the [aliases example](examples/aliases/README.md).
+
+        For an illustration of this, see the aliases example.
 
         """
 
-        dashes:  List[str] = [] # contains the leading dashes.
-        options: List[str] = [] # contains the name following the dashes.
+        dashes:  List[str] = []  # contains the leading dashes.
+        options: List[str] = []  # contains the name following the dashes.
 
         dash = "-" if len(self.name) == 1 else "--"
         option = f"{self.prefix}{self.name}"
-        
+
         dashes.append(dash)
         options.append(option)
 
@@ -326,7 +372,7 @@ class FieldWrapper():
             options.append(option)
 
         # add all the aliases that were passed to the `field` function.
-        for alias in self.aliases:            
+        for alias in self.aliases:
             if alias.startswith("--"):
                 dash = "--"
                 name = alias[2:]
@@ -337,28 +383,31 @@ class FieldWrapper():
                 dash = "-" if len(alias) == 1 else "--"
                 name = alias
             option = f"{self.prefix}{name}"
-            
-            dashes.append(dash)           
+
+            dashes.append(dash)
             options.append(option)
-        
+
         # Additionally, add all name variants with the "_" replaced with "-".
         # For example, "--no-cache" will correctly set the `no_cache` attribute,
         # even if an alias isn't explicitly created.
-        additional_options = [
-            option.replace("_", "-")
-            for option in options if "_" in option
-        ]
-        additional_dashes = [
-            "-" if len(option) == 1 else "--"
-            for option in additional_options
-        ]
-        options.extend(additional_options)
-        dashes.extend(additional_dashes)
+
+        if FieldWrapper.add_dash_variants:
+            additional_options = [
+                option.replace("_", "-")
+                for option in options if "_" in option
+            ]
+            additional_dashes = [
+                "-" if len(option) == 1 else "--"
+                for option in additional_options
+            ]
+            options.extend(additional_options)
+            dashes.extend(additional_dashes)
         # remove duplicates by creating a set.
         option_strings = set(
             f"{dash}{option}" for dash, option in zip(dashes, options)
         )
-        # TODO: possibly sort the option strings, if argparse doesn't do it already.
+        # TODO: possibly sort the option strings, if argparse doesn't do it
+        # already.
         return option_strings
 
     @property
@@ -367,7 +416,7 @@ class FieldWrapper():
 
     @property
     def aliases(self) -> List[str]:
-        return self.field.metadata.get("aliases", [])
+        return self.field.metadata.get("alias", [])
 
     @property
     def dest(self) -> str:
@@ -389,7 +438,7 @@ class FieldWrapper():
     @property
     def const(self):
         return self.custom_arg_options.get("const", None)
-    
+
     @property
     def field_default_value(self) -> Union[Any, dataclasses._MISSING_TYPE]:
         return utils.default_value(self.field)
@@ -399,7 +448,7 @@ class FieldWrapper():
         """ Either a single default value, when parsing a single argument, or
         the list of default values, when this argument is reused multiple times
         (which only happens with the `ConflictResolution.ALWAYS_MERGE` option).
-        
+
         In order of increasing priority, this could either be:
         1. The default attribute of the field
         2. the value of the corresponding attribute on the parent,
@@ -407,7 +456,7 @@ class FieldWrapper():
         """
         if self._default is not None:
             return self._default
-        
+
         default = self.field_default_value
 
         if default is dataclasses.MISSING:
@@ -417,9 +466,9 @@ class FieldWrapper():
             default = False
         if self.action == "store_false" and default is None:
             default = True
-        
+
         if self.parent.defaults:
-            # if the dataclass holding this field has a default value (either 
+            # if the dataclass holding this field has a default value (either
             # when passed  manually or by nesting), use the corresponding
             # attribute on that default instance.
             defaults = []
@@ -429,16 +478,18 @@ class FieldWrapper():
             default = defaults[0] if len(defaults) == 1 else defaults
 
         if self.is_reused and default is not None:
-            num_destinations = len(self.destinations)
-            assert num_destinations >= 1
-            if not isinstance(default, list) or len(default) != num_destinations:
-                default = [default] * num_destinations
-            assert isinstance(default, list)
-            assert len(default) == num_destinations, f"Not the same number of default values and destinations. (default: {default}, num_destinations: {num_destinations})"
+            n_destinations = len(self.destinations)
+            assert n_destinations >= 1
+            if not isinstance(default, list) or len(default) != n_destinations:
+                default = [default] * n_destinations
+            assert len(default) == n_destinations, (
+                f"Not the same number of default values and destinations. "
+                f"(default: {default}, # of destinations: {n_destinations})"
+            )
 
         self._default = default
         return self._default
-    
+
     @default.setter
     def default(self, value: Any):
         self._default = value
@@ -447,7 +498,7 @@ class FieldWrapper():
     def required(self) -> bool:
         if self._required is not None:
             return self._required
-        
+
         if self.action_str.startswith("store_"):
             # all the store_* actions do not require a value.
             self._required = False
@@ -466,12 +517,11 @@ class FieldWrapper():
         elif self.is_reused:
             # if we're reusing this argument, the default value might be a list
             # of `MISSING` values.
-            # assert isinstance(self.default, list), self.default
-            self._required = any(v == dataclasses.MISSING for v in self.default)
+            self._required = any(
+                v == dataclasses.MISSING for v in self.default)
         else:
             self._required = False
         return self._required
-
 
     @required.setter
     def required(self, value: bool):
@@ -484,7 +534,6 @@ class FieldWrapper():
     @property
     def choices(self):
         return self.custom_arg_options.get("choices", None)
-    
 
     @property
     def help(self) -> Optional[str]:
@@ -496,9 +545,10 @@ class FieldWrapper():
                 self.field.name
             )
         except (SystemExit, Exception) as e:
-            logger.debug(f"Couldn't find attribute docstring for field {self.name}, {e}")
+            logger.debug(
+                f"Couldn't find attribute docstring for field {self.name}, {e}")
             self._docstring = docstring.AttributeDocString()
-        
+
         if self._docstring.docstring_below:
             self._help = self._docstring.docstring_below
         elif self._docstring.comment_above:
@@ -526,7 +576,7 @@ class FieldWrapper():
     @property
     def is_list(self):
         return utils.is_list(self.type)
-    
+
     @property
     def is_enum(self) -> bool:
         return utils.is_enum(self.type)
@@ -534,15 +584,15 @@ class FieldWrapper():
     @property
     def is_tuple(self) -> bool:
         return utils.is_tuple(self.type)
-    
+
     @property
     def is_bool(self) -> bool:
         return utils.is_bool(self.type)
-    
+
     @property
     def is_subparser(self) -> bool:
         return utils.is_subparser_field(self.field)
-    
+
     @property
     def type_arguments(self) -> List[Type]:
         return utils.get_type_arguments(self.type)
@@ -556,26 +606,31 @@ class FieldWrapper():
             return {
                 dataclass_type.__name__.lower(): dataclass_type for dataclass_type in type_arguments
             }
-    
+
     def add_subparsers(self, parser: argparse.ArgumentParser):
         if self.is_subparser:
+            from simple_parsing import ArgumentParser
             # add subparsers for each dataclass type in the field.
             subparsers = parser.add_subparsers(
                 title=self.name,
                 description=self.help,
-                dest=self.dest
+                dest=self.dest,
+                parser_class=ArgumentParser
             )
             subparsers.required = True
 
             for subcommand, dataclass_type in self.subparsers_dict.items():
-                subparser: ArgumentParser = subparsers.add_parser(subcommand) # type: ignore
+                subparser = subparsers.add_parser(subcommand)
+                # Just for typing correctness, as we didn't explicitly change
+                # the return type of subparsers.add_parser method.)
+                subparser = cast(ArgumentParser, subparser)
                 subparser.add_arguments(dataclass_type, dest=self.dest)
 
 
-
-def only_keep_action_args(options: Dict[str, Any], action: Union[str, Any]) -> Dict[str, Any]:
+def only_keep_action_args(options: Dict[str, Any],
+                          action: Union[str, Any]) -> Dict[str, Any]:
     """Remove all the arguments in `options` that aren't required by the Action.
-    
+
     Parameters
     ----------
     options : Dict[str, Any]
@@ -583,23 +638,24 @@ def only_keep_action_args(options: Dict[str, Any], action: Union[str, Any]) -> D
         `add_arguments(*option_strings, **options)`.
     action : Union[str, Any]
         The action class or name.
-    
+
     Returns
     -------
     Dict[str, Any]
         [description]
     """
+    # TODO: explicitly test these custom actions?
     argparse_action_classes: Dict[str, Type[argparse.Action]] = {
-        "store": argparse._StoreAction,                 # TODO: Test this.
-        "store_const": argparse._StoreConstAction,      # TODO: Test this.
-        "store_true": argparse._StoreTrueAction,        
-        "store_false": argparse._StoreFalseAction,      
-        "append": argparse._AppendAction,               # TODO: Test this.
-        "append_const": argparse._AppendConstAction,    # TODO: Test this.
-        "count": argparse._CountAction,                 # TODO: Test this.
-        "help": argparse._HelpAction,                   # TODO: Test this.
-        "version": argparse._VersionAction,             # TODO: Test this.
-        "parsers": argparse._SubParsersAction,          # TODO: Test this.
+        "store": argparse._StoreAction,
+        "store_const": argparse._StoreConstAction,
+        "store_true": argparse._StoreTrueAction,
+        "store_false": argparse._StoreFalseAction,
+        "append": argparse._AppendAction,
+        "append_const": argparse._AppendConstAction,
+        "count": argparse._CountAction,
+        "help": argparse._HelpAction,
+        "version": argparse._VersionAction,
+        "parsers": argparse._SubParsersAction,
     }
     if action not in argparse_action_classes:
         # the provided `action` is not a standard argparse-action.
@@ -616,7 +672,7 @@ def only_keep_action_args(options: Dict[str, Any], action: Union[str, Any]) -> D
         return options
 
     args_to_keep = argspec.args + ["action"]
-    
+
     kept_options, deleted_options = utils.keep_keys(options, args_to_keep)
     if deleted_options:
         logger.warning(

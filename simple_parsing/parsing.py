@@ -23,8 +23,28 @@ logger = logging.getLogger(__name__)
 
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, conflict_resolution=ConflictResolution.AUTO, *args, **kwargs):
-        
+    def __init__(self,
+                 conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
+                 add_option_string_dash_variants: bool = False, *args, **kwargs):
+        """Creates an ArgumentParser instance.
+
+        Parameters
+        ----------
+        - conflict_resolution : ConflictResolution, optional
+
+            What kind of prefixing mechanism to use when reusing dataclasses
+            (argument groups)
+            For more info, check the docstring of the `ConflictResolution` Enum.
+
+        - add_option_string_dash_variants : bool, optional
+
+            Wether or not to add option_string variants where the underscores in
+            attribute names are replaced with dashes.
+            For example, when set to `True`, "--no-cache" and "--no_cache" could
+            both be used to point to the same attribute `no_cache` on some
+            dataclass.
+        """
+
         # add the Formatter, if there is none.
         if "formatter_class" not in kwargs:
             kwargs["formatter_class"] = utils.Formatter
@@ -34,20 +54,21 @@ class ArgumentParser(argparse.ArgumentParser):
         self.conflict_resolution = conflict_resolution
         # constructor arguments for the dataclass instances.
         # (a Dict[dest, [attribute, value]])
-        self.constructor_arguments = defaultdict(dict)
+        self.constructor_arguments: Dict[str, Dict] = defaultdict(dict)
 
         self._conflict_resolver = ConflictResolver(self.conflict_resolution)
         self._wrappers: List[DataclassWrapper] = []
 
         self._preprocessing_done: bool = False
-        
+        FieldWrapper.add_dash_variants = add_option_string_dash_variants
+
     def add_arguments(self,
                       dataclass: Type[Dataclass],
                       dest: str,
                       prefix: str = "",
                       default: Dataclass = None):
         """Adds command-line arguments for the fields of `dataclass`.
-        
+
         Parameters
         ----------
         dataclass : Type[Dataclass]
@@ -83,7 +104,7 @@ class ArgumentParser(argparse.ArgumentParser):
                          args: Sequence[Text] = None,
                          namespace: Namespace = None):
         # NOTE: since the usual ArgumentParser.parse_args() calls
-        # parse_known_args, we therefore just need to overload the 
+        # parse_known_args, we therefore just need to overload the
         # parse_known_args method to support both.
         self._preprocessing()
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
@@ -101,32 +122,31 @@ class ArgumentParser(argparse.ArgumentParser):
             return
 
         self._wrappers = self._conflict_resolver.resolve(self._wrappers)
-        
+
         # Create one argument group per dataclass
         for wrapper in self._wrappers:
             logger.debug(
                 f"Adding arguments for dataclass: {wrapper.dataclass} "
                 f"at destinations {wrapper.destinations}"
-            )                
+            )
             wrapper.add_arguments(parser=self)
-        
-        self._preprocessing_done = True
 
+        self._preprocessing_done = True
 
     def _postprocessing(self, parsed_args: Namespace) -> Namespace:
         """Process the namespace by extract the fields and creating the objects.
-        
+
         Instantiate the dataclasses from the parsed arguments and set them at
         their destination attribute in the namespace.
-                
+
         Parameters
         ----------
         parsed_args : Namespace
             the result of calling `super().parse_args(...)` or
             `super().parse_known_args(...)`.
             TODO: Try and maybe return a nicer, typed version of parsed_args.  
-    
-        
+
+
         Returns
         -------
         Namespace
@@ -138,29 +158,29 @@ class ArgumentParser(argparse.ArgumentParser):
         logger.debug("\nPOST PROCESSING\n")
         logger.debug(f"(raw) parsed args: {parsed_args}")
         # create the constructor arguments for each instance by consuming all
-        # the relevant attributes from `parsed_args` 
+        # the relevant attributes from `parsed_args`
         parsed_args = self._consume_constructor_arguments(parsed_args)
-        parsed_args = self._set_instances_in_namespace(parsed_args)        
+        parsed_args = self._set_instances_in_namespace(parsed_args)
         return parsed_args
 
     def _set_instances_in_namespace(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
         """Create the instances set them at their destination in the namespace.
-        
+
         We now have all the constructor arguments for each instance.
         We can now sort out the dependencies, create the instances, and set them
         as attributes of the Namespace.
-        
+
         Since the dataclasses might have nested children, and we need to pass
         all the constructor arguments when calling the dataclass constructors,
         we create the instances in a "bottom-up" fashion, creating the deepest
         objects first, and then setting their value in the
         `constructor_arguments` dict.
-        
+
         Parameters
         ----------
         parsed_args : argparse.Namespace
             The 'raw' Namespace that is produced by `parse_args`.
-        
+
         Returns
         -------
         argparse.Namespace
@@ -168,12 +188,12 @@ class ArgumentParser(argparse.ArgumentParser):
             corresponding destinations.
         """
         # sort the wrappers so as to construct the leaf nodes first.
-        sorted_wrappers: List[DataclassWrapper] = sorted( 
+        sorted_wrappers: List[DataclassWrapper] = sorted(
             self._wrappers,
             key=lambda w: w.nesting_level,
             reverse=True
         )
-        
+
         for wrapper in sorted_wrappers:
             for destination in wrapper.destinations:
                 # instantiate the dataclass by passing the constructor arguments
@@ -184,7 +204,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 constructor = wrapper.dataclass
                 constructor_args = self.constructor_arguments[destination]
                 instance = constructor(**constructor_args)
-                
+
                 if wrapper._parent is not None:
                     parent_key, attr = utils.split_dest(destination)
                     logger.debug(
@@ -192,7 +212,7 @@ class ArgumentParser(argparse.ArgumentParser):
                         f"parent at key {parent_key}."
                     )
                     self.constructor_arguments[parent_key][attr] = instance
-                    
+
                 else:
                     # if this destination is not a nested class, we set the
                     # attribute on the returned Namespace.
@@ -209,23 +229,23 @@ class ArgumentParser(argparse.ArgumentParser):
                 # TODO: not needed, but might be a good thing to do?
                 # remove the 'args dict' for this child class.
                 self.constructor_arguments.pop(destination)
-        
+
         assert not self.constructor_arguments
         return parsed_args
 
     def _consume_constructor_arguments(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
         """Create the constructor arguments for each instance.
-        
+
         Creates the arguments by consuming all the attributes from
         `parsed_args`.
         Here we imitate a custom action, by having the FieldWrappers be
         callables that set their value in the `constructor_args` attribute.
-        
+
         Parameters
         ----------
         parsed_args : argparse.Namespace
             the argparse.Namespace returned from super().parse_args().
-        
+
         Returns
         -------
         argparse.Namespace

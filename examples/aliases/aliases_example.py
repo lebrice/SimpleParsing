@@ -1,14 +1,16 @@
 from dataclasses import dataclass
 from simple_parsing import ArgumentParser, field
 
+
 @dataclass
 class RunSettings:
     ''' Parameters for a run. '''
     # wether or not to execute in debug mode.
-    debug: bool = field(aliases=["-d"], default=False)
-    some_value: int = field(aliases=["-v"], default=123)
+    debug: bool = field(alias=["-d"], default=False)
+    some_value: int = field(alias=["-v"], default=123)
 
-if __name__ == "__main__":    
+
+if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_arguments(RunSettings, dest="train")
     parser.add_arguments(RunSettings, dest="valid")

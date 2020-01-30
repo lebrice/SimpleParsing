@@ -74,13 +74,13 @@ def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeD
     
 
 def _contains_attribute_definition(line_str: str) -> bool:
-    """Returns wether or not a line contains a an class attribute definition (something like `a: int`).
+    """Returns wether or not a line contains a an class attribute definition.
     
     Arguments:
         line_str {str} -- the line content
     
     Returns:
-        bool -- True if there is an attribute definition in the line. False if there isn't.
+        bool -- True if there is an attribute definition in the line.
     """
     parts = line_str.split("#", maxsplit=1)
     before_comment = parts[0].strip()
@@ -122,7 +122,7 @@ def _get_inline_comment_at_line(code_lines: List[str], line: int) -> str:
         line {int} -- the index of the line in code_lines
     
     Returns:
-        str -- the inline comment at the given line. empty string if not present.
+        str -- the inline comment at the given line, else an empty string.
     """
     assert 0 <= line < len(code_lines)
     assert _contains_attribute_definition(code_lines[line])
@@ -142,7 +142,8 @@ def _get_comment_ending_at_line(code_lines: List[str], line: int) -> str:
     # for i, l in enumerate(code_lines):
     #     print(f"line {i}: {l}")
 
-    # move up the code, one line at a time, while we don't hit the start, an attribute definition, or the end of a docstring.
+    # move up the code, one line at a time, while we don't hit the start,
+    # an attribute definition, or the end of a docstring.
     while start_line > 0:
         line_str = code_lines[start_line]
         if _contains_attribute_definition(line_str):
@@ -172,7 +173,8 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
     triple_double = '"""'
     # print("finding docstring starting from line", line)
     
-    # if we are looking further down than the end of the code, there is no docstring. 
+    # if we are looking further down than the end of the code, there is no
+    # docstring. 
     if line >= len(code_lines):
         return ""
     # the list of lines making up the docstring.
@@ -188,12 +190,15 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
                 i += 1
                 continue
             
-            elif _contains_attribute_definition(line_str) or _is_comment(line_str):
-                # we haven't reached the start of a docstring yet (since token is None), and we reached a line with an attribute definition, or a comment, hence the docstring is empty.
+            elif (_contains_attribute_definition(line_str) or
+                  _is_comment(line_str)):
+                # we haven't reached the start of a docstring yet (since token
+                # is None), and we reached a line with an attribute definition,
+                # or a comment, hence the docstring is empty.
                 return ""
 
             elif triple_single in line_str and triple_double in line_str:
-                #* This handles something stupid like:
+                # This handles something stupid like:
                 # @dataclass
                 # class Bob:
                 #     a: int
@@ -201,7 +206,9 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
                 #     bob
                 #     ''' bye
                 #     """
-                if line_str.index(triple_single) < line_str.index(triple_double):
+                triple_single_index = line_str.index(triple_single)
+                triple_double_index = line_str.index(triple_double)
+                if triple_single_index  < triple_double_index:
                     token = triple_single
                 else:
                     token = triple_double
@@ -214,10 +221,13 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
                 #     print(f"line {i}: <{line}>")
                 # print(f"token: <{token}>")
                 # print(line_str)
-                logger.debug(f"Warning: Unable to parse attribute docstring: {line_str}")
+                logger.debug(
+                    f"Warning: Unable to parse attribute docstring: {line_str}"
+                )
                 return ""
             
-            # get the string portion of the line (after a token or possibly between two tokens).
+            # get the string portion of the line (after a token or possibly
+            # between two tokens).
             parts = line_str.split(token, maxsplit=2)
             if len(parts) == 3:
                 # This takes care of cases like:
