@@ -133,10 +133,23 @@ def test_setattr_existing():
     assert c.summary.sample_grid == (12, 12)
 
 
-def test_setattr_new():
+def test_setattr_new(caplog):
     c = Config()
-    c.blablabob = "123"
-    assert c.blablabob == "123"
+    with pytest.warns(UserWarning):
+        c.blablabob = "123"
+        assert c.blablabob == "123"
+
+
+def test_getattr_ambiguous():
+    c = Config()
+    with raises(AttributeError, match="Ambiguous"):
+        t = c.type
+
+
+def test_setattr_ambiguous():
+    c = Config()
+    with raises(AttributeError, match="Ambiguous"):
+        c.type = "value"
 
 
 def test_getitem():
@@ -149,7 +162,6 @@ def test_getitem_nested():
     c = Config()
     sample_grid = c["summary.sample_grid"]
     assert sample_grid == c.summary.sample_grid
-
 
 
 def test_setitem():
@@ -165,7 +177,21 @@ def test_setitem_nested():
     c["summary.sample_grid"] = (7, 7)
     assert c.summary.sample_grid == (7, 7)
 
-# c = Config()
-# for key, value in c.items():
-#     print(key, value)
-    
+
+def test_setitem_new(caplog):
+    c = Config()
+    with pytest.warns(UserWarning):
+        c["blablabob"] = "123"
+        assert c["blablabob"] == "123"
+
+
+def test_getitem_ambiguous():
+    c = Config()
+    with raises(AttributeError, match="Ambiguous"):
+        t = c["type"]
+
+
+def test_setitem_ambiguous():
+    c = Config()
+    with raises(AttributeError, match="Ambiguous"):
+        c["type"] = "value"

@@ -6,11 +6,14 @@ import functools
 import json
 import logging
 import re
+import warnings
+from abc import ABC
 from collections import defaultdict
-from dataclasses import MISSING, _MISSING_TYPE, Field, dataclass
+from dataclasses import _MISSING_TYPE, MISSING, Field, dataclass
 from enum import Enum
 from functools import partial
-from typing import *
+from typing import (Any, Callable, Container, Dict, Iterable, List, Set, Tuple,
+                    Type, TypeVar, Union)
 
 logger = logging.getLogger(__name__)
 
@@ -555,7 +558,6 @@ class JsonSerializable:
             args_dict = json.load(f)
         return from_dict(cls, args_dict)
 
-from abc import ABC
 
 
 class FlattenedAccess:
@@ -640,14 +642,13 @@ class FlattenedAccess:
             )
         elif len(parents) > 1:
             raise AttributeError(
-                f"Ambiguous Attribute access: {name} may refer to:\n" + 
-                "\n".join(f"- '{parent}' (with a value of {value})"
+                f"Ambiguous Attribute access: name '{name}' may refer to:\n" + 
+                "\n".join(f"- '{parent}' (with a value of: '{value}')"
                     for parent, value in zip(parents, values)
                 )
             )
         else:
             return values[0]
-
 
     def __setattr__(self, name: str, value: Any):
         """Write the attribute in self or in the children that has it.
@@ -659,7 +660,12 @@ class FlattenedAccess:
         parents: List[str] = []
         values: List[Any] = []
 
-        for attr_name, attr_value in FlattenedAccess.attributes(self):
+        field_names = {field.name for field in dataclasses.fields(self)}
+        if name in field_names:
+            object.__setattr__(self, name, value)
+            return
+
+        for attr_name, attr_value in self.attributes():
             # if the attribute name of the attribute ends with `name`, we add it
             # to some list of potential parent attributes.
             name_parts = name.split(".")
@@ -670,14 +676,17 @@ class FlattenedAccess:
         
         if not parents:
             # We set the value on the dataclass directly, since it wasn't found.
-            # TODO: Should we throw an error, or maybe log a warning? (as this could be considered poor practice) 
+            warnings.warn(UserWarning(f"Setting a new attribute '{name}' on the"
+                f" dataclass, but it does not have a field of the same name. \n"
+                f"(Consider adding a field '{name}' of type {type(value)} to "
+                f"{type(self)})"))            
             object.__setattr__(self, name, value)
 
         elif len(parents) > 1:
             # more than one parent (ambiguous).
             raise AttributeError(
-                f"Ambiguous Attribute access: {name} may refer to:\n" + 
-                "\n".join(f"- '{parent}' = {value}"
+                f"Ambiguous Attribute access: name '{name}' may refer to:\n" + 
+                "\n".join(f"- '{parent}' (with a value of: '{value}')"
                     for parent, value in zip(parents, values)
                 )
             )
