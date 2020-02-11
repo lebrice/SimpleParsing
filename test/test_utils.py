@@ -7,7 +7,9 @@ from typing import *
 import pytest
 
 from .testutils import *
-from simple_parsing import utils
+from simple_parsing import MutableField
+import simple_parsing.utils as utils
+from simple_parsing.helpers import dict_field, set_field, list_field
 
 @dataclass
 class SomeDataclass:
@@ -51,7 +53,7 @@ class B:
     # # shared_list: List = [] # not allowed.
     # different_list: List = field(default_factory=list)
     shared: A = A()
-    different: A = utils.MutableField(A, a="123")
+    different: A = MutableField(A, a="123")
 
 def test_mutable_field():    
     b1 = B()
@@ -97,7 +99,7 @@ def test_json_serializable(HyperParameters, tmpdir):
 def test_list_field():
     @dataclass
     class A:
-        a: List[str] = utils.list_field("bob", "john", "bart")
+        a: List[str] = list_field("bob", "john", "bart")
     
     a1 = A()
     a2 = A()
@@ -107,7 +109,7 @@ def test_list_field():
 def test_set_field():
     @dataclass
     class A:
-        a: Set[str] = utils.set_field("bob", "john", "bart")
+        a: Set[str] = set_field("bob", "john", "bart")
     
     a1 = A()
     a2 = A()
@@ -118,7 +120,7 @@ def test_dict_field():
     
     @dataclass
     class A:
-        a: Dict[str, int] = utils.dict_field(default)
+        a: Dict[str, int] = dict_field(default)
     
     a1 = A()
     print(a1.a)
@@ -132,7 +134,7 @@ def test_dict_field_with_keyword_args():
     
     @dataclass
     class A(TestSetup):
-        a: Dict[str, int] = utils.dict_field(bob=0, john=1, bart=2)
+        a: Dict[str, int] = dict_field(bob=0, john=1, bart=2)
     
     a1 = A()
     a2 = A()
@@ -145,7 +147,7 @@ def test_dict_field_without_args():
     
     @dataclass
     class A(TestSetup):
-        a: Dict[str, int] = utils.dict_field()
+        a: Dict[str, int] = dict_field()
     
     a1 = A()
     a2 = A()

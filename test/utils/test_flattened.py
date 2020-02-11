@@ -7,7 +7,7 @@ from simple_parsing import MutableField
 
 from test.testutils import *
 
-@dataclass(frozen=True)
+@dataclass()
 class LabelOffset:
     """Offset of the label within a dataset."""
     mnist: Optional[int] = None
@@ -101,18 +101,21 @@ class SummaryConfig:
     summarize_samples: bool = True
     sample_grid: Tuple[int, int] = (10, 10)
 
-from simple_parsing.utils import FlattenedAccess
+
+from simple_parsing.helpers import FlattenedAccess
+
 
 @dataclass
 class Config(FlattenedAccess):
     """Overall Configuration."""
     dataset: DatasetConfig = MutableField(DatasetConfig)
-    model: ModelConfig = MutableField(ModelConfig)
-    dpmmoe: DPMoEConfig = MutableField(DPMoEConfig)
-    train: TrainConfig = MutableField(TrainConfig)
-    eval: EvalConfig = MutableField(EvalConfig)
+    model:   ModelConfig   = MutableField(ModelConfig)
+    dpmmoe:  DPMoEConfig   = MutableField(DPMoEConfig)
+    train:   TrainConfig   = MutableField(TrainConfig)
+    eval:    EvalConfig    = MutableField(EvalConfig)
     summary: SummaryConfig = MutableField(SummaryConfig)
     et: float = 1.23
+
 
 def test_getattr():
     c = Config()

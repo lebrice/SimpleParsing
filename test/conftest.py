@@ -6,7 +6,7 @@ import shlex
 import pytest
 
 from simple_parsing import choice
-from simple_parsing.utils import JsonSerializable
+from simple_parsing.helpers import JsonSerializable
 
 from .testutils import TestSetup
 

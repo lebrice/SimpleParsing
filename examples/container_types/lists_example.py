@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 
 from simple_parsing import ArgumentParser
-from simple_parsing.utils import list_field
+from simple_parsing.helpers import list_field
 
 
 @dataclass

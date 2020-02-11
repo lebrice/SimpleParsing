@@ -4,7 +4,7 @@ from typing import *
 import tensorflow as tf
 
 from simple_parsing import ArgumentParser, choice
-from simple_parsing.utils import JsonSerializable, list_field
+from simple_parsing.helpers import JsonSerializable, list_field
 
 @dataclass
 class ConvBlock(JsonSerializable):

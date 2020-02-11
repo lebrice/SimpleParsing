@@ -16,7 +16,7 @@ from dataclasses import dataclass, field, fields
 from typing import List, Tuple
 
 from simple_parsing import ArgumentParser, MutableField, ConflictResolution
-from simple_parsing.utils import list_field
+from simple_parsing.helpers import list_field
 @dataclass
 class CNNStack():
     name: str = "stack"

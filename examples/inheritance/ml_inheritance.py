@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import tensorflow as tf
 
 from simple_parsing import ArgumentParser, choice
-from simple_parsing.utils import JsonSerializable
+from simple_parsing.helpers import JsonSerializable
 
 
 class GAN(tf.keras.Model):

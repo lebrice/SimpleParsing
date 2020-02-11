@@ -18,7 +18,7 @@ class Options:
     The comments next to the attributes will be used as the
     help text for the arguments.)
     """
-    some_required_int: int      # ome required int parameter
+    some_required_int: int      # Some required int parameter
     some_float: float = 1.23    # An optional float parameter
     name: str = "default"       # The name of some important experiment
     log_dir: str = "/logs"      # an optional string parameter

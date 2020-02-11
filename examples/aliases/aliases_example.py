@@ -11,7 +11,7 @@ class RunSettings:
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser()
+    parser = ArgumentParser(add_option_string_dash_variants=True)
     parser.add_arguments(RunSettings, dest="train")
     parser.add_arguments(RunSettings, dest="valid")
     parser.print_help()
