@@ -112,12 +112,18 @@ class Config(FlattenedAccess):
     train: TrainConfig = MutableField(TrainConfig)
     eval: EvalConfig = MutableField(EvalConfig)
     summary: SummaryConfig = MutableField(SummaryConfig)
-
+    et: float = 1.23
 
 def test_getattr():
     c = Config()
     assert c.batch_size is c.dataset.batch_size
     assert c.dataset == getattr(c, "dataset")
+
+
+def test_attr_similar_name():
+    c = Config()
+    c.et = 4.56
+    assert c.et == 4.56
 
 
 def test_setattr_existing():

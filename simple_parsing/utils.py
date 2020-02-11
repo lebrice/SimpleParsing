@@ -650,7 +650,10 @@ class FlattenedAccess:
 
 
     def __setattr__(self, name: str, value: Any):
-        """Writes the value at the given attribute in self or in the children. 
+        """Write the attribute in self or in the children that has it.
+
+        If more than one child has attributes that match the given one, an
+        `AttributeError` is raised. 
         """
         # potential parents and corresponding values.
         parents: List[str] = []
@@ -667,8 +670,8 @@ class FlattenedAccess:
         
         if not parents:
             # We set the value on the dataclass directly, since it wasn't found.
-            # TODO: Should we create a hierarchy of objects if `name` has the form "a.b.c"? 
-            super().__setattr__(name, value)
+            # TODO: Should we throw an error, or maybe log a warning? (as this could be considered poor practice) 
+            object.__setattr__(self, name, value)
 
         elif len(parents) > 1:
             # more than one parent (ambiguous).
@@ -689,7 +692,7 @@ class FlattenedAccess:
             # destination attribute name
             dest_name = name.split(".")[-1]   
             # Set the attribute on the parent.
-            setattr(parent, dest_name, value) 
+            object.__setattr__(parent, dest_name, value) 
 
     def __getitem__(self, key):
         return getattr(self, key)
@@ -699,9 +702,6 @@ class FlattenedAccess:
     
     def asdict(self) -> Dict:
         return dataclasses.asdict(self)
-
-    def keys(self, recurse: bool=False) -> Set[str]:
-        return self.asdict().keys()
 
 
 def trie(sentences: List[List[str]]) -> Dict[str, Union[str, Dict]]:
