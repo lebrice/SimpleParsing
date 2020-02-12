@@ -3,10 +3,10 @@ import argparse
 import os
 import random
 import getpass
-import torch
-import torch.nn.parallel
-import torch.backends.cudnn as cudnn
-import torch.utils.data
+# import torch
+# import torch.nn.parallel
+# import torch.backends.cudnn as cudnn
+# import torch.utils.data
 
 
 class Parameters():

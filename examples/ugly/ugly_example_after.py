@@ -3,11 +3,11 @@ import argparse
 import simple_parsing
 import os
 import random
-import getpass
-import torch
-import torch.nn.parallel
-import torch.backends.cudnn as cudnn
-import torch.utils.data
+# import getpass
+# import torch
+# import torch.nn.parallel
+# import torch.backends.cudnn as cudnn
+# import torch.utils.data
 from dataclasses import dataclass, field
 from typing import *
 
@@ -188,10 +188,10 @@ class Parameters:
     def __post_init__(self):
         """ Post-initialization code """
         # Make output folder
-        try:
-            os.makedirs(self.other.out_dir)
-        except OSError:
-            pass
+        # try:
+        #     os.makedirs(self.other.out_dir)
+        # except OSError:
+        #     pass
 
         # Set render number of channels
         if self.rendering.render_type == 'img':
@@ -201,23 +201,23 @@ class Parameters:
         else:
             raise ValueError('Unknown rendering type')
 
-        # Set random seed
-        if self.other.manualSeed is None:
-            self.other.manualSeed = random.randint(1, 10000)
-        print("Random Seed: ", self.other.manualSeed)
-        random.seed(self.other.manualSeed)
-        torch.manual_seed(self.other.manualSeed)
-        if not self.other.no_cuda:
-            torch.cuda.manual_seed_all(self.other.manualSeed)
+        # # Set random seed
+        # if self.other.manualSeed is None:
+        #     self.other.manualSeed = random.randint(1, 10000)
+        # print("Random Seed: ", self.other.manualSeed)
+        # random.seed(self.other.manualSeed)
+        # torch.manual_seed(self.other.manualSeed)
+        # if not self.other.no_cuda:
+        #     torch.cuda.manual_seed_all(self.other.manualSeed)
 
-        # Set number of splats param
-        self.rendering.n_splats = self.rendering.splats_img_size ** 2
+        # # Set number of splats param
+        # self.rendering.n_splats = self.rendering.splats_img_size ** 2
         
-        # Check CUDA is selected
-        cudnn.benchmark = True
-        if torch.cuda.is_available() and self.other.no_cuda:
-            print("WARNING: You have a CUDA device, so you should "
-                  "probably run with --cuda")
+        # # Check CUDA is selected
+        # cudnn.benchmark = True
+        # if torch.cuda.is_available() and self.other.no_cuda:
+        #     print("WARNING: You have a CUDA device, so you should "
+        #           "probably run with --cuda")
 
     @classmethod
     def parse(cls):
