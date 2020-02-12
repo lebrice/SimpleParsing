@@ -68,7 +68,7 @@ def test_default_value(ContainerClass):
     [
         format_list_using_spaces,
         # format_list_using_brackets,
-        xfail_param(format_list_using_brackets, reason="TODO: decide which syntax we want to allow for single lists."),
+        xfail_param(format_list_using_brackets,      reason="TODO: decide which syntax we want to allow for single lists."),
         xfail_param(format_list_using_double_quotes, reason="TODO: decide which syntax we want to allow for single lists."),
         xfail_param(format_list_using_single_quotes, reason="TODO: decide which syntax we want to allow for single lists."),
     ])
@@ -79,13 +79,12 @@ def test_default_value(ContainerClass):
         (float, [1.1, 2.1]),
         (str,   ["a", "b"]),
         (bool,  [True, True]),
-    ]
-)
+    ])
 def test_list_supported_formats(
         list_formatting_function: ListFormattingFunction,
         item_type: Type,
         passed_values: List[Any],
-    ):
+):
 
     @dataclass
     class SomeClass(TestSetup):
@@ -118,7 +117,7 @@ def test_list_supported_formats(
         (int,   [[1, 2], [4, 5], [7, 8]]),
         (float, [[1.1, 2.1], [4.2, 5.2], [7.2, 8.2]]),
         (str,   [["a", "b"], ["c", "d"], ["e", "f"]]),
-        # (bool,  [[True, True], [True, False], [False, True]]),
+        (bool,  [[True, True], [True, False], [False, True]]),
     ]
 )
 def test_parse_multiple_with_list_attributes(
