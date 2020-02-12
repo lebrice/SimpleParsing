@@ -47,3 +47,8 @@ train_config: TrainingConfig = args.train_config
 eval_config: EvalConfig = args.eval_config 
 
 print(hparams, train_config, eval_config, sep="\n")
+expected = """
+MyModelHyperParameters(batch_size=32, learning_rate=0.05, momentum=0.01)
+TrainingConfig(data_dir='data', log_dir='logs', checkpoint_dir='checkpoints')
+EvalConfig(eval_dir='eval_data')
+"""

@@ -24,3 +24,9 @@ assert p1 == p2
 
 for field in fields(p1):
     print(f"Field {field.name} has type {field.type} and a default value if {field.default}.")
+
+expected = """
+Field x has type <class 'float'> and a default value if 0.0.
+Field y has type <class 'float'> and a default value if 0.0.
+Field z has type <class 'float'> and a default value if 0.0.
+"""

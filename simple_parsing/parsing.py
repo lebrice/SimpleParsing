@@ -115,13 +115,38 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing()
         return super().print_help(file)
 
+
+    def get_equivalent_argparse_code(self) -> str:
+        """Returns the argparse code equivalent to that of `simple_parsing`. 
+        
+        TODO: Could be fun, pretty sure this is useless though.
+        
+        Returns
+        -------
+        str
+            [description]
+        
+        Raises
+        ------
+        NotImplementedError
+            [description]
+        """
+        self._resolve_conflicts()
+        raise NotImplementedError("TODO:")
+        return utils._argparse_equivalent(self._wrappers)
+
+
+    def _resolve_conflicts(self) -> None:
+        self._wrappers = self._conflict_resolver.resolve(self._wrappers)
+
+
     def _preprocessing(self) -> None:
         """Resolve potential conflicts and actual add all the arguments."""
         logger.debug("\nPREPROCESSING\n")
         if self._preprocessing_done:
             return
 
-        self._wrappers = self._conflict_resolver.resolve(self._wrappers)
+        self._resolve_conflicts()
 
         # Create one argument group per dataclass
         for wrapper in self._wrappers:

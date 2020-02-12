@@ -2,13 +2,12 @@
 @author: Fabrice Normandin
 """
 from . import utils, wrappers
+from .helpers import MutableField, choice, field, subparsers
 from .parsing import ArgumentParser, ConflictResolution
-from .utils import (Formatter, InconsistentArgumentError)
-from .helpers import field, choice, MutableField
+from .utils import Formatter, InconsistentArgumentError
 
 __all__ = [
-    "Formatter", "InconsistentArgumentError", "MutableField", "choice",
-    "field", "subparsers",
+    "MutableField", "choice", "field", "subparsers",
     "ArgumentParser", "ConflictResolution",
-    "field", "choice", "MutableField"
+    "Formatter", "InconsistentArgumentError",
 ]

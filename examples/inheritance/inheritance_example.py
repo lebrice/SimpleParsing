@@ -41,3 +41,7 @@ if load_path is None:
 else:
     hparams = WGANGPHyperParameters.load_json(load_path)
 print(hparams)
+
+expected = """
+WGANGPHyperParameters(batch_size=32, d_steps=1, g_steps=1, learning_rate=0.0001, optimizer='ADAM', lambda_coeff=10, gp_penalty=1e-06)
+"""

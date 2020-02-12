@@ -55,6 +55,20 @@ def field(*,
         })
     if custom_argparse_args:
         _metadata.update({"custom_args": custom_argparse_args})
+        
+        action = custom_argparse_args.get("action")
+
+        if action == "store_false":
+            if default not in {MISSING, True}:
+                raise RuntimeError("default should either not be passed or set "
+                                   "to True when using the store_false action.")
+            default = True  # type: ignore
+        
+        elif action == "store_true":
+            if default not in {MISSING, False}:
+                raise RuntimeError("default should either not be passed or set "
+                                   "to False when using the store_true action.")
+            default = False  # type: ignore
 
     if default is not MISSING:
         return dataclasses.field(  # type: ignore

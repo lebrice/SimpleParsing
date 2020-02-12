@@ -280,7 +280,10 @@ class FieldWrapper():
             return raw_parsed_value
 
         elif self.is_list:
-            return list(raw_parsed_value)
+            if isinstance(raw_parsed_value, tuple):
+                return list(raw_parsed_value)
+            else:
+                return raw_parsed_value
 
         elif self.is_subparser:
             return raw_parsed_value
@@ -502,6 +505,8 @@ class FieldWrapper():
         if self.action_str.startswith("store_"):
             # all the store_* actions do not require a value.
             self._required = False
+        elif self.is_optional:
+            self._required = False
         elif self.parent.required:
             # if the parent dataclass is required, then this attribute is too.
             # TODO: does that make sense though?
@@ -529,6 +534,15 @@ class FieldWrapper():
 
     @property
     def type(self):
+        if utils.is_optional(self.field.type):
+            type_args = set(utils.get_type_arguments(self.field.type))
+            # TODO: What do we do if the type is something like Union[str, int, float]? 
+            if str in type_args:
+                return str
+            else:
+                type_args.remove(type(None))
+                # get the first non-NoneType type argument.
+                return type_args.pop()
         return self.field.type
 
     @property
@@ -588,6 +602,10 @@ class FieldWrapper():
     @property
     def is_bool(self) -> bool:
         return utils.is_bool(self.type)
+
+    @property
+    def is_optional(self) -> bool:
+        return utils.is_optional(self.field.type)
 
     @property
     def is_subparser(self) -> bool:
@@ -675,8 +693,8 @@ def only_keep_action_args(options: Dict[str, Any],
 
     kept_options, deleted_options = utils.keep_keys(options, args_to_keep)
     if deleted_options:
-        logger.warning(
-            f"Warning: some auto-generated options were deleted, as they were "
+        logger.debug(
+            f"Some auto-generated options were deleted, as they were "
             f"not required by the Action constructor: {deleted_options}."
         )
     logger.debug(f"Kept options: \t{kept_options.keys()}")

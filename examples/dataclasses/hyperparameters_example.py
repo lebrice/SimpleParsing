@@ -33,8 +33,14 @@ args = parser.parse_args()
 
 hparams: HyperParameters = args.hparams
 print(hparams)
+expected = """
+HyperParameters(batch_size=32, optimizer='ADAM', learning_rate=0.0001, max_epochs=100, l1_reg=1e-05, l2_reg=1e-05)
+"""
 
 # save and load from a json file: 
 hparams.save("hyperparameters.json")
 _hparams = HyperParameters.load("hyperparameters.json")
 assert hparams == _hparams
+
+import os
+os.remove("hyperparameters.json")

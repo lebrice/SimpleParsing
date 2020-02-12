@@ -57,10 +57,40 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelp
     """
 
     def _get_default_metavar_for_optional(self, action):
-        return getattr(action.type, "__name__", "")
+        try:
+            return super()._get_default_metavar_for_optional(action)
+        except:
+            return self._get_metavar_for_type(action.type, optional=True)
+
 
     def _get_default_metavar_for_positional(self, action):
-        return getattr(action.type, "__name__", "")
+        try:
+            return super()._get_default_metavar_for_positional(action)
+        except:
+            return self._get_metavar_for_type(action.type, optional=False)
+
+    def _get_metavar_for_type(self, t: Type, optional: bool=False) -> str:
+        if hasattr(t, "__name__"):
+            return t.__name__
+        elif is_union(t):
+            type_args = list(get_type_arguments(t))
+            
+            none_type = type(None)
+            while none_type in type_args:  # type: ignore
+                type_args.remove(none_type)  # type: ignore
+            
+            string = ""
+            if optional:
+                string += "["
+            middle = []
+            for t_ in type_args:
+                middle.append(self._get_metavar_for_type(t_, optional=optional))
+            string += "|".join(middle)
+            if optional:
+                string += "]"
+            return string
+        else:
+            return str(t)
 
 
 def camel_case(name):
@@ -197,6 +227,35 @@ def is_union(t: Type) -> bool:
     False
     """
     return getattr(t, "__origin__", "") == Union
+
+
+def is_optional(t: Type) -> bool:
+    """Returns True if the given Type is a variant of the Optional type.
+    
+    Parameters
+    ----------
+    - t : Type
+    
+        a Type annotation (or "live" type)
+    
+    Returns
+    -------
+    bool
+        Wether or not this is an Optional.
+
+    >>> from typing import Union, Optional, List
+    >>> is_optional(str)
+    False
+    >>> is_optional(Optional[str])
+    True
+    >>> is_optional(Union[str, None])
+    True
+    >>> is_optional(Union[str, List])
+    False
+    >>> is_optional(Union[str, List, int, float, None])
+    True
+    """
+    return is_union(t) and type(None) in get_type_arguments(t)
 
 
 def is_tuple_or_list_of_dataclasses(t: Type) -> bool:
