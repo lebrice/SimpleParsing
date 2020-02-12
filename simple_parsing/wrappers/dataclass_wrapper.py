@@ -7,39 +7,47 @@ from typing import cast
 from dataclasses import _MISSING_TYPE, MISSING
 from .. import docstring, utils
 from ..utils import Dataclass, DataclassType
+from .wrapper import Wrapper
 from .field_wrapper import FieldWrapper
 
 logger = logging.getLogger(__name__)
 
+class DataclassWrapper(Wrapper[Dataclass]):
+    def __init__(self,
+                 dataclass: Type[Dataclass],
+                 name: str,
+                 default: Dataclass=None,
+                 _prefix: str="",
+                 parent: "DataclassWrapper"=None,
+                 _field: dataclasses.Field=None,
+                 ):
+        # super().__init__(dataclass, name)
+        self.dataclass = dataclass
+        self.name = name
+        self.default = default
+        self._prefix = _prefix
 
-@dataclasses.dataclass
-class DataclassWrapper(Generic[Dataclass]):
-    dataclass: Type[Dataclass]
-    attribute_name: str
-    default: dataclasses.InitVar[Optional[Dataclass]] = None
+        self.fields: List[FieldWrapper] = []
+        self._destinations: List[str] = []
+        self._required: bool = False
+        self._explicit: bool = False
+        self._dest: str = ""
+        self._children: List[DataclassWrapper] = []
+        self.parent = parent
+        # the field of the parent, which contains this child dataclass.
+        self._field = _field
 
-    fields: List[FieldWrapper] = dataclasses.field(default_factory=list, repr=False, init=False)
-    _destinations: List[str] = dataclasses.field(default_factory=list, init=False)
-    _required: bool = False
-    _explicit: bool = False
-    _prefix: str = ""
-    _children: List["DataclassWrapper"] = dataclasses.field(default_factory=list, repr=False)
-    _parent: Optional["DataclassWrapper"] = dataclasses.field(default=None, repr=False)
-
-    # the field of the parent, which contains this child dataclass.
-    _field: Optional[dataclasses.Field] = None
-    # the default values
-    _defaults: List[Dataclass] = dataclasses.field(default_factory=list)
-    
-    def __post_init__(self, default: Dataclass):
+        # the default values
+        self._defaults: List[Dataclass] = []
+        
         if default:
             self.defaults = [default]
 
         for field in dataclasses.fields(self.dataclass):
             if dataclasses.is_dataclass(field.type):
                 # handle a nested dataclass attribute
-                dataclass, attribute_name = field.type, field.name
-                child_wrapper = DataclassWrapper(dataclass, attribute_name, _prefix=self._prefix, _parent=self, _field=field)
+                dataclass, name = field.type, field.name
+                child_wrapper = DataclassWrapper(dataclass, name, _prefix=self.prefix, parent=self, _field=field)
                 self._children.append(child_wrapper)
                 
             elif utils.is_tuple_or_list_of_dataclasses(field.type):
@@ -75,11 +83,11 @@ class DataclassWrapper(Generic[Dataclass]):
             return self._defaults
         if self._field is None:
             return []
-        assert self._parent is not None
-        if self._parent.defaults:
+        assert self.parent is not None
+        if self.parent.defaults:
             self._defaults = [
-                getattr(default, self.attribute_name)
-                for default in self._parent.defaults
+                getattr(default, self.name)
+                for default in self.parent.defaults
             ]
         else:
             default_field_value = utils.default_value(self._field)
@@ -101,8 +109,8 @@ class DataclassWrapper(Generic[Dataclass]):
 
     @property
     def description(self) -> Optional[str]:
-        if self._parent and self._field:    
-            doc = docstring.get_attribute_docstring(self._parent.dataclass, self._field.name)            
+        if self.parent and self._field:    
+            doc = docstring.get_attribute_docstring(self.parent.dataclass, self._field.name)            
             if doc is not None:
                 if doc.docstring_below:
                     return doc.docstring_below
@@ -111,15 +119,6 @@ class DataclassWrapper(Generic[Dataclass]):
                 elif doc.comment_inline:
                     return doc.comment_inline
         return self.dataclass.__doc__
-
-    @property
-    def nesting_level(self) -> int:
-        level = 0
-        parent = self._parent
-        while parent is not None:
-            parent = parent._parent
-            level += 1
-        return level
 
     @property
     def prefix(self) -> str:
@@ -154,24 +153,24 @@ class DataclassWrapper(Generic[Dataclass]):
     @property
     def dest(self):
         lineage = []
-        parent = self._parent
+        parent = self.parent
         while parent is not None:
-            lineage.append(parent.attribute_name)
-            parent = parent._parent
+            lineage.append(parent.name)
+            parent = parent.parent
         lineage = list(reversed(lineage))
-        lineage.append(self.attribute_name)
+        lineage.append(self.name)
         _dest = ".".join(lineage)
         logger.debug(f"getting dest, returning {_dest}")
         return _dest
-           
+   
 
     @property
     def destinations(self) -> List[str]:
         if not self._destinations:
-            if self._parent:
-                self._destinations = [f"{d}.{self.attribute_name}" for d in self._parent.destinations]
+            if self.parent:
+                self._destinations = [f"{d}.{self.name}" for d in self.parent.destinations]
             else:
-                self._destinations = [self.attribute_name]
+                self._destinations = [self.name]
         return self._destinations
 
     @destinations.setter

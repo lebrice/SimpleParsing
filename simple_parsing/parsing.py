@@ -230,7 +230,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 constructor_args = self.constructor_arguments[destination]
                 instance = constructor(**constructor_args)
 
-                if wrapper._parent is not None:
+                if wrapper.parent is not None:
                     parent_key, attr = utils.split_dest(destination)
                     logger.debug(
                         f"Setting a value at attribute {attr} in "
