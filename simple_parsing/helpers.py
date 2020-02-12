@@ -4,21 +4,22 @@ import functools
 import json
 import warnings
 from dataclasses import _MISSING_TYPE, MISSING
-from typing import Any, Callable, Dict, Iterable, List, Set, Tuple, Type, Union
+from typing import (Any, Callable, Dict, Iterable, List, Optional, Set, Tuple,
+                    Type, Union)
 
 from .utils import Dataclass, K, SimpleValueType, T, V
 
 
-def field(*,
-          alias: Union[str, List[str]] = None,
-          default: Union[T, _MISSING_TYPE] = MISSING,
+def field(default: Union[T, _MISSING_TYPE] = MISSING,
+          alias: Optional[Union[str, List[str]]] = None,
+          *,
           default_factory: Union[Callable[[], T], _MISSING_TYPE] = MISSING,
           init: bool = True,
           repr: bool = True,
-          hash: bool = None,
+          hash: Optional[bool] = None,
           compare: bool = True,
-          metadata: Dict[str, Any] = None,
-          **custom_argparse_args) -> T:
+          metadata: Optional[Dict[str, Any]] = None,
+          **custom_argparse_args: Any) -> T:
     """Calls the `dataclasses.field` function, and leftover arguments are fed
     directly to the `ArgumentParser.add_argument(*option_strings, **kwargs)`
     method.
@@ -90,7 +91,7 @@ def field(*,
         )
 
 
-def choice(*choices: T, default: T = None, **kwargs) -> T:
+def choice(*choices: T, default: T = None, **kwargs: Any) -> T:
     """ Makes a regular attribute, whose value, when parsed from the 
     command-line, can only be one contained in `choices`, with a default value 
     of `default`.
@@ -123,31 +124,49 @@ def list_field(*default_items: SimpleValueType, **kwargs) -> List[T]:
     Returns:
         List[T]: a `dataclasses.field` of type `list`, containing the `default_items`. 
     """
-    return MutableField(list, default_items, **kwargs)
+    default = kwargs.pop("default", None)
+    if isinstance(default, list):
+        # can't have that. field wants a default_factory.
+        # we just give back a copy of the list as a default factory,
+        # but this should be discouraged.
+        from copy import deepcopy
+        kwargs["default_factory"] = lambda: deepcopy(default)
+    return mutable_field(list, default_items, **kwargs)
 
 
-def dict_field(default_items: Union[Dict[K, V], Iterable[Tuple[K, V]]] = None, **kwargs) -> Dict[K, V]:
+def dict_field(default_items: Union[Dict[K, V], Iterable[Tuple[K, V]]]=None, **kwargs) -> Dict[K, V]:
     """shorthand function for setting a `dict` attribute on a dataclass,
     so that every instance of the dataclass doesn't share the same `dict`.
 
-    Accepts any of the arguments of the `dataclasses.field` function.
+    NOTE: Do not use keyword arguments as you usually would with a dictionary
+    (as in something like `dict_field(a=1, b=2, c=3)`). Instead pass in a
+    dictionary instance with the items: `dict_field(dict(a=1, b=2, c=3))`.
+    The reason for this is that the keyword arguments are interpreted as custom
+    argparse arguments, rather than arguments of the `dict` function!) 
+
+    Also accepts any of the arguments of the `dataclasses.field` function.
 
     Returns:
         Dict[K, V]: a `dataclasses.Field` of type `Dict[K, V]`, containing the `default_items`. 
     """
     if default_items is None:
-        default_items = []
+        default_items = {}
     elif isinstance(default_items, dict):
         default_items = default_items.items()
-    return MutableField(dict, default_items, **kwargs)
+    return mutable_field(dict, default_items, **kwargs)
 
 
 def set_field(*default_items: T, **kwargs) -> Set[T]:
-    return MutableField(set, default_items, **kwargs)
+    return mutable_field(set, default_items, **kwargs)
 
 
-def MutableField(_type: Type[T], *args, init: bool = True, repr: bool = True, hash: bool = None, compare: bool = True, metadata: Dict[str, Any] = None, **kwargs) -> T:
-    return field(default_factory=functools.partial(_type, *args, **kwargs), init=init, repr=repr, hash=hash, compare=compare, metadata=metadata)
+def mutable_field(_type: Type[T], *args, init: bool = True, repr: bool = True, hash: bool = None, compare: bool = True, metadata: Dict[str, Any] = None, **kwargs) -> T:
+    # TODO: Check wether some of the keyword arguments are destined for the `field` function, or for the partial?    
+    default_factory = kwargs.pop("default_factory", functools.partial(_type, *args))
+    return field(default_factory=default_factory, init=init, repr=repr, hash=hash, compare=compare, metadata=metadata, **kwargs)
+
+
+MutableField = mutable_field
 
 
 def subparsers(subcommands: Dict[str, Type], default=None) -> Any:
@@ -216,8 +235,8 @@ class FlattenedAccess:
     - The dictionary access syntax is often more natural than using getattr()
         when reading an attribute whose name is a variable.
     """
-
-    def attributes(dataclass: Dataclass,
+    
+    def attributes(self,
                    recursive: bool=True,
                    prefix: str="") -> Iterable[Tuple[str, Any]]:
         """Returns an Iterator over the attributes of the dataclass.
@@ -247,12 +266,12 @@ class FlattenedAccess:
         Iterable[Tuple[str, Any]]
             A Tuple of the form <Attribute name, attribute_value>.
         """
-        for field in dataclasses.fields(dataclass):
-            if field.name not in dataclass.__dict__:
+        for field in dataclasses.fields(self):
+            if field.name not in self.__dict__:
                 # the dataclass isn't yet instantiated, or the attr was deleted.
                 continue
             # get the field value (without needless recursion)
-            field_value = dataclass.__dict__[field.name]
+            field_value = self.__dict__[field.name]
             
             yield prefix + field.name, field_value
             if recursive and dataclasses.is_dataclass(field_value):

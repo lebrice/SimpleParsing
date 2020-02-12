@@ -403,7 +403,8 @@ def default_value(field: dataclasses.Field) -> Union[T, _MISSING_TYPE]:
     if field.default is not dataclasses.MISSING:
         return field.default
     elif field.default_factory is not dataclasses.MISSING:  # type: ignore
-        return field.default_factory()  # type: ignore
+        constructor = field.default_factory # type: ignore
+        return constructor()
     else:
         return dataclasses.MISSING
 

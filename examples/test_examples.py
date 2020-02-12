@@ -27,11 +27,11 @@ def set_prog_name():
 
 @pytest.fixture
 def assert_equals_stdout(capsys):
-    def without_spaces(string): return "".join(string.split())
+    def strip(string): return "".join(string.split())
 
     def should_equal(expected):
-        out = capsys.readouterr().out.strip()
-        assert without_spaces(out) == without_spaces(expected)
+        out = capsys.readouterr().out
+        assert strip(out) == strip(expected)
     return should_equal
 
 

@@ -5,6 +5,7 @@ from simple_parsing.helpers import JsonSerializable
 from dataclasses import dataclass
 from typing import Optional
 
+
 @dataclass
 class GANHyperParameters(JsonSerializable):
     batch_size: int = 32    # batch size
@@ -16,12 +17,12 @@ class GANHyperParameters(JsonSerializable):
 
 @dataclass
 class WGANHyperParameters(GANHyperParameters):
-    lambda_coeff: float = 10 # the lambda penalty coefficient.
+    lambda_coeff: float = 10  # the lambda penalty coefficient.
 
 
 @dataclass
 class WGANGPHyperParameters(WGANHyperParameters):
-    gp_penalty: float = 1e-6 # Gradient penalty coefficient
+    gp_penalty: float = 1e-6  # Gradient penalty coefficient
 
 
 parser = ArgumentParser()
@@ -37,11 +38,10 @@ args = parser.parse_args()
 
 load_path: str = args.load_path
 if load_path is None:
-    hparams: WGANGPHyperParameters = args.hparams  
+    hparams: WGANGPHyperParameters = args.hparams
 else:
     hparams = WGANGPHyperParameters.load_json(load_path)
-print(hparams)
 
-expected = """
-WGANGPHyperParameters(batch_size=32, d_steps=1, g_steps=1, learning_rate=0.0001, optimizer='ADAM', lambda_coeff=10, gp_penalty=1e-06)
-"""
+assert hparams == WGANGPHyperParameters(batch_size=32, d_steps=1, g_steps=1,
+                                        learning_rate=0.0001, optimizer='ADAM',
+                                        lambda_coeff=10, gp_penalty=1e-06)

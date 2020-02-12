@@ -134,7 +134,7 @@ def test_dict_field_with_keyword_args():
     
     @dataclass
     class A(TestSetup):
-        a: Dict[str, int] = dict_field(bob=0, john=1, bart=2)
+        a: Dict[str, int] = dict_field(dict(bob=0, john=1, bart=2))
     
     a1 = A()
     a2 = A()
