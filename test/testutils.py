@@ -6,8 +6,8 @@ from typing import (Any, Callable, Dict, Generic, List, Optional, Tuple, Type,
 
 import pytest
 import simple_parsing
-from simple_parsing import (ArgumentParser, ConflictResolution, Formatter,
-                            InconsistentArgumentError)
+from simple_parsing import (ArgumentParser, ConflictResolution,
+                            InconsistentArgumentError, SimpleHelpFormatter)
 from simple_parsing.utils import camel_case
 from simple_parsing.wrappers import DataclassWrapper
 

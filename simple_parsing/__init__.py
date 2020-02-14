@@ -5,11 +5,11 @@ from . import utils, wrappers
 from .conflicts import ConflictResolution
 from .helpers import MutableField, choice, field, mutable_field, subparsers
 from .parsing import ArgumentParser
-from .utils import Formatter, InconsistentArgumentError
+from .utils import InconsistentArgumentError, SimpleHelpFormatter
 
 __all__ = [
     "ConflictResolution",
     "MutableField", "choice", "field", "mutable_field", "subparsers",
     "ArgumentParser", "ConflictResolution",
-    "Formatter", "InconsistentArgumentError",
+    "InconsistentArgumentError", "SimpleHelpFormatter",
 ]

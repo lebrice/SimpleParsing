@@ -70,9 +70,15 @@ def test_running_example_outputs_expected(
     script = file_path.split("/")[-1] + ".py"
     set_prog_name(script, args)
     module_name = file_path.replace("/", ".").replace(".py", "")
-    # programmatically import the example script, which also runs it.
-    # (Equivalent to executing "from <module_name> import expected")
-    module = __import__(module_name, globals(), locals(), ["expected"], 0)
-    # get the 'expected'
-    if hasattr(module, "expected"):
-        assert_equals_stdout(module.expected)
+
+    from contextlib import suppress
+
+    try:
+        # programmatically import the example script, which also runs it.
+        # (Equivalent to executing "from <module_name> import expected")
+        module = __import__(module_name, globals(), locals(), ["expected"], 0)
+        # get the 'expected'
+        if hasattr(module, "expected"):
+            assert_equals_stdout(module.expected)
+    except SystemExit as e:
+        pytest.xfail(f"SystemExit in example {file_path}.")

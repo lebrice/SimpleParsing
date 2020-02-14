@@ -52,7 +52,7 @@ class InconsistentArgumentError(RuntimeError):
         super().__init__(*args, **kwargs)
 
 
-class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
+class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
     """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
     """
 
@@ -92,6 +92,7 @@ class Formatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelp
         else:
             return str(t)
 
+Formatter = SimpleHelpFormatter
 
 def camel_case(name):
     s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
