@@ -7,7 +7,7 @@ from typing import *
 import pytest
 
 from .testutils import *
-from simple_parsing import MutableField
+from simple_parsing import mutable_field
 import simple_parsing.utils as utils
 from simple_parsing.helpers import dict_field, set_field, list_field
 
@@ -53,7 +53,7 @@ class B:
     # # shared_list: List = [] # not allowed.
     # different_list: List = field(default_factory=list)
     shared: A = A()
-    different: A = MutableField(A, a="123")
+    different: A = mutable_field(A, a="123")
 
 def test_mutable_field():    
     b1 = B()

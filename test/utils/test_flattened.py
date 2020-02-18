@@ -3,7 +3,7 @@
 """
 from dataclasses import dataclass, field, fields
 from typing import List, Dict, Tuple, Any, Optional
-from simple_parsing import MutableField
+from simple_parsing import mutable_field
 
 from test.testutils import *
 
@@ -108,12 +108,12 @@ from simple_parsing.helpers import FlattenedAccess
 @dataclass
 class Config(FlattenedAccess):
     """Overall Configuration."""
-    dataset: DatasetConfig = MutableField(DatasetConfig)
-    model:   ModelConfig   = MutableField(ModelConfig)
-    dpmmoe:  DPMoEConfig   = MutableField(DPMoEConfig)
-    train:   TrainConfig   = MutableField(TrainConfig)
-    eval:    EvalConfig    = MutableField(EvalConfig)
-    summary: SummaryConfig = MutableField(SummaryConfig)
+    dataset: DatasetConfig = mutable_field(DatasetConfig)
+    model:   ModelConfig   = mutable_field(ModelConfig)
+    dpmmoe:  DPMoEConfig   = mutable_field(DPMoEConfig)
+    train:   TrainConfig   = mutable_field(TrainConfig)
+    eval:    EvalConfig    = mutable_field(EvalConfig)
+    summary: SummaryConfig = mutable_field(SummaryConfig)
     et: float = 1.23
 
 

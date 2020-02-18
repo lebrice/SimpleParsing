@@ -18,10 +18,10 @@ from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
 from .utils import Dataclass, split_dest
 from .wrappers import DataclassWrapper, FieldWrapper
+from .helpers import SimpleHelpFormatter
 
 logger = logging.getLogger(__name__)
 from argparse import HelpFormatter
-from .utils import SimpleHelpFormatter
 
 
 class ArgumentParser(argparse.ArgumentParser):

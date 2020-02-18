@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import *
 from test.testutils import *
-from simple_parsing import ArgumentParser, MutableField, ConflictResolution
+from simple_parsing import ArgumentParser, mutable_field, ConflictResolution
 import pytest
 import logging
 

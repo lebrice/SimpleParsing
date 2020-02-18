@@ -1,4 +1,5 @@
 """ Collection of helper classes and functions to reduce boilerplate code. """
+import argparse
 import dataclasses
 import functools
 import json
@@ -7,7 +8,8 @@ from dataclasses import _MISSING_TYPE, MISSING
 from typing import (Any, Callable, Dict, Iterable, List, Optional, Set, Tuple,
                     Type, Union)
 
-from .utils import Dataclass, K, SimpleValueType, T, V
+from .utils import (Dataclass, K, SimpleValueType, T, V, get_type_arguments,
+                    is_union)
 
 
 def field(default: Union[T, _MISSING_TYPE] = MISSING,
@@ -169,6 +171,59 @@ def mutable_field(_type: Type[T], *args, init: bool = True, repr: bool = True, h
 MutableField = mutable_field
 
 
+class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
+                          argparse.MetavarTypeHelpFormatter,
+                          argparse.RawDescriptionHelpFormatter):
+    """Little shorthand for using some useful HelpFormatters from argparse.
+    
+    This class inherits from argparse's `ArgumentDefaultHelpFormatter`,
+    `MetavarTypeHelpFormatter` and `RawDescriptionHelpFormatter` classes.
+
+    This produces the following resulting actions:
+    - adds a "(default: xyz)" for each argument with a default
+    - uses the name of the argument type as the metavar. For example, gives
+      "-n int" instead of "-n N" in the usage and description of the arguments.
+    - Conserves the formatting of the class and argument docstrings, if given.
+    """
+
+    def _get_default_metavar_for_optional(self, action):
+        try:
+            return super()._get_default_metavar_for_optional(action)
+        except:
+            return self._get_metavar_for_type(action.type, optional=True)
+
+
+    def _get_default_metavar_for_positional(self, action):
+        try:
+            return super()._get_default_metavar_for_positional(action)
+        except:
+            return self._get_metavar_for_type(action.type, optional=False)
+
+    def _get_metavar_for_type(self, t: Type, optional: bool=False) -> str:
+        if hasattr(t, "__name__"):
+            return t.__name__
+        elif is_union(t):
+            type_args = list(get_type_arguments(t))
+            
+            none_type = type(None)
+            while none_type in type_args:  # type: ignore
+                type_args.remove(none_type)  # type: ignore
+            
+            string = ""
+            if optional:
+                string += "["
+            middle = []
+            for t_ in type_args:
+                middle.append(self._get_metavar_for_type(t_, optional=optional))
+            string += "|".join(middle)
+            if optional:
+                string += "]"
+            return string
+        else:
+            return str(t)
+
+Formatter = SimpleHelpFormatter
+
 def subparsers(subcommands: Dict[str, Type], default=None) -> Any:
     if default is not None and default not in subcommands:
         raise ValueError(
@@ -224,13 +279,13 @@ class JsonSerializable:
         return from_dict(cls, args_dict)
 
 
-
 class FlattenedAccess:
     """ Allows flattened access to the attributes of all children dataclasses.
 
-    This is meant to simplify the adoption of dataclasses for argument hierarchies,
-    rather than a single-level dictionary.
-    Dataclasses allow for easy, neatly separated arguments, but suffer from 2 potential drawbacks:
+    This is meant to simplify the adoption of dataclasses for argument
+    hierarchies, rather than a single-level dictionary.
+    Dataclasses allow for easy, neatly separated arguments, but suffer from 2
+    potential drawbacks:
     - When using a highly nested structure, having long accesses is annoying
     - The dictionary access syntax is often more natural than using getattr()
         when reading an attribute whose name is a variable.

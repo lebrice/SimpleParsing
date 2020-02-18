@@ -3,13 +3,15 @@
 """
 from . import utils, wrappers
 from .conflicts import ConflictResolution
-from .helpers import MutableField, choice, field, mutable_field, subparsers
+from .helpers import (MutableField, SimpleHelpFormatter, choice, field,
+                      list_field, mutable_field, subparsers)
 from .parsing import ArgumentParser
-from .utils import InconsistentArgumentError, SimpleHelpFormatter
+from .utils import InconsistentArgumentError
 
 __all__ = [
     "ConflictResolution",
-    "MutableField", "choice", "field", "mutable_field", "subparsers",
+    "MutableField", "SimpleHelpFormatter", "choice", "field",
+    "list_field", "mutable_field", "subparsers",
     "ArgumentParser", "ConflictResolution",
     "InconsistentArgumentError", "SimpleHelpFormatter",
 ]
