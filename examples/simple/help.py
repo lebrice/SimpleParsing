@@ -19,6 +19,8 @@ class HParams:
     The default HelpFormatter used by `simple_parsing` will keep the formatting
     of this section intact, will add an indicator of the default values, and
     will use the name of the attribute's type as the metavar in the help string.
+    For more info, check out the `SimpleFormatter` class found in 
+    ./simple_parsing/utils.py
     """
     num_layers: int = 4   # Number of layers in the model.
     num_units:  int = 64  # Number of units (neurons) per layer.
@@ -43,9 +45,8 @@ HParams(num_layers=4, num_units=64, optimizer='ADAM', learning_rate=0.001, alpha
 
 parser.print_help()
 expected += """
-usage: help.py [-h] [--num_layers int] [--num_units int]
-                         [--optimizer str] [--learning_rate float]
-                         [--alpha float]
+usage: help.py [-h] [--num_layers int] [--num_units int] [--optimizer str]
+               [--learning_rate float] [--alpha float]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -66,6 +67,8 @@ HParams ['hparams']:
       The default HelpFormatter used by `simple_parsing` will keep the formatting
       of this section intact, will add an indicator of the default values, and
       will use the name of the attribute's type as the metavar in the help string.
+      For more info, check out the `SimpleFormatter` class found in 
+      ./simple_parsing/utils.py
       
 
   --num_layers int      Number of layers in the model. (default: 4)

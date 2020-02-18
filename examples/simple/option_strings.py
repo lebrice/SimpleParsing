@@ -15,11 +15,13 @@ parser.add_arguments(HParams, dest="hparams")
 args = parser.parse_args()
 
 print(args.hparams)
-expected = "HParams(num_layers=4, num_units=64, optimizer='ADAM', learning_rate=0.001)"
+expected = """
+HParams(num_layers=4, num_units=64, optimizer='ADAM', learning_rate=0.001)
+"""
 
 parser.print_help()
 expected += """
-usage: alias.py [-h] [-n int] [-u int] [-o str] [-lr float]
+usage: option_strings.py [-h] [-n int] [-u int] [-o str] [-lr float]
 
 optional arguments:
   -h, --help            show this help message and exit
