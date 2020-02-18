@@ -23,7 +23,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
                  ):
         # super().__init__(dataclass, name)
         self.dataclass = dataclass
-        self.name = name
+        self._name = name
         self.default = default
         self._prefix = _prefix
 
@@ -33,7 +33,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         self._explicit: bool = False
         self._dest: str = ""
         self._children: List[DataclassWrapper] = []
-        self.parent = parent
+        self._parent = parent
         # the field of the parent, which contains this child dataclass.
         self._field = _field
 
@@ -75,7 +75,43 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 logger.debug(f"Arg options for field '{wrapped_field.name}': {wrapped_field.arg_options}")
                 # TODO: CustomAction isn't very easy to debug, and is not working. Maybe look into that. Simulating it for now.
                 group.add_argument(*wrapped_field.option_strings, **wrapped_field.arg_options)
+    
+    def equivalent_argparse_code(self, leading="group") -> str:
+        code = ""
+        import textwrap
+        code += textwrap.dedent(f"""
+        group = parser.add_argument_group(title="{self.title}", description="{self.description}")
+        """)
+        for wrapped_field in self.fields:
+            if wrapped_field.is_subparser:
+                # TODO:
+                raise NotImplementedError("Subparsers equivalent is TODO.")
+                code += textwrap.dedent(f"""\
+                # add subparsers for each dataclass type in the field.
+                subparsers = parser.add_subparsers(
+                    title={wrapped_field.name},
+                    description={wrapped_field.help},
+                    dest={wrapped_field.dest},
+                )
+                subparsers.required = True
 
+                for subcommand, dataclass_type in {self.subparsers_dict.items()}:
+                    subparser = subparsers.add_parser(subcommand)
+                    subparser = cast(ArgumentParser, subparser)
+                    subparser.add_arguments(dataclass_type, dest=self.dest)
+                """)
+            elif wrapped_field.arg_options:
+                code += textwrap.dedent(wrapped_field.equivalent_argparse_code()) + "\n"
+        return code
+
+    
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def parent(self) -> Optional["DataclassWrapper"]:
+        return self._parent
 
     @property
     def defaults(self) -> List[Dataclass]:

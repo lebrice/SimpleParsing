@@ -22,7 +22,7 @@ from .helpers import SimpleHelpFormatter
 
 logger = logging.getLogger(__name__)
 from argparse import HelpFormatter
-
+from typing import ClassVar
 
 class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args,
@@ -123,8 +123,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing()
         return super().print_help(file)
 
-
-    def get_equivalent_argparse_code(self) -> str:
+    def equivalent_argparse_code(self) -> str:
         """Returns the argparse code equivalent to that of `simple_parsing`. 
         
         TODO: Could be fun, pretty sure this is useless though.
@@ -132,21 +131,20 @@ class ArgumentParser(argparse.ArgumentParser):
         Returns
         -------
         str
-            [description]
-        
-        Raises
-        ------
-        NotImplementedError
-            [description]
+            A string containing the auto-generated argparse code.
         """
-        self._resolve_conflicts()
-        raise NotImplementedError("TODO:")
-        return utils._argparse_equivalent(self._wrappers)
-
+        self._preprocessing()
+        code = f"parser = ArgumentParser()"
+        for wrapper in self._wrappers:
+            code += "\n"
+            code += wrapper.equivalent_argparse_code()
+            code += "\n"
+        code += "args = parser.parse_args()\n"
+        code += "print(args)\n"
+        return code
 
     def _resolve_conflicts(self) -> None:
         self._wrappers = self._conflict_resolver.resolve(self._wrappers)
-
 
     def _preprocessing(self) -> None:
         """Resolve potential conflicts and actual add all the arguments."""
@@ -163,7 +161,6 @@ class ArgumentParser(argparse.ArgumentParser):
                 f"at destinations {wrapper.destinations}"
             )
             wrapper.add_arguments(parser=self)
-
         self._preprocessing_done = True
 
     def _postprocessing(self, parsed_args: Namespace) -> Namespace:

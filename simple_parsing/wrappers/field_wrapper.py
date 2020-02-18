@@ -1,4 +1,5 @@
 import argparse
+import collections
 import dataclasses
 import enum
 import inspect
@@ -42,7 +43,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     def __init__(self, field: dataclasses.Field, parent: Any = None):
         # super().__init__(wrapped=field, name=field.name)
         self.field: dataclasses.Field = field
-        self.parent: Any = parent
+        self._parent: Any = parent
         # Holders used to 'cache' the properties.
         # (could've used cached_property with Python 3.8).
         self._option_strings: Optional[Set[str]] = None
@@ -459,7 +460,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         if isinstance(custom_dest, dataclasses.Field):
             all_fields: List[FieldWrapper] = []
             for parent in self.lineage():
-                all_fields.extend(parent.fields)
+                all_fields.extend(parent.fields)  # type: ignore
             for other_wrapper in all_fields:
                 if custom_dest is other_wrapper.field:
                     self._dest_field = other_wrapper
@@ -490,7 +491,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         if self._default is not None:
             return self._default
 
-        default = utils.default_value(self.field)
+        default: Any = utils.default_value(self.field)
 
         if default is dataclasses.MISSING:
             default = None
@@ -646,6 +647,10 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return utils.get_type_arguments(self.type)
 
     @property
+    def parent(self) -> "simple_parsing.wrappers.dataclass_wrapper.Wrapper":
+        return self._parent
+
+    @property
     def subparsers_dict(self) -> Dict[str, Type]:
         if "subparsers" in self.field.metadata:
             return self.field.metadata["subparsers"]
@@ -674,6 +679,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 subparser = cast(ArgumentParser, subparser)
                 subparser.add_arguments(dataclass_type, dest=self.dest)
 
+    def equivalent_argparse_code(self):
+        arg_options = self.arg_options.copy()
+        arg_options_string = f"{{'type': {arg_options.pop('type').__qualname__}"
+        arg_options_string += str(arg_options).replace("{", ", ")
+        return f"group.add_argument(*{self.option_strings}, **{arg_options_string})" 
 
 def only_keep_action_args(options: Dict[str, Any],
                           action: Union[str, Any]) -> Dict[str, Any]:
