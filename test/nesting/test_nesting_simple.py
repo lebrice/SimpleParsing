@@ -7,7 +7,7 @@ from typing import *
 import pytest
 
 from . import TestSetup, xfail
-from simple_parsing import *
+from simple_parsing import ArgumentParser, field, ConflictResolution
 
 from .example_use_cases import TrainConfig, RunConfig, HParams
 

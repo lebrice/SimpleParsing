@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import *
 
-import tensorflow as tf
+# import tensorflow as tf
 
 from simple_parsing import ArgumentParser, choice
-from simple_parsing.utils import JsonSerializable, list_field
+from simple_parsing.helpers import JsonSerializable, list_field
 
 @dataclass
 class ConvBlock(JsonSerializable):
@@ -34,7 +34,7 @@ class GanHParams(JsonSerializable):
     n_disc_iters_per_g_iter: int = 1  # Number of Discriminator iterations per Generator iteration.
 
 
-class GAN(tf.keras.Model):
+class GAN():
     """ Generative Adversarial Network Model. """   
     def __init__(self, hparams: GanHParams):
         self.hparams = hparams
@@ -83,3 +83,23 @@ parser = ArgumentParser()
 parser.add_arguments(WGanGPHParams, "hparams")
 args = parser.parse_args()
 print(args.hparams)
+
+expected = """
+WGanGPHParams(
+    gen=GeneratorHParams(
+        n_layers=4,
+        n_filters=[16, 32, 64, 64],
+        optimizer='ADAM'
+    ),
+    disc=CriticHParams(
+        n_layers=4,
+        n_filters=[16, 32, 64, 64],
+        optimizer='ADAM',
+        lambda_coefficient=1e-05
+    ),
+    learning_rate=0.0001,
+    n_disc_iters_per_g_iter=1,
+    e_drift=0.0001,
+    gp_coefficient=10.0
+)
+"""

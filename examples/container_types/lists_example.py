@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 
 from simple_parsing import ArgumentParser
-from simple_parsing.utils import list_field
+from simple_parsing.helpers import list_field
 
 
 @dataclass
@@ -28,3 +28,4 @@ args = parser.parse_args()
 
 example: Example = args.example
 print(example)
+expected = "Example(some_integers=[], some_floats=[3.14, 2.56], some_list_of_strings=['default_1', 'default_2'])"

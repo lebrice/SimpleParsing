@@ -40,3 +40,6 @@ parser.add_arguments(DocStringsExample, "example")
 args = parser.parse_args()
 ex = args.example
 print(ex)
+expected = """
+DocStringsExample(attribute1=1.0, attribute2=1.0, attribute3=1.0, attribute4=1.0, attribute5=1.0, attribute6=1.0, attribute7=1.0)
+"""

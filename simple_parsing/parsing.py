@@ -18,14 +18,18 @@ from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
 from .utils import Dataclass, split_dest
 from .wrappers import DataclassWrapper, FieldWrapper
+from .helpers import SimpleHelpFormatter
 
 logger = logging.getLogger(__name__)
-
+from argparse import HelpFormatter
+from typing import ClassVar
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self,
-                 conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
-                 add_option_string_dash_variants: bool = False, *args, **kwargs):
+    def __init__(self, *args,
+                 conflict_resolution: ConflictResolution=ConflictResolution.AUTO,
+                 add_option_string_dash_variants: bool=False,
+                 formatter_class: Type[HelpFormatter]=SimpleHelpFormatter,
+                 **kwargs):
         """Creates an ArgumentParser instance.
 
         Parameters
@@ -43,12 +47,16 @@ class ArgumentParser(argparse.ArgumentParser):
             For example, when set to `True`, "--no-cache" and "--no_cache" could
             both be used to point to the same attribute `no_cache` on some
             dataclass.
+        
+        - formatter_class : Type[HelpFormatter], optional
+
+            The formatter class to use. By default, uses
+            `simple_parsing.SimpleHelpFormatter`, which is a combination of the
+            `argparse.ArgumentDefaultsHelpFormatter`,
+            `argparse.MetavarTypeHelpFormatter` and
+            `argparse.RawDescriptionHelpFormatter` classes.
         """
-
-        # add the Formatter, if there is none.
-        if "formatter_class" not in kwargs:
-            kwargs["formatter_class"] = utils.Formatter
-
+        kwargs["formatter_class"] = formatter_class
         super().__init__(*args, **kwargs)
 
         self.conflict_resolution = conflict_resolution
@@ -115,13 +123,36 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing()
         return super().print_help(file)
 
+    def equivalent_argparse_code(self) -> str:
+        """Returns the argparse code equivalent to that of `simple_parsing`. 
+        
+        TODO: Could be fun, pretty sure this is useless though.
+        
+        Returns
+        -------
+        str
+            A string containing the auto-generated argparse code.
+        """
+        self._preprocessing()
+        code = f"parser = ArgumentParser()"
+        for wrapper in self._wrappers:
+            code += "\n"
+            code += wrapper.equivalent_argparse_code()
+            code += "\n"
+        code += "args = parser.parse_args()\n"
+        code += "print(args)\n"
+        return code
+
+    def _resolve_conflicts(self) -> None:
+        self._wrappers = self._conflict_resolver.resolve(self._wrappers)
+
     def _preprocessing(self) -> None:
         """Resolve potential conflicts and actual add all the arguments."""
         logger.debug("\nPREPROCESSING\n")
         if self._preprocessing_done:
             return
 
-        self._wrappers = self._conflict_resolver.resolve(self._wrappers)
+        self._resolve_conflicts()
 
         # Create one argument group per dataclass
         for wrapper in self._wrappers:
@@ -130,7 +161,6 @@ class ArgumentParser(argparse.ArgumentParser):
                 f"at destinations {wrapper.destinations}"
             )
             wrapper.add_arguments(parser=self)
-
         self._preprocessing_done = True
 
     def _postprocessing(self, parsed_args: Namespace) -> Namespace:
@@ -205,7 +235,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 constructor_args = self.constructor_arguments[destination]
                 instance = constructor(**constructor_args)
 
-                if wrapper._parent is not None:
+                if wrapper.parent is not None:
                     parent_key, attr = utils.split_dest(destination)
                     logger.debug(
                         f"Setting a value at attribute {attr} in "

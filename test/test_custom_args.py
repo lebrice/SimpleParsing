@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from simple_parsing import ArgumentParser
-from simple_parsing.utils import field
+from simple_parsing import ArgumentParser, field
 
-from .testutils import *
-
+from .testutils import (TestParser, TestSetup, raises, raises_expected_n_args,
+                        raises_missing_required_arg)
+from typing import List
 
 def test_custom_args():
     @dataclass
@@ -129,7 +129,7 @@ def test_custom_nargs_question_mark():
 
 @dataclass
 class Foo:
-    flag: bool = field(alias=["-f", "-flag"],  action="store_true")
+    flag: bool = field(alias=["-f", "-flag"], action="store_true")
     # wether or not to store some value.
     no_cache: bool = field(action="store_false")
 
@@ -161,6 +161,21 @@ def test_store_false_action():
     foo: Foo = args.foo
     assert foo.no_cache == True
 
+
+def test_list_of_choices():
+    @dataclass
+    class Foo(TestSetup):
+        """ Some class Foo """
+
+        # A sequence of tasks.
+        task_sequence: List[str] = field(choices=["train", "test", "ood"])
+
+    foo = Foo.setup("--task_sequence train train ood")
+    assert foo.task_sequence == ["train", "train", "ood"]
+
+    with raises(match="invalid choice:"):
+        Foo.setup("--task_sequence train bob test")
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

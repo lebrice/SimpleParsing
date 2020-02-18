@@ -3,11 +3,11 @@ import argparse
 import simple_parsing
 import os
 import random
-import getpass
-import torch
-import torch.nn.parallel
-import torch.backends.cudnn as cudnn
-import torch.utils.data
+# import getpass
+# import torch
+# import torch.nn.parallel
+# import torch.backends.cudnn as cudnn
+# import torch.utils.data
 from dataclasses import dataclass, field
 from typing import *
 
@@ -21,11 +21,11 @@ class DatasetParams:
     dataset: str = 'objects_folder_multi' #laptop,pistol
     """ dataset name: [shapenet, objects_folder, objects_folder]') """
     
-    root_dir: str = DatasetParams.default_root  # dataset root directory
-    root_dir1: str = DatasetParams.default_root # dataset root directory
-    root_dir2: str = DatasetParams.default_root # dataset root directory
-    root_dir3: str = DatasetParams.default_root # dataset root directory
-    root_dir4: str = DatasetParams.default_root # dataset root directory
+    root_dir: str  = default_root # dataset root directory
+    root_dir1: str = default_root # dataset root directory
+    root_dir2: str = default_root # dataset root directory
+    root_dir3: str = default_root # dataset root directory
+    root_dir4: str = default_root # dataset root directory
 
     synsets: str = ''               # Synsets from the shapenet dataset to use
     classes: str = 'bowl'           # Classes from the shapenet dataset to use #,cap,can,laptop
@@ -116,7 +116,7 @@ class OptimizerParams:
 class GanParams:
     """ Gan parameters """
     criterion: str = choice('GAN', 'WGAN', default="WGAN")  # GAN Training criterion
-    gp: Optional[str] = choice(None, 'original', default="original")  # Add gradient penalty
+    gp: str = choice("None", 'original', default="original")  # Add gradient penalty
     gp_lambda: float = 10.  # GP lambda
     critic_iters: int = 5   # Number of critic iterations
     clamp: float = 0.01     # clamp the weights for WGAN
@@ -124,6 +124,7 @@ class GanParams:
 
 @dataclass
 class OtherParams:
+    """ Other parameters """
     manualSeed: int = 1# manual seed
     no_cuda: bool = False # enables cuda
     ngpu: int = 1 # number of GPUs to use
@@ -159,7 +160,7 @@ class RenderingParams:
     render_img_size: int = 128  # Width/height of the rendering image
     splats_radius: float = 0.05 # radius of the splats (fix)
     est_normals: bool = False   # Estimate normals from splat positions.
-    n_splats: int = field(init=False)
+    n_splats: Optional[int] = None
     same_view: bool = False # before we add conditioning on cam pose, this is necessary
     """ data with view fixed """
     
@@ -187,10 +188,10 @@ class Parameters:
     def __post_init__(self):
         """ Post-initialization code """
         # Make output folder
-        try:
-            os.makedirs(self.other.out_dir)
-        except OSError:
-            pass
+        # try:
+        #     os.makedirs(self.other.out_dir)
+        # except OSError:
+        #     pass
 
         # Set render number of channels
         if self.rendering.render_type == 'img':
@@ -200,23 +201,23 @@ class Parameters:
         else:
             raise ValueError('Unknown rendering type')
 
-        # Set random seed
-        if self.other.manualSeed is None:
-            self.other.manualSeed = random.randint(1, 10000)
-        print("Random Seed: ", self.other.manualSeed)
-        random.seed(self.other.manualSeed)
-        torch.manual_seed(self.other.manualSeed)
-        if not self.other.no_cuda:
-            torch.cuda.manual_seed_all(self.other.manualSeed)
+        # # Set random seed
+        # if self.other.manualSeed is None:
+        #     self.other.manualSeed = random.randint(1, 10000)
+        # print("Random Seed: ", self.other.manualSeed)
+        # random.seed(self.other.manualSeed)
+        # torch.manual_seed(self.other.manualSeed)
+        # if not self.other.no_cuda:
+        #     torch.cuda.manual_seed_all(self.other.manualSeed)
 
-        # Set number of splats param
-        self.rendering.n_splats = self.rendering.splats_img_size ** 2
+        # # Set number of splats param
+        # self.rendering.n_splats = self.rendering.splats_img_size ** 2
         
-        # Check CUDA is selected
-        cudnn.benchmark = True
-        if torch.cuda.is_available() and self.other.no_cuda:
-            print("WARNING: You have a CUDA device, so you should "
-                  "probably run with --cuda")
+        # # Check CUDA is selected
+        # cudnn.benchmark = True
+        # if torch.cuda.is_available() and self.other.no_cuda:
+        #     print("WARNING: You have a CUDA device, so you should "
+        #           "probably run with --cuda")
 
     @classmethod
     def parse(cls):
@@ -225,3 +226,6 @@ class Parameters:
         args = parser.parse_args()
         instance: Parameters = args.parameters
         return instance
+
+params = Parameters.parse()
+print(params)

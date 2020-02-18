@@ -10,7 +10,7 @@ Behold, inheritance:
 
 ```python
 from simple_parsing import ArgumentParser
-from simple_parsing.utils import JsonSerializable
+from simple_parsing.helpers import JsonSerializable
 
 
 from dataclasses import dataclass

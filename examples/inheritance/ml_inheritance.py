@@ -1,18 +1,18 @@
 from dataclasses import dataclass
 
-import tensorflow as tf
+# import tensorflow as tf
 
 from simple_parsing import ArgumentParser, choice
-from simple_parsing.utils import JsonSerializable
+from simple_parsing.helpers import JsonSerializable
 
 
-class GAN(tf.keras.Model):
+class GAN:
    
     @dataclass
     class HyperParameters(JsonSerializable):
         """ Hyperparameters of the Generator and Discriminator networks. """
         learning_rate: float = 1e-4
-        optimizer: str = choice("ADAM", "RMSPROP", "SGD")
+        optimizer: str = choice("ADAM", "RMSPROP", "SGD", default="ADAM")
         n_disc_iters_per_g_iter: int = 1 # Number of Discriminator iterations per Generator iteration.
 
     def __init__(self, hparams: HyperParameters):
@@ -54,3 +54,6 @@ parser = ArgumentParser()
 parser.add_arguments(WGANGP.HyperParameters, "hparams")
 args = parser.parse_args()
 print(args.hparams)
+expected = """
+WGANGP.HyperParameters(learning_rate=0.0001, optimizer='ADAM', n_disc_iters_per_g_iter=1, e_drift=0.0001, gp_coefficient=10.0)
+"""

@@ -4,7 +4,10 @@ import pytest
 
 import simple_parsing
 from simple_parsing.docstring import get_attribute_docstring
-
+from simple_parsing import field
+from typing import List
+from test.testutils import TestSetup
+from .testutils import TestSetup
 
 @dataclass
 class Base():
@@ -36,6 +39,7 @@ class Extended(Base):
     # Comment above e, but with a line skipped
 
     e: float = -1               #*# comment on the side of e
+
 
 def test_docstring_parsing_work_on_base():
     docstring = get_attribute_docstring(Base, "a")
@@ -79,3 +83,18 @@ def test_docstring_parsing_works_on_extended():
     assert docstring.comment_above == "Comment above e, but with a line skipped"
     assert docstring.comment_inline == "*# comment on the side of e"
     assert docstring.docstring_below == ""
+
+def test_docstring_works_with_field_function():
+    @dataclass
+    class Foo(TestSetup):
+        """ Some class Foo """
+
+        # A sequence of tasks.
+        task_sequence: List[str] = field(choices=["train", "test", "ood"]) # side
+        """Below"""
+
+
+    docstring = get_attribute_docstring(Foo, "task_sequence")
+    assert docstring.comment_above == "A sequence of tasks."
+    assert docstring.comment_inline == "side"
+    assert docstring.docstring_below == "Below"

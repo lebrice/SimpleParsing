@@ -26,3 +26,6 @@ parser.add_arguments(MyPreferences, "my_preferences")
 args = parser.parse_args()
 prefs: MyPreferences = args.my_preferences
 print(prefs)
+expected = """
+MyPreferences(color=<Color.BLUE: 'BLUE'>, temp=<Temperature.WARM: 0>)
+"""

@@ -6,7 +6,7 @@ from typing import *
 import pytest
 
 from . import TestSetup
-from simple_parsing import (Formatter, InconsistentArgumentError,
+from simple_parsing import (InconsistentArgumentError,
                             ArgumentParser, ConflictResolution)
 
 

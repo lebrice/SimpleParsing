@@ -3,10 +3,10 @@ import argparse
 import os
 import random
 import getpass
-import torch
-import torch.nn.parallel
-import torch.backends.cudnn as cudnn
-import torch.utils.data
+# import torch
+# import torch.nn.parallel
+# import torch.backends.cudnn as cudnn
+# import torch.utils.data
 
 
 class Parameters():
@@ -22,6 +22,7 @@ class Parameters():
         # Define training set depending on the user name
         username = getpass.getuser()
         default_root = "default"
+        default_out = "out"
         # Dataset parameters
         self.parser.add_argument('--dataset', type=str, default='objects_folder_multi',
                                  help='dataset name: [shapenet, objects_folder, objects_folder]')#laptop,pistol
@@ -162,13 +163,12 @@ class Parameters():
         if not self.initialized:
             self.initialize()
         self.opt = self.parser.parse_args()
-        print(self.opt)
 
         # Make output folder
-        try:
-            os.makedirs(self.opt.out_dir)
-        except OSError:
-            pass
+        # try:
+        #     os.makedirs(self.opt.out_dir)
+        # except OSError:
+        #     pass
 
         # Set render number of channels
         if self.opt.render_type == 'img':
@@ -178,22 +178,55 @@ class Parameters():
         else:
             raise ValueError('Unknown rendering type')
 
-        # Set random seed
-        if self.opt.manualSeed is None:
-            self.opt.manualSeed = random.randint(1, 10000)
-        print("Random Seed: ", self.opt.manualSeed)
-        random.seed(self.opt.manualSeed)
-        torch.manual_seed(self.opt.manualSeed)
-        if not self.opt.no_cuda:
-            torch.cuda.manual_seed_all(self.opt.manualSeed)
+        # # Set random seed
+        # if self.opt.manualSeed is None:
+        #     self.opt.manualSeed = random.randint(1, 10000)
+        # print("Random Seed: ", self.opt.manualSeed)
+        # random.seed(self.opt.manualSeed)
+        # torch.manual_seed(self.opt.manualSeed)
+        # if not self.opt.no_cuda:
+        #     torch.cuda.manual_seed_all(self.opt.manualSeed)
 
-        # Set number of splats param
-        self.opt.n_splats = self.opt.splats_img_size*self.opt.splats_img_size
+        # # Set number of splats param
+        # self.opt.n_splats = self.opt.splats_img_size*self.opt.splats_img_size
 
-        # Check CUDA is selected
-        cudnn.benchmark = True
-        if torch.cuda.is_available() and self.opt.no_cuda:
-            print("WARNING: You have a CUDA device, so you should "
-                  "probably run with --cuda")
+        # # Check CUDA is selected
+        # cudnn.benchmark = True
+        # if torch.cuda.is_available() and self.opt.no_cuda:
+        #     print("WARNING: You have a CUDA device, so you should "
+        #           "probably run with --cuda")
 
         return self.opt
+    
+param = Parameters()
+args = param.parse()
+print(args)
+expected = """
+Namespace(alt_opt_zn_interval=None, alt_opt_zn_start=100000, angle=30,
+at=[0.05, 0.0, 0], axis=[0.0, 1.0, 0.0], batchSize=4, beta1=0.0,
+bg_model='../../../data/halfbox.obj', cam_dist=3.0, cam_pos=None, clamp=0.01,
+classes='bowl', criterion='WGAN', critic_iters=5,
+dataset='objects_folder_multi', dis_model_path=None, dis_model_path2=None,
+disc_nextra_layers=0, disc_norm='None', disc_type='cnn', est_normals=False,
+fix_splat_pos=True, focal_length=0.1, fovy=30, full_sphere_sampling=False,
+full_sphere_sampling_light=True, gen_bias_type=None, gen_model_path=None,
+gen_model_path2=None, gen_nextra_layers=0, gen_norm='batchnorm',
+gen_type='dcgan', gp='original', gp_lambda=10.0, grad_img_depth_loss=2.0,
+gz_gi_loss=0.0, height=128, light_change=2000, lr=0.0001, lr_iter=10000,
+lr_sched_type='step', manualSeed=None, max_gnorm=500.0, mesh=False,
+n_iter=76201, name='', ndf=75, nef=65, netD='', netE='', netG='', netG2='',
+ngf=75, ngpu=1, no_cuda=False, norm_depth_image_only=False, norm_sph_coord=True,
+normal_consistency_loss_weight=0.001, normal_lr_sched_gamma=1.0,
+normal_lr_sched_step=100000, nv=10, nz=100, only_background=False,
+only_foreground=False, optimizer='adam', out_dir='out', phi=[20, 70],
+pixel_samples=1, print_interval=10, random_rotation=True, render_img_nc=3,
+render_img_size=128, render_type='img', rescaled=False, root_dir='default',
+root_dir1='default', root_dir2='default', root_dir3='default',
+root_dir4='default', rotate_foreground=False, same_view=False,
+save_image_interval=100, save_interval=5000, spatial_loss_weight=0.5,
+spatial_var_loss_weight=0.01, sphere_halfbox=False, splats_img_size=128,
+splats_radius=0.05, stoch_enc=False, synsets='', test_cam_dist=False, theta=[20,
+80], toy_example=False, unit_normalloss=0.0, use_mesh=True, use_old_sign=True,
+use_penality=True, use_quartic=False, width=128, workers=0,
+z_lr_sched_gamma=1.0, z_lr_sched_step=100000, z_norm_activate_iter=1000,
+z_norm_weight_init=0.01, zloss=0.0)"""

@@ -16,7 +16,7 @@ from dataclasses import dataclass, field, fields
 from typing import List, Tuple
 
 from simple_parsing import ArgumentParser, MutableField, ConflictResolution
-from simple_parsing.utils import list_field
+from simple_parsing.helpers import list_field
 @dataclass
 class CNNStack():
     name: str = "stack"
@@ -24,17 +24,23 @@ class CNNStack():
     kernel_sizes: Tuple[int,int,int] = (7, 5, 5)
     num_filters: List[int] = list_field(32,64,64)
 
-if __name__ == "__main__":
-    parser = ArgumentParser(conflict_resolution=ConflictResolution.ALWAYS_MERGE)
-    num_stacks = 3
-    for i in range(num_stacks):
-        parser.add_arguments(CNNStack, f"stack_{i}")
+stack = CNNStack()
 
-    args = parser.parse_args()
+parser = ArgumentParser(conflict_resolution=ConflictResolution.ALWAYS_MERGE)
+num_stacks = 3
+for i in range(num_stacks):
+    parser.add_arguments(CNNStack, f"stack_{i}")
 
-    stack_0 = args.stack_0
-    stack_1 = args.stack_1
-    stack_2 = args.stack_2
+args = parser.parse_args()
 
-    # BUG: TODO: Fix the multiple + list attributes bug.
-    print(stack_0, stack_1, stack_2, sep="\n")
+stack_0 = args.stack_0
+stack_1 = args.stack_1
+stack_2 = args.stack_2
+
+# BUG: TODO: Fix the multiple + list attributes bug.
+print(stack_0, stack_1, stack_2, sep="\n")
+expected = """
+CNNStack(name='stack', num_layers=3, kernel_sizes=(7, 5, 5), num_filters=[32, 64, 64])
+CNNStack(name='stack', num_layers=3, kernel_sizes=(7, 5, 5), num_filters=[32, 64, 64])
+CNNStack(name='stack', num_layers=3, kernel_sizes=(7, 5, 5), num_filters=[32, 64, 64])
+"""

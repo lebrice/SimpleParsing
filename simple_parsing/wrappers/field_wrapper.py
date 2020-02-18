@@ -1,4 +1,5 @@
 import argparse
+import collections
 import dataclasses
 import enum
 import inspect
@@ -9,12 +10,13 @@ from typing import cast
 
 from .. import docstring, utils
 from ..utils import Dataclass, DataclassType
+from ..helpers import dict_field
+from .wrapper import Wrapper
 
 logger = logging.getLogger(__name__)
 
 
-@dataclasses.dataclass
-class FieldWrapper():
+class FieldWrapper(Wrapper[dataclasses.Field]):
     """
     The FieldWrapper class acts a bit like an 'argparse.Action' class, which
     essentially just creates the `option_strings` and `arg_options` that get
@@ -29,28 +31,36 @@ class FieldWrapper():
 
     The `field` argument is the actually wrapped `dataclasses.Field` instance.
     """
-
-    field: dataclasses.Field
-    parent: Any = dataclasses.field(repr=False)
-
-    # Holders used to 'cache' the properties.
-    # (could've used cached_property with Python 3.8).
-    _option_strings: Optional[Set[str]] = None
-    _required: Optional[bool] = None
-    _docstring: docstring.AttributeDocString = docstring.AttributeDocString()
-    _help: Optional[str] = None
-    _metavar: Optional[str] = None
-    _default: Optional[Union[Any, List[Any]]] = None
-    # the argparse-related options:
-    _arg_options: Dict[str, Any] = dataclasses.field(
-        init=False, default_factory=dict)
-
+    
     # Wether or not `simple_parsing` should add option_string variants where
     # underscores in attribute names are replaced with dashes.
     # For example, when set to `True`, "--no-cache" and "--no_cache" could both
     # be used to point to the same attribute `no_cache` on some dataclass.
     # TODO: This can often make "--help" messages a bit crowded
     add_dash_variants: ClassVar[bool] = False
+
+
+    def __init__(self, field: dataclasses.Field, parent: Any = None):
+        # super().__init__(wrapped=field, name=field.name)
+        self.field: dataclasses.Field = field
+        self._parent: Any = parent
+        # Holders used to 'cache' the properties.
+        # (could've used cached_property with Python 3.8).
+        self._option_strings: Optional[Set[str]] = None
+        self._required: Optional[bool] = None
+        self._docstring: docstring.AttributeDocString = docstring.AttributeDocString()
+        self._help: Optional[str] = None
+        self._metavar: Optional[str] = None
+        self._default: Optional[Union[Any, List[Any]]] = None
+        self._dest: Optional[str] = None
+        # the argparse-related options:
+        self._arg_options: Dict[str, Any] = {}
+        self._dest_field: Optional["FieldWrapper"] = None
+
+
+        # stores the resulting values for each of the destination attributes.
+        self._results: Dict[str, Any] = {}
+
 
     @property
     def arg_options(self) -> Dict[str, Any]:
@@ -104,28 +114,22 @@ class FieldWrapper():
         from simple_parsing import ArgumentParser
         parser = cast(ArgumentParser, parser)
 
-        logger.info(
-            f"__call__ of field for destinations {self.destinations}, "
-            f"Namespace: {namespace}, values: {values}"
-        )
-
         if self.is_reused:
             values = self.duplicate_if_needed(values)
             logger.debug(f"(replicated the parsed values: '{values}')")
         else:
             values = [values]
 
+        self._results = {}
+
         for destination, value in zip(self.destinations, values):
             parent_dest, attribute = utils.split_dest(destination)
             value = self.postprocess(value)
-            logger.debug(
-                f"setting value of {value} in constructor arguments of parent "
-                f"at key '{parent_dest}' and attribute '{attribute}'"
-            )
-            # type: ignore
+            self._results[destination] = value
             parser.constructor_arguments[parent_dest][attribute] = value
-            logger.debug(
-                f"Constructor arguments so far: {parser.constructor_arguments}")
+            logger.debug(f"setting value of {value} in constructor arguments "
+                         f"of parent at key '{parent_dest}' and attribute "
+                         f"'{attribute}'")
 
     def get_arg_options(self) -> Dict[str, Any]:
         if not self.field.init:
@@ -273,14 +277,21 @@ class FieldWrapper():
                 return tuple(raw_parsed_value)
 
         elif self.is_bool:
+            # print(self.name, raw_parsed_value)
+            if self.dest_field:
+                other_default = self.dest_field.field.metadata.get("_original_default")
+                # print(other_default)
+
             if raw_parsed_value is None and self.default is not None:
-                logger.debug(
-                    "value is None, returning opposite of the default value")
+                logger.debug("value is None, returning opposite of the default")
                 return not self.default
             return raw_parsed_value
 
         elif self.is_list:
-            return list(raw_parsed_value)
+            if isinstance(raw_parsed_value, tuple):
+                return list(raw_parsed_value)
+            else:
+                return raw_parsed_value
 
         elif self.is_subparser:
             return raw_parsed_value
@@ -338,7 +349,7 @@ class FieldWrapper():
         ]
 
     @property
-    def option_strings(self) -> Set[str]:
+    def option_strings(self) -> List[str]:
         """Generates the `option_strings` argument to the `add_argument` call. 
 
         `parser.add_argument(*name_or_flags, **arg_options)`
@@ -408,7 +419,7 @@ class FieldWrapper():
         )
         # TODO: possibly sort the option strings, if argparse doesn't do it
         # already.
-        return option_strings
+        return list(sorted(option_strings, key=len))
 
     @property
     def prefix(self) -> str:
@@ -421,27 +432,50 @@ class FieldWrapper():
     @property
     def dest(self) -> str:
         """Where the attribute will be stored in the Namespace."""
-        lineage = []
-        parent = self.parent
-        while parent is not None:
-            lineage.append(parent.attribute_name)
-            parent = parent._parent
-        lineage = list(reversed(lineage))
-        lineage.append(self.name)
-        _dest = ".".join(lineage)
-        return _dest
+        self._dest = super().dest
+        # TODO: If a custom `dest` was passed, and it is a `Field` instance,
+        # find the corresponding FieldWrapper and use its `dest` instead of ours.
+        if self.dest_field:
+            self._dest = self.dest_field.dest
+            self.custom_arg_options.pop("dest", None)
+        return self._dest
+
+    @property
+    def is_proxy(self) -> bool:
+        return self.dest_field is not None
+
+    @property
+    def dest_field(self) -> Optional["FieldWrapper"]:
+        """ Return the `FieldWrapper` for which `self` is a proxy (same dest).
+        When a `dest` argument is passed to `field()`, and its value is a
+        `Field`, that indicates that this Field is just a proxy for another.
+
+        In such a case, we replace the dest of `self` with that of the other
+        wrapper's we then find the corresponding FieldWrapper and use its `dest`
+        instead of ours.
+        """
+        if self._dest_field is not None:
+            return self._dest_field
+        custom_dest = self.custom_arg_options.get("dest")
+        if isinstance(custom_dest, dataclasses.Field):
+            all_fields: List[FieldWrapper] = []
+            for parent in self.lineage():
+                all_fields.extend(parent.fields)  # type: ignore
+            for other_wrapper in all_fields:
+                if custom_dest is other_wrapper.field:
+                    self._dest_field = other_wrapper
+                    break
+        return self._dest_field
+
 
     @property
     def nargs(self):
         return self.custom_arg_options.get("nargs", None)
 
-    @property
-    def const(self):
-        return self.custom_arg_options.get("const", None)
+    # @property
+    # def const(self):
+    #     return self.custom_arg_options.get("const", None)
 
-    @property
-    def field_default_value(self) -> Union[Any, dataclasses._MISSING_TYPE]:
-        return utils.default_value(self.field)
 
     @property
     def default(self) -> Any:
@@ -457,7 +491,7 @@ class FieldWrapper():
         if self._default is not None:
             return self._default
 
-        default = self.field_default_value
+        default: Any = utils.default_value(self.field)
 
         if default is dataclasses.MISSING:
             default = None
@@ -502,6 +536,8 @@ class FieldWrapper():
         if self.action_str.startswith("store_"):
             # all the store_* actions do not require a value.
             self._required = False
+        elif self.is_optional:
+            self._required = False
         elif self.parent.required:
             # if the parent dataclass is required, then this attribute is too.
             # TODO: does that make sense though?
@@ -529,6 +565,15 @@ class FieldWrapper():
 
     @property
     def type(self):
+        if utils.is_optional(self.field.type):
+            type_args = set(utils.get_type_arguments(self.field.type))
+            # TODO: What do we do if the type is something like Union[str, int, float]?
+            if str in type_args:
+                return str
+            else:
+                type_args.remove(type(None))
+                # get the first non-NoneType type argument.
+                return type_args.pop()
         return self.field.type
 
     @property
@@ -590,12 +635,20 @@ class FieldWrapper():
         return utils.is_bool(self.type)
 
     @property
+    def is_optional(self) -> bool:
+        return utils.is_optional(self.field.type)
+
+    @property
     def is_subparser(self) -> bool:
         return utils.is_subparser_field(self.field)
 
     @property
     def type_arguments(self) -> List[Type]:
         return utils.get_type_arguments(self.type)
+
+    @property
+    def parent(self) -> "simple_parsing.wrappers.dataclass_wrapper.Wrapper":
+        return self._parent
 
     @property
     def subparsers_dict(self) -> Dict[str, Type]:
@@ -626,6 +679,11 @@ class FieldWrapper():
                 subparser = cast(ArgumentParser, subparser)
                 subparser.add_arguments(dataclass_type, dest=self.dest)
 
+    def equivalent_argparse_code(self):
+        arg_options = self.arg_options.copy()
+        arg_options_string = f"{{'type': {arg_options.pop('type').__qualname__}"
+        arg_options_string += str(arg_options).replace("{", ", ")
+        return f"group.add_argument(*{self.option_strings}, **{arg_options_string})" 
 
 def only_keep_action_args(options: Dict[str, Any],
                           action: Union[str, Any]) -> Dict[str, Any]:
@@ -675,8 +733,8 @@ def only_keep_action_args(options: Dict[str, Any],
 
     kept_options, deleted_options = utils.keep_keys(options, args_to_keep)
     if deleted_options:
-        logger.warning(
-            f"Warning: some auto-generated options were deleted, as they were "
+        logger.debug(
+            f"Some auto-generated options were deleted, as they were "
             f"not required by the Action constructor: {deleted_options}."
         )
     logger.debug(f"Kept options: \t{kept_options.keys()}")

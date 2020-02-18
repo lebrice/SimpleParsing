@@ -12,7 +12,7 @@ from typing import *
 import pytest
 
 import simple_parsing
-from simple_parsing.utils import subparsers
+from simple_parsing.helpers import subparsers
 
 from .testutils import TestSetup, xfail
 
