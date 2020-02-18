@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 from argparse import HelpFormatter
 from .utils import SimpleHelpFormatter
 
-argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter
+
 class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args,
                  conflict_resolution: ConflictResolution=ConflictResolution.AUTO,
@@ -52,9 +52,11 @@ class ArgumentParser(argparse.ArgumentParser):
 
             The formatter class to use. By default, uses
             `simple_parsing.SimpleHelpFormatter`, which is a combination of the
-            `argparse.ArgumentDefaultsHelpFormatter` and
-            `argparse.MetavarTypeHelpFormatter` classes.
+            `argparse.ArgumentDefaultsHelpFormatter`,
+            `argparse.MetavarTypeHelpFormatter` and
+            `argparse.RawDescriptionHelpFormatter` classes.
         """
+        kwargs["formatter_class"] = formatter_class
         super().__init__(*args, **kwargs)
 
         self.conflict_resolution = conflict_resolution

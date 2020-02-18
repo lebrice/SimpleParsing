@@ -52,8 +52,19 @@ class InconsistentArgumentError(RuntimeError):
         super().__init__(*args, **kwargs)
 
 
-class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.MetavarTypeHelpFormatter):
-    """Little shorthand for using both of argparse's ArgumentDefaultHelpFormatter and MetavarTypeHelpFormatter classes.
+class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
+                          argparse.MetavarTypeHelpFormatter,
+                          argparse.RawDescriptionHelpFormatter):
+    """Little shorthand for using some useful HelpFormatters from argparse.
+    
+    This class inherits from argparse's `ArgumentDefaultHelpFormatter`,
+    `MetavarTypeHelpFormatter` and `RawDescriptionHelpFormatter` classes.
+
+    This produces the following resulting actions:
+    - adds a "(default: xyz)" for each argument with a default
+    - uses the name of the argument type as the metavar. For example, gives
+      "-n int" instead of "-n N" in the usage and description of the arguments.
+    - Conserves the formatting of the class and argument docstrings, if given.
     """
 
     def _get_default_metavar_for_optional(self, action):

@@ -348,7 +348,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         ]
 
     @property
-    def option_strings(self) -> Set[str]:
+    def option_strings(self) -> List[str]:
         """Generates the `option_strings` argument to the `add_argument` call. 
 
         `parser.add_argument(*name_or_flags, **arg_options)`
@@ -418,7 +418,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         )
         # TODO: possibly sort the option strings, if argparse doesn't do it
         # already.
-        return option_strings
+        return list(sorted(option_strings, key=len))
 
     @property
     def prefix(self) -> str:
