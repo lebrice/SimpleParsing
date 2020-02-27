@@ -44,7 +44,12 @@ class DataclassWrapper(Wrapper[Dataclass]):
             self.defaults = [default]
 
         for field in dataclasses.fields(self.dataclass):
-            if dataclasses.is_dataclass(field.type):
+            if utils.is_subparser_field(field):
+                wrapper = FieldWrapper(field, parent=self)
+                logger.debug("Adding a wrapper for a subparsers attribute.")
+                self.fields.append(wrapper)
+
+            elif dataclasses.is_dataclass(field.type):
                 # handle a nested dataclass attribute
                 dataclass, name = field.type, field.name
                 child_wrapper = DataclassWrapper(dataclass, name, _prefix=self.prefix, parent=self, _field=field)

@@ -661,23 +661,23 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             }
 
     def add_subparsers(self, parser: argparse.ArgumentParser):
-        if self.is_subparser:
-            from simple_parsing import ArgumentParser
-            # add subparsers for each dataclass type in the field.
-            subparsers = parser.add_subparsers(
-                title=self.name,
-                description=self.help,
-                dest=self.dest,
-                parser_class=ArgumentParser
-            )
-            subparsers.required = True
-
-            for subcommand, dataclass_type in self.subparsers_dict.items():
-                subparser = subparsers.add_parser(subcommand)
-                # Just for typing correctness, as we didn't explicitly change
-                # the return type of subparsers.add_parser method.)
-                subparser = cast(ArgumentParser, subparser)
-                subparser.add_arguments(dataclass_type, dest=self.dest)
+        assert self.is_subparser
+        from simple_parsing import ArgumentParser  # Just for typing.
+        # add subparsers for each dataclass type in the field.
+        subparsers = parser.add_subparsers(
+            title=self.name,
+            description=self.help,
+            dest=self.dest,
+            parser_class=ArgumentParser
+        )
+        subparsers.required = True
+        for subcommand, dataclass_type in self.subparsers_dict.items():
+            logger.debug(f"adding subparser '{subcommand}' for type {dataclass_type}")
+            subparser = subparsers.add_parser(subcommand)
+            # Just for typing correctness, as we didn't explicitly change
+            # the return type of subparsers.add_parser method.)
+            subparser = cast(ArgumentParser, subparser)
+            subparser.add_arguments(dataclass_type, dest=self.dest)
 
     def equivalent_argparse_code(self):
         arg_options = self.arg_options.copy()

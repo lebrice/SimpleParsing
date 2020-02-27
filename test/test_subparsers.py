@@ -12,9 +12,10 @@ from typing import *
 import pytest
 
 import simple_parsing
+from simple_parsing import ArgumentParser
 from simple_parsing.helpers import subparsers
 
-from .testutils import TestSetup, xfail
+from .testutils import TestSetup, xfail, raises
 
 
 @dataclass
@@ -118,6 +119,54 @@ def test_command_tree():
     assert prog.command.subcommand.value == "jack"
     assert prog.execute() == "jack"
 
+
+def test_experiments():
+    from abc import ABC
+    
+    @dataclass
+    class Experiment(ABC):
+        dataset: str
+        iid: bool = True
+
+    @dataclass
+    class Mnist(Experiment):
+        dataset: str = "mnist"
+        iid: bool = True
+    
+    @dataclass
+    class MnistContinual(Experiment):
+        dataset: str = "mnist"
+        iid: bool = False
+
+    @dataclass
+    class Config:
+        experiment: Experiment = subparsers({
+            "mnist": Mnist,
+            "mnist_continual": MnistContinual,
+        })
+
+    for field in dataclasses.fields(Config):
+        assert simple_parsing.utils.is_subparser_field(field), field
+
+    parser = ArgumentParser()
+    parser.add_arguments(Config, "config")
+    
+    with raises(SystemExit):
+        args = parser.parse_args()
+    
+    args = parser.parse_args("mnist".split())
+    experiment = args.config.experiment
+    assert isinstance(experiment, Mnist)
+    assert experiment.dataset == "mnist"
+    assert experiment.iid == True
+
+    args = parser.parse_args("mnist_continual".split())
+    experiment = args.config.experiment
+    assert isinstance(experiment, MnistContinual)
+    assert experiment.dataset == "mnist"
+    assert experiment.iid == False
+
+    
 
 if __name__ == "__main__":
     import sys
