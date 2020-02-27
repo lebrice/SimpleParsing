@@ -224,13 +224,9 @@ class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
 
 Formatter = SimpleHelpFormatter
 
-def subparsers(subcommands: Dict[str, Type], default=None) -> Any:
-    if default is not None and default not in subcommands:
-        raise ValueError(
-            f"Default value of {default} is not a valid subparser! (subcommand: {subcommands})")
-    return field(default=default, metadata={
+def subparsers(subcommands: Dict[str, Type[Dataclass]]) -> Any:
+    return field(metadata={
         "subparsers": subcommands,
-        "default": default,
     })
 
 
