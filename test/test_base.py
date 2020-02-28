@@ -174,3 +174,15 @@ def test_parsing_twice():
     assert args.foo.a == 123, vars(args)
     args = parser.parse_args("--a 456".split())
     assert args.foo.a == 456, vars(args)
+
+
+def test_passing_instance():
+    @dataclass
+    class Foo:
+        a: int = 123
+
+    
+    parser = ArgumentParser()
+    parser.add_arguments(Foo(456), dest="foo")
+    args = parser.parse_args("")
+    assert args.foo.a == 456, vars(args)

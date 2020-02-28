@@ -12,7 +12,7 @@ import textwrap
 import typing
 import warnings
 from argparse import Namespace
-from typing import Dict, Type, Any, List, Sequence, Text
+from typing import Dict, Type, Any, List, Sequence, Text, Union
 from collections import defaultdict
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
@@ -71,7 +71,7 @@ class ArgumentParser(argparse.ArgumentParser):
         FieldWrapper.add_dash_variants = add_option_string_dash_variants
 
     def add_arguments(self,
-                      dataclass: Type[Dataclass],
+                      dataclass: Union[Dataclass,Type[Dataclass]],
                       dest: str,
                       prefix: str = "",
                       default: Dataclass = None):
@@ -79,8 +79,10 @@ class ArgumentParser(argparse.ArgumentParser):
 
         Parameters
         ----------
-        dataclass : Type[Dataclass]
-            The dataclass for which to add fields as arguments in the parser.
+        dataclass : Union[Dataclass, Type[Dataclass]]
+            The dataclass whose fields are to be parsed from the commnad-line.
+            If an instance of a dataclass is given, it is used as the default
+            value if none is provided.
         dest : str
             The destination attribute of the `argparse.Namespace` where the
             dataclass instance will be stored after calling `parse_args()`
@@ -100,6 +102,10 @@ class ArgumentParser(argparse.ArgumentParser):
                     f"dataclass of type {dataclass}. Make sure all destinations"
                     f" are unique."
                 )
+        if not isinstance(dataclass, type):
+            default = dataclass if default is None else default
+            dataclass = type(dataclass)
+
         new_wrapper = DataclassWrapper(
             dataclass,
             dest,
