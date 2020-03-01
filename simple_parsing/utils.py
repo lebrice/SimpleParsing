@@ -37,7 +37,7 @@ SimpleIterable = Union[List[SimpleValueType],
 
 
 def is_subparser_field(field: Field) -> bool:
-    if is_union(field.type):
+    if is_union(field.type) and not is_choice(field):
         type_arguments = get_type_arguments(field.type)
         return all(map(dataclasses.is_dataclass, type_arguments))
     return bool(field.metadata.get("subparsers", {}))
@@ -186,6 +186,10 @@ def is_union(t: Type) -> bool:
     False
     """
     return getattr(t, "__origin__", "") == Union
+
+
+def is_choice(field: Field) -> bool:
+    return bool(field.metadata.get("custom_args", {}).get("choices", {}))
 
 
 def is_optional(t: Type) -> bool:

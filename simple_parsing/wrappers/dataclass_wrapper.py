@@ -44,22 +44,21 @@ class DataclassWrapper(Wrapper[Dataclass]):
             self.defaults = [default]
 
         for field in dataclasses.fields(self.dataclass):
-            if utils.is_subparser_field(field):
+            if utils.is_subparser_field(field) or utils.is_choice(field):
                 wrapper = FieldWrapper(field, parent=self)
-                logger.debug("Adding a wrapper for a subparsers attribute.")
                 self.fields.append(wrapper)
-
+            
+            elif utils.is_tuple_or_list_of_dataclasses(field.type):
+                raise NotImplementedError(f"Nesting using attributes which are containers of a dataclass isn't supported (yet).")
+            
             elif dataclasses.is_dataclass(field.type):
                 # handle a nested dataclass attribute
                 dataclass, name = field.type, field.name
                 child_wrapper = DataclassWrapper(dataclass, name, _prefix=self.prefix, parent=self, _field=field)
                 self._children.append(child_wrapper)
-                
-            elif utils.is_tuple_or_list_of_dataclasses(field.type):
-                raise NotImplementedError(f"Nesting using attributes which are containers of a dataclass isn't supported (yet).")
             else:
                 # a normal attribute
-                field_wrapper: FieldWrapper = FieldWrapper(field, parent=self)
+                field_wrapper = FieldWrapper(field, parent=self)
                 logger.debug(f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.default}")
                 self.fields.append(field_wrapper)
         
@@ -85,7 +84,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         code = ""
         import textwrap
         code += textwrap.dedent(f"""
-        group = parser.add_argument_group(title="{self.title}", description="{self.description}")
+        group = parser.add_argument_group(title="{self.title.strip()}", description="{self.description.strip()}")
         """)
         for wrapped_field in self.fields:
             if wrapped_field.is_subparser:
@@ -149,7 +148,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         return title
 
     @property
-    def description(self) -> Optional[str]:
+    def description(self) -> str:
         if self.parent and self._field:    
             doc = docstring.get_attribute_docstring(self.parent.dataclass, self._field.name)            
             if doc is not None:
@@ -159,7 +158,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
                     return doc.comment_above
                 elif doc.comment_inline:
                     return doc.comment_inline
-        return self.dataclass.__doc__
+        return self.dataclass.__doc__ or ""
 
     @property
     def prefix(self) -> str:

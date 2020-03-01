@@ -56,10 +56,16 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         # the argparse-related options:
         self._arg_options: Dict[str, Any] = {}
         self._dest_field: Optional["FieldWrapper"] = None
-
+        self._type: Optional[Union[Type, Callable[[str], Any]]] = None
 
         # stores the resulting values for each of the destination attributes.
         self._results: Dict[str, Any] = {}
+
+        if self.is_choice:
+            choice_dict = self.field.metadata.get("choice_dict")
+            if choice_dict:
+                self._type = str
+
 
 
     @property
@@ -143,6 +149,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         _arg_options["required"] = self.required
         _arg_options["dest"] = self.dest
         _arg_options["default"] = self.default
+
 
         if self.is_enum:
             # we actually parse enums as string, and convert them back to enums
@@ -268,6 +275,12 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             )
             if isinstance(raw_parsed_value, str):
                 raw_parsed_value = self.type[raw_parsed_value]
+            return raw_parsed_value
+
+        elif self.is_choice:
+            choice_dict = self.field.metadata.get("choice_dict")
+            if choice_dict:
+                return choice_dict.get(raw_parsed_value)
             return raw_parsed_value
 
         elif self.is_tuple:
@@ -564,21 +577,34 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         self._required = value
 
     @property
-    def type(self):
-        if utils.is_optional(self.field.type):
+    def type(self) -> Union[Type, Callable[[str], Any]]:
+        if self._type is not None:
+            return self._type
+        elif utils.is_optional(self.field.type):
             type_args = set(utils.get_type_arguments(self.field.type))
             # TODO: What do we do if the type is something like Union[str, int, float]?
             if str in type_args:
-                return str
+                self._type = str
             else:
                 type_args.remove(type(None))
                 # get the first non-NoneType type argument.
-                return type_args.pop()
-        return self.field.type
+                self._type = type_args.pop()
+        else:
+            self._type = self.field.type
+        return self._type
+
+    @property
+    def is_choice(self) -> bool:
+        return self.choices is not None
 
     @property
     def choices(self):
-        return self.custom_arg_options.get("choices", None)
+        choices = self.custom_arg_options.get("choices", None)
+        if choices is None:
+            return None
+        if len(choices) == 1 and isinstance(choices[0], dict):
+            return choices[0]
+        return choices
 
     @property
     def help(self) -> Optional[str]:

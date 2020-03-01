@@ -8,7 +8,7 @@ from dataclasses import _MISSING_TYPE, MISSING
 from typing import (Any, Callable, Dict, Iterable, List, Optional, Set, Tuple,
                     Type, Union)
 
-from .utils import (Dataclass, K, SimpleValueType, T, V, get_type_arguments,
+from simple_parsing.utils import (Dataclass, K, SimpleValueType, T, V, get_type_arguments,
                     is_union)
 
 
@@ -56,11 +56,11 @@ def field(default: Union[T, _MISSING_TYPE] = MISSING,
         _metadata.update({
             "alias": alias if isinstance(alias, list) else [alias]
         })
+    
     if custom_argparse_args:
         _metadata.update({"custom_args": custom_argparse_args})
         
         action = custom_argparse_args.get("action")
-
         if action == "store_false":
             if default not in {MISSING, True}:
                 raise RuntimeError("default should either not be passed or set "
@@ -101,6 +101,9 @@ def choice(*choices: T, default: T = None, **kwargs: Any) -> T:
     Returns a regular `dataclasses.field()`, but with metadata which indicates  
     the allowed values.
 
+    (New:) If `choices` is a dictionary, then passing the 'key' will result in
+    the corresponding value being used. The values may be objects, for example.
+
     Args:
         default (T, optional): The default value of the field. Defaults to None,
         in which case the command-line argument is required.
@@ -111,9 +114,22 @@ def choice(*choices: T, default: T = None, **kwargs: Any) -> T:
     Returns:
         T: the result of the usual `dataclasses.field()` function (a dataclass field/attribute).
     """
+    if isinstance(choices[0], dict):
+        if len(choices) > 1:
+            raise ValueError(f"'choices' should be either a list of value or a "
+                             f"single dictionary. (Received {choices})")
+        choice_dict = choices[0]
+
+        # if the choices is a dict, the options are the keys
+        choices = tuple(choice_dict.keys())
+
+        # save the info about the choice_dict in the field metadata.
+        metadata = kwargs.setdefault("metadata", {})
+        metadata["choice_dict"] = choice_dict
+        
     if default is not None and default not in choices:
-        raise ValueError(
-            f"Default value of {default} is not a valid option! (options: {choices})")
+        raise ValueError(f"Default value of {default} is not a valid option! "
+                         f"(options: {choices})")
     return field(default=default, choices=choices, **kwargs)  # type: ignore
 
 
