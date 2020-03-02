@@ -75,3 +75,21 @@ def test_choice_with_dict_weird():
     
     c = D.setup("--option bob")
     assert c.option == BB("bobobo")
+
+
+def test_choice_with_default_instance():
+    @dataclass
+    class D(TestSetup):
+        option: Union[AA, BB, float] = choice({
+            "a": [AA("aa1"), AA("aa2")],
+            "b": 1.23,
+            "bob": BB("bobobo"),
+        }, default="a")
+
+    @dataclass
+    class Parent(TestSetup):
+        d: D = D(option=AA("parent"))
+
+
+    p = Parent.setup("")
+    assert p.d.option == AA("parent")

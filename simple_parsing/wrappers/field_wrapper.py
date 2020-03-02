@@ -274,13 +274,15 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 f" {raw_parsed_value}'"
             )
             if isinstance(raw_parsed_value, str):
-                raw_parsed_value = self.type[raw_parsed_value]
+                raw_parsed_value = self.type[raw_parsed_value]  # type: ignore
             return raw_parsed_value
 
         elif self.is_choice:
             choice_dict = self.field.metadata.get("choice_dict")
             if choice_dict:
-                return choice_dict.get(raw_parsed_value)
+                key_type = type(next(iter(choice_dict.keys())))
+                if isinstance(raw_parsed_value, key_type):
+                    return choice_dict.get(raw_parsed_value)
             return raw_parsed_value
 
         elif self.is_tuple:
