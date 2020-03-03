@@ -186,3 +186,32 @@ def test_passing_instance():
     parser.add_arguments(Foo(456), dest="foo")
     args = parser.parse_args("")
     assert args.foo.a == 456, vars(args)
+
+
+def test_using_a_Type_type():
+    @dataclass
+    class Base:
+        a: str = "a" 
+
+    @dataclass
+    class Extended(Base):
+        a: str = "extended_a"
+
+
+    @dataclass
+    class Foo(TestSetup):
+        a_class: Type[Base] = field(default=Base, init=False)
+        a: Base = field(default=None, init=False)
+        
+        def __post_init__(self):
+            self.a = self.a_class()
+    
+    foo = Foo.setup("")
+    assert foo.a_class() == Base()
+
+    @dataclass
+    class OtherFoo(Foo):
+        a_class: Type[Base] = field(default=Extended, init=False)
+    
+    foo = OtherFoo.setup("")
+    assert foo.a == Extended()

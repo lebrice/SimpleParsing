@@ -44,6 +44,9 @@ class DataclassWrapper(Wrapper[Dataclass]):
             self.defaults = [default]
 
         for field in dataclasses.fields(self.dataclass):
+            if not field.init:
+                continue
+
             if utils.is_subparser_field(field) or utils.is_choice(field):
                 wrapper = FieldWrapper(field, parent=self)
                 self.fields.append(wrapper)

@@ -32,3 +32,29 @@ def test_arg_and_dataclass_with_same_name_after_prefixing(silent):
     with raises(argparse.ArgumentError):
         parser.add_arguments(Parent, dest="some_class")
         args = parser.parse_args("--pre.a 123 --pre.a 456".split())
+
+
+def test_weird_hierarchy():
+    @dataclass
+    class Base:
+        v: float = 0.
+
+    @dataclass
+    class A(Base): pass
+    @dataclass
+    class B(Base): pass
+    @dataclass
+    class C(Base): pass
+    @dataclass
+    class Options:
+        a: A = A(0.1)
+        b: B = B(0.2)
+
+    @dataclass
+    class Settings(TestSetup):
+        opt: Options = Options()
+        c: Base = C(0.3)
+
+    opt = Settings.setup("")
+    print(opt)
+    
