@@ -58,3 +58,18 @@ def test_weird_hierarchy():
     opt = Settings.setup("")
     print(opt)
     
+
+def test_parent_child_conflict():
+    @dataclass
+    class HParams:
+        batch_size: int = 32
+
+    @dataclass
+    class Parent(TestSetup):
+        batch_size: int = 48
+        child: HParams = HParams()
+
+    p: Parent = Parent.setup()
+    assert p.child.batch_size == 32
+    assert p.batch_size == 48
+        
