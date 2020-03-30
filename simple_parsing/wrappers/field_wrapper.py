@@ -40,9 +40,10 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     add_dash_variants: ClassVar[bool] = False
 
 
-    def __init__(self, field: dataclasses.Field, parent: Any = None):
-        # super().__init__(wrapped=field, name=field.name)
+    def __init__(self, field: dataclasses.Field, parent: Any = None, prefix: str=""):
+        super().__init__(wrapped=field, name=field.name)
         self.field: dataclasses.Field = field
+        self.prefix: str = prefix
         self._parent: Any = parent
         # Holders used to 'cache' the properties.
         # (could've used cached_property with Python 3.8).
@@ -56,7 +57,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         # the argparse-related options:
         self._arg_options: Dict[str, Any] = {}
         self._dest_field: Optional["FieldWrapper"] = None
-        self._type: Optional[Union[Type, Callable[[str], Any]]] = None
+        self._type: Optional[Type[Any]] = None
 
         # stores the resulting values for each of the destination attributes.
         self._results: Dict[str, Any] = {}
@@ -436,9 +437,9 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         # already.
         return list(sorted(option_strings, key=len))
 
-    @property
-    def prefix(self) -> str:
-        return self.parent.prefix
+    # @property
+    # def prefix(self) -> str:
+    #     return self._prefix
 
     @property
     def aliases(self) -> List[str]:
@@ -579,7 +580,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         self._required = value
 
     @property
-    def type(self) -> Union[Type, Callable[[str], Any]]:
+    def type(self) -> Type[Any]:
         if self._type is not None:
             return self._type
         elif utils.is_optional(self.field.type):
@@ -594,6 +595,9 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         else:
             self._type = self.field.type
         return self._type
+
+    def __str__(self):
+        return f"""<FieldWrapper for field '{self.dest}'>"""
 
     @property
     def is_choice(self) -> bool:

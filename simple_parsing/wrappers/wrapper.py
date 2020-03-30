@@ -7,7 +7,7 @@ from typing import Generic, Optional, List, Type
 from ..utils import T
 
 class Wrapper(Generic[T], ABC):
-    def __init__(self, wrapped: Type[T], name: str):
+    def __init__(self, wrapped: T, name: str):
         self.wrapped = wrapped
         self._dest: Optional[str] = None
         
@@ -49,5 +49,5 @@ class Wrapper(Generic[T], ABC):
 
     @property
     @abstractmethod
-    def parent(self) -> "Wrapper":
+    def parent(self) -> Optional["Wrapper"]:
         pass

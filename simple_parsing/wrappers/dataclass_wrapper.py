@@ -17,7 +17,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
                  dataclass: Type[Dataclass],
                  name: str,
                  default: Dataclass=None,
-                 _prefix: str="",
+                 prefix: str="",
                  parent: "DataclassWrapper"=None,
                  _field: dataclasses.Field=None,
                  ):
@@ -25,7 +25,6 @@ class DataclassWrapper(Wrapper[Dataclass]):
         self.dataclass = dataclass
         self._name = name
         self.default = default
-        self._prefix = _prefix
 
         self.fields: List[FieldWrapper] = []
         self._destinations: List[str] = []
@@ -48,7 +47,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 continue
 
             if utils.is_subparser_field(field) or utils.is_choice(field):
-                wrapper = FieldWrapper(field, parent=self)
+                wrapper = FieldWrapper(field, parent=self, prefix=prefix)
                 self.fields.append(wrapper)
             
             elif utils.is_tuple_or_list_of_dataclasses(field.type):
@@ -57,7 +56,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
             elif dataclasses.is_dataclass(field.type):
                 # handle a nested dataclass attribute
                 dataclass, name = field.type, field.name
-                child_wrapper = DataclassWrapper(dataclass, name, _prefix=self.prefix, parent=self, _field=field)
+                child_wrapper = DataclassWrapper(dataclass, name, parent=self, _field=field)
                 self._children.append(child_wrapper)
             else:
                 # a normal attribute
@@ -163,15 +162,15 @@ class DataclassWrapper(Wrapper[Dataclass]):
                     return doc.comment_inline
         return self.dataclass.__doc__ or ""
 
-    @property
-    def prefix(self) -> str:
-        return self._prefix
+    # @property
+    # def prefix(self) -> str:
+    #     return self._prefix
     
-    @prefix.setter
-    def prefix(self, value: str):
-        self._prefix = value
-        for child_wrapper in self._children:
-            child_wrapper.prefix = value
+    # @prefix.setter
+    # def prefix(self, value: str):
+    #     self._prefix = value
+    #     for child_wrapper in self._children:
+    #         child_wrapper.prefix = value
 
     @property
     def required(self) -> bool:
@@ -219,23 +218,6 @@ class DataclassWrapper(Wrapper[Dataclass]):
     @destinations.setter
     def destinations(self, value: List[str]):
         self._destinations = value
-
-    @property
-    def explicit(self) -> bool:
-        """Wether or not all the arguments should have an explicit prefix differentiating them.
-        
-        Returns:
-            bool: Wether or not this wrapper (and all its children, if any) are in explicit mode..
-        """
-        return self._explicit
-
-    @explicit.setter
-    def explicit(self, value: bool):
-        if value:
-            self._prefix = self.dest + "."
-            for child in self._children:
-                child.explicit = True
-        self._explicit = value
 
     def merge(self, other: "DataclassWrapper"):
         """Absorb all the relevant attributes from another wrapper.

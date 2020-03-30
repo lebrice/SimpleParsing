@@ -73,7 +73,7 @@ class ArgumentParser(argparse.ArgumentParser):
     def add_arguments(self,
                       dataclass: Union[Dataclass,Type[Dataclass]],
                       dest: str,
-                      prefix: str = "",
+                      prefix: str="",
                       default: Dataclass = None):
         """Adds command-line arguments for the fields of `dataclass`.
 
@@ -109,7 +109,7 @@ class ArgumentParser(argparse.ArgumentParser):
         new_wrapper = DataclassWrapper(
             dataclass,
             dest,
-            _prefix=prefix,
+            prefix=prefix,
             default=default
         )
         self._wrappers.append(new_wrapper)
