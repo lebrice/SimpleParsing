@@ -51,9 +51,11 @@ def test_subclasses_with_same_base_class_no_args():
     assert ext.ext_c.c == 3
 
 
-# @xfail(reason="TODO: make sure this is how people would want to use this feature.")
 def test_subclasses_with_same_base_class_with_args():
-    ext = Inheritance.setup("--ext_b.a 10 --ext_b.b 20 --ext_c.a 30 --ext_c.c 40", conflict_resolution_mode=ConflictResolution.AUTO)
+    ext = Inheritance.setup(
+        "--ext_b.a 10 --b 20 --ext_c.a 30 --c 40",
+        conflict_resolution_mode=ConflictResolution.AUTO
+    )
     
     assert ext.ext_b.a == 10
     assert ext.ext_b.b == 20
