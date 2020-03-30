@@ -33,7 +33,12 @@ def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeD
     Returns:
         AttributeDocString -- an object holding the three possible comments
     """
-    source = inspect.getsource(some_dataclass)
+    try:
+        source = inspect.getsource(some_dataclass)
+    except TypeError as e:
+        logging.debug(f"Couldn't find the attribute docstring: {e}")
+        return AttributeDocString()
+
     code_lines: List[str] = source.splitlines()
     # the first line is the class definition, we skip it.
     start_line_index = 1
