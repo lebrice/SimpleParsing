@@ -22,7 +22,7 @@ from .helpers import SimpleHelpFormatter
 
 logger = logging.getLogger(__name__)
 from argparse import HelpFormatter
-from typing import ClassVar
+from typing import ClassVar, overload
 
 class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args,
@@ -70,8 +70,16 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing_done: bool = False
         FieldWrapper.add_dash_variants = add_option_string_dash_variants
 
+    @overload
+    def add_arguments(self, dataclass: Type[Dataclass], dest: str, prefix: str="", default: Dataclass=None):
+        pass
+    
+    @overload
+    def add_arguments(self, dataclass: Dataclass, dest: str, prefix: str=""):
+        pass
+
     def add_arguments(self,
-                      dataclass: Union[Dataclass,Type[Dataclass]],
+                      dataclass: Union[Type[Dataclass], Dataclass],
                       dest: str,
                       prefix: str="",
                       default: Dataclass = None):
