@@ -6,6 +6,7 @@ with open("README_pypi.md", "r") as fh:
 packages = setuptools.find_namespace_packages(include=['simple_parsing*'])
 print("PACKAGES FOUND:", packages)
 print(sys.version_info)
+print("`dataclasses` package is also required: ", sys.version_info[:2] == (3, 6))
 
 setuptools.setup(
     name="simple_parsing",
@@ -23,5 +24,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
-    install_requires=['dataclasses'] if sys.version_info < (3, 7) else [],
+    install_requires=['dataclasses'] if sys.version_info[:2] == (3, 6) else [],
 )
