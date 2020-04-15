@@ -10,7 +10,7 @@ import sys
 from io import StringIO
 from test import xfail_param
 from typing import Callable, Optional
-
+from pathlib import Path
 import pytest
 
 expected = ""
@@ -51,10 +51,8 @@ def test_running_example_outputs_expected(
 ):
     script = file_path.split("/")[-1]
     set_prog_name(script, args)
+    file_path = Path(file_path).as_posix()
     module_name = file_path.replace("/", ".").replace(".py", "")
-
-    from contextlib import suppress
-
     try:
         # programmatically import the example script, which also runs it.
         # (Equivalent to executing "from <module_name> import expected")
