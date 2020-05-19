@@ -10,7 +10,7 @@ print("`dataclasses` package is also required: ", sys.version_info[:2] == (3, 6)
 
 setuptools.setup(
     name="simple_parsing",
-    version="0.0.9",
+    version="0.0.10",
     author="Fabrice Normandin",
     author_email="fabrice.normandin@gmail.com",
     description="A small utility for simplifying and cleaning up argument parsing scripts.",
@@ -24,5 +24,5 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
-    install_requires=['dataclasses'] if sys.version_info[:2] == (3, 6) else [],
+    install_requires=["typing_inspect"] + (['dataclasses'] if sys.version_info[:2] == (3, 6) else []),
 )
