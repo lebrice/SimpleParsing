@@ -11,13 +11,16 @@ from typing import IO
 import warnings
 import typing_inspect
 from typing_inspect import is_generic_type, is_optional_type, get_args
-
+from textwrap import shorten
 from ..utils import Dataclass
 import os
-logger = logging.getLogger(str(Path(__file__).absolute()))
+logger = logging.getLogger(__file__)
 
 D = TypeVar("D", bound="JsonSerializable")
 
+debug = lambda s: logger.debug(shorten(s, 200))
+info = lambda s: logger.info(shorten(s, 200))
+warning = lambda s: logger.warning(shorten(s, 200))
 
 class SimpleEncoder(json.JSONEncoder):
     def default(self, o: Any):
@@ -52,7 +55,7 @@ def encode(obj: Any) -> Union[Dict, List, int, str, bool, None]:
         else:
             return obj
     except Exception as e:
-        logger.debug(f"Cannot encode object {obj}: {e}")
+        debug(f"Cannot encode object {obj}: {e}")
         raise e
 
 @dataclass
@@ -81,23 +84,23 @@ class JsonSerializable:
     subclasses: ClassVar[List[Type["JsonSerializable"]]] = []
     
     # decode_into_subclasses: ClassVar[Dict[Type["JsonSerializable"], bool]] = defaultdict(bool)
-    decode_into_subclasses: ClassVar[bool] = False
+    decode_into_subclasses: ClassVar[bool] = True
 
     def __init_subclass__(cls, decode_into_subclasses: bool=None):
-        logger.debug(f"Registering a new JsonSerializable subclass: {cls}")
+        debug(f"Registering a new JsonSerializable subclass: {cls}")
         super().__init_subclass__()
         if decode_into_subclasses is None:
             # if decode_into_subclasses is None, we will use the value of the
             # parent class, if it is also a subclass of JsonSerializable.
             # Skip the class itself as well as object.
             parents = cls.mro()[1:-1] 
-            logger.debug(f"parents: {parents}")
+            debug(f"parents: {parents}")
 
             for parent in parents:
                 if parent in JsonSerializable.subclasses:
                     assert issubclass(parent, JsonSerializable)
                     decode_into_subclasses = parent.decode_into_subclasses
-                    logger.debug(f"Parent class {parent} has decode_into_subclasses = {decode_into_subclasses}")
+                    debug(f"Parent class {parent} has decode_into_subclasses = {decode_into_subclasses}")
                     break
         
         cls.decode_into_subclasses = decode_into_subclasses or False
@@ -155,155 +158,214 @@ class JsonSerializable:
             return cls.load(fp, **load_kwargs)
 
 
+T = TypeVar("T")
+decoding_fns: Dict[Type, Callable[[Any], Any]] = {}
+
+
+def is_list_type(t: Type) -> bool:
+    if typing_inspect.is_generic_type(t):
+        origin = typing_inspect.get_origin(t)
+        debug(f"type {t} is a generic with origin {origin}")
+        t = origin
+    return issubclass(t, (list, List))
+
+
+def is_dict_type(t: Type) -> bool:
+    if typing_inspect.is_generic_type(t):
+        origin = typing_inspect.get_origin(t)
+        debug(f"type {t} is a generic with origin {origin}")
+        t = origin
+    return issubclass(t, (dict, Dict, Mapping))
+
+
+def get_dataclass_type_from_forward_ref(forward_ref: Type) -> Type:
+    arg = typing_inspect.get_forward_arg(forward_ref)
+    potential_classes: List[Type[JsonSerializable]] = [] 
+    for serializable_class in JsonSerializable.subclasses:
+        if serializable_class.__name__ == arg:
+            potential_classes.append(serializable_class)
+    if not potential_classes:
+        warning(
+            f"Unable to find a corresponding type for forward ref "
+            f"{forward_ref} inside the registered JsonSerializable subclasses. "
+            f"(Consider adding JsonSerializable as a base class to <{arg}>? )."
+        )
+        return None
+    elif len(potential_classes) > 1:
+        warning(
+            f"More than one potential JsonSerializable subclass was found for "
+            f"forward ref '{forward_ref}'. The appropriate dataclass will be "
+            f"selected based on the matching fields. "
+        )
+        return JsonSerializable
+    else:
+        assert len(potential_classes) == 1
+        return potential_classes[0]
+
+
+def get_actual_type(field_type: Type) -> Type:
+    if typing_inspect.is_union_type(field_type):
+        debug(f"field has union type: {field_type}")
+        field_type = get_first_non_None_type(field_type)
+        debug(f"First non-none type: {field_type}")
+
+    if typing_inspect.is_forward_ref(field_type):
+        debug(f"field_type {field_type} is a forward ref.")
+        dc = get_dataclass_type_from_forward_ref(field_type)
+        debug(f"Found the corresponding type: {dc}")
+        if dc is not None:
+            field_type = dc
+    return field_type
+
+
+def decode_field(field: Field, field_value: Any) -> Any:
+    name = field.name
+    field_type = field.type
+    
+    if field_type in decoding_fns:
+        decoding_function = decoding_fns[field_type]
+        return decoding_function(field_value)
+    
+    field_type = get_actual_type(field_type)
+    logger.debug(f"Actual type: {field_type}")
+
+    if is_dataclass(field_type):
+        return from_dict(field_type, field_value)
+    
+    elif is_list_type(field_type):
+        item_type = get_list_item_type(field_type)
+        debug(f"{field_type} is a List[{item_type}]")
+        if item_type and is_dataclass(item_type):    
+            new_field_list_value: List = []
+            for item_args in field_value:
+                # Parse an instance from the dict.
+                if isinstance(item_args, dict):
+                    item_instance = from_dict(item_type, item_args)
+                    new_field_list_value.append(item_instance)
+                else:
+                    new_field_list_value.append(item_args)
+            return new_field_list_value
+    
+    elif is_dict_type(field_type):
+        key_type, value_type = get_key_and_value_types(field_type)
+        debug(f"{field_type} is a Dict[{key_type}, {value_type}]")
+        if is_dataclass(value_type):
+            new_field_dict_value: Dict = {}
+            for k, item_args in field_value.items():
+                # Parse an instance from the dict.
+                if isinstance(item_args, dict):
+                    item_instance = from_dict(value_type, item_args)
+                    new_field_dict_value[k] = item_instance
+                else:
+                    new_field_dict_value[k] = item_args
+            return new_field_dict_value
+    
+    return field_value
+
+
 def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=None) -> Dataclass:
-    d = d.copy()
-    non_init_values: Dict[str, Any] = {}
+    if d is None:
+        return None
+    obj_dict: Dict[str, Any] = d.copy()
 
-    for field in dataclasses.fields(cls):
-        name: str = field.name
-        if name not in d:
-            logger.debug(f"Couldn't find the field '{name}' inside the dict {d}")
-            continue
-        if not field.init and field.name in d: 
-            logger.debug(f"Field {name} has `init=False`, but is present in the dict.")
-            # TODO: Should we set the value on the parsed instance after?
-            # Pop the value and keep it inside the 'non_init_values' dict.
-            non_init_values[name] = d.pop(name)
-            continue
-
-        field_value = d[name]
-
-        if dataclasses.is_dataclass(field.type):
-            # nested cls:
-            args: Dict = field_value
-            nested_instance = from_dict(field.type, args)
-            d[field.name] = nested_instance
-        
-        if is_generic_type(field.type):
-            origin = typing_inspect.get_origin(field.type)
-            args = typing_inspect.get_args(field.type)
-            logger.debug(f"field {field} has origin: {origin}, args: {args}")
-            
-            if issubclass(origin, (dict, Mapping)):
-                # The cls field has a 
-                field_value_dict: Dict = field_value
-                K_, V_ = get_k_and_v_types(field.type)
-                logger.debug(f"Field {name} has a Dict[{K_}, {V_}] annotation.")
-                
-                if V_ is not None and is_dataclass(V_):
-                    # V_ is a cls type, so we recursively parse V_ from v.
-                    logger.debug(f"Value is a cls type.")
-                    
-                    # What we know: The object has a key 'name' that has a type of
-                    # Dict[K, <some_dataclass>]. We want to check that all the
-                    # values in that dict are either None or dicts themselves.
-                    # If they are dicts, then we can parse each object
-                    # individually by recursively calling from_dict.
-                    
-                    # Modify the dict in-place
-                    for k, v in field_value_dict.items():
-                        if isinstance(v, dict):
-                            logger.debug(
-                                f"Recursing: Will try to parse the dict at key "
-                                f"{k} into an instance of {V_}.")
-                            field_value_dict[k] = from_dict(V_, v)
-                        else:
-                            logger.warning(
-                                f"The field '{name}' (which is a dict) has a "
-                                f"value of {v} at key {k}, which should have "
-                                f"been a dict...\n"
-                                f"Returning the value unchanged..")
-                    d[name] = field_value_dict
-            
-            elif issubclass(origin, (list, List)):
-                field_value_list: List = field_value
-                V_ = get_list_item_type(field.type)
-
-                logger.debug(f"Field has a List[{V_}] annotation.")
-                if V_ is not None and is_dataclass(V_):
-                    logger.debug(f"Value is a cls type.")
-                    # Modify the list in-place.
-                    for i, dict_in_list in enumerate(field_value_list):
-                        if isinstance(dict_in_list, dict):
-                            logger.debug(
-                                f"Recursing for field '{name}' which is a List "
-                                f"of {V_}, index = {i}")
-                            field_value_list[i] = from_dict(V_, dict_in_list) 
-                        else:
-                            logger.debug(
-                                f"The field '{name}' (which is a list of {V_}) "
-                                f"has a value of {dict_in_list} at index {i}, "
-                                f"which should have been a dict..."
-                            )
-                    d[name] = field_value_list
-
-    field_names: Set[str] = set(f.name for f in dataclasses.fields(cls))
+    init_args: Dict[str, Any] = {}
+    non_init_args: Dict[str, Any] = {}
     
-    non_init_field_names: Set[str] = set(non_init_values.keys())
-    init_field_names: Set[str] = field_names - non_init_field_names
-
-    logger.debug(f"Init fields: {init_field_names}")
-    logger.debug(f"non-init fields: {non_init_field_names}")
+    if drop_extra_fields is None:
+        debug(f"drop_extra_fields is None, using the on the class {cls}")
+        drop_extra_fields = not getattr(cls, "decode_into_subclasses", False)
     
-    object_keys: Set[str] = set(d.keys())
-    # If there are object keys that aren't init fields
-    if object_keys > init_field_names:
-        if drop_extra_fields:
-            extra_keys: List[str] = []
-            for key, value in d.items():
-                if key not in init_field_names:
-                    extra_keys.append(key)
-            for k in extra_keys:
-                v = d.pop(k)
-                logger.warning(f"Dropped key {key} that had a value of {v}")
+    debug(f"from_dict called with cls {cls}, drop extra fields: {drop_extra_fields}")
+
+    for field in fields(cls):
+        name = field.name
+        field_type = field.type
+               
+        if name not in obj_dict:
+            warning(f"Couldn't find the field '{name}' in the dict {d}")
+            continue
+
+        field_value = obj_dict.pop(name)
+        field_value = decode_field(field, field_value)
+
+        if field.init:
+            init_args[name] = field_value
         else:
-            # TODO: Use the first JsonSerializable derived class that has all the required fields.
+            non_init_args[name] = field_value
+    
+    extra_args = obj_dict
+    
+    if extra_args:
+        if drop_extra_fields:
+            warning(f"Dropping extra args {extra_args}")
+            extra_args.clear()
+        
+        elif issubclass(cls, JsonSerializable):
+            # Use the first JsonSerializable derived class that has all the required fields.
+            debug(f"Missing field names: {extra_args.keys()}")  
 
-            logger.debug(f"The field names and object keys dont match: {field_names} != {object_keys}")  
-            missing_field_names: Set[str] = object_keys.difference(field_names)
-            logger.debug(f"Missing field names: {missing_field_names}")  
-
+            # Find all the "registered" subclasses of `cls`. (from JsonSerializable)
             derived_classes: List[Type[JsonSerializable]] = []
-            # Find all the "registered" subclasses of `cls`.
             for subclass in JsonSerializable.subclasses:
                 if issubclass(subclass, cls) and subclass is not cls:
                     derived_classes.append(subclass)
-            logger.debug(f"All JsonSerializable derived classes of {cls} available: {derived_classes}")
+            debug(f"All JsonSerializable derived classes of {cls} available: {derived_classes}")
 
-            # Sort the derived classes by how closely they are related to the parent class
+            from itertools import chain
+            # All the arguments that the dataclass should be able to accept in its 'init'.
+            req_init_field_names = set(chain(extra_args, init_args))
+            
+            # Sort the derived classes by their number of init fields, so we choose the first one that fits.
+            derived_classes.sort(key=lambda dc: len(get_init_fields(dc)))
+
             for child_class in derived_classes:
-                logger.debug(child_class.__name__, child_class.mro()) 
-                field_names = set(f.name for f in dataclasses.fields(child_class))
-                if object_keys <= field_names:
-                    logger.debug(f"Using child class {child_class} instead of {cls}, since it has all the required fields.")
+                debug(f"class name: {child_class.__name__}, mro: {child_class.mro()}") 
+                child_init_fields: Dict[str, Field] = get_init_fields(child_class)
+                child_init_field_names = set(child_init_fields.keys())
+                
+                if child_init_field_names >= req_init_field_names:
+                    debug(f"Using child class {child_class} instead of {cls}, since it has all the required fields.")
                     cls = child_class
                     break
+        else:
+            raise RuntimeError(f"Unexpected arguments for class {cls}: {extra_args}")
+    
+    init_args.update(extra_args)
     try:
-        return cls(**d)  # type: ignore
+        instance = cls(**init_args)  # type: ignore
     except TypeError as e:
-        warnings.warn(f"Unable to parse a dataclass of type {cls} from given dict with keys {d.keys()}: {e}")
-        return d
+        # raise RuntimeError(f"Couldn't instantiate class {cls} using init args {init_args}.")
+        raise RuntimeError(f"Couldn't instantiate class {cls} using init args {init_args.keys()}: {e}")
 
-def get_k_and_v_types(dict_type: Type[Dict]) -> Tuple[Optional[Type], Optional[Type]]:
+    for name, value in non_init_args.items():
+        debug(f"Setting non-init field '{name}' on the instance.")
+        setattr(instance, name, value)
+    return instance
+
+
+def get_key_and_value_types(dict_type: Type[Dict]) -> Tuple[Optional[Type], Optional[Type]]:
     args = get_args(dict_type)
     if len(args) != 2:
-        logger.debug(f"Weird.. the type {dict_type} doesn't have 2 args: {args}")
+        debug(f"Weird.. the type {dict_type} doesn't have 2 args: {args}")
         return None, None
     K_ = args[0]
     V_ = args[1]
-    logger.debug(f"K_: {K_}, V_: {V_}")
+    # Get rid of Unions or ForwardRefs or Optionals
+    V_ = get_actual_type(V_)
+
+    debug(f"K_: {K_}, V_: {V_}")
     if isinstance(V_, tuple):
         V_ = get_first_non_None_type(V_)
     elif typing_inspect.is_optional_type(V_):
-        logger.debug(f"V_ is optional: {V_}")
+        debug(f"V_ is optional: {V_}")
         V_ = get_first_non_None_type(V_)
     return K_, V_
 
 
 def get_list_item_type(list_type: Type[List]) -> Optional[Type]:
-    logger.debug(f"list type: {list_type}")
+    debug(f"list type: {list_type}")
     args = get_args(list_type)
-    logger.debug(f"args = {args}")
+    debug(f"args = {args}")
     
     if not args:
         return None
@@ -312,17 +374,22 @@ def get_list_item_type(list_type: Type[List]) -> Optional[Type]:
     if isinstance(args[0], tuple):
         args = args[0]
     assert isinstance(args, tuple), args
-    logger.debug(f"args tuple: {args}")
+    debug(f"args tuple: {args}")
     V_ = get_first_non_None_type(args)
-    logger.debug(f"item type: {V_}")
+    debug(f"item type: {V_}")
 
-    if typing_inspect.is_optional_type(V_):
-        logger.debug(f"item type is still optional!")
-        V_ = get_first_non_None_type(V_)
-        logger.debug(f"Args (once again..) {V_}")
+    V_ = get_actual_type(V_)
 
     assert not isinstance(V_, tuple), V_
     return V_
+
+
+def get_init_fields(dataclass: Type) -> Dict[str, Field]:
+    result: Dict[str, Field] = {}
+    for field in fields(dataclass):
+        if field.init:
+            result[field.name] = field
+    return result
 
 
 def get_first_non_None_type(optional_type: Union[Type, Tuple[Type, ...]]) -> Optional[Type]:
@@ -330,7 +397,8 @@ def get_first_non_None_type(optional_type: Union[Type, Tuple[Type, ...]]) -> Opt
         optional_type = get_args(optional_type)
     for arg in optional_type:
         if arg is not Union and arg is not type(None):
-            logger.debug(f"arg: {arg} is not union? {arg is not Union} arg is not type(None)? {arg is not type(None)}")
+            debug(f"arg: {arg} is not union? {arg is not Union}")
+            debug(f"arg is not type(None)? {arg is not type(None)}")
             return arg
     return None
 

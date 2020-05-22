@@ -133,3 +133,73 @@ def test_decode_right_subclass():
     val = c.dumps()
     parsed_val = Container.loads(val)
     assert c == parsed_val
+
+
+
+def test_forward_ref_dict():
+
+        
+    @dataclass
+    class LossWithDict(JsonSerializable):
+        name: str = ""
+        total: float = 0.
+        sublosses: Dict[str, "LossWithDict"] = field(default_factory=OrderedDict)
+
+    recon = LossWithDict(name="recon", total=1.2)
+    kl = LossWithDict(name="kl", total=3.4)
+    test = LossWithDict(name="test", total=recon.total + kl.total, sublosses={"recon":recon,"kl":kl})
+    assert LossWithDict.loads(test.dumps()) == test
+
+
+
+
+def test_forward_ref_list():
+        
+    @dataclass
+    class LossWithList(JsonSerializable):
+        name: str = ""
+        total: float = 0.
+        same_level: List["LossWithList"] = field(default_factory=list)
+
+    recon = LossWithList(name="recon", total=1.2)
+    kl = LossWithList(name="kl", total=3.4)
+    test = LossWithList(name="test", total=recon.total + kl.total, same_level=[kl])
+    assert LossWithList.loads(test.dumps()) == test
+
+
+
+def test_forward_ref_attribute():
+    @dataclass
+    class LossWithAttr(JsonSerializable):
+        name: str = ""
+        total: float = 0.
+        attribute: Optional["LossWithAttr"] = None
+
+    recon = LossWithAttr(name="recon", total=1.2)
+    kl = LossWithAttr(name="kl", total=3.4)
+    test = LossWithAttr(name="test", total=recon.total + kl.total, attribute=recon)
+    assert LossWithAttr.loads(test.dumps()) == test
+
+
+
+@dataclass
+class Loss(JsonSerializable):
+    bob: str = "hello"
+
+
+def test_forward_ref_correct_one_chosen_if_two_types_have_same_name():
+        
+    @dataclass
+    class Loss(JsonSerializable):
+        name: str = ""
+        total: float = 0.
+        sublosses: Dict[str, "Loss"] = field(default_factory=OrderedDict)
+        fofo: int = 1
+    
+    recon = Loss(name="recon", total=1.2)
+    kl = Loss(name="kl", total=3.4)
+    test = Loss(name="test", total=recon.total + kl.total, sublosses={"recon":recon,"kl":kl}, fofo=123)
+    assert Loss.loads(test.dumps()) == test
+
+
+
