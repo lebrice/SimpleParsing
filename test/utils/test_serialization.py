@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from simple_parsing import mutable_field
-from simple_parsing.helpers import JsonSerializable
+from simple_parsing.helpers.serialization import JsonSerializableFlexible as JsonSerializable
 
 
 @dataclass
@@ -199,7 +199,4 @@ def test_forward_ref_correct_one_chosen_if_two_types_have_same_name():
     recon = Loss(name="recon", total=1.2)
     kl = Loss(name="kl", total=3.4)
     test = Loss(name="test", total=recon.total + kl.total, sublosses={"recon":recon,"kl":kl}, fofo=123)
-    assert Loss.loads(test.dumps()) == test
-
-
-
+    assert Loss.loads(test.dumps(), drop_extra_fields=False) == test
