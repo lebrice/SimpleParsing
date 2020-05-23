@@ -12,11 +12,13 @@ import warnings
 import typing_inspect
 from typing_inspect import is_generic_type, is_optional_type, get_args
 from textwrap import shorten
+from inspect import isclass
 from ..utils import Dataclass
 import os
 logger = logging.getLogger(__file__)
 
 D = TypeVar("D", bound="JsonSerializable")
+T = TypeVar("T")
 
 debug = lambda s: logger.debug(shorten(s, 200))
 info = lambda s: logger.info(shorten(s, 200))
@@ -86,7 +88,7 @@ class JsonSerializable:
     # decode_into_subclasses: ClassVar[Dict[Type["JsonSerializable"], bool]] = defaultdict(bool)
     decode_into_subclasses: ClassVar[bool] = False
 
-    def __init_subclass__(cls, decode_into_subclasses: bool=None):
+    def __init_subclass__(cls, decode_into_subclasses: bool=None, add_variants: bool=True):
         logger.debug(f"Registering a new JsonSerializable subclass: {cls}")
         super().__init_subclass__()
         if decode_into_subclasses is None:
@@ -103,9 +105,12 @@ class JsonSerializable:
                     logger.debug(f"Parent class {parent} has decode_into_subclasses = {decode_into_subclasses}")
                     break
         
+
         cls.decode_into_subclasses = decode_into_subclasses or False
         if cls not in JsonSerializable.subclasses:
             JsonSerializable.subclasses.append(cls)
+
+        register_decoding_fn(cls, cls.from_dict, add_variants=add_variants)
 
     def to_dict(self) -> Dict:
         """ Serializes this dataclass to a dict. """
@@ -158,12 +163,50 @@ class JsonSerializable:
             return cls.load(fp, **load_kwargs)
 
 
-@dataclass
-class JsonSerializableFlexible(JsonSerializable, decode_into_subclasses=True):
-    pass
+def decode_optional(t: Type[T]) -> Callable[[Optional[Any]], Optional[T]]:
+    def _decode_optional(val: Optional[Any]) -> Optional[T]:
+        if val is None:
+            return None
+        return decoding_fns[t](val)
+    return _decode_optional
 
 
-T = TypeVar("T")
+def decode_list(t: Type[T]) -> Callable[[List[Any]], List[T]]:
+    def _decode_list(val: List[Any]) -> List[T]:
+        return [decoding_fns[t](v) for v in val]
+    return _decode_list
+
+
+def _register(t: Type, func: Callable) -> None:
+    if t not in decoding_fns:
+        logger.debug(f"Registering the decoding function {func} for the type {t}")
+        decoding_fns[t] = func
+
+
+def register_decoding_fn(some_type: Type[T], function: Callable[[Any], T], add_variants: bool=True) -> None:
+    """Register a decoding function for the type `some_type`.
+    
+    If `add_variants` is `True`, then also adds variants for the types:
+    - Optional[some_type]
+    - Optional[List[some_type]]
+    - List[some_type]
+    - List[Optional[some_type]]
+    - List[List[some_type]]
+    - List[List[Optional[some_type]]]
+
+    NOTE: `Dict[<k>, <any of the above>]` should also be supported given how
+    `from_dict` is implemented below, but I didn't test out every combination.
+    """
+
+    _register(some_type, function)
+    if add_variants:
+        _register(Optional[some_type], decode_optional(some_type))
+        _register(List[some_type], decode_list(some_type))  # type: ignore
+        _register(Optional[List[some_type]], decode_optional(List[some_type]))  # type: ignore
+        _register(List[Optional[some_type]], decode_list(Optional[some_type])) # type: ignore
+        _register(List[List[Optional[some_type]]], decode_list(List[Optional[some_type]]))  # type: ignore
+        _register(List[List[some_type]], decode_list(List[some_type]))  # type: ignore
+
 decoding_fns: Dict[Type, Callable[[Any], Any]] = {}
 
 
@@ -172,6 +215,7 @@ def is_list_type(t: Type) -> bool:
         origin = typing_inspect.get_origin(t)
         logger.debug(f"type {t} is a generic with origin {origin}")
         t = origin
+    assert isclass(t), t
     return issubclass(t, (list, List))
 
 
@@ -279,8 +323,7 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
 
     init_args: Dict[str, Any] = {}
     non_init_args: Dict[str, Any] = {}
-    
-    
+        
     if drop_extra_fields is None:
         decode_into_subclasses = getattr(cls, "decode_into_subclasses", False)
         drop_extra_fields = not decode_into_subclasses

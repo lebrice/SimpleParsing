@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from simple_parsing import mutable_field
-from simple_parsing.helpers.serialization import JsonSerializableFlexible as JsonSerializable
+from simple_parsing.helpers import JsonSerializable
 
 
 @dataclass
@@ -200,3 +200,48 @@ def test_forward_ref_correct_one_chosen_if_two_types_have_same_name():
     kl = Loss(name="kl", total=3.4)
     test = Loss(name="test", total=recon.total + kl.total, sublosses={"recon":recon,"kl":kl}, fofo=123)
     assert Loss.loads(test.dumps(), drop_extra_fields=False) == test
+
+
+
+def test_nested_list():
+    @dataclass
+    class Kitten(JsonSerializable):
+        name: str = "Meow"
+
+    @dataclass
+    class Cat(JsonSerializable):
+        name: str = "bob"
+        age: int = 12
+        litters: List[List[Kitten]] = field(default_factory=list)
+
+    kittens: List[List[Kitten]] = [
+        [
+            Kitten(name=f"kitten_{i}") for i in range(i*5, i*5 + 5)
+        ]
+        for i in range(2)
+    ]
+    mom = Cat("Chloe", age=12, litters=kittens)
+    
+    assert Cat.loads(mom.dumps()) == mom
+
+
+def test_nested_list_optional():
+    @dataclass
+    class Kitten(JsonSerializable):
+        name: str = "Meow"
+
+    @dataclass
+    class Cat(JsonSerializable):
+        name: str = "bob"
+        age: int = 12
+        litters: List[List[Optional[Kitten]]] = field(default_factory=list)
+
+    kittens: List[List[Optional[Kitten]]] = [
+        [
+            (Kitten(name=f"kitten_{i}") if i % 2 == 0 else None) for i in range(i*5, i*5 + 5)
+        ]
+        for i in range(2)
+    ]
+    mom = Cat("Chloe", age=12, litters=kittens)
+    
+    assert Cat.loads(mom.dumps()) == mom
