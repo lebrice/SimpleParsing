@@ -17,12 +17,11 @@ from ..utils import Dataclass
 import os
 logger = logging.getLogger(__file__)
 
+from .decoding import register_decoding_fn, decoding_fns, _get_decoding_fn
+
+
 D = TypeVar("D", bound="JsonSerializable")
 T = TypeVar("T")
-
-debug = lambda s: logger.debug(shorten(s, 200))
-info = lambda s: logger.info(shorten(s, 200))
-warning = lambda s: logger.warning(shorten(s, 200))
 
 class SimpleEncoder(json.JSONEncoder):
     def default(self, o: Any):
@@ -163,51 +162,11 @@ class JsonSerializable:
             return cls.load(fp, **load_kwargs)
 
 
-def decode_optional(t: Type[T]) -> Callable[[Optional[Any]], Optional[T]]:
-    def _decode_optional(val: Optional[Any]) -> Optional[T]:
-        if val is None:
-            return None
-        return decoding_fns[t](val)
-    return _decode_optional
+@dataclass
+class SimpleJsonSerializable(JsonSerializable, decode_into_subclasses=True):
+    """Version of JsonSerializable that enables decoding into the subclasses. """
+    pass
 
-
-def decode_list(t: Type[T]) -> Callable[[List[Any]], List[T]]:
-    def _decode_list(val: List[Any]) -> List[T]:
-        return [decoding_fns[t](v) for v in val]
-    return _decode_list
-
-
-def _register(t: Type, func: Callable) -> None:
-    if t not in decoding_fns:
-        logger.debug(f"Registering the decoding function {func} for the type {t}")
-        decoding_fns[t] = func
-
-
-def register_decoding_fn(some_type: Type[T], function: Callable[[Any], T], add_variants: bool=True) -> None:
-    """Register a decoding function for the type `some_type`.
-    
-    If `add_variants` is `True`, then also adds variants for the types:
-    - Optional[some_type]
-    - Optional[List[some_type]]
-    - List[some_type]
-    - List[Optional[some_type]]
-    - List[List[some_type]]
-    - List[List[Optional[some_type]]]
-
-    NOTE: `Dict[<k>, <any of the above>]` should also be supported given how
-    `from_dict` is implemented below, but I didn't test out every combination.
-    """
-
-    _register(some_type, function)
-    if add_variants:
-        _register(Optional[some_type], decode_optional(some_type))
-        _register(List[some_type], decode_list(some_type))  # type: ignore
-        _register(Optional[List[some_type]], decode_optional(List[some_type]))  # type: ignore
-        _register(List[Optional[some_type]], decode_list(Optional[some_type])) # type: ignore
-        _register(List[List[Optional[some_type]]], decode_list(List[Optional[some_type]]))  # type: ignore
-        _register(List[List[some_type]], decode_list(List[some_type]))  # type: ignore
-
-decoding_fns: Dict[Type, Callable[[Any], Any]] = {}
 
 
 def is_list_type(t: Type) -> bool:
@@ -273,7 +232,10 @@ def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -
     name = field.name
     field_type = field.type
     logger.debug(f"name = {name}, field_type = {field_type} drop_extra_fields is {drop_extra_fields}")
-    
+
+    if field_type in {str, int, bool, float}:
+        return field_type(field_value)
+
     if field_type in decoding_fns:
         decoding_function = decoding_fns[field_type]
         return decoding_function(field_value)

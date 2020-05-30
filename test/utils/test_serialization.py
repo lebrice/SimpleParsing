@@ -10,6 +10,7 @@ import pytest
 
 from simple_parsing import mutable_field
 from simple_parsing.helpers import JsonSerializable
+from test.conftest import silent
 
 
 @dataclass
@@ -23,7 +24,7 @@ class Parent(JsonSerializable):
     children: Dict[str, Child] = mutable_field(OrderedDict)
 
 
-def test_to_dict():
+def test_to_dict(silent):
     bob = Child("Bob")
     clarice = Child("Clarice")
     nancy = Parent("Nancy", children=dict(bob=bob, clarice=clarice))
@@ -37,7 +38,7 @@ def test_to_dict():
     }
 
 
-def test_loads_dumps():
+def test_loads_dumps(silent):
     bob = Child("Bob")
     clarice = Child("Clarice")
     nancy = Parent("Nancy", children=dict(bob=bob, clarice=clarice))
@@ -51,7 +52,7 @@ class ParentWithOptionalChildren(Parent):
     children: Dict[str, Optional[Child]] = mutable_field(OrderedDict)
 
 
-def test_optionals():
+def test_optionals(silent):
     bob = Child("Bob")
     clarice = Child("Clarice")
     nancy = ParentWithOptionalChildren("Nancy", children=dict(bob=bob, clarice=clarice))
@@ -79,7 +80,7 @@ class ParentWithOptionalChildrenWithFriends(JsonSerializable):
     children: Mapping[str, Optional[ChildWithFriends]] = mutable_field(OrderedDict)
 
 
-def test_lists():
+def test_lists(silent):
     bob = ChildWithFriends("Bob")
     clarice = Child("Clarice")
     
@@ -125,7 +126,7 @@ class B(Base):
 class Container(JsonSerializable):
     items: List[Base] = field(default_factory=list)
 
-def test_decode_right_subclass():
+def test_decode_right_subclass(silent):
     c = Container()
     c.items.append(Base())
     c.items.append(A())
@@ -135,10 +136,7 @@ def test_decode_right_subclass():
     assert c == parsed_val
 
 
-
-def test_forward_ref_dict():
-
-        
+def test_forward_ref_dict(silent):
     @dataclass
     class LossWithDict(JsonSerializable):
         name: str = ""
@@ -151,9 +149,7 @@ def test_forward_ref_dict():
     assert LossWithDict.loads(test.dumps()) == test
 
 
-
-
-def test_forward_ref_list():
+def test_forward_ref_list(silent):
         
     @dataclass
     class LossWithList(JsonSerializable):
@@ -165,7 +161,6 @@ def test_forward_ref_list():
     kl = LossWithList(name="kl", total=3.4)
     test = LossWithList(name="test", total=recon.total + kl.total, same_level=[kl])
     assert LossWithList.loads(test.dumps()) == test
-
 
 
 def test_forward_ref_attribute():
@@ -181,14 +176,12 @@ def test_forward_ref_attribute():
     assert LossWithAttr.loads(test.dumps()) == test
 
 
-
 @dataclass
 class Loss(JsonSerializable):
     bob: str = "hello"
 
 
 def test_forward_ref_correct_one_chosen_if_two_types_have_same_name():
-        
     @dataclass
     class Loss(JsonSerializable):
         name: str = ""
