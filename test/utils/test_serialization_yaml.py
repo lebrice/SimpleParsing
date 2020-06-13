@@ -1,6 +1,6 @@
 """Adds typed dataclasses for the "config" yaml files.
 """
-import json
+import yaml
 import textwrap
 from collections import OrderedDict
 from dataclasses import dataclass, field, fields
@@ -9,17 +9,17 @@ from pathlib import Path
 import pytest
 
 from simple_parsing import mutable_field
-from simple_parsing.helpers import JsonSerializable
+from simple_parsing.helpers.serialization import YamlSerializable
 from test.conftest import silent
 
 
 @dataclass
-class Child(JsonSerializable):
+class Child(YamlSerializable):
     name: str = "bob"
     age: int = 10
 
 @dataclass
-class Parent(JsonSerializable):
+class Parent(YamlSerializable):
     name: str = "Consuela"
     children: Dict[str, Child] = mutable_field(OrderedDict)
 
@@ -42,7 +42,6 @@ def test_loads_dumps(silent):
     bob = Child("Bob")
     clarice = Child("Clarice")
     nancy = Parent("Nancy", children=dict(bob=bob, clarice=clarice))
-
     assert Parent.loads(nancy.dumps()) == nancy 
 
 
@@ -65,7 +64,7 @@ def test_optionals(silent):
             "jeremy": None,
         },
     }
-    # print(f"all available subclasses: {JsonSerializable.subclasses}")
+    # print(f"all available subclasses: {YamlSerializable.subclasses}")
     assert ParentWithOptionalChildren.loads(nancy.dumps()) == nancy 
 
 
@@ -75,7 +74,7 @@ class ChildWithFriends(Child):
 
 
 @dataclass
-class ParentWithOptionalChildrenWithFriends(JsonSerializable):
+class ParentWithOptionalChildrenWithFriends(YamlSerializable):
     name: str = "Consuela"
     children: Mapping[str, Optional[ChildWithFriends]] = mutable_field(OrderedDict)
 
@@ -108,7 +107,7 @@ def test_lists(silent):
     assert parsed_nancy == nancy
 
 @dataclass
-class Base(JsonSerializable, decode_into_subclasses=True):
+class Base(YamlSerializable, decode_into_subclasses=True):
     name: str = "bob"
 
 
@@ -123,7 +122,7 @@ class B(Base):
     favorite_color: str = "blue"
 
 @dataclass
-class Container(JsonSerializable):
+class Container(YamlSerializable):
     items: List[Base] = field(default_factory=list)
 
 def test_decode_right_subclass(silent):
@@ -138,7 +137,7 @@ def test_decode_right_subclass(silent):
 
 def test_forward_ref_dict(silent):
     @dataclass
-    class LossWithDict(JsonSerializable):
+    class LossWithDict(YamlSerializable):
         name: str = ""
         total: float = 0.
         sublosses: Dict[str, "LossWithDict"] = field(default_factory=OrderedDict)
@@ -152,7 +151,7 @@ def test_forward_ref_dict(silent):
 def test_forward_ref_list(silent):
         
     @dataclass
-    class LossWithList(JsonSerializable):
+    class LossWithList(YamlSerializable):
         name: str = ""
         total: float = 0.
         same_level: List["LossWithList"] = field(default_factory=list)
@@ -165,7 +164,7 @@ def test_forward_ref_list(silent):
 
 def test_forward_ref_attribute():
     @dataclass
-    class LossWithAttr(JsonSerializable):
+    class LossWithAttr(YamlSerializable):
         name: str = ""
         total: float = 0.
         attribute: Optional["LossWithAttr"] = None
@@ -177,13 +176,13 @@ def test_forward_ref_attribute():
 
 
 @dataclass
-class Loss(JsonSerializable):
+class Loss(YamlSerializable):
     bob: str = "hello"
 
 
 def test_forward_ref_correct_one_chosen_if_two_types_have_same_name():
     @dataclass
-    class Loss(JsonSerializable):
+    class Loss(YamlSerializable):
         name: str = ""
         total: float = 0.
         sublosses: Dict[str, "Loss"] = field(default_factory=OrderedDict)
@@ -198,11 +197,11 @@ def test_forward_ref_correct_one_chosen_if_two_types_have_same_name():
 
 def test_nested_list():
     @dataclass
-    class Kitten(JsonSerializable):
+    class Kitten(YamlSerializable):
         name: str = "Meow"
 
     @dataclass
-    class Cat(JsonSerializable):
+    class Cat(YamlSerializable):
         name: str = "bob"
         age: int = 12
         litters: List[List[Kitten]] = field(default_factory=list)
@@ -220,11 +219,11 @@ def test_nested_list():
 
 def test_nested_list_optional():
     @dataclass
-    class Kitten(JsonSerializable):
+    class Kitten(YamlSerializable):
         name: str = "Meow"
 
     @dataclass
-    class Cat(JsonSerializable):
+    class Cat(YamlSerializable):
         name: str = "bob"
         age: int = 12
         litters: List[List[Optional[Kitten]]] = field(default_factory=list)
@@ -247,11 +246,11 @@ def test_dicts():
         age: int = 1
 
     @dataclass
-    class Bob(JsonSerializable):
+    class Bob(YamlSerializable):
         cats: Dict[str, Cat] = mutable_field(dict)
 
     bob = Bob(cats={"Charlie": Cat("Charlie", 1)})
     assert Bob.loads(bob.dumps()) == bob
 
-    obj = json.loads(bob.dumps())
+    obj = yaml.load(bob.dumps())
     assert Bob.from_dict(obj) == bob

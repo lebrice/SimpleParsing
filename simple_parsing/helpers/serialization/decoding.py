@@ -4,7 +4,7 @@ import itertools
 import warnings
 import logging
 import typing_inspect as tpi
-
+from collections import OrderedDict
 logger = logging.getLogger(__file__)
 # logger.setLevel(logging.DEBUG)
 
@@ -138,6 +138,6 @@ def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -
     if tpi.is_generic_type(field_type):
         logger.debug(f"generic type: {field_type}")
         import inspect
-        return decoding_fn(field_value, drop_extra_fields=drop_extra_fields)
+        return decoding_fn(field_value)
     
-    return decoding_fn(field_value, drop_extra_fields=drop_extra_fields)
+    return decoding_fn(field_value)

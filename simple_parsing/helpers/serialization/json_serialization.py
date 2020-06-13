@@ -1,6 +1,7 @@
 
 import dataclasses
 import json
+import yaml
 import logging
 from collections import OrderedDict, defaultdict
 from functools import singledispatch
@@ -13,12 +14,10 @@ import typing_inspect
 from typing_inspect import is_generic_type, is_optional_type, get_args
 from textwrap import shorten
 from inspect import isclass
-from ..utils import Dataclass
 import os
 logger = logging.getLogger(__file__)
-
 from .decoding import register_decoding_fn, decoding_fns, _get_decoding_fn
-
+Dataclass = TypeVar("Dataclass")
 
 D = TypeVar("D", bound="JsonSerializable")
 T = TypeVar("T")
@@ -278,7 +277,7 @@ def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -
     return field_value
 
 
-def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=None) -> Dataclass:
+def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=None, Serializable=JsonSerializable) -> Dataclass:
     if d is None:
         return None
     obj_dict: Dict[str, Any] = d.copy()
@@ -301,7 +300,7 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
         field_type = field.type
                
         if name not in obj_dict:
-            logger.warning(f"Couldn't find the field '{name}' in the dict {d}")
+            logger.warning(f"Couldn't find the field '{name}' in the dict with keys {d.keys()}")
             continue
 
         field_value = obj_dict.pop(name)
@@ -319,13 +318,13 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
             logger.warning(f"Dropping extra args {extra_args}")
             extra_args.clear()
         
-        elif issubclass(cls, JsonSerializable):
-            # Use the first JsonSerializable derived class that has all the required fields.
+        elif issubclass(cls, Serializable):
+            # Use the first Serializable derived class that has all the required fields.
             logger.debug(f"Missing field names: {extra_args.keys()}")  
 
             # Find all the "registered" subclasses of `cls`. (from JsonSerializable)
-            derived_classes: List[Type[JsonSerializable]] = []
-            for subclass in JsonSerializable.subclasses:
+            derived_classes: List[Type] = []
+            for subclass in Serializable.subclasses:
                 if issubclass(subclass, cls) and subclass is not cls:
                     derived_classes.append(subclass)
             logger.debug(f"All JsonSerializable derived classes of {cls} available: {derived_classes}")
