@@ -1,16 +1,21 @@
-from typing import *
+import inspect
 # from typing import ForwardRef  # type: ignore
 import itertools
-import warnings
 import logging
-import typing_inspect as tpi
+import warnings
 from collections import OrderedDict
+from dataclasses import Field, fields, is_dataclass
+from typing import *
+
+import typing_inspect as tpi
+
 logger = logging.getLogger(__file__)
 # logger.setLevel(logging.DEBUG)
-
 T = TypeVar("T")
 K = TypeVar("K")
 V = TypeVar("V")
+
+Dataclass = TypeVar("Dataclass")
 
 # Dictionary mapping from types/type annotations to their decoding functions.
 decoding_fns: Dict[Type, Callable[[Any], Any]] = {}
@@ -69,6 +74,7 @@ def _register(t: Type, func: Callable) -> None:
         logger.debug(f"Registering the type {t} with decoding function {func}")
         decoding_fns[t] = func
 
+
 def register_decoding_fn(some_type: Type[T], function: Callable[[Any], T], add_variants: bool=True) -> None:
     """Register a decoding function for the type `some_type`.
     
@@ -121,23 +127,10 @@ def register_decoding_fn(some_type: Type[T], function: Callable[[Any], T], add_v
             decoding_fn = decode_dict(key_type, value_type)
             _register(Dict[key_type, value_type], decoding_fn)  # type: ignore
             _register(Mapping[key_type, value_type], decoding_fn)  # type: ignore
+            _register(MutableMapping[key_type, value_type], decoding_fn)  # type: ignore
 
         # for item in variants:
         #     if hasattr(item, "__name__"):
         #         _register(ForwardRef(item.__name__), decoding_fns[item])
 
-from dataclasses import Field, is_dataclass
-import inspect
 
-def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -> Any:
-    name = field.name
-    field_type = field.type
-    logger.debug(f"name = {name}, field_type = {field_type} drop_extra_fields is {drop_extra_fields}")
-    
-    decoding_fn = _get_decoding_fn(field_type)
-    if tpi.is_generic_type(field_type):
-        logger.debug(f"generic type: {field_type}")
-        import inspect
-        return decoding_fn(field_value)
-    
-    return decoding_fn(field_value)
