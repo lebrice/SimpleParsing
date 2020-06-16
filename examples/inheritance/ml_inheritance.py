@@ -3,13 +3,13 @@ from dataclasses import dataclass
 # import tensorflow as tf
 
 from simple_parsing import ArgumentParser, choice
-from simple_parsing.helpers import JsonSerializable
+from simple_parsing.helpers import Serializable
 
 
 class GAN:
    
     @dataclass
-    class HyperParameters(JsonSerializable):
+    class HyperParameters(Serializable):
         """ Hyperparameters of the Generator and Discriminator networks. """
         learning_rate: float = 1e-4
         optimizer: str = choice("ADAM", "RMSPROP", "SGD", default="ADAM")

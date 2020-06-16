@@ -5,32 +5,50 @@ import copy
 import inspect
 import json
 import logging
+import warnings
 from dataclasses import Field, asdict, dataclass, fields, is_dataclass
 from functools import singledispatch
 from pathlib import Path
 from typing import *
-from typing import TypeVar, IO
+from typing import IO, TypeVar
+from collections import OrderedDict
 import typing_inspect as tpi
 
 from .decoding import decoding_fns, register_decoding_fn
-from .encoding import encode, SimpleJsonEncoder
+from .encoding import SimpleJsonEncoder, encode
 
 logger = logging.getLogger(__file__)
 
 Dataclass = TypeVar("Dataclass")
-D = TypeVar("D", bound="DictSerializable")
+D = TypeVar("D", bound="Serializable")
+
+try:
+    import yaml
+    def ordered_dict_constructor(loader: yaml.Loader, node: yaml.Node):
+        value = loader.construct_sequence(node)
+        return OrderedDict(value)
+
+    def ordered_dict_representer(dumper: yaml.Dumper, instance: OrderedDict) -> yaml.Node:
+        node = dumper.represent_sequence("OrderedDict", instance.items())
+        return node
+
+    yaml.add_representer(OrderedDict, ordered_dict_representer)
+    yaml.add_constructor("OrderedDict", ordered_dict_constructor)
+
+except ImportError:
+    pass
+
 
 @dataclass
-class DictSerializable:
+class Serializable:
     """Makes a dataclass serializable to and from dictionaries.
 
-    JsonSerializable and YamlSerializable extend this class to add the missing
-    step between json <--> dict and yaml <--> dict, respectively. 
+    Supports JSON and YAML files for now.
 
     >>> from dataclasses import dataclass
-    >>> from simple_parsing.helpers import DictSerializable
+    >>> from simple_parsing.helpers import Serializable
     >>> @dataclass
-    ... class Config(DictSerializable):
+    ... class Config(Serializable):
     ...   a: int = 123
     ...   b: str = "456"
     ... 
@@ -43,13 +61,11 @@ class DictSerializable:
     Config(a=123, b='456')
     >>> assert config == config_
     """
-    subclasses: ClassVar[List[Type["DictSerializable"]]] = []
-    
-    # decode_into_subclasses: ClassVar[Dict[Type["JsonSerializable"], bool]] = defaultdict(bool)
+    subclasses: ClassVar[List[Type["Serializable"]]] = []
     decode_into_subclasses: ClassVar[bool] = False
 
     def __init_subclass__(cls, decode_into_subclasses: bool=None, add_variants: bool=True):
-        logger.debug(f"Registering a new JsonSerializable subclass: {cls}")
+        logger.debug(f"Registering a new Serializable subclass: {cls}")
         super().__init_subclass__()
         if decode_into_subclasses is None:
             # if decode_into_subclasses is None, we will use the value of the
@@ -59,15 +75,15 @@ class DictSerializable:
             logger.debug(f"parents: {parents}")
 
             for parent in parents:
-                if parent in DictSerializable.subclasses and parent is not DictSerializable:
-                    assert issubclass(parent, DictSerializable)
+                if parent in Serializable.subclasses and parent is not Serializable:
+                    assert issubclass(parent, Serializable)
                     decode_into_subclasses = parent.decode_into_subclasses
                     logger.debug(f"Parent class {parent} has decode_into_subclasses = {decode_into_subclasses}")
                     break
 
         cls.decode_into_subclasses = decode_into_subclasses or False
-        if cls not in DictSerializable.subclasses:
-            DictSerializable.subclasses.append(cls)
+        if cls not in Serializable.subclasses:
+            Serializable.subclasses.append(cls)
 
         register_decoding_fn(cls, cls.from_dict, add_variants=add_variants)
 
@@ -79,23 +95,19 @@ class DictSerializable:
         to perform some kind of custom encoding (for instance, detaching tensors
         before serializing the dataclass to a dict)
         """
-        # d = encode(self)
-        # return d
         d: Dict[str, Any] = dict_factory()
         for f in fields(self):
             name = f.name
             value = getattr(self, name)
             T = f.type
-
             # TODO: Do not include in dict if some corresponding flag was set in metadata!
             include_in_dict = f.metadata.get("to_dict", True)
             if not include_in_dict:
                 continue
-            
+
             d[name] = encode(value)
         return d
-    
-    
+
     @classmethod
     def from_dict(cls: Type[D], obj: Dict, drop_extra_fields: bool=None) -> D:
         """ Parses an instance of `cls` from the given dict.
@@ -120,20 +132,105 @@ class DictSerializable:
 
     def dumps(self, dump_fn=json.dumps, **kwargs) -> str:
         return dump_fn(self.to_dict(), **kwargs)
-    
+
     @classmethod
-    def load(cls: Type[D], fp: Union[Path, str, IO[str]], drop_extra_fields: bool=None, load_fn=json.load, **kwargs) -> D:
-        if isinstance(fp, str):
-            fp = Path(fp)
-        if isinstance(fp, Path):
-            fp = fp.open()
+    def load(cls: Type[D], path: Union[Path, str, IO[str]], drop_extra_fields: bool=None, load_fn=None, **kwargs) -> D:
+        if isinstance(path, str):
+            path = Path(path)
+
+        if load_fn is None and isinstance(path, Path):
+            if path.suffix == ".yml":
+                return cls.load_yaml(path, drop_extra_fields=drop_extra_fields, **kwargs)
+            elif path.suffix == ".json":
+                return cls.load_json(path, drop_extra_fields=drop_extra_fields, **kwargs)
+            elif path.suffix == ".pth":
+                import torch
+                load_fn = torch.loads
+            elif path.suffix == ".npy":
+                import numpy as np
+                load_fn = np.load
+            warnings.warn(RuntimeWarning(
+                f"Not sure how to deserialize contents of {path} to a dict, as no "
+                f" load_fn was passed explicitly. Will try to use {load_fn} as the "
+                f"load function, based on the path name."    
+            )) 
+
+        if load_fn is None:
+            raise RuntimeError(
+                f"Unable to determine what function to use in order to load "
+                f"path {path} into a dictionary, since no load_fn was passed, "
+                f"and the path doesn't have an unfamiliar extension.."
+            )
+
+        if isinstance(path, Path):
+            path = path.open()
+        return cls._load(path, load_fn=load_fn, drop_extra_fields=drop_extra_fields, **kwargs)
+
+    @classmethod
+    def _load(cls: Type[D], fp: IO[str], drop_extra_fields: bool=None, load_fn=json.load, **kwargs) -> D:
         d = load_fn(fp, **kwargs)
         return cls.from_dict(d, drop_extra_fields=drop_extra_fields)
+
+    def save(self, path: Union[str, Path], dump_fn=None, **kwargs) -> None:
+        if isinstance(path, str):
+            path = Path(path)
+
+        if dump_fn is None and isinstance(path, Path):
+            if path.suffix == ".yml":
+                return self.save_yaml(path, **kwargs)
+            elif path.suffix == ".json":
+                return self.save_json(path, **kwargs)
+            elif path.suffix == ".pth":
+                import torch
+                dump_fn = torch.save
+            elif path.suffix == ".npy":
+                import numpy as np
+                dump_fn = np.save
+            warnings.warn(RuntimeWarning(
+                f"Not 100% sure how to deserialize contents of {path} to a "
+                f"file as no dump_fn was passed explicitly. Will try to use "
+                f"{dump_fn} as the serialization function, based on the path "
+                f"suffix." 
+            ))
+
+        if dump_fn is None:
+            raise RuntimeError(
+                f"Unable to determine what function to use in order to load "
+                f"path {path} into a dictionary, since no load_fn was passed, "
+                f"and the path doesn't have an unfamiliar extension.."
+            )
+        self._save(path, dump_fn=dump_fn, **kwargs)
+
+    def _save(self, path: Union[str, Path], dump_fn=json.dump, **kwargs) -> None:    
+        with open(path, "w") as fp:
+            dump_fn(self.to_dict(), fp, **kwargs)
 
     @classmethod
     def loads(cls: Type[D], s: str, drop_extra_fields: bool=None, load_fn=json.loads, **kwargs) -> D:
         d = load_fn(s, **kwargs)
         return cls.from_dict(d, drop_extra_fields=drop_extra_fields)
+
+    def save_yaml(self, path: Union[str, Path], **kwargs) -> None:
+        import yaml
+        kwargs.setdefault("Loader", yaml.FullLoader)
+        self.save(path, dump_fn=yaml.dump)
+
+    @classmethod
+    def load_yaml(cls: Type[D], path: Union[str, Path], **kwargs) -> D:
+        import yaml
+        kwargs.setdefault("Loader", yaml.FullLoader)
+        with open(path) as fp:
+            return cls._load(fp, load_fn=yaml.load, **kwargs)
+
+    def save_json(self, path: Union[str, Path], **kwargs) -> None:
+        kwargs.setdefault("cls", SimpleJsonEncoder)
+        self._save(path, dump_fn=lambda p, v: json.dump(p, v, **kwargs))
+
+    @classmethod
+    def load_json(cls: Type[D], path: Union[str, Path], **kwargs) -> D:
+        # kwargs.setdefault("cls", SimpleJsonEncoder)
+        with open(path) as fp:
+            return cls._load(fp, load_fn=json.load, **kwargs)
 
     # def dump(self, fp: IO[str], **dump_kwargs) -> None:
     #     dump_kwargs.setdefault("cls", SimpleJsonEncoder)
@@ -169,7 +266,7 @@ def is_dict_type(t: Type) -> bool:
     return issubclass(t, (dict, Dict, Mapping))
 
 
-def get_dataclass_type_from_forward_ref(forward_ref: Type, Serializable=DictSerializable) -> Optional[Type]:
+def get_dataclass_type_from_forward_ref(forward_ref: Type, Serializable=Serializable) -> Optional[Type]:
     arg = tpi.get_forward_arg(forward_ref)
     potential_classes: List[Type] = []
 
@@ -277,7 +374,7 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
         decode_into_subclasses = getattr(cls, "decode_into_subclasses", False)
         drop_extra_fields = not decode_into_subclasses
         logger.debug(f"drop_extra_fields is None, using the value of {drop_extra_fields} from the attribute on class {cls}")
-        if cls is DictSerializable:
+        if cls is Serializable:
             logger.debug(f"The class that was passed is DictSerializable, which means that we should set drop_extra_fields to False.")
             drop_extra_fields = False
 
@@ -306,13 +403,13 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
             logger.warning(f"Dropping extra args {extra_args}")
             extra_args.clear()
         
-        elif issubclass(cls, DictSerializable):
+        elif issubclass(cls, Serializable):
             # Use the first Serializable derived class that has all the required fields.
             logger.debug(f"Missing field names: {extra_args.keys()}")  
 
             # Find all the "registered" subclasses of `cls`. (from Serializable)
             derived_classes: List[Type] = []
-            for subclass in DictSerializable.subclasses:
+            for subclass in Serializable.subclasses:
                 if issubclass(subclass, cls) and subclass is not cls:
                     derived_classes.append(subclass)
             logger.debug(f"All serializable derived classes of {cls} available: {derived_classes}")
@@ -348,7 +445,7 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
     return instance
 
 
-def get_key_and_value_types(dict_type: Type[Dict], Serializable=DictSerializable) -> Tuple[Optional[Type], Optional[Type]]:
+def get_key_and_value_types(dict_type: Type[Dict], Serializable=Serializable) -> Tuple[Optional[Type], Optional[Type]]:
     args = tpi.get_args(dict_type)
     if len(args) != 2:
         logger.debug(f"Weird.. the type {dict_type} doesn't have 2 args: {args}")

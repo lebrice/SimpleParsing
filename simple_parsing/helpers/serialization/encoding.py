@@ -8,12 +8,14 @@ import numpy as np
 def encode_ndarray(obj: np.ndarray) -> str:
     return obj.tostring()
 """
-import json
-from functools import singledispatch
-from typing import Dict, List, Union, Any, TypeVar, overload, Tuple, Sequence
-from dataclasses import is_dataclass, fields
-import logging
 import copy
+import json
+import logging
+from dataclasses import fields, is_dataclass
+from functools import singledispatch
+from pathlib import Path
+from typing import Any, Dict, List, Sequence, Tuple, TypeVar, Union, overload
+
 Dataclass = TypeVar("Dataclass")
 
 logger = logging.getLogger(__file__)
@@ -24,16 +26,16 @@ class SimpleJsonEncoder(json.JSONEncoder):
         return encode(o)
 
 T = TypeVar("T", bound=Union[List, int, str, bool, None])
-# @overload
-# def encode(obj: Dataclass) -> Dict: ...
-# @overload
-# def encode(obj: Dict) -> Dict: ...
-# @overload
-# def encode(obj: List) -> List: ...
-# @overload
-# def encode(obj: Tuple) -> Tuple: ...
-# @overload
-# def encode(obj: T) -> T: ...
+@overload
+def encode(obj: Dataclass) -> Dict: ...
+@overload
+def encode(obj: Dict) -> Dict: ...
+@overload
+def encode(obj: List) -> List: ...
+@overload
+def encode(obj: Tuple) -> Tuple: ...
+@overload
+def encode(obj: T) -> T: ...
 
 @singledispatch
 def encode(obj: Any) -> Union[Dict, List, int, str, bool, None]:
@@ -67,11 +69,18 @@ def encode(obj: Any) -> Union[Dict, List, int, str, bool, None]:
         raise e
 
 @encode.register(list)
+def encode_list(obj: List) -> Sequence:
+    return list(map(encode, obj))
+
 @encode.register(tuple)
-def encode_sequence(obj: Sequence) -> Sequence:
-    return type(obj)(map(encode, obj))
+def encode_tuple(obj: List) -> Sequence:
+    return tuple(map(encode, obj))
 
 @encode.register(dict)
 def encode_dict(obj: dict) -> Dict:
     return type(obj)((encode(k), encode(v))
                         for k, v in obj.items())
+
+@encode.register(Path)
+def encode_using_str(obj: Any) -> str:
+    return str(obj)

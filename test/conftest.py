@@ -6,7 +6,7 @@ import shlex
 import pytest
 
 from simple_parsing import choice
-from simple_parsing.helpers import JsonSerializable
+from simple_parsing.helpers import Serializable
 
 from .testutils import TestSetup
 
@@ -99,7 +99,7 @@ def TaskHyperParameters():
     project.
     """
     @dataclass
-    class TaskHyperParameters(TestSetup, JsonSerializable):
+    class TaskHyperParameters(TestSetup, Serializable):
         """
         HyperParameters for a task-specific model
         """
@@ -124,7 +124,7 @@ def TaskHyperParameters():
 @pytest.fixture
 def HyperParameters(TaskHyperParameters):  
     @dataclass
-    class HyperParameters(TestSetup, JsonSerializable):
+    class HyperParameters(TestSetup, Serializable):
         """Hyperparameters of a multi-headed model."""
         
         batch_size: int = 128           # the batch size

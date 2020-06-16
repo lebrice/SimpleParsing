@@ -5,6 +5,7 @@ python:
 - '3.8'
 install:
 - pip install --no-cache --ignore-installed -e .
+- pip install pyyaml
 script:
 - pytest
 deploy:

@@ -4,10 +4,10 @@ from typing import *
 # import tensorflow as tf
 
 from simple_parsing import ArgumentParser, choice
-from simple_parsing.helpers import JsonSerializable, list_field
+from simple_parsing.helpers import Serializable, list_field
 
 @dataclass
-class ConvBlock(JsonSerializable):
+class ConvBlock(Serializable):
     """A Block of Conv Layers."""
     n_layers: int = 4  # number of layers
     n_filters: List[int] = list_field(16, 32, 64, 64)  # filters per layer
@@ -26,7 +26,7 @@ class DiscriminatorHParams(ConvBlock):
 
 
 @dataclass
-class GanHParams(JsonSerializable):
+class GanHParams(Serializable):
     """ Hyperparameters of the Generator and Discriminator networks. """
     gen: GeneratorHParams
     disc: DiscriminatorHParams

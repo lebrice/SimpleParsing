@@ -9,14 +9,19 @@ from pathlib import Path
 import pytest
 
 from simple_parsing import mutable_field
-from simple_parsing.helpers import JsonSerializable, DictSerializable, YamlSerializable
+from simple_parsing.helpers import Serializable
 from test.conftest import silent
+import yaml
+import json
 
-base_classes: List[Type[DictSerializable]] = [JsonSerializable, YamlSerializable]
+loads_fns = [json.loads, yaml.full_load]
+load_fns = [json.load, yaml.full_load]
+dumps_fns = [json.dumps, yaml.dump]
+dump_fns = [json.dump, yaml.dump]
 
-for Serializable in base_classes:
-    DictSerializable.subclasses.clear()
-        
+for loads, load, dumps, dump in zip(loads_fns, load_fns, dumps_fns, dump_fns):
+    Serializable.subclasses.clear()
+    
     @dataclass
     class Child(Serializable):
         name: str = "bob"
@@ -46,8 +51,18 @@ for Serializable in base_classes:
         bob = Child("Bob")
         clarice = Child("Clarice")
         nancy = Parent("Nancy", children=dict(bob=bob, clarice=clarice))
+        assert Parent.loads(nancy.dumps(dump_fn=dumps), load_fn=loads) == nancy 
 
-        assert Parent.loads(nancy.dumps()) == nancy 
+
+    def test_load_dump(silent, tmpdir: Path):
+        bob = Child("Bob")
+        clarice = Child("Clarice")
+        nancy = Parent("Nancy", children=dict(bob=bob, clarice=clarice))
+        tmp_path = tmpdir / "tmp"
+        with open(tmp_path, "w") as fp:
+            nancy.dump(fp, dump_fn=dump)
+        with open(tmp_path, "r") as fp:
+            assert Parent.load(fp, load_fn=load) == nancy 
 
 
     @dataclass
@@ -69,9 +84,7 @@ for Serializable in base_classes:
                 "jeremy": None,
             },
         }
-        # print(f"all available subclasses: {Serializable.subclasses}")
-        assert ParentWithOptionalChildren.loads(nancy.dumps()) == nancy 
-
+        assert ParentWithOptionalChildren.loads(nancy.dumps(dump_fn=dumps), load_fn=loads) == nancy 
 
     @dataclass
     class ChildWithFriends(Child):
@@ -105,8 +118,8 @@ for Serializable in base_classes:
             },
         }
 
-        dumps = nancy.dumps()
-        parsed_nancy = ParentWithOptionalChildrenWithFriends.loads(dumps)
+        s = nancy.dumps(dump_fn=dumps)
+        parsed_nancy = ParentWithOptionalChildrenWithFriends.loads(s, load_fn=loads)
         assert isinstance(parsed_nancy.children["bob"], ChildWithFriends), parsed_nancy.children["bob"]
         
         assert parsed_nancy == nancy
@@ -135,8 +148,8 @@ for Serializable in base_classes:
         c.items.append(Base())
         c.items.append(A())
         c.items.append(B())
-        val = c.dumps()
-        parsed_val = Container.loads(val)
+        val = c.dumps(dump_fn=dumps)
+        parsed_val = Container.loads(val, load_fn=loads)
         assert c == parsed_val
 
 
@@ -150,7 +163,7 @@ for Serializable in base_classes:
         recon = LossWithDict(name="recon", total=1.2)
         kl = LossWithDict(name="kl", total=3.4)
         test = LossWithDict(name="test", total=recon.total + kl.total, sublosses={"recon":recon, "kl":kl})
-        assert LossWithDict.loads(test.dumps()) == test
+        assert LossWithDict.loads(test.dumps(dump_fn=dumps), load_fn=loads) == test
 
     def test_forward_ref_list(silent):
             
@@ -163,7 +176,7 @@ for Serializable in base_classes:
         recon = JLossWithList(name="recon", total=1.2)
         kl = JLossWithList(name="kl", total=3.4)
         test = JLossWithList(name="test", total=recon.total + kl.total, same_level=[kl])
-        assert JLossWithList.loads(test.dumps()) == test
+        assert JLossWithList.loads(test.dumps(dump_fn=dumps), load_fn=loads) == test
 
 
     def test_forward_ref_attribute():
@@ -176,7 +189,7 @@ for Serializable in base_classes:
         recon = LossWithAttr(name="recon", total=1.2)
         kl = LossWithAttr(name="kl", total=3.4)
         test = LossWithAttr(name="test", total=recon.total + kl.total, attribute=recon)
-        assert LossWithAttr.loads(test.dumps()) == test
+        assert LossWithAttr.loads(test.dumps(dump_fn=dumps), load_fn=loads) == test
 
 
     @dataclass
@@ -195,7 +208,7 @@ for Serializable in base_classes:
         recon = Loss(name="recon", total=1.2)
         kl = Loss(name="kl", total=3.4)
         test = Loss(name="test", total=recon.total + kl.total, sublosses={"recon":recon,"kl":kl}, fofo=123)
-        assert Loss.loads(test.dumps(), drop_extra_fields=False) == test
+        assert Loss.loads(test.dumps(dump_fn=dumps), load_fn=loads, drop_extra_fields=False) == test
 
 
 
@@ -218,7 +231,7 @@ for Serializable in base_classes:
         ]
         mom = Cat("Chloe", age=12, litters=kittens)
         
-        assert Cat.loads(mom.dumps()) == mom
+        assert Cat.loads(mom.dumps(dump_fn=dumps), load_fn=loads) == mom
 
 
     def test_nested_list_optional():
@@ -240,7 +253,7 @@ for Serializable in base_classes:
         ]
         mom = Cat("Chloe", age=12, litters=kittens)
         
-        assert Cat.loads(mom.dumps()) == mom
+        assert Cat.loads(mom.dumps(dump_fn=dumps), load_fn=loads) == mom
 
 
     def test_dicts():
@@ -254,7 +267,7 @@ for Serializable in base_classes:
             cats: Dict[str, Cat] = mutable_field(dict)
 
         bob = Bob(cats={"Charlie": Cat("Charlie", 1)})
-        assert Bob.loads(bob.dumps()) == bob
+        assert Bob.loads(bob.dumps(dump_fn=dumps), load_fn=loads) == bob
 
         d = bob.to_dict()
         assert Bob.from_dict(d) == bob

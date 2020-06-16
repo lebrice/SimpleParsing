@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from simple_parsing import ArgumentParser
-from simple_parsing.helpers import JsonSerializable
+from simple_parsing.helpers import Serializable
 
 
 @dataclass
-class HParams(JsonSerializable):
+class HParams(Serializable):
     """ Set of options for the training of a Model."""
     num_layers: int = 4
     num_units:  int = 64

@@ -1,5 +1,5 @@
 from simple_parsing import ArgumentParser
-from simple_parsing.helpers import JsonSerializable
+from simple_parsing.helpers import Serializable
 
 
 from dataclasses import dataclass
@@ -7,7 +7,7 @@ from typing import Optional
 
 
 @dataclass
-class GANHyperParameters(JsonSerializable):
+class GANHyperParameters(Serializable):
     batch_size: int = 32    # batch size
     d_steps: int = 1        # number of generator updates
     g_steps: int = 1        # number of discriminator updates
