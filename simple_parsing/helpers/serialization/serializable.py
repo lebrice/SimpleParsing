@@ -139,16 +139,19 @@ class Serializable:
             path = Path(path)
 
         if load_fn is None and isinstance(path, Path):
-            if path.suffix == ".yml":
+            if path.name.endswith(".yml"):
                 return cls.load_yaml(path, drop_extra_fields=drop_extra_fields, **kwargs)
-            elif path.suffix == ".json":
+            elif path.name.endswith(".json"):
                 return cls.load_json(path, drop_extra_fields=drop_extra_fields, **kwargs)
-            elif path.suffix == ".pth":
+            elif path.name.endswith(".pth"):
                 import torch
                 load_fn = torch.loads
-            elif path.suffix == ".npy":
+            elif path.name.endswith(".npy"):
                 import numpy as np
                 load_fn = np.load
+            elif path.name.endswith(".pkl"):
+                import pickle
+                load_fn = pickle.load
             warnings.warn(RuntimeWarning(
                 f"Not sure how to deserialize contents of {path} to a dict, as no "
                 f" load_fn was passed explicitly. Will try to use {load_fn} as the "
@@ -172,32 +175,35 @@ class Serializable:
         return cls.from_dict(d, drop_extra_fields=drop_extra_fields)
 
     def save(self, path: Union[str, Path], dump_fn=None, **kwargs) -> None:
-        if isinstance(path, str):
+        if not isinstance(path, Path):
             path = Path(path)
 
         if dump_fn is None and isinstance(path, Path):
-            if path.suffix == ".yml":
+            if path.name.endswith(".yml"):
                 return self.save_yaml(path, **kwargs)
-            elif path.suffix == ".json":
+            elif path.name.endswith(".json"):
                 return self.save_json(path, **kwargs)
-            elif path.suffix == ".pth":
+            elif path.name.endswith(".pth"):
                 import torch
                 dump_fn = torch.save
-            elif path.suffix == ".npy":
+            elif path.name.endswith(".npy"):
                 import numpy as np
                 dump_fn = np.save
+            elif path.name.endswith(".pkl"):
+                import pickle
+                dump_fn = pickle.dump
             warnings.warn(RuntimeWarning(
                 f"Not 100% sure how to deserialize contents of {path} to a "
                 f"file as no dump_fn was passed explicitly. Will try to use "
                 f"{dump_fn} as the serialization function, based on the path "
-                f"suffix." 
+                f"suffix. ({path.suffix})" 
             ))
 
         if dump_fn is None:
             raise RuntimeError(
                 f"Unable to determine what function to use in order to load "
                 f"path {path} into a dictionary, since no load_fn was passed, "
-                f"and the path doesn't have an unfamiliar extension.."
+                f"and the path doesn't have an unfamiliar extension.. (name: {path.name})"
             )
         self._save(path, dump_fn=dump_fn, **kwargs)
 
@@ -231,22 +237,6 @@ class Serializable:
         # kwargs.setdefault("cls", SimpleJsonEncoder)
         with open(path) as fp:
             return cls._load(fp, load_fn=json.load, **kwargs)
-
-    # def dump(self, fp: IO[str], **dump_kwargs) -> None:
-    #     dump_kwargs.setdefault("cls", SimpleJsonEncoder)
-    #     json.dump(self.to_dict(), fp, **dump_kwargs)
-
-    # def dumps(self, **dumps_kwargs) -> str:
-    #     dumps_kwargs.setdefault("cls", SimpleJsonEncoder)
-    #     return json.dumps(self, **dumps_kwargs)
-    
-    # @classmethod
-    # def load(cls: Type[D], fp: IO[str], drop_extra_fields: bool=None, **load_kwargs) -> D:
-    #     return cls.from_dict(json.load(fp, **load_kwargs), drop_extra_fields=drop_extra_fields)
-    
-    # @classmethod
-    # def loads(cls: Type[D], s: str, drop_extra_fields: bool=None, **loads_kwargs) -> D:
-    #     return cls.from_dict(json.loads(s, **loads_kwargs), drop_extra_fields=drop_extra_fields)
 
 
 def is_list_type(t: Type) -> bool:
@@ -314,18 +304,18 @@ def get_actual_type(field_type: Type) -> Type:
 def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -> Any:
     name = field.name
     field_type = field.type
-    logger.info(f"name = {name}, field_type = {field_type} drop_extra_fields is {drop_extra_fields}")
+    logger.debug(f"name = {name}, field_type = {field_type} drop_extra_fields is {drop_extra_fields}")
 
     if field_type in {str, int, bool, float}:
         return field_type(field_value)
 
     if field_type in decoding_fns:
-        logger.info(f"We have a decoding function for the type {field_type}")
+        logger.debug(f"We have a decoding function for the type {field_type}")
         decoding_function = decoding_fns[field_type]
         return decoding_function(field_value)
     
     field_type = get_actual_type(field_type)
-    logger.info(f"Actual type: {field_type}")
+    logger.debug(f"Actual type: {field_type}")
 
     if is_dataclass(field_type):
         return from_dict(field_type, field_value, drop_extra_fields)
@@ -347,7 +337,7 @@ def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -
 
     elif is_dict_type(field_type):
         key_type, value_type = get_key_and_value_types(field_type)
-        logger.info(f"{field_type} is a Dict[{key_type}, {value_type}]")
+        logger.debug(f"{field_type} is a Dict[{key_type}, {value_type}]")
         if value_type:
             new_field_dict_value: Dict = {}
             for k, item_args in field_value.items():
@@ -378,7 +368,7 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
             logger.debug(f"The class that was passed is DictSerializable, which means that we should set drop_extra_fields to False.")
             drop_extra_fields = False
 
-    logger.info(f"from_dict called with cls {cls}, drop extra fields: {drop_extra_fields}")
+    logger.debug(f"from_dict called with cls {cls}, drop extra fields: {drop_extra_fields}")
 
     for field in fields(cls):
         name = field.name

@@ -57,3 +57,20 @@ def test_dumps_loads():
           y: 1
         some_float: 1.23
         """))
+
+def test_save_yaml(HyperParameters, tmpdir: Path):
+    hparams = HyperParameters.setup("")
+    tmp_path = tmpdir / "temp.yml"
+    hparams.save_yaml(tmp_path)
+
+    _hparams = HyperParameters.load_yaml(tmp_path)
+    assert hparams == _hparams
+
+
+def test_save(HyperParameters, tmpdir: Path):
+    hparams = HyperParameters.setup("")
+    tmp_path = Path(tmpdir / "temp.yml")
+    hparams.save(tmp_path)
+
+    _hparams = HyperParameters.load(tmp_path)
+    assert hparams == _hparams

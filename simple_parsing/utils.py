@@ -257,10 +257,10 @@ def _parse_multiple_containers(container_type: type, append_action: bool = False
     result = factory()
 
     def parse_fn(value: str):
-        logger.info(
+        logger.debug(
             f"parsing multiple {container_type} of {T}s, value is: '{value}'")
         values = _parse_container(container_type)(value)
-        logger.info(f"parsing result is '{values}'")
+        logger.debug(f"parsing result is '{values}'")
 
         if append_action:
             result += values
