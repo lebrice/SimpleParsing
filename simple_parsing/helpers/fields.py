@@ -137,10 +137,14 @@ def choice(*choices: T, default: T = None, **kwargs: Any) -> T:
         # save the info about the choice_dict in the field metadata.
         metadata = kwargs.setdefault("metadata", {})
         metadata["choice_dict"] = choice_dict
-        
+        if default is not None and default in choice_dict:
+            return field(default_factory=functools.partial(choice_dict.get, default), choices=choices, **kwargs)  # type: ignore
+
+
     if default is not None and default not in choices:
         raise ValueError(f"Default value of {default} is not a valid option! "
                          f"(options: {choices})")
+    
     return field(default=default, choices=choices, **kwargs)  # type: ignore
 
 

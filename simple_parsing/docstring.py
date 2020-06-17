@@ -75,8 +75,11 @@ def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeD
             "given class."
         )
     base_class = mro[1]
-    return get_attribute_docstring(base_class, field_name)
-    
+    try:
+        return get_attribute_docstring(base_class, field_name)
+    except OSError as e:
+        logger.warning(UserWarning(f"Couldn't find the docstring: {e}"))
+        return AttributeDocString()
 
 def _contains_attribute_definition(line_str: str) -> bool:
     """Returns wether or not a line contains a an class attribute definition.
