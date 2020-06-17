@@ -13,7 +13,9 @@ import yaml
 
 class YamlSerializable(Serializable):
     """Convenience class, just sets different `load_fn` and `dump_fn` defaults
-    for the `dump`, `dumps`, `load`, `loads` methods.
+    for the `dump`, `dumps`, `load`, `loads` methods of `Serializable`.
+
+    Uses the `yaml.full_load` and `yaml.dump` for loading and dumping.
 
     Requires the pyyaml package.
     """
