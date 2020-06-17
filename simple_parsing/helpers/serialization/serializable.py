@@ -121,7 +121,8 @@ class Serializable:
         of `cls` and drop the extra keys in the dict.
         Passing `drop_extra_fields=False` forces the above-mentioned behaviour.
         """
-        drop_extra_fields = drop_extra_fields or not cls.decode_into_subclasses
+        if drop_extra_fields is None:
+            drop_extra_fields = not cls.decode_into_subclasses
         return from_dict(cls, obj, drop_extra_fields=drop_extra_fields)
 
     def dump(self, fp: IO[str], dump_fn=json.dump, **kwargs) -> None:
@@ -170,6 +171,7 @@ class Serializable:
                 function depending on `path.suffix`:
                 {
                     ".yml": yaml.full_load,
+                    ".yaml": yaml.full_load,
                     ".json": json.load,
                     ".pth": torch.load,
                     ".pkl": pickle.load,
@@ -185,7 +187,7 @@ class Serializable:
             path = Path(path)
 
         if load_fn is None and isinstance(path, Path):
-            if path.name.endswith(".yml"):
+            if path.name.endswith((".yml", ".yaml")):
                 return cls.load_yaml(path, drop_extra_fields=drop_extra_fields, **kwargs)
             elif path.name.endswith(".json"):
                 return cls.load_json(path, drop_extra_fields=drop_extra_fields, **kwargs)
@@ -223,7 +225,7 @@ class Serializable:
         return cls.from_dict(d, drop_extra_fields=drop_extra_fields)
 
     @classmethod
-    def load_json(cls: Type[D], path: Union[str, Path], load_fn=json.load, **kwargs) -> D:
+    def load_json(cls: Type[D], path: Union[str, Path], drop_extra_fields: bool=None, load_fn=json.load, **kwargs) -> D:
         """Loads an instance from the corresponding json-formatted file.
 
         Args:
@@ -234,10 +236,10 @@ class Serializable:
         Returns:
             D: an instance of the dataclass.
         """
-        return cls.load(path, load_fn=load_fn, **kwargs)
+        return cls.load(path, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
     @classmethod
-    def load_yaml(cls: Type[D], path: Union[str, Path], load_fn=None, **kwargs) -> D:
+    def load_yaml(cls: Type[D], path: Union[str, Path], drop_extra_fields: bool=None, load_fn=None, **kwargs) -> D:
         """Loads an instance from the corresponding yaml-formatted file.
 
         Args:
@@ -252,14 +254,13 @@ class Serializable:
         import yaml
         if load_fn is None:
             load_fn = yaml.full_load
-        return cls.load(path, load_fn=load_fn, **kwargs)
+        return cls.load(path, load_fn=load_fn, drop_extra_fields=drop_extra_fields, **kwargs)
 
     def save(self, path: Union[str, Path], dump_fn=None, **kwargs) -> None:
         if not isinstance(path, Path):
             path = Path(path)
 
         if dump_fn is None and isinstance(path, Path):
-            print(path)
             if path.name.endswith((".yml", ".yaml")):
                 return self.save_yaml(path, **kwargs)
             elif path.name.endswith(".json"):

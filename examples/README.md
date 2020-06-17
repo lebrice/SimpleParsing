@@ -5,6 +5,8 @@
 
 - [ML-related Examples](ML/README.md) 
 
+- [Serialization to `json`/`yaml`](serialization/README.md)
+
 - [Attribute Docstrings Example](docstrings/README.md)
 
 - [Parsing of lists and tuples](container_types/README.md)

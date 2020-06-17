@@ -70,6 +70,7 @@ def test_running_example_outputs_expected(
         *[p for p in glob.glob("examples/**/*.py") if p not in {
             "examples/merging/multiple_lists_example.py",
             "examples/subparsers/subparsers_example.py",
+            "examples/serialization/custom_types_example.py",
         }],
         xfail_param("examples/merging/multiple_lists_example.py", reason="BUG"),
     ])
