@@ -8,4 +8,6 @@ try:
 except ImportError:
     pass
 
+# For backward compatibility purposes
 JsonSerializable = Serializable
+SimpleEncoder = SimpleJsonEncoder
