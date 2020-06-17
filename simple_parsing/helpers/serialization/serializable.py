@@ -1,6 +1,3 @@
-"""
-"""
-
 import copy
 import inspect
 import json
@@ -61,7 +58,7 @@ class Serializable:
     Config(a=123, b='456')
     >>> assert config == config_
     """
-    subclasses: ClassVar[List[Type["Serializable"]]] = []
+    subclasses: ClassVar[List[Type[D]]] = []
     decode_into_subclasses: ClassVar[bool] = False
 
     def __init_subclass__(cls, decode_into_subclasses: bool=None, add_variants: bool=True):
@@ -69,14 +66,13 @@ class Serializable:
         super().__init_subclass__()
         if decode_into_subclasses is None:
             # if decode_into_subclasses is None, we will use the value of the
-            # parent class, if it is also a subclass of JsonSerializable.
+            # parent class, if it is also a subclass of Serializable.
             # Skip the class itself as well as object.
             parents = cls.mro()[1:-1] 
             logger.debug(f"parents: {parents}")
 
             for parent in parents:
                 if parent in Serializable.subclasses and parent is not Serializable:
-                    assert issubclass(parent, Serializable)
                     decode_into_subclasses = parent.decode_into_subclasses
                     logger.debug(f"Parent class {parent} has decode_into_subclasses = {decode_into_subclasses}")
                     break
@@ -91,21 +87,22 @@ class Serializable:
         """ Serializes this dataclass to a dict.
         
         NOTE: This 'extends' the `asdict()` function from
-        dataclasses, allowing us to not include some fields in the dict, or
-        to perform some kind of custom encoding (for instance, detaching tensors
-        before serializing the dataclass to a dict)
+        the `dataclasses` package, allowing us to not include some fields in the
+        dict, or to perform some kind of custom encoding (for instance,
+        detaching `Tensor` objects before serializing the dataclass to a dict).
         """
         d: Dict[str, Any] = dict_factory()
         for f in fields(self):
             name = f.name
             value = getattr(self, name)
             T = f.type
-            # TODO: Do not include in dict if some corresponding flag was set in metadata!
+
+            # TODO: Do not include in dict if some corresponding flag was set in metadata.
             include_in_dict = f.metadata.get("to_dict", True)
             if not include_in_dict:
                 continue
-
-            d[name] = encode(value)
+            encoded = encode(value)
+            d[name] = encoded
         return d
 
     @classmethod
@@ -128,13 +125,62 @@ class Serializable:
         return from_dict(cls, obj, drop_extra_fields=drop_extra_fields)
 
     def dump(self, fp: IO[str], dump_fn=json.dump, **kwargs) -> None:
-        dump_fn(self.to_dict(), fp, **kwargs)
+        # Convert `self` into a dict.
+        d = self.to_dict()
+        # Serialize that dict to the file, using dump_fn.
+        dump_fn(d, fp, **kwargs)
+    
+    def dump_json(self, fp: IO[str], dump_fn=json.dump, **kwargs) -> str:
+        return self.dump(fp, dump_fn=dump_fn, **kwargs)
+
+    def dump_yaml(self, fp: IO[str], dump_fn=None, **kwargs) -> str:
+        import yaml
+        if dump_fn is None:
+            dump_fn = yaml.dump
+        return self.dump(fp, dump_fn=dump_fn, **kwargs)
 
     def dumps(self, dump_fn=json.dumps, **kwargs) -> str:
-        return dump_fn(self.to_dict(), **kwargs)
+        d = self.to_dict()
+        return dump_fn(d, **kwargs)
+
+    def dumps_json(self, dump_fn=json.dumps, **kwargs) -> str:
+        kwargs.setdefault("cls", SimpleJsonEncoder)
+        return self.dumps(dump_fn=dump_fn, **kwargs)
+
+    def dumps_yaml(self, dump_fn=None, **kwargs) -> str:
+        import yaml
+        if dump_fn is None:
+            dump_fn = yaml.dump
+        return self.dumps(dump_fn=dump_fn, **kwargs)
 
     @classmethod
     def load(cls: Type[D], path: Union[Path, str, IO[str]], drop_extra_fields: bool=None, load_fn=None, **kwargs) -> D:
+        """Loads an instance of `cls` from the given file.
+        
+        Args:
+            cls (Type[D]): A dataclass type to load.
+            path (Union[Path, str, IO[str]]): Path or Path string or open file.
+            drop_extra_fields (bool, optional): Wether to drop extra fields or 
+                to decode the dictionary into the first subclass with matching
+                fields. Defaults to None, in which case we use the value of
+                `cls.decode_into_subclasses`. 
+                For more info, see `cls.from_dict`.
+            load_fn ([type], optional): Which loading function to use. Defaults
+                to None, in which case we try to use the appropriate loading
+                function depending on `path.suffix`:
+                {
+                    ".yml": yaml.full_load,
+                    ".json": json.load,
+                    ".pth": torch.load,
+                    ".pkl": pickle.load,
+                }
+
+        Raises:
+            RuntimeError: If the extension of `path` is unsupported.
+
+        Returns:
+            D: An instance of `cls`.
+        """
         if isinstance(path, str):
             path = Path(path)
 
@@ -171,15 +217,50 @@ class Serializable:
 
     @classmethod
     def _load(cls: Type[D], fp: IO[str], drop_extra_fields: bool=None, load_fn=json.load, **kwargs) -> D:
+        # Load a dict from the file.
         d = load_fn(fp, **kwargs)
+        # Convert the dict into an instance of the class.
         return cls.from_dict(d, drop_extra_fields=drop_extra_fields)
+
+    @classmethod
+    def load_json(cls: Type[D], path: Union[str, Path], load_fn=json.load, **kwargs) -> D:
+        """Loads an instance from the corresponding json-formatted file.
+
+        Args:
+            cls (Type[D]): A dataclass type to load.
+            path (Union[str, Path]): Path to a json-formatted file.
+            load_fn ([type], optional): Loading function to use. Defaults to json.load.
+
+        Returns:
+            D: an instance of the dataclass.
+        """
+        return cls.load(path, load_fn=load_fn, **kwargs)
+
+    @classmethod
+    def load_yaml(cls: Type[D], path: Union[str, Path], load_fn=None, **kwargs) -> D:
+        """Loads an instance from the corresponding yaml-formatted file.
+
+        Args:
+            cls (Type[D]): A dataclass type to load.
+            path (Union[str, Path]): Path to a yaml-formatted file.
+            load_fn ([type], optional): Loading function to use. Defaults to
+                None, in which case `yaml.full_load` is used.
+
+        Returns:
+            D: an instance of the dataclass.
+        """
+        import yaml
+        if load_fn is None:
+            load_fn = yaml.full_load
+        return cls.load(path, load_fn=load_fn, **kwargs)
 
     def save(self, path: Union[str, Path], dump_fn=None, **kwargs) -> None:
         if not isinstance(path, Path):
             path = Path(path)
 
         if dump_fn is None and isinstance(path, Path):
-            if path.name.endswith(".yml"):
+            print(path)
+            if path.name.endswith((".yml", ".yaml")):
                 return self.save_yaml(path, **kwargs)
             elif path.name.endswith(".json"):
                 return self.save_json(path, **kwargs)
@@ -201,42 +282,44 @@ class Serializable:
 
         if dump_fn is None:
             raise RuntimeError(
-                f"Unable to determine what function to use in order to load "
-                f"path {path} into a dictionary, since no load_fn was passed, "
-                f"and the path doesn't have an unfamiliar extension.. (name: {path.name})"
+                f"Unable to determine what function to use in order to dump "
+                f"path {path} into a dictionary, since no dump_fn was passed, "
+                f"and the path doesn't have an unfamiliar extension: "
+                f"({path.suffix})"
             )
         self._save(path, dump_fn=dump_fn, **kwargs)
 
     def _save(self, path: Union[str, Path], dump_fn=json.dump, **kwargs) -> None:    
+        d = self.to_dict()
+        logger.debug(f"saving to path {path}")
         with open(path, "w") as fp:
-            dump_fn(self.to_dict(), fp, **kwargs)
+            dump_fn(d, fp, **kwargs)
+
+    def save_yaml(self, path: Union[str, Path], dump_fn=None, **kwargs) -> None:
+        import yaml
+        if dump_fn is None:
+            dump_fn = yaml.dump
+        self.save(path, dump_fn=dump_fn, **kwargs)
+
+    def save_json(self, path: Union[str, Path], dump_fn=json.dump, **kwargs) -> None:
+        self.save(path, dump_fn=dump_fn, **kwargs)
+
 
     @classmethod
     def loads(cls: Type[D], s: str, drop_extra_fields: bool=None, load_fn=json.loads, **kwargs) -> D:
         d = load_fn(s, **kwargs)
         return cls.from_dict(d, drop_extra_fields=drop_extra_fields)
 
-    def save_yaml(self, path: Union[str, Path], **kwargs) -> None:
-        import yaml
-        kwargs.setdefault("Loader", yaml.FullLoader)
-        self.save(path, dump_fn=yaml.dump)
+    @classmethod
+    def loads_json(cls: Type[D], s: str, drop_extra_fields: bool=None, load_fn=json.loads, **kwargs) -> D:
+        return cls.loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
     @classmethod
-    def load_yaml(cls: Type[D], path: Union[str, Path], **kwargs) -> D:
+    def loads_yaml(cls: Type[D], s: str, drop_extra_fields: bool=None, load_fn=None, **kwargs) -> D:
         import yaml
-        kwargs.setdefault("Loader", yaml.FullLoader)
-        with open(path) as fp:
-            return cls._load(fp, load_fn=yaml.load, **kwargs)
-
-    def save_json(self, path: Union[str, Path], **kwargs) -> None:
-        kwargs.setdefault("cls", SimpleJsonEncoder)
-        self._save(path, dump_fn=lambda p, v: json.dump(p, v, **kwargs))
-
-    @classmethod
-    def load_json(cls: Type[D], path: Union[str, Path], **kwargs) -> D:
-        # kwargs.setdefault("cls", SimpleJsonEncoder)
-        with open(path) as fp:
-            return cls._load(fp, load_fn=json.load, **kwargs)
+        if load_fn is None:
+            load_fn = yaml.full_load
+        return cls.loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
 
 def is_list_type(t: Type) -> bool:

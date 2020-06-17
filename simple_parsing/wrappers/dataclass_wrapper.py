@@ -51,7 +51,10 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 self.fields.append(wrapper)
             
             elif utils.is_tuple_or_list_of_dataclasses(field.type):
-                raise NotImplementedError(f"Nesting using attributes which are containers of a dataclass isn't supported (yet).")
+                raise NotImplementedError(
+                    f"Field {field.name} is of type {field.type}, which isn't "
+                    f"supported yet. (container of a dataclass type)"
+                )
             
             elif dataclasses.is_dataclass(field.type):
                 # handle a nested dataclass attribute
