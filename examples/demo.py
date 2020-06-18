@@ -1,9 +1,9 @@
 # examples/demo.py
 from dataclasses import dataclass
-import simple_parsing
+from simple_parsing import ArgumentParser
 
-parser = simple_parsing.ArgumentParser()
-parser.add_argument("--foo", type=int, default=123, help="foo help string")
+parser = ArgumentParser()
+parser.add_argument("--foo", type=int, default=123, help="foo help")
 
 @dataclass
 class Options:
@@ -13,9 +13,6 @@ class Options:
 
 parser.add_arguments(Options, dest="options")
 
-args = parser.parse_args("--help ".split())
-print(args.foo)     # 123
-print(args.options) # Options(log_dir='logs', learning_rate=0.0001)
-
-
-# args = parser.parse_args("--help".split())
+args = parser.parse_args()
+print(args.foo)
+print(args.options)
