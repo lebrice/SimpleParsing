@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import pytest
 
 from simple_parsing import ArgumentParser
-
+from simple_parsing.helpers import Serializable, list_field, choice
 from .testutils import *
 
 
@@ -56,7 +56,6 @@ def test_subclasses_with_same_base_class_with_args():
         "--ext_b.a 10 --b 20 --ext_c.a 30 --c 40",
         conflict_resolution_mode=ConflictResolution.AUTO
     )
-    
     assert ext.ext_b.a == 10
     assert ext.ext_b.b == 20
 
@@ -64,7 +63,10 @@ def test_subclasses_with_same_base_class_with_args():
     assert ext.ext_c.c == 40
 
 
-@xfail(reason="TODO: merging is not working yet with triangle inheritance, because we are merging the two classes, instead of merging the fields.")
+@xfail(reason=(
+    "Merging is not working yet with triangle inheritance, since we wouldn't "
+    "know how to assign which value to which attribute..")
+)
 def test_subclasses_with_same_base_class_with_args_merge():
     ext = Inheritance.setup(
         "--a 10 30 --b 20 --c 40",
@@ -77,11 +79,12 @@ def test_subclasses_with_same_base_class_with_args_merge():
     assert ext.ext_c.a == 30
     assert ext.ext_c.c == 40
 
-@xfail(reason="TODO: both is-a, and has-a at the same time, a very weird inheritance structure")
 def test_weird_structure():
+    """both is-a, and has-a at the same time, a very weird inheritance structure
+    """
         
     @dataclass
-    class ConvBlock(JsonSerializable):
+    class ConvBlock(Serializable):
         """A Block of Conv Layers."""
         n_layers: int = 4  # number of layers
         n_filters: List[int] = list_field(16, 32, 64, 64)  # filters per layer
