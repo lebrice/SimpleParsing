@@ -14,5 +14,5 @@ class Options:
 parser.add_arguments(Options, dest="options")
 
 args = parser.parse_args()
-print(args.foo)
-print(args.options)
+print("foo:", args.foo)
+print("options:", args.options)

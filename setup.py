@@ -1,7 +1,7 @@
 import sys
 import setuptools
 
-with open("README_pypi.md", "r") as fh:
+with open("README.md", "r") as fh:
     long_description = fh.read()
 packages = setuptools.find_namespace_packages(include=['simple_parsing*'])
 print("PACKAGES FOUND:", packages)
@@ -10,7 +10,7 @@ print("`dataclasses` package is also required: ", sys.version_info[:2] == (3, 6)
 
 setuptools.setup(
     name="simple_parsing",
-    version="0.0.11.post4",
+    version="0.0.11.post5",
     author="Fabrice Normandin",
     author_email="fabrice.normandin@gmail.com",
     description="A small utility for simplifying and cleaning up argument parsing scripts.",
