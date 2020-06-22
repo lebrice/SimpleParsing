@@ -1,20 +1,35 @@
 """Adds typed dataclasses for the "config" yaml files.
 """
 import json
+import logging
 import textwrap
 from collections import OrderedDict
-from dataclasses import dataclass, field, fields
-from typing import Any, Dict, List, Optional, Tuple, Mapping, Type
+from dataclasses import dataclass, fields
 from pathlib import Path
-import pytest
-
-from simple_parsing import mutable_field
-from simple_parsing.helpers import Serializable, YamlSerializable
 from test.conftest import silent
+from test.testutils import *
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Type
+
+import pytest
 import yaml
-import json
+
+from simple_parsing import field, mutable_field
+from simple_parsing.helpers import Serializable, YamlSerializable
 
 SerializableBase = Serializable
+
+@pytest.fixture
+def logs_warning(caplog):
+    yield
+    messages = [
+        x.message for x in caplog.get_records("call") if x.levelno == logging.WARNING
+    ]
+    if not messages:
+        pytest.fail(
+            f"No warning messages were logged (when {when}): {messages}"
+        )
+
+
 
 # Test both json and yaml serialization.
 for Serializable in (Serializable, YamlSerializable):
@@ -268,3 +283,42 @@ for Serializable in (Serializable, YamlSerializable):
 
         d = bob.to_dict()
         assert Bob.from_dict(d) == bob
+    
+
+    def test_from_dict_raises_error_on_failure():
+
+        @dataclass
+        class Something(Serializable):
+            name: str
+            age: int = 0
+        with raises(RuntimeError):
+            Something.from_dict({"babla": 123}, drop_extra_fields=True)
+        
+        with raises(RuntimeError):
+            Something.from_dict({"babla": 123}, drop_extra_fields=False)
+        
+        with raises(RuntimeError):
+            Something.from_dict({}, drop_extra_fields=False)
+
+    def test_from_dict_raises_warning_on_missing_key(logs_warning):
+        @dataclass
+        class Something(Serializable):
+            name: str
+            age: int = 0
+            bobobo: float = 0
+        
+        s = Something.from_dict({"name": "bob"})
+        assert s == Something(name="bob")
+
+
+    def test_custom_encoding_fn():
+        @dataclass
+        class Person(Serializable):
+            name: str = field(encoding_fn=lambda s: s.upper(), decoding_fn=lambda s: s.lower())
+            age: int = 0
+
+        bob = Person("Bob")
+        d = bob.to_dict()
+        assert d["name"] == "BOB"
+        _bob = Person.from_dict(d)
+        assert _bob.name == "bob"
