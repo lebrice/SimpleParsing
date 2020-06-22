@@ -59,7 +59,11 @@ def encode(obj: Any) -> Union[Dict, List, int, str, bool, None]:
             d: Dict = dict()
             for field in fields(obj):
                 value = getattr(obj, field.name)
-                d[field.name] = encode(value) 
+                try:
+                    d[field.name] = encode(value) 
+                except TypeError as e:
+                    logger.error(f"Unable to encode field {field.name}: {e}")
+                    raise e
             return d
         else:
             logger.debug(f"Deepcopying object {obj} of type {type(obj)}")

@@ -18,6 +18,10 @@ logger = logging.getLogger(__file__)
 def field(default: Union[T, _MISSING_TYPE] = MISSING,
           alias: Optional[Union[str, List[str]]] = None,
           *,
+          to_dict: bool=True,
+          encoding_fn: Callable[[T], Any]=None,
+          decoding_fn: Callable[[Any], T]=None,
+          # dataclasses.field arguments
           default_factory: Union[Callable[[], T], _MISSING_TYPE] = MISSING,
           init: bool = True,
           repr: bool = True,
@@ -31,11 +35,33 @@ def field(default: Union[T, _MISSING_TYPE] = MISSING,
 
     Parameters
     ----------
-    alias : Union[str, List[str]], optional
-        Additional option_strings to pass to the `add_argument` method, by
-        default None
     default : Union[T, _MISSING_TYPE], optional
         The default field value (same as in `dataclasses.field`), by default MISSING
+    alias : Union[str, List[str]], optional
+        Additional option_strings to pass to the `add_argument` method, by
+        default None. When passing strings which do not start by "-" or "--", 
+        will be prefixed with "-" if the string is one character and by "--"
+        otherwise.
+    
+    ## Serialization-related Keyword Arguments:
+
+    to_dict : bool
+        Wether to include this field in the dictionary when calling `to_dict()`.
+        Defaults to True.
+        Only has an effect when the dataclass containing this field is
+        `Serializable`.
+    encoding_fn : Callable[[T], Any], optional
+        Function to apply to this field's value when encoding the dataclass to a
+        dict. Only has an effect when the dataclass containing this field is
+        `Serializable`.
+    decoding_fn : Callable[[Any], T]. optional
+        Function to use in order to recover a the value of this field from a
+        serialized entry in a dictionary (inside `cls.from_dict`).
+        Only has an effect when the dataclass containing this field is
+        `Serializable`.
+    
+    ## Keyword Arguments of `dataclasses.field`
+
     default_factory : Union[Callable[[], T], _MISSING_TYPE], optional
         (same as in `dataclasses.field`), by default None
     init : bool, optional
@@ -56,10 +82,13 @@ def field(default: Union[T, _MISSING_TYPE] = MISSING,
     """
     _metadata: Dict[str, Any] = metadata if metadata is not None else {}
     if alias:
-        _metadata.update({
-            "alias": alias if isinstance(alias, list) else [alias]
-        })
-    
+        _metadata["alias"] = alias if isinstance(alias, list) else [alias]
+    _metadata.update(dict(to_dict=to_dict))
+    if encoding_fn is not None:
+        _metadata.update(dict(encoding_fn=encoding_fn))
+    if decoding_fn is not None:
+        _metadata.update(dict(decoding_fn=decoding_fn))
+
     if custom_argparse_args:
         _metadata.update({"custom_args": custom_argparse_args})
         

@@ -101,7 +101,8 @@ class Serializable:
             include_in_dict = f.metadata.get("to_dict", True)
             if not include_in_dict:
                 continue
-            encoded = encode(value)
+            encoding_fn = f.metadata.get("encoding_fn") or encode
+            encoded = encoding_fn(value)
             d[name] = encoded
         return d
 
@@ -390,6 +391,11 @@ def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -
     field_type = field.type
     logger.debug(f"name = {name}, field_type = {field_type} drop_extra_fields is {drop_extra_fields}")
 
+    # If the user set a custom decoding function, we use it.
+    custom_decoding_fn = field.metadata.get("decoding_fn")
+    if custom_decoding_fn is not None:
+        return custom_decoding_fn(field_value)
+
     if field_type in {str, int, bool, float}:
         return field_type(field_value)
 
@@ -449,7 +455,8 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
         drop_extra_fields = not decode_into_subclasses
         logger.debug(f"drop_extra_fields is None, using the value of {drop_extra_fields} from the attribute on class {cls}")
         if cls is Serializable:
-            logger.debug(f"The class that was passed is DictSerializable, which means that we should set drop_extra_fields to False.")
+            logger.debug(f"The class that was passed is `Serializable`, which "
+                         f"means that we should set drop_extra_fields to False.")
             drop_extra_fields = False
 
     logger.debug(f"from_dict called with cls {cls}, drop extra fields: {drop_extra_fields}")
