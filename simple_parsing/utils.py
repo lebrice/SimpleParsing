@@ -12,8 +12,11 @@ from collections import defaultdict
 from dataclasses import _MISSING_TYPE, MISSING, Field, dataclass
 from enum import Enum
 from functools import partial
+from inspect import isclass
 from typing import (Any, Callable, Container, Dict, Iterable, List, Set, Tuple,
                     Type, TypeVar, Union)
+
+import typing_inspect as tpi
 
 logger = logging.getLogger(__name__)
 
@@ -149,20 +152,50 @@ def _mro(t: Type) -> List[Type]:
 
 
 def is_list(t: Type) -> bool:
-    return list in _mro(t)
+    """returns True when `t` is a list type.
+
+    Args:
+        t (Type): a type.
+
+    Returns:
+        bool: True if `t` is list or a subclass of list, or if its List.
+    
+    >>> from typing import *
+    >>> is_list(list)
+    True
+    >>> is_list(List)
+    True
+    >>> is_list(List[int])
+    True
+    >>> is_list(Tuple)
+    False
+    >>> class foo(list):
+    ...   pass
+    ...
+    >>> is_list(foo)
+    True
+    """
+    if tpi.is_generic_type(t):
+        t = tpi.get_origin(t)
+    return isclass(t) and issubclass(t, list)
 
 
 def is_tuple(t: Type) -> bool:
-    return tuple in _mro(t)
+    if tpi.is_generic_type(t):
+        t = tpi.get_origin(t)
+    return isclass(t) and issubclass(t, tuple)
 
 
 def is_enum(t: Type) -> bool:
-    return Enum in _mro(t)
+    if tpi.is_generic_type(t):
+        t = tpi.get_origin(t)
+    return isclass(t) and issubclass(t, Enum)
 
 
 def is_bool(t: Type) -> bool:
-    return bool in _mro(t)
-
+    if tpi.is_generic_type(t):
+        t = tpi.get_origin(t)
+    return isclass(t) and issubclass(t, bool)
 
 def is_tuple_or_list(t: Type) -> bool:
     return is_list(t) or is_tuple(t)
@@ -185,7 +218,7 @@ def is_union(t: Type) -> bool:
     >>> is_union(Tuple[int, str])
     False
     """
-    return getattr(t, "__origin__", "") == Union
+    return tpi.is_union_type(t)
 
 
 def is_choice(field: Field) -> bool:
@@ -218,7 +251,7 @@ def is_optional(t: Type) -> bool:
     >>> is_optional(Union[str, List, int, float, None])
     True
     """
-    return is_union(t) and type(None) in get_type_arguments(t)
+    return tpi.is_optional_type(t)
 
 
 def is_tuple_or_list_of_dataclasses(t: Type) -> bool:

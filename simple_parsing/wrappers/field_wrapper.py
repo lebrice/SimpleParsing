@@ -312,6 +312,9 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         elif self.is_subparser:
             return raw_parsed_value
 
+        elif self.is_optional and raw_parsed_value is None:
+            return None
+
         elif self.type not in utils.builtin_types:
             try:
                 # if the field has a weird type, we try to call it directly.
