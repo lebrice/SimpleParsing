@@ -4,7 +4,6 @@ import builtins
 import dataclasses
 import functools
 import json
-import logging
 import re
 import warnings
 from abc import ABC
@@ -18,7 +17,9 @@ from typing import (Any, Callable, Container, Dict, Iterable, List, Set, Tuple,
 
 import typing_inspect as tpi
 
-logger = logging.getLogger(__name__)
+from .logging_utils import get_logger
+
+logger = get_logger(__file__)
 
 builtin_types = [getattr(builtins, d) for d in dir(
     builtins) if isinstance(getattr(builtins, d), type)]

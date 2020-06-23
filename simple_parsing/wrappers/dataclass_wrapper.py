@@ -1,7 +1,6 @@
 import argparse
 import dataclasses
 import enum
-import logging
 from typing import *
 from typing import cast
 from dataclasses import _MISSING_TYPE, MISSING
@@ -9,8 +8,9 @@ from .. import docstring, utils
 from ..utils import Dataclass, DataclassType
 from .wrapper import Wrapper
 from .field_wrapper import FieldWrapper
+from ..logging_utils import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__file__)
 
 class DataclassWrapper(Wrapper[Dataclass]):
     def __init__(self,

@@ -3,12 +3,13 @@
 """
 import inspect
 import typing
-import logging
+from argparse import ArgumentTypeError
 from dataclasses import dataclass
 from typing import *
-from argparse import ArgumentTypeError
 
-logger = logging.getLogger(__name__)
+from .logging_utils import get_logger
+
+logger = get_logger(__file__)
 
 @dataclass
 class AttributeDocString():
@@ -36,7 +37,7 @@ def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeD
     try:
         source = inspect.getsource(some_dataclass)
     except TypeError as e:
-        logging.debug(f"Couldn't find the attribute docstring: {e}")
+        logger.debug(f"Couldn't find the attribute docstring: {e}")
         return AttributeDocString()
 
     code_lines: List[str] = source.splitlines()

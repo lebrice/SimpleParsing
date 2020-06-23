@@ -1,15 +1,14 @@
 import argparse
 import enum
-import logging
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import *
-
+from .logging_utils import get_logger
 from . import utils
 from .utils import Dataclass
 from .wrappers import DataclassWrapper, FieldWrapper
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__file__)
 
 class ConflictResolution(enum.Enum):
     """Determines prefixing when adding the same dataclass more than once.

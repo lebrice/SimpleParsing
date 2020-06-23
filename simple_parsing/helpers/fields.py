@@ -4,7 +4,6 @@ import argparse
 import dataclasses
 import functools
 import json
-import logging
 import warnings
 from dataclasses import _MISSING_TYPE, MISSING
 from typing import (Any, Callable, Dict, Iterable, List, Optional, Set, Tuple,
@@ -13,7 +12,9 @@ from typing import (Any, Callable, Dict, Iterable, List, Optional, Set, Tuple,
 from simple_parsing.utils import (Dataclass, K, SimpleValueType, T, V,
                                   get_type_arguments, is_union)
 
-logger = logging.getLogger(__file__)
+from ..logging_utils import get_logger
+
+logger = get_logger(__file__)
 
 def field(default: Union[T, _MISSING_TYPE] = MISSING,
           alias: Optional[Union[str, List[str]]] = None,

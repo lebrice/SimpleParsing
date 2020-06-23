@@ -3,7 +3,6 @@ import collections
 import dataclasses
 import enum
 import inspect
-import logging
 from enum import Enum
 from typing import *
 from typing import cast
@@ -12,9 +11,9 @@ from .. import docstring, utils
 from ..utils import Dataclass, DataclassType
 from ..helpers import dict_field
 from .wrapper import Wrapper
+from ..logging_utils import get_logger
 
-logger = logging.getLogger(__name__)
-
+logger = get_logger(__file__)
 
 class FieldWrapper(Wrapper[dataclasses.Field]):
     """

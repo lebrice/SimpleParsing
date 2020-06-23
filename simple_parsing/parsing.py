@@ -6,7 +6,6 @@ import collections
 import dataclasses
 import enum
 import inspect
-import logging
 import re
 import textwrap
 import typing
@@ -19,8 +18,8 @@ from .conflicts import ConflictResolution, ConflictResolver
 from .utils import Dataclass, split_dest
 from .wrappers import DataclassWrapper, FieldWrapper
 from .helpers import SimpleHelpFormatter
-
-logger = logging.getLogger(__name__)
+from .logging_utils import get_logger
+logger = get_logger(__file__)
 from argparse import HelpFormatter
 from typing import ClassVar, overload
 

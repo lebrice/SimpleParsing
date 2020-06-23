@@ -1,15 +1,16 @@
-import logging
-from dataclasses import asdict, dataclass, fields, is_dataclass, MISSING
-from typing import ClassVar, List, Type, TypeVar, Dict, IO, Union, Any
-from pathlib import Path
-from collections import OrderedDict
 import inspect
+from collections import OrderedDict
+from dataclasses import MISSING, asdict, dataclass, fields, is_dataclass
+from pathlib import Path
+from typing import IO, Any, ClassVar, Dict, List, Type, TypeVar, Union
 
-from .decoding import register_decoding_fn
-from .serializable import Serializable, from_dict, D
-
-logger = logging.getLogger(__file__)
 import yaml
+
+from ...logging_utils import get_logger
+from .decoding import register_decoding_fn
+from .serializable import D, Serializable, from_dict
+
+logger = get_logger(__file__)
 
 class YamlSerializable(Serializable):
     """Convenience class, just sets different `load_fn` and `dump_fn` defaults

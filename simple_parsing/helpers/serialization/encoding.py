@@ -10,15 +10,16 @@ def encode_ndarray(obj: np.ndarray) -> str:
 """
 import copy
 import json
-import logging
 from dataclasses import fields, is_dataclass
 from functools import singledispatch
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple, TypeVar, Union, overload
 
+from ...logging_utils import get_logger
+
 Dataclass = TypeVar("Dataclass")
 
-logger = logging.getLogger(__file__)
+logger = get_logger(__file__)
 
 
 class SimpleJsonEncoder(json.JSONEncoder):

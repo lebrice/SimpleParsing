@@ -1,7 +1,6 @@
 import inspect
 # from typing import ForwardRef  # type: ignore
 import itertools
-import logging
 import warnings
 from collections import OrderedDict
 from dataclasses import Field, fields, is_dataclass
@@ -9,7 +8,9 @@ from typing import *
 
 import typing_inspect as tpi
 
-logger = logging.getLogger(__file__)
+from ...logging_utils import get_logger
+
+logger = get_logger(__file__)
 # logger.setLevel(logging.DEBUG)
 T = TypeVar("T")
 K = TypeVar("K")

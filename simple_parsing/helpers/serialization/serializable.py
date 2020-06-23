@@ -1,20 +1,21 @@
 import copy
 import inspect
 import json
-import logging
 import warnings
+from collections import OrderedDict
 from dataclasses import Field, asdict, dataclass, fields, is_dataclass
 from functools import singledispatch
 from pathlib import Path
 from typing import *
 from typing import IO, TypeVar
-from collections import OrderedDict
+
 import typing_inspect as tpi
 
+from ...logging_utils import get_logger
 from .decoding import decoding_fns, register_decoding_fn
 from .encoding import SimpleJsonEncoder, encode
 
-logger = logging.getLogger(__file__)
+logger = get_logger(__file__)
 
 Dataclass = TypeVar("Dataclass")
 D = TypeVar("D", bound="Serializable")
