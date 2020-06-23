@@ -57,7 +57,7 @@ def try_constructor(t: Type[T]) -> Callable[[Any], Union[T, Any]]:
         try:
             return t(val)  # type: ignore
         except Exception as e:
-            logging.error(f"Couldn't parse value {val} into an instance of type {t} using the type as a constructor: {e}")
+            logger.error(f"Couldn't parse value {val} into an instance of type {t} using the type as a constructor: {e}")
             return val
     return try_parse
 
@@ -133,5 +133,3 @@ def register_decoding_fn(some_type: Type[T], function: Callable[[Any], T], add_v
         # for item in variants:
         #     if hasattr(item, "__name__"):
         #         _register(ForwardRef(item.__name__), decoding_fns[item])
-
-

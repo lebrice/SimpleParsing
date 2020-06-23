@@ -155,10 +155,11 @@ def choice(*choices: T, default: T = None, **kwargs: Any) -> T:
     Returns:
         T: the result of the usual `dataclasses.field()` function (a dataclass field/attribute).
     """
+    assert len(choices) > 0, "Choice requires at least one positional argument!"
     if isinstance(choices[0], dict):
         if len(choices) > 1:
-            raise ValueError(f"'choices' should be either a list of value or a "
-                             f"single dictionary. (Received {choices})")
+            raise ValueError(f"'choices' should be either a list of values or "
+                             f"a single dictionary. (Received {choices})")
         choice_dict = choices[0]
 
         # if the choices is a dict, the options are the keys

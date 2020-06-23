@@ -24,7 +24,7 @@ try:
     import yaml
     def ordered_dict_constructor(loader: yaml.Loader, node: yaml.Node):
         value = loader.construct_sequence(node)
-        return OrderedDict(value)
+        return OrderedDict(*value)
 
     def ordered_dict_representer(dumper: yaml.Dumper, instance: OrderedDict) -> yaml.Node:
         node = dumper.represent_sequence("OrderedDict", instance.items())
@@ -32,6 +32,7 @@ try:
 
     yaml.add_representer(OrderedDict, ordered_dict_representer)
     yaml.add_constructor("OrderedDict", ordered_dict_constructor)
+    yaml.add_constructor("tag:yaml.org,2002:python/object/apply:collections.OrderedDict", ordered_dict_constructor)
 
 except ImportError:
     pass

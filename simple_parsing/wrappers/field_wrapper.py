@@ -152,6 +152,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
 
         if self.is_enum:
+            logger.debug(f"Adding an Enum attribute '{self.name}'")
             # we actually parse enums as string, and convert them back to enums
             # in the `process` method.
             _arg_options["choices"] = list(e.name for e in self.type)
@@ -184,7 +185,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
         elif self.is_tuple:
             T = utils.get_argparse_type_for_container(self.type)
-            logging.debug(
+            logger.debug(
                 f"Adding a Tuple attribute '{self.name}' "
                 f"with items of type '{T}'"
             )
@@ -286,6 +287,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             return raw_parsed_value
 
         elif self.is_tuple:
+            logger.debug(f"we're parsing a tuple!")
             # argparse always returns lists by default. If the field was of a
             # Tuple type, we just transform the list to a Tuple.
             if not isinstance(raw_parsed_value, tuple):
@@ -591,6 +593,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 type_args.remove(type(None))
                 # get the first non-NoneType type argument.
                 self._type = type_args.pop()
+        
+        
         else:
             self._type = self.field.type
         return self._type
