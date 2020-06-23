@@ -182,6 +182,31 @@ def is_list(t: Type) -> bool:
 
 
 def is_tuple(t: Type) -> bool:
+    """returns True when `t` is a tuple type.
+
+    Args:
+        t (Type): a type.
+
+    Returns:
+        bool: True if `t` is list or a subclass of tuple.
+    
+    >>> from typing import *
+    >>> is_tuple(list)
+    False
+    >>> is_tuple(tuple)
+    True
+    >>> is_tuple(Tuple)
+    True
+    >>> is_tuple(Tuple[int])
+    True
+    >>> is_tuple(Tuple[int, str, None])
+    True
+    >>> class foo(tuple):
+    ...   pass
+    ...
+    >>> is_tuple(foo)
+    True
+    """
     if tpi.is_generic_type(t):
         t = tpi.get_origin(t)
     return isclass(t) and issubclass(t, tuple)
