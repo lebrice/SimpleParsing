@@ -103,8 +103,15 @@ class Serializable:
             include_in_dict = f.metadata.get("to_dict", True)
             if not include_in_dict:
                 continue
-            encoding_fn = f.metadata.get("encoding_fn") or encode
-            encoded = encoding_fn(value)
+            if isinstance(value, Serializable):
+                encoded = value.to_dict()
+            else:
+                encoding_fn = f.metadata.get("encoding_fn") or encode
+                try:
+                    encoded = encoding_fn(value)
+                except Exception as e:
+                    logger.error(f"Unable to encode value {value}! Leaving it as-is. (exception: {e})")
+                    encoded = value
             d[name] = encoded
         return d
 
@@ -429,9 +436,16 @@ def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -
 
     elif is_dict_type(field_type):
         key_type, value_type = get_key_and_value_types(field_type)
-        logger.debug(f"{field_type} is a Dict[{key_type}, {value_type}]")
+        logger.debug(f"Field {name} ({field_type}) is a Dict[{key_type}, {value_type}]")
         if value_type:
             new_field_dict_value: Dict = {}
+            logger.debug(f"field {name} value: {field_value}")
+
+            if isinstance(field_value, list):
+                # Special case for Dict annotation, but OrderedDict value.
+                field_value = OrderedDict(field_value)
+                new_field_dict_value = OrderedDict()
+
             for k, item_args in field_value.items():
                 # Parse an instance from the dict.
                 if isinstance(item_args, dict):
