@@ -8,7 +8,7 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 from test.conftest import silent
 from test.testutils import *
-from typing import Any, Dict, List, Mapping, Optional, Tuple, Type
+from typing import Any, Dict, List, Mapping, Optional, Tuple, Type, Set
 
 import pytest
 import yaml
@@ -322,3 +322,69 @@ for Serializable in (Serializable, YamlSerializable):
         assert d["name"] == "BOB"
         _bob = Person.from_dict(d)
         assert _bob.name == "bob"
+
+
+    def test_set_field():
+        from typing import Hashable
+
+        @dataclass(unsafe_hash=True, order=True)
+        class Person(Serializable, Hashable):
+            name: str = "Bob"
+            age: int = 0
+
+        bob = Person("Bob", 10)
+        peter = Person("Peter", 11)
+        
+        from simple_parsing.helpers import set_field
+        from simple_parsing.helpers.serialization import decoding_fns
+        assert Set[Person] in decoding_fns
+
+        @dataclass
+        class Group(Serializable):
+            members: Set[Person] = set_field(bob, peter)
+        
+        g = Group()
+        s = g.dumps_json(sort_keys=True)
+        assert (
+            s == '{"members": [{"age": 10, "name": "Bob"}, {"age": 11, "name": "Peter"}]}' or 
+            s == '{"members": [{"age": 11, "name": "Peter"}, {"age": 10, "name": "Bob"}]}'
+        )
+
+        g_ = Group.loads(s)
+        assert isinstance(g_.members, set)
+        m1 = sorted(g.members)
+        m2 = sorted(g_.members)
+        assert m1 == m2
+        assert isinstance(m1[0], Person)
+        assert isinstance(m2[0], Person)
+        assert g_ == g
+
+
+
+    def test_used_as_dict_key():
+        from typing import Hashable
+
+        @dataclass(unsafe_hash=True, order=True)
+        class Person(Serializable, Hashable):
+            name: str = "Bob"
+            age: int = 0
+
+        bob = Person("Bob", 10)
+        peter = Person("Peter", 11)
+        
+        from simple_parsing.helpers import dict_field
+        from simple_parsing.helpers.serialization import decoding_fns
+        assert Set[Person] in decoding_fns
+
+        @dataclass
+        class Leaderboard(Serializable):
+            participants: Dict[Person, int] = dict_field({bob: 1, peter: 2})
+        # TODO: When serializing a dict, if the key itself is a dict, then we
+        # need to serialize it as an ordered dict (list of tuples), because a dict isn't hashable!
+        g = Leaderboard()
+        assert g.to_dict() == {"participants": [({"age": 10, "name": "Bob"}, 1), ({"age": 11, "name": "Peter"}, 2)]}
+        s = g.dumps_json(sort_keys=True)
+        assert s == '{"participants": [[{"age": 10, "name": "Bob"}, 1], [{"age": 11, "name": "Peter"}, 2]]}'
+
+        g_ = Leaderboard.loads(s)
+        assert isinstance(g_.participants, dict)

@@ -12,6 +12,7 @@ from typing import IO, TypeVar
 import typing_inspect as tpi
 
 from ...logging_utils import get_logger
+from ...utils import get_type_arguments, is_dict, is_list, is_union
 from .decoding import decoding_fns, register_decoding_fn
 from .encoding import SimpleJsonEncoder, encode
 
@@ -83,9 +84,10 @@ class Serializable:
         if cls not in Serializable.subclasses:
             Serializable.subclasses.append(cls)
 
+        encode.register(cls, cls.to_dict)
         register_decoding_fn(cls, cls.from_dict, add_variants=add_variants)
 
-    def to_dict(self, dict_factory:Type[Dict]=dict) -> Dict:
+    def to_dict(self, dict_factory:Type[Dict]=dict, recurse: bool=True) -> Dict:
         """ Serializes this dataclass to a dict.
         
         NOTE: This 'extends' the `asdict()` function from
@@ -99,18 +101,26 @@ class Serializable:
             value = getattr(self, name)
             T = f.type
 
-            # TODO: Do not include in dict if some corresponding flag was set in metadata.
+            # Do not include in dict if some corresponding flag was set in metadata.
             include_in_dict = f.metadata.get("to_dict", True)
             if not include_in_dict:
                 continue
-            if isinstance(value, Serializable):
-                encoded = value.to_dict()
+
+            custom_encoding_fn = f.metadata.get("encoding_fn")
+            if custom_encoding_fn:
+                # Use a custom encoding function if there is one.
+                d[name] = custom_encoding_fn(value)
+                continue
+
+            encoding_fn = encode
+            if isinstance(value, Serializable) and recurse:
+                encoded = value.to_dict(dict_factory=dict_factory, recurse=recurse)
+                logger.debug(f"Encoded Serializable field {name}: {encoded}")
             else:
-                encoding_fn = f.metadata.get("encoding_fn") or encode
                 try:
                     encoded = encoding_fn(value)
                 except Exception as e:
-                    logger.error(f"Unable to encode value {value}! Leaving it as-is. (exception: {e})")
+                    logger.error(f"Unable to encode value {value} of type {type(value)}! Leaving it as-is. (exception: {e})")
                     encoded = value
             d[name] = encoded
         return d
@@ -333,21 +343,9 @@ class Serializable:
         return cls.loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
 
-def is_list_type(t: Type) -> bool:
-    if tpi.is_generic_type(t):
-        origin = tpi.get_origin(t)
-        logger.debug(f"type {t} is a generic with origin {origin}")
-        t = origin
-    assert inspect.isclass(t), t
-    return issubclass(t, (list, List))
-
-
-def is_dict_type(t: Type) -> bool:
-    if tpi.is_generic_type(t):
-        origin = tpi.get_origin(t)
-        logger.debug(f"type {t} is a generic with origin {origin}")
-        t = origin
-    return issubclass(t, (dict, Dict, Mapping))
+@dataclass
+class SimpleSerializable(Serializable, decode_into_subclasses=True):
+    pass
 
 
 def get_dataclass_type_from_forward_ref(forward_ref: Type, Serializable=Serializable) -> Optional[Type]:
@@ -379,7 +377,7 @@ def get_dataclass_type_from_forward_ref(forward_ref: Type, Serializable=Serializ
 
 
 def get_actual_type(field_type: Type) -> Type:
-    if tpi.is_union_type(field_type):
+    if is_union(field_type):
         logger.debug(f"field has union type: {field_type}")
         t = get_first_non_None_type(field_type)
         logger.debug(f"First non-none type: {t}")
@@ -419,7 +417,7 @@ def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -
     if is_dataclass(field_type):
         return from_dict(field_type, field_value, drop_extra_fields)
     
-    elif is_list_type(field_type):
+    elif is_list(field_type):
         item_type = get_list_item_type(field_type)
         logger.debug(f"{field_type} is a List[{item_type}]")
 
@@ -434,7 +432,7 @@ def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -
                     new_field_list_value.append(item_args)
             return new_field_list_value
 
-    elif is_dict_type(field_type):
+    elif is_dict(field_type):
         key_type, value_type = get_key_and_value_types(field_type)
         logger.debug(f"Field {name} ({field_type}) is a Dict[{key_type}, {value_type}]")
         if value_type:
@@ -543,7 +541,8 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
 
 
 def get_key_and_value_types(dict_type: Type[Dict], Serializable=Serializable) -> Tuple[Optional[Type], Optional[Type]]:
-    args = tpi.get_args(dict_type)
+    args = get_type_arguments(dict_type)
+
     if len(args) != 2:
         logger.debug(f"Weird.. the type {dict_type} doesn't have 2 args: {args}")
         return None, None

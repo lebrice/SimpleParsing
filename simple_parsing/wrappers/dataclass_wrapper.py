@@ -227,7 +227,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         Args:
             other (DataclassWrapper): Another instance to absorb into this one.
         """
-        # logger.info(f"merging \n{self}\n with \n{other}")
+        # logger.debug(f"merging \n{self}\n with \n{other}")
         logger.debug(f"self destinations: {self.destinations}")
         logger.debug(f"other destinations: {other.destinations}")
         # assert not set(self.destinations).intersection(set(other.destinations)), "shouldn't have overlap in destinations"

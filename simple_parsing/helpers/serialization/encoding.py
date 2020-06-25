@@ -10,10 +10,12 @@ def encode_ndarray(obj: np.ndarray) -> str:
 """
 import copy
 import json
+from collections import OrderedDict
 from dataclasses import fields, is_dataclass
 from functools import singledispatch
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple, TypeVar, Union, overload
+from typing import (Any, Dict, Hashable, Iterable, List, Mapping, Sequence,
+                    Set, Tuple, TypeVar, Union, overload)
 
 from ...logging_utils import get_logger
 
@@ -27,6 +29,7 @@ class SimpleJsonEncoder(json.JSONEncoder):
         return encode(o)
 
 T = TypeVar("T", bound=Union[List, int, str, bool, None])
+
 @overload
 def encode(obj: Dataclass) -> Dict: ...
 @overload
@@ -56,7 +59,7 @@ def encode(obj: Any) -> Union[Dict, List, int, str, bool, None]:
     """
     try:
         if is_dataclass(obj):
-            logger.debug(f"encoding object {obj} of class {type(obj)}")
+            # logger.debug(f"encoding object {obj} of class {type(obj)}")
             d: Dict = dict()
             for field in fields(obj):
                 value = getattr(obj, field.name)
@@ -67,24 +70,48 @@ def encode(obj: Any) -> Union[Dict, List, int, str, bool, None]:
                     raise e
             return d
         else:
-            logger.debug(f"Deepcopying object {obj} of type {type(obj)}")
+            # logger.debug(f"Deepcopying object {obj} of type {type(obj)}")
             return copy.deepcopy(obj)
     except Exception as e:
         logger.debug(f"Cannot encode object {obj}: {e}")
         raise e
 
 @encode.register(list)
-def encode_list(obj: List) -> Sequence:
+@encode.register(tuple)
+# @encode.register(Sequence) # Would also encompass `str!`
+@encode.register(Set)
+@encode.register(set)
+def encode_list(obj: Iterable) -> Sequence:
+    # TODO: Here we basically say "Encode all these types as lists before serializing"
+    # That's ok for JSON, but YAML can serialize stuff directly though.
+    # TODO: Also, with this, we also need to convert back to the right type when
+    # deserializing, which is totally doable for the fields of dataclasses,
+    # but maybe not for other stuff.
     return list(map(encode, obj))
 
-@encode.register(tuple)
-def encode_tuple(obj: List) -> Sequence:
-    return tuple(map(encode, obj))
-
 @encode.register(dict)
-def encode_dict(obj: dict) -> Dict:
-    return type(obj)((encode(k), encode(v))
-                        for k, v in obj.items())
+@encode.register(Mapping)
+def encode_dict(obj: Mapping) -> Dict:
+    logger.debug(f"Encoding dict")
+    constructor = type(obj)
+    result = constructor()
+    for k, v in obj.items():
+        k_ = encode(k)
+        v_ = encode(v)
+        if isinstance(k_, Hashable):
+            result[k_] = v_
+        else:
+            # If the encoded key isn't "Hashable", then we store it as a list of tuples
+            if isinstance(result, dict):
+                result = list(result.items())
+            result.append((k_, v_))
+    return result
+        
+        
+
+
+
+    return type(obj)((encode(k), encode(v)) for k, v in obj.items())
 
 @encode.register(Path)
 def encode_using_str(obj: Any) -> str:

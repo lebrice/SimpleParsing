@@ -13,7 +13,7 @@ from enum import Enum
 from functools import partial
 from inspect import isclass
 from typing import (Any, Callable, Container, Dict, Iterable, List, Set, Tuple,
-                    Type, TypeVar, Union)
+                    Type, TypeVar, Union, Mapping, MutableMapping)
 
 from simple_parsing.logging_utils import get_logger
 
@@ -151,6 +151,33 @@ def _mro(t: Type) -> List[Type]:
 
 
 def is_list(t: Type) -> bool:
+    """returns True when `t` is a List type.
+
+    Args:
+        t (Type): a type.
+
+    Returns:
+        bool: True if `t` is list or a subclass of list.
+    
+    >>> from typing import *
+    >>> is_list(list)
+    True
+    >>> is_list(tuple)
+    False
+    >>> is_list(List)
+    True
+    >>> is_list(List[int])
+    True
+    >>> is_list(List[Tuple[int, str, None]])
+    True
+    >>> is_list(Optional[List[int]])
+    False
+    >>> class foo(List[int]):
+    ...   pass
+    ...
+    >>> is_list(foo)
+    True
+    """
     return list in _mro(t)
 
 
@@ -161,7 +188,7 @@ def is_tuple(t: Type) -> bool:
         t (Type): a type.
 
     Returns:
-        bool: True if `t` is list or a subclass of tuple.
+        bool: True if `t` is tuple or a subclass of tuple.
     
     >>> from typing import *
     >>> is_tuple(list)
@@ -181,6 +208,43 @@ def is_tuple(t: Type) -> bool:
     True
     """
     return tuple in _mro(t)
+
+
+def is_dict(t: Type) -> bool:
+    """returns True when `t` is a dict type or annotation.
+
+    Args:
+        t (Type): a type.
+
+    Returns:
+        bool: True if `t` is dict or a subclass of dict.
+    
+    >>> from typing import *
+    >>> from collections import OrderedDict
+    >>> is_dict(dict)
+    True
+    >>> is_dict(OrderedDict)
+    True
+    >>> is_dict(tuple)
+    False
+    >>> is_dict(Dict)
+    True
+    >>> is_dict(Dict[int, float])
+    True
+    >>> is_dict(Dict[Any, Dict])
+    True
+    >>> is_dict(Optional[Dict])
+    False
+    >>> is_dict(Mapping[str, int])
+    True
+    >>> class foo(Dict):
+    ...   pass
+    ...
+    >>> is_dict(foo)
+    True
+    """
+    mro = _mro(t)
+    return dict in mro or Mapping in mro
 
 
 def is_enum(t: Type) -> bool:
@@ -305,7 +369,7 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
     result: List[Any] = []
 
     def _parse(value: str) -> List[Any]:
-        logger.info(f"Parsing a {container_type} of {T}s, value is: '{value}'")
+        logger.debug(f"Parsing a {container_type} of {T}s, value is: '{value}'")
         try:
             values = _parse_literal(value)
         except Exception as e:
