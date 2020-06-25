@@ -14,9 +14,9 @@ from collections import OrderedDict
 from dataclasses import fields, is_dataclass
 from functools import singledispatch
 from pathlib import Path
-from typing import (Any, Dict, Hashable, Iterable, List, Mapping, Sequence,
+from typing import (Any, Dict, Hashable, Iterable, List, Sequence,
                     Set, Tuple, TypeVar, Union, overload)
-
+from collections.abc import Mapping
 from ...logging_utils import get_logger
 
 Dataclass = TypeVar("Dataclass")
@@ -79,7 +79,6 @@ def encode(obj: Any) -> Union[Dict, List, int, str, bool, None]:
 @encode.register(list)
 @encode.register(tuple)
 # @encode.register(Sequence) # Would also encompass `str!`
-@encode.register(Set)
 @encode.register(set)
 def encode_list(obj: Iterable) -> Sequence:
     # TODO: Here we basically say "Encode all these types as lists before serializing"
