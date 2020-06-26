@@ -85,7 +85,7 @@ class Serializable:
             Serializable.subclasses.append(cls)
 
         encode.register(cls, cls.to_dict)
-        register_decoding_fn(cls, cls.from_dict, add_variants=add_variants)
+        register_decoding_fn(cls, cls.from_dict)
 
     def to_dict(self, dict_factory:Type[Dict]=dict, recurse: bool=True) -> Dict:
         """ Serializes this dataclass to a dict.
