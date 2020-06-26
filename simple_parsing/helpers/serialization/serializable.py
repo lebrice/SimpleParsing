@@ -428,9 +428,9 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
     for field in fields(cls):
         name = field.name
         field_type = field.type
-               
         if name not in obj_dict:
-            logger.warning(f"Couldn't find the field '{name}' in the dict with keys {d.keys()}")
+            if field.metadata.get("to_dict", True):
+                logger.warning(f"Couldn't find the field '{name}' in the dict with keys {d.keys()}")
             continue
 
         field_value = obj_dict.pop(name)

@@ -37,8 +37,8 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
         for func in funcs:
             try:
                 return func(val)
-            except Exception as e:
-               pass 
+            except Exception as ex:
+                e = ex
         else:
             logger.error(f"Couldn't parse value {val}, returning it as-is. (exception: {e})")
         return val
