@@ -13,7 +13,7 @@ import typing_inspect as tpi
 
 from ...logging_utils import get_logger
 from ...utils import get_type_arguments, is_dict, is_list, is_union
-from .decoding import decoding_fns, register_decoding_fn
+from .decoding import _get_decoding_fn, decoding_fns, register_decoding_fn
 from .encoding import SimpleJsonEncoder, encode
 
 logger = get_logger(__file__)
@@ -403,57 +403,7 @@ def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -
     if custom_decoding_fn is not None:
         return custom_decoding_fn(field_value)
 
-    if field_type in {str, int, bool, float}:
-        return field_type(field_value)
-
-    if field_type in decoding_fns:
-        logger.debug(f"We have a decoding function for the type {field_type}")
-        decoding_function = decoding_fns[field_type]
-        return decoding_function(field_value)
-    
-    field_type = get_actual_type(field_type)
-    logger.debug(f"Actual type: {field_type}")
-
-    if is_dataclass(field_type):
-        return from_dict(field_type, field_value, drop_extra_fields)
-    
-    elif is_list(field_type):
-        item_type = get_list_item_type(field_type)
-        logger.debug(f"{field_type} is a List[{item_type}]")
-
-        if item_type and is_dataclass(item_type):    
-            new_field_list_value: List = []
-            for item_args in field_value:
-                # Parse an instance from the dict.
-                if isinstance(item_args, dict):
-                    item_instance = from_dict(item_type, item_args, drop_extra_fields)
-                    new_field_list_value.append(item_instance)
-                else:
-                    new_field_list_value.append(item_args)
-            return new_field_list_value
-
-    elif is_dict(field_type):
-        key_type, value_type = get_key_and_value_types(field_type)
-        logger.debug(f"Field {name} ({field_type}) is a Dict[{key_type}, {value_type}]")
-        if value_type:
-            new_field_dict_value: Dict = {}
-            logger.debug(f"field {name} value: {field_value}")
-
-            if isinstance(field_value, list):
-                # Special case for Dict annotation, but OrderedDict value.
-                field_value = OrderedDict(field_value)
-                new_field_dict_value = OrderedDict()
-
-            for k, item_args in field_value.items():
-                # Parse an instance from the dict.
-                if isinstance(item_args, dict):
-                    item_instance = from_dict(value_type, item_args, drop_extra_fields)
-                    new_field_dict_value[k] = item_instance
-                else:
-                    new_field_dict_value[k] = item_args
-            return new_field_dict_value
-    
-    return field_value
+    return _get_decoding_fn(field_type)(field_value)
 
 
 def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=None) -> Dataclass:

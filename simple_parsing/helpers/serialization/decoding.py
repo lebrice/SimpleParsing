@@ -4,9 +4,12 @@ import itertools
 import warnings
 from collections import OrderedDict
 from dataclasses import Field, fields, is_dataclass
+from functools import lru_cache, partial
 from typing import *
 
 from ...logging_utils import get_logger
+from ...utils import (get_item_type, get_type_arguments, is_dict, is_list,
+                      is_tuple, is_union, is_set)
 
 logger = get_logger(__file__)
 # logger.setLevel(logging.DEBUG)
@@ -25,6 +28,35 @@ def decode_optional(t: Type[T]) -> Callable[[Optional[Any]], Optional[T]]:
     def _decode_optional(val: Optional[Any]) -> Optional[T]:
         return val if val is None else decode(val)
     return _decode_optional
+
+
+def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
+    """ Tries to use the functions in succession, else returns the same value unchanged. """
+    def _try_functions(val: Any) -> Union[T, Any]:
+        e: Optional[Exception] = None
+        for func in funcs:
+            try:
+                return func(val)
+            except Exception as e:
+               pass 
+        else:
+            logger.error(f"Couldn't parse value {val}, returning it as-is. (exception: {e})")
+        return val
+    return _try_functions
+
+
+def decode_union(*types: Type[T]) -> Callable[[Any], Union[T, Any]]:
+    types = list(types)
+    optional = type(None) in types
+    # Partion the Union into None and non-None types.
+    while type(None) in types:
+        types.remove(type(None))
+    
+    decoding_fns: List[Callable[[Any], T]] = [
+        decode_optional(t) if optional else _get_decoding_fn(t) for t in types
+    ]
+    # Try using each of the non-None types, in succession. Worst case, return the value.
+    return try_functions(*decoding_fns)
 
 
 def decode_list(t: Type[T]) -> Callable[[List[Any]], List[T]]:
@@ -75,21 +107,77 @@ def decode_dict(K_: Type[K], V_: Type[V]) -> Callable[[List[Tuple[Any, Any]]], D
 def no_op(v):
     return v
 
-def try_constructor(t: Type[T]) -> Callable[[Any], Union[T, Any]]:
-    def try_parse(val: Any) -> Union[T, Any]:
-        try:
-            return t(val)  # type: ignore
-        except Exception as e:
-            logger.error(f"Couldn't parse value {val} into an instance of type {t} using the type as a constructor: {e}")
-            return val
-    return try_parse
 
+def try_constructor(t: Type[T]) -> Callable[[Any], Union[T, Any]]:
+    return try_functions(lambda val: t(**val))
+
+
+@lru_cache(maxsize=100)
 def _get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
+    cache_info = _get_decoding_fn.cache_info()
+    logger.debug(f"called for type {t}! Cache info: {cache_info}")
+   
     if t in decoding_fns:
         return decoding_fns[t]
-    elif t in {int, str, float, bool}:
+    if t in {int, str, float, bool}:
         return t
-    warnings.warn(UserWarning(f"Unable to find a decoding function for type {t}. Will try to use the type as a constructor."))
+    
+    from .serializable import Serializable
+    if inspect.isclass(t) and issubclass(t, Serializable):
+        return t.from_dict
+    if t is Any:
+        logger.debug(f"Decoding an Any type: {t}")
+        return no_op
+    
+    if is_dict(t):
+        logger.debug(f"Decoding a Dict field: {t}")
+        args = get_type_arguments(t)
+        if len(args) != 2:
+            args = (Any, Any)
+        return decode_dict(*args)
+    
+    if is_set(t):
+        logger.debug(f"Decoding a Set field: {t}")
+        args = get_type_arguments(t)
+        if len(args) != 1:
+            args = (Any,)
+        return decode_set(args[0])
+
+    if is_tuple(t):
+        logger.debug(f"Decoding a Tuple field: {t}")
+        args = get_type_arguments(t)
+        return decode_tuple(*args)
+
+    if is_list(t):
+        logger.debug(f"Decoding a List field: {t}")
+        args = get_type_arguments(t)
+        assert len(args) == 1
+        return decode_list(args[0])
+    
+    if is_union(t):
+        logger.debug(f"Decoding a Union field: {t}")
+        args = get_type_arguments(t)
+        return decode_union(*args)
+        
+    import typing_inspect as tpi
+    from .serializable import get_dataclass_type_from_forward_ref
+
+    if tpi.is_forward_ref(t):
+        dc = get_dataclass_type_from_forward_ref(t)
+        if dc is Serializable:
+            # Since dc is Serializable, this means that we found more than one
+            # matching dataclass the the given forward ref, and the right
+            # subclass will be determined based on the matching fields.
+            # Therefore we set drop_extra_fields=False.
+            return partial(dc.from_dict, drop_extra_fields=False)
+        if dc:
+            return dc.from_dict
+
+    # Unknown type.
+    warnings.warn(UserWarning(
+        f"Unable to find a decoding function for type {t}. "
+        f"Will try to use the type as a constructor."
+    ))
     return try_constructor(t)
 
 
@@ -99,83 +187,9 @@ def _register(t: Type, func: Callable) -> None:
         decoding_fns[t] = func
 
 
-def register_decoding_fn(some_type: Type[T], function: Callable[[Any], T], add_variants: bool=True) -> None:
+def register_decoding_fn(some_type: Type[T], function: Callable[[Any], T]) -> None:
     """Register a decoding function for the type `some_type`.
-    
-    If `add_variants` is `True`, then also adds variants for the types:
-    - Optional[some_type]
-    - Optional[List[some_type]]
-    - List[some_type]
-    - List[Optional[some_type]]
-    - List[List[some_type]]
-    - List[List[Optional[some_type]]]
-    - Dict[int, some_type]
-    - Dict[float, some_type]
-    - Dict[str, some_type]
-    - Dict[bool, some_type]
 
-    If the type is a subclass of collections.abc.Hashable, then we also add:
-    - Dict[some_type, int]
-    - Dict[some_type, float]
-    - Dict[some_type, str]
-    - Dict[some_type, bool]
-    - Dict[some_type, Optional[int]]
-    - Dict[some_type, Optional[float]]
-    - Dict[some_type, Optional[str]]
-    - Dict[some_type, Optional[bool]]
-    - Set[some_type]
-
-
-    NOTE: `Dict[<k>, <any of the above>]` should also be supported given how
-    `from_dict` is implemented below, but I didn't test out every combination.
-
-    #TODO: Could maybe use a different approach, where we seek out the right
-    # decoding function in a 'top-down' approach. So for instance, if we
-    # encounter a List[<T>], we check for <T>. if T is Dict[<K>, <V>], we check
-    # for <K>, then <V>, recursively, etc. The benefit is that we wouldn't have
-    # to manually create the decoding functions for all the variants. 
+    Because of how the decoding works, pretty much all the 
     """
     _register(some_type, function)
-
-    if add_variants:
-        _register(Optional[some_type],  decode_optional(some_type))
-        _register(List[some_type],      decode_list(some_type))  # type: ignore
-        _register(List[some_type],      decode_list(some_type))  # type: ignore
-        # _register(ForwardRef(some_type.__name__), decoding_fns[some_type])
-
-        variants: List[Type] = [
-            some_type,
-            Optional[some_type],
-            List[some_type],  # type: ignore
-            List[Optional[some_type]],  # type: ignore
-            Optional[List[some_type]],  # type: ignore
-            # ForwardRef(some_type.__name__),
-        ]
-
-        for item_type in variants:
-            # Register decoders for Optional[<variant>]
-            _register(Optional[item_type], decode_optional(item_type))  # type: ignore
-            # Register decoders for List[<variant>]
-            _register(List[item_type], decode_list(item_type))  # type: ignore
-
-        key_types: List[Type] = [int, str, float, bool]
-        # Register decoders for Dict<K>, <variant>]
-        for key_type, value_type in itertools.product(key_types, variants):
-            logger.debug(f"Registering K: {key_type}, V: {value_type}")
-            decoding_fn = decode_dict(key_type, value_type)
-            _register(Dict[key_type, value_type], decoding_fn)  # type: ignore
-            _register(Mapping[key_type, value_type], decoding_fn)  # type: ignore
-            _register(MutableMapping[key_type, value_type], decoding_fn)  # type: ignore
-        
-        if issubclass(some_type, Hashable):
-            logger.debug(f"Adding variants for Hashable type {some_type}")
-            value_types: List[Type] = [int, str, float, bool]
-            # Register decoders for Dict<K>, <variant>]
-            for value_type in value_types:
-                logger.debug(f"Registering K: {some_type}, V: {value_type}")
-                decoding_fn = decode_dict(some_type, value_type)
-                _register(Dict[some_type, value_type], decoding_fn)  # type: ignore
-                _register(Mapping[some_type, value_type], decoding_fn)  # type: ignore
-                _register(MutableMapping[some_type, value_type], decoding_fn)  # type: ignore
-
-            _register(Set[some_type], decode_set(some_type))  # type: ignore

@@ -270,7 +270,7 @@ for Serializable in (Serializable, YamlSerializable):
 
     def test_dicts():
         @dataclass
-        class Cat:
+        class Cat(Serializable):
             name: str
             age: int = 1
 
@@ -337,7 +337,6 @@ for Serializable in (Serializable, YamlSerializable):
         
         from simple_parsing.helpers import set_field
         from simple_parsing.helpers.serialization import decoding_fns
-        assert Set[Person] in decoding_fns
 
         @dataclass
         class Group(Serializable):
@@ -373,8 +372,6 @@ for Serializable in (Serializable, YamlSerializable):
         peter = Person("Peter", 11)
         
         from simple_parsing.helpers import dict_field
-        from simple_parsing.helpers.serialization import decoding_fns
-        assert Set[Person] in decoding_fns
 
         @dataclass
         class Leaderboard(Serializable):

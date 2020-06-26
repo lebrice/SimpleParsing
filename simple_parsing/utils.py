@@ -247,6 +247,41 @@ def is_dict(t: Type) -> bool:
     return dict in mro or Mapping in mro
 
 
+def is_set(t: Type) -> bool:
+    """returns True when `t` is a set type or annotation.
+
+    Args:
+        t (Type): a type.
+
+    Returns:
+        bool: True if `t` is set or a subclass of set.
+    
+    >>> from typing import *
+    >>> is_set(set)
+    True
+    >>> is_set(Set)
+    True
+    >>> is_set(tuple)
+    False
+    >>> is_set(Dict)
+    False
+    >>> is_set(Set[int])
+    True
+    >>> is_set(Set["something"])
+    True
+    >>> is_set(Optional[Set])
+    False
+    >>> class foo(Set):
+    ...   pass
+    ...
+    >>> is_set(foo)
+    True
+    """
+    mro = _mro(t)
+    return set in _mro(t)
+
+
+
 def is_enum(t: Type) -> bool:
     return Enum in _mro(t)
 
