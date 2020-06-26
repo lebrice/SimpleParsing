@@ -35,7 +35,7 @@ SimpleValueType = Union[bool, int, float, str]
 SimpleIterable = Union[List[SimpleValueType],
                        Dict[Any, SimpleValueType], Set[SimpleValueType]]
 
-
+from collections import abc as c_abc
 
 
 def is_subparser_field(field: Field) -> bool:
@@ -80,18 +80,23 @@ def str2bool(raw_value: Union[str, bool]) -> bool:
 
 
 def get_item_type(container_type: Type[Container[T]]) -> T:
-    """Returns the `type` of the items in the provided container `type`. When no type annotation is found, or no item type is found, returns `typing.Type[typing.Any]`.
-    Note, if a Tuple container type is passed, only the first argument to the type is actually used.
+    """Returns the `type` of the items in the provided container `type`.
+    
+    When no type annotation is found, or no item type is found, returns
+    `typing.Any`.
+    NOTE: If a type with multiple arguments is passed, only the first type
+    argument is returned.
+    
     >>> import typing
     >>> from typing import List, Tuple
     >>> get_item_type(list)
-    typing.Type[typing.Any]
+    typing.Any
     >>> get_item_type(List)
-    typing.Type[typing.Any]
+    typing.Any
     >>> get_item_type(tuple)
-    typing.Type[typing.Any]
+    typing.Any
     >>> get_item_type(Tuple)
-    typing.Type[typing.Any]
+    typing.Any
     >>> get_item_type(List[int])
     <class 'int'>
     >>> get_item_type(List[str])
@@ -117,14 +122,14 @@ def get_item_type(container_type: Type[Container[T]]) -> T:
     Returns:
         Type -- the type of the container's items, if found, else Any.
     """
-    if container_type in {list, tuple}:
+    if container_type in {list, tuple, List, Set, Tuple, Dict}:
         # the built-in `list` and `tuple` types don't have annotations for their item types.
-        return Type[Any]
-    type_arguments = getattr(container_type, "__args__", [str])
+        return Any
+    type_arguments = getattr(container_type, "__args__", None)
     if type_arguments:
         return type_arguments[0]
     else:
-        return Type[Any]
+        return Any
 
 
 def get_argparse_type_for_container(container_type: Type) -> Union[Type, Callable[[str], bool]]:
@@ -244,7 +249,7 @@ def is_dict(t: Type) -> bool:
     True
     """
     mro = _mro(t)
-    return dict in mro or Mapping in mro
+    return dict in mro or Mapping in mro or c_abc.Mapping in mro
 
 
 def is_set(t: Type) -> bool:

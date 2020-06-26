@@ -88,7 +88,7 @@ def decode_set(t: Type[T]) -> Callable[[List[T]], Set[T]]:
 
 def decode_dict(K_: Type[K], V_: Type[V]) -> Callable[[List[Tuple[Any, Any]]], Dict[K, V]]:
     decode_k = _get_decoding_fn(K_)
-    decode_v = _get_decoding_fn(V_) 
+    decode_v = _get_decoding_fn(V_)
     def _decode_dict(val: Union[Dict[Any, Any], List[Tuple[Any, Any]]]) -> Dict[K, V]:    
         result: Dict[K, V] = {}
         if isinstance(val, list):
