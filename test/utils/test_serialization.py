@@ -336,7 +336,6 @@ for Serializable in (Serializable, YamlSerializable):
         peter = Person("Peter", 11)
         
         from simple_parsing.helpers import set_field
-        from simple_parsing.helpers.serialization import decoding_fns
 
         @dataclass
         class Group(Serializable):

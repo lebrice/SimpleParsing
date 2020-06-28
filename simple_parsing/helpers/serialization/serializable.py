@@ -13,9 +13,9 @@ import typing_inspect as tpi
 
 from ...logging_utils import get_logger
 from ...utils import get_type_arguments, is_dict, is_list, is_union
-from .decoding import _get_decoding_fn, decoding_fns, register_decoding_fn
+from .decoding import get_decoding_fn, _decoding_fns, register_decoding_fn
 from .encoding import SimpleJsonEncoder, encode
-
+from .decoding import decode_field
 logger = get_logger(__file__)
 
 Dataclass = TypeVar("Dataclass")
@@ -393,20 +393,32 @@ def get_actual_type(field_type: Type) -> Type:
     return field_type
 
 
-def decode_field(field: Field, field_value: Any, drop_extra_fields: bool=None) -> Any:
-    name = field.name
-    field_type = field.type
-    logger.debug(f"name = {name}, field_type = {field_type} drop_extra_fields is {drop_extra_fields}")
-
-    # If the user set a custom decoding function, we use it.
-    custom_decoding_fn = field.metadata.get("decoding_fn")
-    if custom_decoding_fn is not None:
-        return custom_decoding_fn(field_value)
-
-    return _get_decoding_fn(field_type)(field_value)
-
-
 def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=None) -> Dataclass:
+    """Parses an instance of the dataclass `cls` from the dict `d`.
+
+    Args:
+        cls (Type[Dataclass]): A `dataclass` type.
+        d (Dict[str, Any]): A dictionary of `raw` values, obtained for example
+            when deserializing a json file into an instance of class `cls`. 
+        drop_extra_fields (bool, optional): Wether or not to drop extra
+            dictionary keys (dataclass fields) when encountered. There are three
+            options:
+            - True:
+                The extra keys are dropped, and this function returns an
+                instance of `cls`.
+            - False:
+                The extra keys (if any) are kept, and we search through the
+                subclasses of `cls` for the first dataclass which has all the
+                required fields. 
+            - None (default):
+                `drop_extra_fields = not cls.decode_into_subclasses`.
+
+    Raises:
+        RuntimeError: If an error is encountered while instantiating the class.
+
+    Returns:
+        Dataclass: An instance of the dataclass `cls`.
+    """
     if d is None:
         return None
     obj_dict: Dict[str, Any] = d.copy()
@@ -415,26 +427,31 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
     non_init_args: Dict[str, Any] = {}
         
     if drop_extra_fields is None:
-        decode_into_subclasses = getattr(cls, "decode_into_subclasses", False)
-        drop_extra_fields = not decode_into_subclasses
-        logger.debug(f"drop_extra_fields is None, using the value of {drop_extra_fields} from the attribute on class {cls}")
+        drop_extra_fields = not getattr(cls, "decode_into_subclasses", False)
+        logger.debug(f"drop_extra_fields is None. Using cls attribute.")
+
         if cls is Serializable:
-            logger.debug(f"The class that was passed is `Serializable`, which "
-                         f"means that we should set drop_extra_fields to False.")
+            # Passing `Serializable` means that we want to find the right
+            # subclass depending on the keys.
+            # We set the value to False when `Serializable` is passed, since
+            # we use this mechanism when we don't know which dataclass to use.
+            logger.debug(f"cls is `Serializable`, drop_extra_fields = False.")
             drop_extra_fields = False
 
-    logger.debug(f"from_dict called with cls {cls}, drop extra fields: {drop_extra_fields}")
+    logger.debug(f"from_dict for {cls}, drop extra fields: {drop_extra_fields}")
 
     for field in fields(cls):
         name = field.name
         field_type = field.type
         if name not in obj_dict:
             if field.metadata.get("to_dict", True):
-                logger.warning(f"Couldn't find the field '{name}' in the dict with keys {d.keys()}")
+                logger.warning(
+                    f"Couldn't find the field '{name}' in the dict with keys {d.keys()}"
+                )
             continue
 
-        field_value = obj_dict.pop(name)
-        field_value = decode_field(field, field_value)
+        raw_value = obj_dict.pop(name)
+        field_value = decode_field(field, raw_value)
 
         if field.init:
             init_args[name] = field_value
@@ -443,39 +460,42 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
     
     extra_args = obj_dict
     
+    # If there are arguments left over in the dict after taking all fields.
     if extra_args:
         if drop_extra_fields:
             logger.warning(f"Dropping extra args {extra_args}")
             extra_args.clear()
         
         elif issubclass(cls, Serializable):
-            # Use the first Serializable derived class that has all the required fields.
-            logger.debug(f"Missing field names: {extra_args.keys()}")  
+            # Use the first Serializable derived class that has all the required
+            # fields.
+            logger.debug(f"Missing field names: {extra_args.keys()}")
 
             # Find all the "registered" subclasses of `cls`. (from Serializable)
-            derived_classes: List[Type] = []
+            derived_classes: List[Type[Serializable]] = []
             for subclass in Serializable.subclasses:
                 if issubclass(subclass, cls) and subclass is not cls:
                     derived_classes.append(subclass)
             logger.debug(f"All serializable derived classes of {cls} available: {derived_classes}")
 
             from itertools import chain
-            # All the arguments that the dataclass should be able to accept in its 'init'.
+            # All the arguments that the dataclass should be able to accept in
+            # its 'init'.
             req_init_field_names = set(chain(extra_args, init_args))
             
-            # Sort the derived classes by their number of init fields, so we choose the first one that fits.
+            # Sort the derived classes by their number of init fields, so that
+            # we choose the first one with all the required fields.
             derived_classes.sort(key=lambda dc: len(get_init_fields(dc)))
 
             for child_class in derived_classes:
-                logger.debug(f"class name: {child_class.__name__}, mro: {child_class.mro()}") 
+                logger.debug(f"child class: {child_class.__name__}, mro: {child_class.mro()}") 
                 child_init_fields: Dict[str, Field] = get_init_fields(child_class)
                 child_init_field_names = set(child_init_fields.keys())
                 
                 if child_init_field_names >= req_init_field_names:
-                    logger.debug(f"Using child class {child_class} instead of {cls}, since it has all the required fields.")
+                    # `child_class` is the first class with all required fields.
+                    logger.debug(f"Using class {child_class} instead of {cls}")
                     return from_dict(child_class, d, drop_extra_fields=False)
-        else:
-            raise RuntimeError(f"Unexpected arguments for class {cls}: {extra_args}")
     
     init_args.update(extra_args)
     try:

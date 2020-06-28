@@ -16,7 +16,7 @@ from simple_parsing import field, mutable_field
 from simple_parsing.helpers import (Serializable, YamlSerializable, dict_field,
                                     list_field)
 from simple_parsing.helpers.serialization.decoding import (
-    _get_decoding_fn, register_decoding_fn)
+    get_decoding_fn, register_decoding_fn)
 
 
 def test_encode_something(simple_attribute):
