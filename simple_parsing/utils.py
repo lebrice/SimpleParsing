@@ -146,7 +146,7 @@ def get_argparse_type_for_container(container_type: Type) -> Union[Type, Callabl
     T = get_item_type(container_type)
     if T is bool:
         return str2bool
-    if T is Type[Any]:
+    if T is Any:
         return str
     return T
 

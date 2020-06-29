@@ -99,3 +99,22 @@ def test_typevar_decoding(simple_attribute):
     #     "hey4": expected_value,
     # })
     assert SomeClass.loads(b.dumps()) == b
+
+
+def test_super_nesting():
+    @dataclass
+    class Complicated(Serializable):
+        x: List[List[List[Dict[int, Tuple[int, float, str, List[float]]]]]] = list_field()
+    
+    c = Complicated()
+    c.x = [
+        [
+            [
+                {
+                    0: (2, 1.23, "bob", [1.2, 1.3])
+                }
+            ]
+        ]
+    ]
+    assert Complicated.loads(c.dumps()) == c
+    assert c.dumps() == '{"x": [[[{"0": [2, 1.23, "bob", [1.2, 1.3]]}]]]}'
