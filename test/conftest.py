@@ -92,6 +92,17 @@ def silent(no_stdout, no_warnings):
     pass
 
 
+@pytest.fixture
+def logs_warning(caplog):
+    yield
+    messages = [
+        x.message for x in caplog.get_records("call") if x.levelno == logging.WARNING
+    ]
+    if not messages:
+        pytest.fail(
+            f"No warning messages were logged: {messages}"
+        )
+
 
 @pytest.fixture
 def TaskHyperParameters():

@@ -18,18 +18,6 @@ from simple_parsing.helpers import Serializable, YamlSerializable
 
 SerializableBase = Serializable
 
-@pytest.fixture
-def logs_warning(caplog):
-    yield
-    messages = [
-        x.message for x in caplog.get_records("call") if x.levelno == logging.WARNING
-    ]
-    if not messages:
-        pytest.fail(
-            f"No warning messages were logged (when {when}): {messages}"
-        )
-
-
 
 # Test both json and yaml serialization.
 for Serializable in (Serializable, YamlSerializable):
@@ -299,16 +287,6 @@ for Serializable in (Serializable, YamlSerializable):
         
         with raises(RuntimeError):
             Something.from_dict({}, drop_extra_fields=False)
-
-    def test_from_dict_raises_warning_on_missing_key(logs_warning):
-        @dataclass
-        class Something(Serializable):
-            name: str
-            age: int = 0
-            bobobo: float = 0
-        
-        s = Something.from_dict({"name": "bob"})
-        assert s == Something(name="bob")
 
 
     def test_custom_encoding_fn():

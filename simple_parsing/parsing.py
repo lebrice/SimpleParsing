@@ -314,6 +314,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 value = parsed_arg_values.pop(field.dest, None)
                 deleted_values[field.dest] = value
         leftover_args = argparse.Namespace(**parsed_arg_values)
-        logger.debug(f"deleted values: {deleted_values}")
-        logger.debug(f"leftover args: {leftover_args}")
+        if deleted_values:
+            logger.debug(f"deleted values: {deleted_values}")
+            logger.debug(f"leftover args: {leftover_args}")
         return leftover_args

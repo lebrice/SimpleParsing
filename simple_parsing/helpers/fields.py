@@ -2,19 +2,29 @@
 """
 import argparse
 import dataclasses
+import enum
 import functools
+import inspect
 import json
 import warnings
+from collections import OrderedDict
 from dataclasses import _MISSING_TYPE, MISSING
+from enum import Enum
 from typing import (Any, Callable, Dict, Iterable, List, Optional, Set, Tuple,
-                    Type, Union, overload)
+                    Type, TypeVar, Union, overload)
 
-from simple_parsing.utils import (Dataclass, K, SimpleValueType, T, V,
+from simple_parsing.utils import (Dataclass, SimpleValueType,
                                   get_type_arguments, is_union)
 
 from ..logging_utils import get_logger
 
 logger = get_logger(__file__)
+
+E = TypeVar("E", bound=Enum)
+K = TypeVar("K")
+V = TypeVar("V")
+T = TypeVar("T")
+
 
 def field(default: Union[T, _MISSING_TYPE] = MISSING,
           alias: Optional[Union[str, List[str]]] = None,
@@ -30,9 +40,14 @@ def field(default: Union[T, _MISSING_TYPE] = MISSING,
           compare: bool = True,
           metadata: Optional[Dict[str, Any]] = None,
           **custom_argparse_args: Any) -> T:
-    """Calls the `dataclasses.field` function, and leftover arguments are fed
-    directly to the `ArgumentParser.add_argument(*option_strings, **kwargs)`
-    method.
+    """Extension of the `dataclasses.field` function.
+    
+    Adds the ability to customize how this field's command-line options are
+    created, as well as how it is serialized / deseralized (if the containing 
+    dataclass inherits from `simple_parsing.Serializable`.
+
+    Leftover arguments are fed directly to the
+    `ArgumentParser.add_argument(*option_strings, **kwargs)` method.
 
     Parameters
     ----------
@@ -134,16 +149,24 @@ def field(default: Union[T, _MISSING_TYPE] = MISSING,
         )
 
 
+@overload
+def choice(choices: Type[E], default: E, **kwargs) -> E:
+    pass
+
+@overload
+def choice(choices: Dict[K, V], default: K, **kwargs) -> V:
+    pass
+
 def choice(*choices: T, default: T = None, **kwargs: Any) -> T:
-    """ Makes a regular attribute, whose value, when parsed from the 
-    command-line, can only be one contained in `choices`, with a default value 
-    of `default`.
+    """ Makes a field which can be chosen from the set of choices from the
+    command-line.
 
     Returns a regular `dataclasses.field()`, but with metadata which indicates  
     the allowed values.
 
     (New:) If `choices` is a dictionary, then passing the 'key' will result in
     the corresponding value being used. The values may be objects, for example.
+    Similarly for Enum types, passing a type of enum will  
 
     Args:
         default (T, optional): The default value of the field. Defaults to None,
@@ -156,28 +179,39 @@ def choice(*choices: T, default: T = None, **kwargs: Any) -> T:
         T: the result of the usual `dataclasses.field()` function (a dataclass field/attribute).
     """
     assert len(choices) > 0, "Choice requires at least one positional argument!"
-    if isinstance(choices[0], dict):
-        if len(choices) > 1:
-            raise ValueError(f"'choices' should be either a list of values or "
-                             f"a single dictionary. (Received {choices})")
-        choice_dict = choices[0]
 
-        # if the choices is a dict, the options are the keys
-        choices = tuple(choice_dict.keys())
+    if len(choices) == 1:
+        choices = choices[0]
+        if inspect.isclass(choices) and issubclass(choices, Enum):
+            # If given an enum, construct a mapping from names to values.
+            choice_enum: Type[Enum] = choices
+            choices = OrderedDict(
+                (e.name, e) for e in choice_enum
+            )
+            if default is not None and not isinstance(default, choice_enum):
+                if default in choices:
+                    warnings.warn(UserWarning(
+                        f"Setting default={default} could perhaps be ambiguous "
+                        f"(enum names vs enum values). Consider using the enum "
+                        f"value {choices[default]} instead."
+                    ))
+                    default = choices[default]
+                else:
+                    raise ValueError(f"'default' arg should be of type {choice_enum}, but got {default}")
 
-        # save the info about the choice_dict in the field metadata.
-        metadata = kwargs.setdefault("metadata", {})
-        metadata["choice_dict"] = choice_dict
-        if default is not None and default in choice_dict:
-            return field(default_factory=functools.partial(choice_dict.get, default), choices=choices, **kwargs)  # type: ignore
+        if isinstance(choices, dict):
+            # if the choices is a dict, the options are the keys
+            # save the info about the choice_dict in the field metadata.
+            metadata = kwargs.setdefault("metadata", {})
+            # save the choice_dict in metadata so that we can recover the values in postprocessing.
+            metadata["choice_dict"] = choices
+            choices = list(choices.keys())
 
-
-    if default is not None and default not in choices:
-        raise ValueError(f"Default value of {default} is not a valid option! "
-                         f"(options: {choices})")
-    
-    return field(default=default, choices=choices, **kwargs)  # type: ignore
-
+    return field(
+        default=default,
+        choices=choices,
+        **kwargs
+    )
 
 
 def list_field(*default_items: T, **kwargs) -> List[T]:

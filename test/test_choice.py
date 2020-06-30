@@ -93,3 +93,65 @@ def test_choice_with_default_instance():
 
     p = Parent.setup("")
     assert p.d.option == AA("parent")
+
+from enum import Enum
+
+
+class Color(Enum):
+    blue: str = "BLUE"
+    red: str = "RED"
+    green: str = "GREEN"
+    orange: str = "ORANGE"
+
+
+def test_passing_enum_to_choice():
+
+    @dataclass
+    class Something(TestSetup):
+        favorite_color: Color = choice(Color, default=Color.green) 
+    s = Something.setup("")
+    assert s.favorite_color == Color.green
+
+    s = Something.setup("--favorite_color blue")
+    assert s.favorite_color == Color.blue
+
+
+def test_passing_enum_to_choice_no_default_makes_required_arg():
+
+    @dataclass
+    class Something(TestSetup):
+        favorite_color: Color = choice(Color)
+    with raises():
+        s = Something.setup("")
+
+    s = Something.setup("--favorite_color blue")
+    assert s.favorite_color == Color.blue
+
+
+def test_passing_enum_to_choice_with_key_as_default():
+    with pytest.warns(UserWarning):
+        @dataclass
+        class Something(TestSetup):
+            favorite_color: Color = choice(Color, default="blue")
+        
+
+def test_passing_enum_to_choice_is_same_as_enum_attr():
+
+    @dataclass
+    class Something1(TestSetup):
+        favorite_color: Color = Color.orange
+ 
+    @dataclass
+    class Something2(TestSetup):
+        favorite_color: Color = choice(Color, default=Color.orange)
+
+    s1 = Something1.setup("--favorite_color green")
+    s2 = Something2.setup("--favorite_color green")
+    assert s1.favorite_color == s2.favorite_color
+
+
+    s = Something1.setup("--favorite_color blue")
+    assert s.favorite_color == Color.blue
+    s = Something2.setup("--favorite_color blue")
+    assert s.favorite_color == Color.blue
+

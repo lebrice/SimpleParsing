@@ -155,6 +155,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             logger.debug(f"Adding an Enum attribute '{self.name}'")
             # we actually parse enums as string, and convert them back to enums
             # in the `process` method.
+            logger.debug(f"self.choices = {self.choices}")
             _arg_options["choices"] = list(e.name for e in self.type)
             _arg_options["type"] = str
             # if the default value is an Enum, we convert it to a string.
@@ -191,6 +192,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             )
             _arg_options["nargs"] = utils.get_container_nargs(self.type)
             _arg_options["type"] = utils._parse_container(self.type)
+            
 
             if self.is_reused:
                 type_fn = utils._parse_multiple_containers(self.type)
@@ -772,6 +774,7 @@ def only_keep_action_args(options: Dict[str, Any],
             f"Some auto-generated options were deleted, as they were "
             f"not required by the Action constructor: {deleted_options}."
         )
-    logger.debug(f"Kept options: \t{kept_options.keys()}")
-    logger.debug(f"Removed options: \t{deleted_options.keys()}")
+    if deleted_options:
+        logger.debug(f"Kept options: \t{kept_options.keys()}")
+        logger.debug(f"Removed options: \t{deleted_options.keys()}")
     return kept_options

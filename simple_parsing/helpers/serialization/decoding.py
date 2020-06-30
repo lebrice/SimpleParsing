@@ -224,7 +224,12 @@ def decode_tuple(*tuple_item_types: Type[T]) -> Callable[[List[T]], Tuple[T, ...
     decoding_fns = [
         get_decoding_fn(t) for t in tuple_item_types
     ]
+    # Note, if there are more values than types in the tuple type, then the
+    # last type is used.
+    # TODO: support the Ellipsis?
+
     def _decode_tuple(val: Tuple[Any, ...]) -> Tuple[T, ...]:
+        result: List[T] = []
         return tuple(
             decoding_fns[i](v) for i, v in enumerate(val)
         )

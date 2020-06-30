@@ -3,7 +3,7 @@ import inspect
 import json
 import warnings
 from collections import OrderedDict
-from dataclasses import Field, asdict, dataclass, fields, is_dataclass
+from dataclasses import MISSING, Field, asdict, dataclass, fields, is_dataclass
 from functools import singledispatch
 from pathlib import Path
 from typing import *
@@ -13,9 +13,10 @@ import typing_inspect as tpi
 
 from ...logging_utils import get_logger
 from ...utils import get_type_arguments, is_dict, is_list, is_union
-from .decoding import get_decoding_fn, _decoding_fns, register_decoding_fn
+from .decoding import (_decoding_fns, decode_field, get_decoding_fn,
+                       register_decoding_fn)
 from .encoding import SimpleJsonEncoder, encode
-from .decoding import decode_field
+
 logger = get_logger(__file__)
 
 Dataclass = TypeVar("Dataclass")
@@ -444,9 +445,10 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
         name = field.name
         field_type = field.type
         if name not in obj_dict:
-            if field.metadata.get("to_dict", True):
+            if field.metadata.get("to_dict", True) and field.default is MISSING and field.default_factory is MISSING:
                 logger.warning(
-                    f"Couldn't find the field '{name}' in the dict with keys {d.keys()}"
+                    f"Couldn't find the field '{name}' in the dict with keys "
+                    f"{list(d.keys())}"
                 )
             continue
 
