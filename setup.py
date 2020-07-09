@@ -6,11 +6,10 @@ with open("README.md", "r") as fh:
 packages = setuptools.find_namespace_packages(include=['simple_parsing*'])
 print("PACKAGES FOUND:", packages)
 print(sys.version_info)
-print("`dataclasses` package is also required: ", sys.version_info[:2] == (3, 6))
 
 setuptools.setup(
     name="simple_parsing",
-    version="0.0.11.post12",
+    version="0.0.11.post13",
     author="Fabrice Normandin",
     author_email="fabrice.normandin@gmail.com",
     description="A small utility for simplifying and cleaning up argument parsing scripts.",

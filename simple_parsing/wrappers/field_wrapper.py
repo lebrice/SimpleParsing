@@ -138,18 +138,22 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                          f"'{attribute}'")
 
     def get_arg_options(self) -> Dict[str, Any]:
+        """ Create the `parser.add_arguments` kwargs for this field. """
         if not self.field.init:
+            # Don't add command-line arguments for fields that have `init=False`.
+            # TODO: See (https://github.com/lebrice/SimpleParsing/issues/20#issue-619198492)
             return {}
 
         _arg_options: Dict[str, Any] = {}
         # TODO: should we explicitly use `str` whenever the type isn't a builtin
         # type? or try to use it as a constructor?
+        # TODO: [Improvement] @lebrice Maybe overhaul the 'type' function, in a similar way as with is
+        # done with fields in the Serializable class. 
         _arg_options["type"] = self.type
         _arg_options["help"] = self.help
         _arg_options["required"] = self.required
         _arg_options["dest"] = self.dest
         _arg_options["default"] = self.default
-
 
         if self.is_enum:
             logger.debug(f"Adding an Enum attribute '{self.name}'")
