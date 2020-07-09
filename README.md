@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/lebrice/SimpleParsing.svg?branch=master)](https://travis-ci.org/lebrice/SimpleParsing) [![PyPI version](https://badge.fury.io/py/simple-parsing.svg)](https://badge.fury.io/py/simple-parsing)
+[![Build Status](https://travis-ci.com/lebrice/SimpleParsing.svg?branch=master)](https://travis-ci.com/lebrice/SimpleParsing) [![PyPI version](https://badge.fury.io/py/simple-parsing.svg)](https://badge.fury.io/py/simple-parsing)
 
 
 # Simple, Elegant, Typed Argument Parsing <!-- omit in toc -->
