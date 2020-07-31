@@ -22,17 +22,16 @@ HParams(num_layers=4, num_units=64, optimizer='ADAM', learning_rate=0.001)
 parser.print_help()
 expected += """
 usage: choice.py [-h] [--num_layers int] [--num_units int]
-                           [--optimizer {ADAM,SGD,RMSPROP}]
-                           [--learning_rate float]
+                 [--optimizer {ADAM,SGD,RMSPROP}] [--learning_rate float]
 
 optional arguments:
   -h, --help            show this help message and exit
 
 HParams ['hparams']:
-  Set of options for the training of a Model.
+   Set of options for the training of a Model.
 
-  --num_layers int
-  --num_units int
-  --optimizer {ADAM,SGD,RMSPROP}
-  --learning_rate float
+  --num_layers int, --hparams.num_layers int
+  --num_units int, --hparams.num_units int
+  --optimizer {ADAM,SGD,RMSPROP}, --hparams.optimizer {ADAM,SGD,RMSPROP}
+  --learning_rate float, --hparams.learning_rate float
 """

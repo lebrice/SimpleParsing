@@ -38,6 +38,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     # TODO: This can often make "--help" messages a bit crowded
     add_dash_variants: ClassVar[bool] = False
 
+    # Wether to add the `dest` to the list of option strings.
+    add_dest_to_option_strings: ClassVar[bool] = True
 
     def __init__(self, field: dataclasses.Field, parent: Any = None, prefix: str=""):
         super().__init__(wrapped=field, name=field.name)
@@ -436,6 +438,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             ]
             options.extend(additional_options)
             dashes.extend(additional_dashes)
+        
+        if type(self).add_dest_to_option_strings:
+            dashes.append("-" if len(self.dest) == 1 else "--")
+            options.append(self.dest)
+        
         # remove duplicates by creating a set.
         option_strings = set(
             f"{dash}{option}" for dash, option in zip(dashes, options)

@@ -27,6 +27,8 @@ def set_prog_name():
     yield set_prog
     sys.argv = argv
 
+import textwrap
+
 
 @pytest.fixture
 def assert_equals_stdout(capsys):

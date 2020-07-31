@@ -47,11 +47,12 @@ MAML ['hparams']:
   Overwrites some of the default values and adds new arguments/attributes.
       
 
-  --num_layers int
-  --num_units int
-  --optimizer str
-  --learning_rate float
-  --name str            method (default: MAML)
+  --num_layers int, --hparams.num_layers int
+  --num_units int, --hparams.num_units int
+  --optimizer str, --hparams.optimizer str
+  --learning_rate float, --hparams.learning_rate float
+  --name str, --hparams.name str
+                        method (default: MAML)
 """
 
 
@@ -60,11 +61,11 @@ expected += """
 parser = ArgumentParser()
 
 group = parser.add_argument_group(title="MAML ['hparams']", description="Overwrites some of the default values and adds new arguments/attributes.")
-group.add_argument(*['--num_layers'], **{'type': int, 'help': None, 'required': False, 'dest': 'hparams.num_layers', 'default': 6})
-group.add_argument(*['--num_units'], **{'type': int, 'help': None, 'required': False, 'dest': 'hparams.num_units', 'default': 128})
-group.add_argument(*['--optimizer'], **{'type': str, 'help': None, 'required': False, 'dest': 'hparams.optimizer', 'default': 'ADAM'})
-group.add_argument(*['--learning_rate'], **{'type': float, 'help': None, 'required': False, 'dest': 'hparams.learning_rate', 'default': 0.001})
-group.add_argument(*['--name'], **{'type': str, 'help': 'method', 'required': False, 'dest': 'hparams.name', 'default': 'MAML'})
+group.add_argument(*['--num_layers', '--hparams.num_layers'], **{'type': int, 'help': None, 'required': False, 'dest': 'hparams.num_layers', 'default': 6})
+group.add_argument(*['--num_units', '--hparams.num_units'], **{'type': int, 'help': None, 'required': False, 'dest': 'hparams.num_units', 'default': 128})
+group.add_argument(*['--optimizer', '--hparams.optimizer'], **{'type': str, 'help': None, 'required': False, 'dest': 'hparams.optimizer', 'default': 'ADAM'})
+group.add_argument(*['--learning_rate', '--hparams.learning_rate'], **{'type': float, 'help': None, 'required': False, 'dest': 'hparams.learning_rate', 'default': 0.001})
+group.add_argument(*['--name', '--hparams.name'], **{'type': str, 'help': 'method', 'required': False, 'dest': 'hparams.name', 'default': 'MAML'})
 
 args = parser.parse_args()
 print(args)
