@@ -27,6 +27,7 @@ class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args,
                  conflict_resolution: ConflictResolution=ConflictResolution.AUTO,
                  add_option_string_dash_variants: bool=False,
+                 add_dest_to_option_strings: bool=True,
                  formatter_class: Type[HelpFormatter]=SimpleHelpFormatter,
                  **kwargs):
         """Creates an ArgumentParser instance.
@@ -36,17 +37,32 @@ class ArgumentParser(argparse.ArgumentParser):
         - conflict_resolution : ConflictResolution, optional
 
             What kind of prefixing mechanism to use when reusing dataclasses
-            (argument groups)
+            (argument groups).
             For more info, check the docstring of the `ConflictResolution` Enum.
 
         - add_option_string_dash_variants : bool, optional
 
             Wether or not to add option_string variants where the underscores in
             attribute names are replaced with dashes.
-            For example, when set to `True`, "--no-cache" and "--no_cache" could
+            For example, when set to `True`, "--no-cache" and "--no_cache" can
             both be used to point to the same attribute `no_cache` on some
             dataclass.
         
+        - add_dest_to_option_strings: bool, optional
+
+            Wether or not to add the `dest` of each field to the list of option
+            strings for the argument.
+            When True (default), each field can be referenced using either the
+            auto-generated option string or the full 'destination' of the field
+            in the resulting namespace.
+            When False, only uses the auto-generated option strings.
+            
+            The auto-generated option strings are usually just the field names,
+            except when there are multiple arguments with the same name. In this
+            case, the conflicts are resolved as determined by the value of
+            `conflict_resolution` and each field ends up with a unique option
+            string.
+
         - formatter_class : Type[HelpFormatter], optional
 
             The formatter class to use. By default, uses
@@ -68,6 +84,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         self._preprocessing_done: bool = False
         FieldWrapper.add_dash_variants = add_option_string_dash_variants
+        FieldWrapper.add_dest_to_option_strings = add_dest_to_option_strings
 
     @overload
     def add_arguments(self, dataclass: Type[Dataclass], dest: str, prefix: str="", default: Dataclass=None):

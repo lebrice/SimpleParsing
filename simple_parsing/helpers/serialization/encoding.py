@@ -91,7 +91,6 @@ def encode_list(obj: Iterable) -> Sequence:
 @encode.register(dict)
 @encode.register(Mapping)
 def encode_dict(obj: Mapping) -> Dict:
-    logger.debug(f"Encoding dict")
     constructor = type(obj)
     result = constructor()
     for k, v in obj.items():

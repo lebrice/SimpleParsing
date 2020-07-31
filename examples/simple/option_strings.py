@@ -29,8 +29,8 @@ optional arguments:
 HParams ['hparams']:
    Set of options for the training of a Model. 
 
-  -n int, --num_layers int
-  -u int, --num_units int
-  -o str, --opt str, --optimizer str
-  -lr float, --learning_rate float
+  -n int, --num_layers int, --hparams.num_layers int
+  -u int, --num_units int, --hparams.num_units int
+  -o str, --opt str, --optimizer str, --hparams.optimizer str
+  -lr float, --learning_rate float, --hparams.learning_rate float
 """
