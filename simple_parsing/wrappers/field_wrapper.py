@@ -157,7 +157,12 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         _arg_options["dest"] = self.dest
         _arg_options["default"] = self.default
 
-        if self.is_enum:
+        if utils.is_union(self.field.type):
+            logger.debug(f"Parsing a Union type!")
+            from .field_parsing import get_parsing_fn
+            _arg_options["type"] = get_parsing_fn(self.field.type)
+
+        elif self.is_enum:
             logger.debug(f"Adding an Enum attribute '{self.name}'")
             # we actually parse enums as string, and convert them back to enums
             # in the `process` method.
@@ -191,14 +196,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["type"] = type_fn
 
         elif self.is_tuple:
-            T = utils.get_argparse_type_for_container(self.type)
-            logger.debug(
-                f"Adding a Tuple attribute '{self.name}' "
-                f"with items of type '{T}'"
-            )
+            logger.debug(f"Adding a Tuple attribute '{self.name}' with type {self.type}")
+            from .field_parsing import get_parsing_fn
             _arg_options["nargs"] = utils.get_container_nargs(self.type)
-            _arg_options["type"] = utils._parse_container(self.type)
-            
+            _arg_options["type"] = get_parsing_fn(self.field.type)
+            # _arg_options["type"].__name__ = utils.get_type_name(_arg_options["type"])
 
             if self.is_reused:
                 type_fn = utils._parse_multiple_containers(self.type)
@@ -597,17 +599,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     def type(self) -> Type[Any]:
         if self._type is not None:
             return self._type
-        elif utils.is_optional(self.field.type):
-            type_args = set(utils.get_type_arguments(self.field.type))
-            # TODO: What do we do if the type is something like Union[str, int, float]?
-            if str in type_args:
-                self._type = str
-            else:
-                type_args.remove(type(None))
-                # get the first non-NoneType type argument.
-                self._type = type_args.pop()
-        
-        
         else:
             self._type = self.field.type
         return self._type

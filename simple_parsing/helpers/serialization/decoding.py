@@ -82,8 +82,8 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
             A function that decodes a 'raw' value to an instance of type `t`.
 
     """
-    cache_info = get_decoding_fn.cache_info()
-    logger.debug(f"called for type {t}! Cache info: {cache_info}")
+    # cache_info = get_decoding_fn.cache_info()
+    # logger.debug(f"called for type {t}! Cache info: {cache_info}")
 
     if t in _decoding_fns:
         # The type has a dedicated decoding function.
@@ -159,10 +159,7 @@ def _register(t: Type, func: Callable) -> None:
 
 
 def register_decoding_fn(some_type: Type[T], function: Callable[[Any], T]) -> None:
-    """Register a decoding function for the type `some_type`.
-
-    Because of how the decoding works, pretty much all the 
-    """
+    """Register a decoding function for the type `some_type`. """
     _register(some_type, function)
 
 

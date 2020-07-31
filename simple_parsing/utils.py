@@ -373,9 +373,9 @@ def get_container_nargs(container_type: Type) -> Union[int, str]:
         type_arguments = getattr(container_type, "__args__", [])
         if type_arguments and Ellipsis not in type_arguments:
             nargs = len(type_arguments)
-            if nargs == 1:
-                # a `Tuple[int]` annotation can be interpreted as "a tuple of an unknown number of ints".
-                return "*"
+            # if nargs == 1:
+            #     # a `Tuple[int]` annotation can be interpreted as "a tuple of an unknown number of ints"?.
+            #     return "*"
             return nargs
 
     return "*"

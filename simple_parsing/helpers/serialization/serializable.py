@@ -115,7 +115,10 @@ class Serializable:
 
             encoding_fn = encode
             if isinstance(value, Serializable) and recurse:
-                encoded = value.to_dict(dict_factory=dict_factory, recurse=recurse)
+                try:
+                    encoded = value.to_dict(dict_factory=dict_factory, recurse=recurse)
+                except TypeError as e:
+                    encoded = value.to_dict()
                 logger.debug(f"Encoded Serializable field {name}: {encoded}")
             else:
                 try:
