@@ -15,7 +15,7 @@ from typing import (Any, Callable, Dict, Iterable, List, Optional, Set, Tuple,
 
 from simple_parsing.utils import (Dataclass, SimpleValueType,
                                   get_type_arguments, is_optional, is_tuple,
-                                  is_union)
+                                  is_union, str2bool)
 
 from ..logging_utils import get_logger
 from .help_formatter import Formatter, SimpleHelpFormatter
@@ -269,8 +269,15 @@ def mutable_field(_type: Type[T], *args, init: bool = True, repr: bool = True, h
 
 MutableField = mutable_field
 
+
 def subparsers(subcommands: Dict[str, Type[Dataclass]], **kwargs) -> Any:
     return field(metadata={
         "subparsers": subcommands,
-        **kwargs,
-    })
+    }, **kwargs)
+
+
+def flag(default: bool, **kwargs):
+    """ Creates a boolean field with a default value of `default` and nargs='?'.
+    """
+    action = "store_true" if default is False else "store_false"
+    return field(default=default, nargs="?", action=action, type=str2bool, **kwargs)

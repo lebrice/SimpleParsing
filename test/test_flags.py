@@ -1,23 +1,15 @@
 import argparse
 import textwrap
 from dataclasses import dataclass, fields
-from simple_parsing import field
+from simple_parsing import field, flag
 from .testutils import *
 
-# @pytest.mark.xfail(
-#     "TODO: @lebrice Add something to make it easier to have 'flags'."
-# )
+@xfail(reason="TODO: @lebrice Add something to make it easier to have 'flags'.")
 def test_flags():
     @dataclass
     class Flags(TestSetup):
-        debug: bool = False
+        debug: bool = flag(False)
 
-        cuda:    bool = field(True)
-        no_cuda: bool = field(False, dest="flags.cuda", action="store_true")
+        cuda:    bool = flag(True, opposite_prefix="no-")
 
-    flags = Flags.setup("")
-    assert flags == Flags(
-        debug=False,
-        cuda=True,
-        no_cuda=False,
-    )
+    assert Flags.setup("--no-cuda") == Flags(debug=False, cuda=False)

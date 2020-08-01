@@ -181,13 +181,16 @@ def test_subparser_rest_of_args_go_to_parent():
     @dataclass
     class Parent(TestSetup):
         family: Union[Child, Pet]
-        foo: bool = False
+        foo: bool = simple_parsing.flag(False)
         income: float = 35_000.
 
     p = Parent.setup("pet --kind fish --foo --income 10_000")
     assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
 
     p = Parent.setup("--income 10_000 pet --kind fish --foo")
+    assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
+
+    p = Parent.setup("--income 10_000 --foo pet --kind fish")
     assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
 
 
@@ -211,6 +214,27 @@ def test_mixing_the_ordering():
 
     p = Parent.setup("--income 10_000 pet --foo --kind fish")
     assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
+
+@xfail(reason="TODO")
+def test_mixing_the_ordering_all_have_defaults():
+    @dataclass
+    class Child:
+        name: str = "Bob"
+        age: int = 8
+    
+    @dataclass
+    class Pet:
+        kind: str = choice("cat", "dog", "fish", default="cat") 
+
+    @dataclass
+    class Parent(TestSetup):
+        family: Union[Child, Pet] = subparsers(None, required=False)
+        foo: bool = False
+        income: float = 35_000.
+
+    p = Parent.setup("--income 10_000 pet --foo --kind fish")
+    assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
+
 
 def test_argparse_version_giving_extra_args_to_parent():
     
