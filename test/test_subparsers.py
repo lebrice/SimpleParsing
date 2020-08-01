@@ -4,6 +4,7 @@ import dataclasses
 import inspect
 import test
 import textwrap
+from argparse import Namespace
 from dataclasses import dataclass, fields
 from enum import Enum
 from pathlib import Path
@@ -12,10 +13,10 @@ from typing import *
 import pytest
 
 import simple_parsing
-from simple_parsing import ArgumentParser
+from simple_parsing import ArgumentParser, choice
 from simple_parsing.helpers import subparsers
 
-from .testutils import TestSetup, xfail, raises
+from .testutils import TestSetup, raises, xfail
 
 
 @dataclass
@@ -166,7 +167,109 @@ def test_experiments():
     assert experiment.dataset == "mnist"
     assert experiment.iid == False
 
+
+def test_subparser_rest_of_args_go_to_parent():
+    @dataclass
+    class Child:
+        name: str = "Bob"
+        age: int = 8
     
+    @dataclass
+    class Pet:
+        kind: str = choice("cat", "dog", "fish") 
+
+    @dataclass
+    class Parent(TestSetup):
+        family: Union[Child, Pet]
+        foo: bool = simple_parsing.flag(False)
+        income: float = 35_000.
+
+    p = Parent.setup("pet --kind fish --foo --income 10_000")
+    assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
+
+    p = Parent.setup("--income 10_000 pet --kind fish --foo")
+    assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
+
+    p = Parent.setup("--income 10_000 --foo pet --kind fish")
+    assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
+
+
+@xfail(reason="TODO: Not sure how to fix this issue. Can only perform simple "
+              "re-ordering for now. (as in the test above this one)")
+def test_mixing_the_ordering():
+    @dataclass
+    class Child:
+        name: str = "Bob"
+        age: int = 8
+    
+    @dataclass
+    class Pet:
+        kind: str = choice("cat", "dog", "fish", default="cat") 
+
+    @dataclass
+    class Parent(TestSetup):
+        family: Union[Child, Pet] = subparsers(None, required=False)
+        foo: bool = False
+        income: float = 35_000.
+
+    p = Parent.setup("--income 10_000 pet --foo --kind fish")
+    assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
+
+@xfail(reason="TODO")
+def test_mixing_the_ordering_all_have_defaults():
+    @dataclass
+    class Child:
+        name: str = "Bob"
+        age: int = 8
+    
+    @dataclass
+    class Pet:
+        kind: str = choice("cat", "dog", "fish", default="cat") 
+
+    @dataclass
+    class Parent(TestSetup):
+        family: Union[Child, Pet] = subparsers(None, required=False)
+        foo: bool = False
+        income: float = 35_000.
+
+    p = Parent.setup("--income 10_000 pet --foo --kind fish")
+    assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
+
+
+def test_argparse_version_giving_extra_args_to_parent():
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--foo", type=int, default=3)
+
+    subparsers = parser.add_subparsers(title="foo_command")
+
+    subparser = subparsers.add_parser("boo")
+    subparser.add_argument("--bar", type=int, default=1)
+    subparser.add_argument("--baz", type=int, default=4)
+
+    args = parser.parse_args("--foo 1 boo --bar 2 --baz 3".split())
+    assert args == Namespace(foo=1, bar=2, baz=3)
+
+    args = parser.parse_known_args("boo --bar 2 --baz 3 --foo 1".split())
+    assert args == (Namespace(foo=3, bar=2, baz=3), ['--foo', '1'])
+
+
+def test_argparse_version_giving_extra_args_to_parent():
+    parser = simple_parsing.ArgumentParser()
+    parser.add_argument("--foo", type=int, default=3)
+    assert not parser._subparsers
+    subparsers = parser.add_subparsers(title="foo_command")
+
+    subparser = subparsers.add_parser("boo")
+    subparser.add_argument("--bar", type=int, default=1)
+    subparser.add_argument("--baz", type=int, default=4)
+
+    args = parser.parse_args("--foo 1 boo --bar 2 --baz 3".split())
+    assert args == Namespace(foo=1, bar=2, baz=3)
+
+    args = parser.parse_known_args("boo --bar 2 --baz 3 --foo 1".split())
+    assert args == (Namespace(foo=1, bar=2, baz=3), [])
+
 
 if __name__ == "__main__":
     import sys

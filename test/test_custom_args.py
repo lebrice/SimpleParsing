@@ -6,8 +6,7 @@ from typing import Any
 import pytest
 from simple_parsing import ArgumentParser, field
 
-from .testutils import (TestParser, TestSetup, raises, raises_expected_n_args,
-                        raises_missing_required_arg)
+from .testutils import *
 from typing import List
 
 def test_custom_args():
@@ -123,7 +122,7 @@ def test_custom_nargs_question_mark():
     foo = Foo.setup("--some_int 123")
     assert foo.some_int == 123
 
-    with raises_missing_required_arg():
+    with raises_unrecognized_args("456"):
         foo = Foo.setup("--some_int 123 456")
 
 

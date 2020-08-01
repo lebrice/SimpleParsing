@@ -8,10 +8,11 @@ from typing import *
 from typing import cast
 
 from .. import docstring, utils
-from ..utils import Dataclass, DataclassType
 from ..helpers import dict_field
-from .wrapper import Wrapper
 from ..logging_utils import get_logger
+from ..utils import Dataclass, DataclassType
+from .field_parsing import get_parsing_fn
+from .wrapper import Wrapper
 
 logger = get_logger(__file__)
 
@@ -149,15 +150,25 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         _arg_options: Dict[str, Any] = {}
         # TODO: should we explicitly use `str` whenever the type isn't a builtin
         # type? or try to use it as a constructor?
-        # TODO: [Improvement] @lebrice Maybe overhaul the 'type' function, in a similar way as with is
-        # done with fields in the Serializable class. 
-        _arg_options["type"] = self.type
+        # TODO: [Improvement] @lebrice Maybe overhaul the 'type' function, in a
+        # similar way as with is done with fields in the Serializable class. 
+        _arg_options["type"] = get_parsing_fn(self.type)
         _arg_options["help"] = self.help
         _arg_options["required"] = self.required
         _arg_options["dest"] = self.dest
         _arg_options["default"] = self.default
 
-        if self.is_enum:
+        if self.is_choice:
+            _arg_options["type"] = str
+            _arg_options["choices"] = list(self.choices)
+            if self.is_list:
+                _arg_options["nargs"] = argparse.ZERO_OR_MORE
+            
+        elif self.is_union:
+            logger.debug(f"Parsing a Union type!")
+            _arg_options["type"] = get_parsing_fn(self.field.type)
+
+        elif self.is_enum:
             logger.debug(f"Adding an Enum attribute '{self.name}'")
             # we actually parse enums as string, and convert them back to enums
             # in the `process` method.
@@ -177,7 +188,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             # Check if typing.List or typing.Tuple was used as an annotation, in
             # which case we can automatically convert items to the desired item
             # type.
-            T = utils.get_argparse_type_for_container(self.type)
+            # T = utils.get_argparse_type_for_container(self.type)
+            T = get_parsing_fn(self.type)
             logger.debug(
                 f"Adding a List attribute '{self.name}'"
                 f"with items of type '{T}'"
@@ -191,14 +203,12 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["type"] = type_fn
 
         elif self.is_tuple:
-            T = utils.get_argparse_type_for_container(self.type)
-            logger.debug(
-                f"Adding a Tuple attribute '{self.name}' "
-                f"with items of type '{T}'"
-            )
+            logger.debug(f"Adding a Tuple attribute '{self.name}' with type {self.type}")
             _arg_options["nargs"] = utils.get_container_nargs(self.type)
-            _arg_options["type"] = utils._parse_container(self.type)
-            
+            _arg_options["type"] = get_parsing_fn(self.field.type)
+            # No need atm, since the HelpFormatter takes care of creating the
+            # metavar.
+            # _arg_options["type"].__name__ = utils.get_type_name(_arg_options["type"])
 
             if self.is_reused:
                 type_fn = utils._parse_multiple_containers(self.type)
@@ -597,17 +607,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     def type(self) -> Type[Any]:
         if self._type is not None:
             return self._type
-        elif utils.is_optional(self.field.type):
-            type_args = set(utils.get_type_arguments(self.field.type))
-            # TODO: What do we do if the type is something like Union[str, int, float]?
-            if str in type_args:
-                self._type = str
-            else:
-                type_args.remove(type(None))
-                # get the first non-NoneType type argument.
-                self._type = type_args.pop()
-        
-        
         else:
             self._type = self.field.type
         return self._type
@@ -620,13 +619,20 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return self.choices is not None
 
     @property
-    def choices(self):
-        choices = self.custom_arg_options.get("choices", None)
-        if choices is None:
+    def choices(self) -> Optional[List]:
+        choices = self.custom_arg_options.get("choices")
+        choice_dict = self.choice_dict
+        if not choices:
             return None
         if len(choices) == 1 and isinstance(choices[0], dict):
-            return choices[0]
+            choice_dict = choices[0]
+            assert False, "HERE"
+            return choice_dict
         return choices
+
+    @property
+    def choice_dict(self) -> Optional[Dict]:
+        return self.field.metadata.get("choice_dict")
 
     @property
     def help(self) -> Optional[str]:
@@ -687,6 +693,10 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return utils.is_optional(self.field.type)
 
     @property
+    def is_union(self) -> bool:
+        return utils.is_union(self.field.type)
+
+    @property
     def is_subparser(self) -> bool:
         return utils.is_subparser_field(self.field)
 
@@ -699,14 +709,20 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return self._parent
 
     @property
-    def subparsers_dict(self) -> Dict[str, Type]:
-        if "subparsers" in self.field.metadata:
+    def subparsers_dict(self) -> Optional[Dict[str, Type]]:
+        """ The dict of subparsers, which is created either when using a
+        Union[<dataclass_1>, <dataclass_2>] type annotation, or when using the
+        `subparsers()` function.
+        """
+        if self.field.metadata.get("subparsers"):
             return self.field.metadata["subparsers"]
-        else:
-            type_arguments = utils.get_type_arguments(self.type)
-            return {
-                dataclass_type.__name__.lower(): dataclass_type for dataclass_type in type_arguments
-            }
+        elif self.is_union:
+            type_arguments = utils.get_type_arguments(self.field.type)
+            if type_arguments and any(map(utils.is_dataclass_type, type_arguments)):    
+                return {
+                    utils.get_type_name(dataclass_type).lower(): dataclass_type
+                    for dataclass_type in type_arguments
+                }
 
     def add_subparsers(self, parser: argparse.ArgumentParser):
         assert self.is_subparser

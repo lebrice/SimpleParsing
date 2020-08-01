@@ -17,7 +17,7 @@ def test_choice_default():
 
 
 def test_value_not_in_choices_throws_error():
-    with raises(argparse.ArgumentError):
+    with raises():
         a = A.setup("--color orange")
 
 def test_passed_value_works_fine():

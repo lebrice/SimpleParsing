@@ -42,22 +42,18 @@ def test_single_element_list(ContainerClass):
 
 
 def test_required_attributes_works(ContainerClass):
-    args = None
-    with suppress(SystemExit), pytest.raises(ArgumentError):
-        args = ContainerClass.setup("--b 4")
-    assert args is None
+    with raises_missing_required_arg():
+        ContainerClass.setup("--b 4")
 
-    with suppress(SystemExit), pytest.raises(ArgumentError):
-        args = ContainerClass.setup("--a 4")
-    assert args is None
+    with raises_missing_required_arg():
+        ContainerClass.setup("--a 4")
 
-    args = ContainerClass.setup("--a 4 --b 5")
-    assert args is not None
-
+    container = ContainerClass.setup("--a 4 --b 5")
+    assert container == ContainerClass(a=(4,), b=[5])
 
 def test_default_value(ContainerClass):
-    container = ContainerClass.setup("--a 1 2 3 --b 4 5 6")
-    assert container.a == (1, 2, 3)
+    container = ContainerClass.setup("--a 1 --b 4 5 6")
+    assert container.a == (1,)
     assert container.b == [4, 5, 6]
     assert container.c == tuple()
     assert container.d == list()

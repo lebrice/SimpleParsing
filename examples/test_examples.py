@@ -8,12 +8,14 @@ import importlib
 import shlex
 import sys
 from io import StringIO
-from test import xfail_param
 from typing import Callable, Optional
 from pathlib import Path
 import pytest
 
 expected = ""
+
+def xfail_param(*args, reason: str):
+    return pytest.param(*args, marks=pytest.mark.xfail(reason=reason))
 
 
 @pytest.fixture
