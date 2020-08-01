@@ -41,7 +41,7 @@ def test_tuple_with_ellipsis_help_format():
     class Container(TestSetup):
         ints: Tuple[int, ...] = (1, 2, 3)
     
-    assert Container.get_help_text().split() == """
+    assert "".join(Container.get_help_text().split()) == "".join("""
         usage: pytest [-h] [--ints int [int, ...]]
 
         optional arguments:
@@ -51,7 +51,7 @@ def test_tuple_with_ellipsis_help_format():
         Container(ints:Tuple[int, ...]=(1, 2, 3))
 
         --ints int [int, ...], --container.ints int [int, ...]
-        """.split()
+        """.split())
 
 def test_each_type_is_used_correctly():
     
@@ -64,7 +64,7 @@ def test_each_type_is_used_correctly():
     c = Container.setup("--mixed 1 2 0 1")
     assert c.mixed == (1, "2", False, 1.0)
     # assert False, print(Container.get_help_text())
-    assert Container.get_help_text().split() == textwrap.dedent("""\
+    assert "".join(Container.get_help_text().split()) == "".join(textwrap.dedent("""\
     usage: pytest [-h] [--mixed int str bool float]
 
     optional arguments:
@@ -74,4 +74,4 @@ def test_each_type_is_used_correctly():
     A container with mixed items in a tuple. 
 
       --mixed int str bool float, --container.mixed int str bool float
-    """).split()
+    """).split())
