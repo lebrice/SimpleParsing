@@ -59,11 +59,13 @@ def test_each_type_is_used_correctly():
     class Container(TestSetup):
         """ A container with mixed items in a tuple. """
         mixed: Tuple[int, str, bool, float] = (1, "bob", False, 1.23)
+    
     c = Container.setup("")
     assert c.mixed == (1, "bob", False, 1.23)
+    
     c = Container.setup("--mixed 1 2 0 1")
     assert c.mixed == (1, "2", False, 1.0)
-    # assert False, print(Container.get_help_text())
+    
     assert_help_output_equals(Container.get_help_text(), """
     usage: pytest [-h] [--mixed int str bool float]
 
@@ -75,3 +77,15 @@ def test_each_type_is_used_correctly():
 
       --mixed int str bool float, --container.mixed int str bool float
     """)
+
+
+def test_issue_29():
+    from simple_parsing import ArgumentParser
+    @dataclass
+    class MyCli:
+        asdf: Tuple[str, ...]
+
+    parser = ArgumentParser()
+    parser.add_arguments(MyCli, dest="args")
+    args = parser.parse_args("--asdf asdf fgfh".split())
+    assert args.args == MyCli(asdf=("asdf", "fgfh"))
