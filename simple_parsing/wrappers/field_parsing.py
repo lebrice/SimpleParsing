@@ -60,12 +60,16 @@ def set_value_on_result(fn: Callable[[Type[T]], T]):
     @wraps(fn)
     def _fn(*args, **kwargs):
         parsing_fn = fn(*args, **kwargs)
-        name = getattr(parsing_fn, "__name__", "")
-        if not name:
-            return parsing_fn
-        elif name.startswith("parse_tuple.<locals>._parse_tuple"):
-            name = "X"
-        parsing_fn.__name__ = name
+        try:
+            parsing_fn.__origin_types__ = args
+        except (TypeError, AttributeError):
+            pass
+        # name = getattr(parsing_fn, "__name__", "")
+        # if not name:
+        #     return parsing_fn
+        # elif name.startswith("parse_tuple.<locals>._parse_tuple"):
+        #     name = "X"
+        # parsing_fn.__name__ = name
         return parsing_fn
     return _fn 
 

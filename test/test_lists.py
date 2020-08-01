@@ -56,8 +56,8 @@ def test_required_attributes_works(ContainerClass):
 
 
 def test_default_value(ContainerClass):
-    container = ContainerClass.setup("--a 1 2 3 --b 4 5 6")
-    assert container.a == (1, 2, 3)
+    container = ContainerClass.setup("--a 1 --b 4 5 6")
+    assert container.a == (1,)
     assert container.b == [4, 5, 6]
     assert container.c == tuple()
     assert container.d == list()

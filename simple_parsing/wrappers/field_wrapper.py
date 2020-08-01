@@ -200,6 +200,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             from .field_parsing import get_parsing_fn
             _arg_options["nargs"] = utils.get_container_nargs(self.type)
             _arg_options["type"] = get_parsing_fn(self.field.type)
+            # No need atm, since the HelpFormatter takes care of creating the
+            # metavar.
             # _arg_options["type"].__name__ = utils.get_type_name(_arg_options["type"])
 
             if self.is_reused:

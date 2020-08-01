@@ -24,11 +24,8 @@ Dataclass = TypeVar("Dataclass")
 
 @contextmanager
 def raises(exception=argparse.ArgumentError, match=None):
-    with pytest.raises(exception, match=match):
-        try:
-            yield
-        except SystemExit as e:
-            pass
+    with suppress(SystemExit), pytest.raises(exception, match=match):
+        yield
 
 
 @contextmanager

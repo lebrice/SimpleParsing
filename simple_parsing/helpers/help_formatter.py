@@ -1,10 +1,11 @@
 import argparse
 from ..logging_utils import get_logger
 logger = get_logger(__file__)
-from ..utils import get_type_arguments, is_optional, is_tuple_or_list, is_tuple, is_union
+from ..utils import get_type_arguments, is_optional, is_tuple_or_list, is_tuple, is_union, get_type_name
 from typing import Type
+from argparse import OPTIONAL, ZERO_OR_MORE, ONE_OR_MORE, REMAINDER, PARSER
 
-i = 0
+
 class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
                           argparse.MetavarTypeHelpFormatter,
                           argparse.RawDescriptionHelpFormatter):
@@ -22,7 +23,7 @@ class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
     
     def _format_args(self, action, default_metavar):
         get_metavar = self._metavar_formatter(action, default_metavar)
-        print(get_metavar)
+
         if action.nargs is None:
             result = '%s' % get_metavar(1)
         elif action.nargs == OPTIONAL:
@@ -38,37 +39,45 @@ class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
         else:
             formats = ['%s' for _ in range(action.nargs)]
             result = ' '.join(formats) % get_metavar(action.nargs)
-        return result
 
+        # print(f"Result: {result}, nargs: {action.nargs}")
+        origin_type = getattr(action.type, "__origin_types__", None)
+        # print("origin types: ", origin_type)
+        if origin_type is not None:
+            t = origin_type[0]
+            if is_tuple(t):
+                args = get_type_arguments(t)
+                # print(f"args: {args}")
+                metavars = []
+                for arg in args:
+                    if arg is Ellipsis:
+                        metavars.append(f"[{metavars[-1]}, ...]")
+                    else:
+                        metavars.append(get_type_name(arg))
+                # print(f"Metavars: {metavars}")
+                return " ".join(metavars)
+        return result
+    
     def _get_default_metavar_for_optional(self, action: argparse.Action):
-        default_metavar = super()._get_default_metavar_for_optional(action)
         try:
+            return super()._get_default_metavar_for_optional(action)
+        except BaseException as e:
             logger.debug(f"Getting metavar for action with dest {action.dest}.")
             metavar = self._get_metavar_for_action(action)
             logger.debug(f"Result metavar: {metavar}")
-        except BaseException as e:
-            return default_metavar
-        else:
-            logger.debug(f"Both worked: {default_metavar}, {metavar}")
-            return default_metavar
+            return metavar
 
     def _get_default_metavar_for_positional(self, action: argparse.Action):
-        default_metavar = super()._get_default_metavar_for_positional(action)
         try:
+            return super()._get_default_metavar_for_positional(action)
+        except BaseException as e:
             logger.debug(f"Getting metavar for action with dest {action.dest}.")
             metavar = self._get_metavar_for_action(action)
             logger.debug(f"Result metavar: {metavar}")
-        except BaseException as e:
-            return default_metavar
-        else:
-            logger.debug(f"Both worked: {default_metavar}, {metavar}")
-            return default_metavar
+            return metavar
 
     def _get_metavar_for_action(self, action: argparse.Action) -> str:
         t = action.type
-        global i
-        i += 1
-        print(f"called {i} times.")
         return self._get_metavar_for_type(t)
 
     def _get_metavar_for_type(self, t: Type) -> str:
