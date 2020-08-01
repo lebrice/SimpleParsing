@@ -5,7 +5,7 @@ from . import helpers, utils, wrappers
 from .conflicts import ConflictResolution
 from .helpers import (MutableField, Serializable, SimpleHelpFormatter, choice,
                       field, list_field, mutable_field, subparsers)
-from .parsing import ArgumentParser
+from .parsing import ArgumentParser, ParsingError
 from .utils import InconsistentArgumentError
 
 __all__ = [

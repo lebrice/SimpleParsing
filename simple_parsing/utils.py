@@ -285,6 +285,21 @@ def is_set(t: Type) -> bool:
     mro = _mro(t)
     return set in _mro(t)
 
+import typing_inspect as tpi
+
+
+def is_dataclass_type(t: Type) -> bool:
+    """Returns wether t is a dataclass type or a TypeVar of a dataclass type.
+
+    Args:
+        t (Type): Some type.
+
+    Returns:
+        bool: Wether its a dataclass type.
+    """
+    return dataclasses.is_dataclass(t) or (
+        tpi.is_typevar(t) and dataclasses.is_dataclass(tpi.get_bound(t))
+    )
 
 
 def is_enum(t: Type) -> bool:

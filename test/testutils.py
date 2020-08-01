@@ -1,13 +1,17 @@
 import argparse
 import shlex
+import string
+import sys
 from contextlib import contextmanager, suppress
 from typing import (Any, Callable, Dict, Generic, List, Optional, Tuple, Type,
                     TypeVar, cast)
 
 import pytest
+
 import simple_parsing
 from simple_parsing import (ArgumentParser, ConflictResolution,
-                            InconsistentArgumentError, SimpleHelpFormatter)
+                            InconsistentArgumentError, ParsingError,
+                            SimpleHelpFormatter)
 from simple_parsing.utils import camel_case
 from simple_parsing.wrappers import DataclassWrapper
 
@@ -23,8 +27,8 @@ Dataclass = TypeVar("Dataclass")
 
 
 @contextmanager
-def raises(exception=argparse.ArgumentError, match=None):
-    with suppress(SystemExit), pytest.raises(exception, match=match):
+def raises(exception=ParsingError, match=None, code: int=None):
+    with pytest.raises(exception, match=match):
         yield
 
 
@@ -36,8 +40,24 @@ def raises_missing_required_arg():
 
 @contextmanager
 def raises_expected_n_args(n: int):
-    with raises(match=f"expected {2} arguments"):
+    with raises(match=f"expected {n} arguments"):
         yield
+
+
+@contextmanager
+def raises_unrecognized_args(*args: str):
+    with raises(match=f"unrecognized arguments: " + " ".join(args or [])):
+        yield
+
+
+def assert_help_output_equals(actual: str, expected: str) -> bool:
+    # Replace the start with `prog`, since the test runner might not always be
+    # `pytest`, could also be __main__ when debugging with VSCode
+    prog = sys.argv[0].split("/")[-1]
+    if prog != "pytest":
+        expected = expected.replace("usage: pytest", f"usage: {prog}")
+    remove = string.punctuation + string.whitespace
+    assert "".join(actual.split()) == "".join(expected.split())
 
 
 T = TypeVar("T")
@@ -81,6 +101,7 @@ class TestSetup():
               default: Optional[Dataclass] = None,
               conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
               add_option_string_dash_variants: bool = False,
+              parse_known_args: bool=False,
               ) -> Dataclass:
         """Basic setup for a test.
 
@@ -101,10 +122,16 @@ class TestSetup():
         parser.add_arguments(cls, dest=dest, default=default)
 
         if arguments is None:
-            args = parser.parse_args()
+            if parse_known_args:
+                args = parser.parse_known_args()
+            else:
+                args = parser.parse_args()
         else:
             splits = shlex.split(arguments)
-            args = parser.parse_args(splits)
+            if parse_known_args:
+                args = parser.parse_known_args(splits)
+            else:
+                args = parser.parse_args(splits)
         assert hasattr(
             args, dest), f"attribute '{dest}' not found in args {args}"
         instance: Dataclass = getattr(args, dest)  # type: ignore

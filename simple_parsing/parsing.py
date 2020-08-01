@@ -7,21 +7,28 @@ import dataclasses
 import enum
 import inspect
 import re
+import sys
 import textwrap
 import typing
 import warnings
-from argparse import Namespace
-from typing import Dict, Type, Any, List, Sequence, Text, Union
+from argparse import HelpFormatter, Namespace
 from collections import defaultdict
+from typing import (Any, ClassVar, Dict, List, Sequence, Text, Type, Union,
+                    overload)
+
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
-from .utils import Dataclass, split_dest
-from .wrappers import DataclassWrapper, FieldWrapper
 from .helpers import SimpleHelpFormatter
 from .logging_utils import get_logger
+from .utils import Dataclass, split_dest
+from .wrappers import DataclassWrapper, FieldWrapper
+
 logger = get_logger(__file__)
-from argparse import HelpFormatter
-from typing import ClassVar, overload
+
+
+class ParsingError(RuntimeError, SystemExit):
+    pass
+
 
 class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args,
@@ -121,8 +128,9 @@ class ArgumentParser(argparse.ArgumentParser):
         """
         for wrapper in self._wrappers:
             if wrapper.dest == dest:
-                self.error(
-                    f"Destination attribute {dest} is already used for "
+                raise argparse.ArgumentError(
+                    argument=None,
+                    message=f"Destination attribute {dest} is already used for "
                     f"dataclass of type {dataclass}. Make sure all destinations"
                     f" are unique."
                 )
@@ -144,14 +152,49 @@ class ArgumentParser(argparse.ArgumentParser):
         # NOTE: since the usual ArgumentParser.parse_args() calls
         # parse_known_args, we therefore just need to overload the
         # parse_known_args method to support both.
+        if args is None:
+            # args default to the system args
+            args = sys.argv[1:]
+        else:
+            # make sure that args are mutable
+            args = list(args)
         self._preprocessing()
+
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
+
+        if unparsed_args and self._subparsers:
+            logger.warning(
+                f"Unparsed arguments when using subparsers. Will "
+                f"attempt to automatically re-order the unparsed arguments "
+                f"{unparsed_args}."
+            )
+            index_in_start = args.index(unparsed_args[0])
+            # Simply 'cycle' the args to the right ordering.
+            new_start_args = args[index_in_start:] + args[:index_in_start]
+            parsed_args, unparsed_args = super().parse_known_args(new_start_args)
+
+
         parsed_args = self._postprocessing(parsed_args)
         return parsed_args, unparsed_args
 
     def print_help(self, file=None):
         self._preprocessing()
         return super().print_help(file)
+
+    def error(self, message):
+        """error(message: string)
+
+        Prints a usage message incorporating the message to stderr and
+        exits.
+
+        If you override this in a subclass, it should not return -- it
+        should either exit or raise an exception.
+        """
+        self.print_usage(sys.stderr)
+        raise ParsingError(f"{self.prog}: error: {message}")
+        # args = {'prog': self.prog, 'message': message}
+        # self.exit(2, f"{self.prog}: error: {message}")
+
 
     def equivalent_argparse_code(self) -> str:
         """Returns the argparse code equivalent to that of `simple_parsing`. 
@@ -335,3 +378,5 @@ class ArgumentParser(argparse.ArgumentParser):
             logger.debug(f"deleted values: {deleted_values}")
             logger.debug(f"leftover args: {leftover_args}")
         return leftover_args
+
+   

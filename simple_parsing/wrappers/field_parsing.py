@@ -56,7 +56,7 @@ def register_parsing_fn(some_type: Type[T], function: Callable[[Any], T]) -> Non
 
 from functools import wraps
 
-def set_value_on_result(fn: Callable[[Type[T]], T]):
+def save_origin_type_on_result(fn: Callable[[Type[T]], T]):
     @wraps(fn)
     def _fn(*args, **kwargs):
         parsing_fn = fn(*args, **kwargs)
@@ -73,7 +73,7 @@ def set_value_on_result(fn: Callable[[Type[T]], T]):
         return parsing_fn
     return _fn 
 
-@set_value_on_result
+@save_origin_type_on_result
 def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
     """Gets a parsing function for the given type or type annotation.
 
@@ -94,12 +94,13 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
         logger.debug(f"parsing an Any type: {t}")
         return no_op
 
-    elif is_dict(t):
-        logger.debug(f"parsing a Dict field: {t}")
-        args = get_type_arguments(t)
-        if len(args) != 2:
-            args = (Any, Any)
-        return parse_dict(*args)
+    # TODO: Do we want to support parsing a Dict from command-line?
+    # elif is_dict(t):
+    #     logger.debug(f"parsing a Dict field: {t}")
+    #     args = get_type_arguments(t)
+    #     if len(args) != 2:
+    #         args = (Any, Any)
+    #     return parse_dict(*args)
 
     elif is_set(t):
         logger.debug(f"parsing a Set field: {t}")
@@ -129,22 +130,21 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
     # import typing_inspect as tpi
     # from .serializable import get_dataclass_type_from_forward_ref, Serializable
 
-    # if tpi.is_forward_ref(t):
-    #     dc = get_dataclass_type_from_forward_ref(t)
-    #     if dc is Serializable:
-    #         # Since dc is Serializable, this means that we found more than one
-    #         # matching dataclass the the given forward ref, and the right
-    #         # subclass will be determined based on the matching fields.
-    #         # Therefore we set drop_extra_fields=False.
-    #         return partial(dc.from_dict, drop_extra_fields=False)
-    #     if dc:
-    #         return dc.from_dict
+    if tpi.is_forward_ref(t):
+        forward_arg = tpi.get_forward_arg(t)
+        for t, fn in _parsing_fns.items():
+            if getattr(t, "__name__", str(t)) == forward_arg:
+                return fn
 
     if tpi.is_typevar(t):
         bound = tpi.get_bound(t)
         logger.debug(f"parsing a typevar: {t}, bound type is {bound}.")
         if bound is not None:
             return get_parsing_fn(bound)
+    
+    logger.warning(f"Couldn't find a parsing function for type {t}, will try "
+                   f"to use the type directly.")
+    return t
 
 
 def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
@@ -233,8 +233,9 @@ def parse_tuple(tuple_item_types: Tuple[Type[T], ...]) -> Callable[[List[T]], Tu
 
     return _parse_tuple
 
-a: Tuple[int] = (0, 4, 2)
 
+def parse_list(list_item_type: Type[T]) -> T:
+    return get_parsing_fn(list_item_type)
 
 
 def no_op(v: T) -> T:

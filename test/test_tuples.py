@@ -23,7 +23,7 @@ def test_tuple_with_n_items_takes_only_n_values():
 
     c = Container.setup("")
     assert c.ints == (1, 5)
-    with raises_expected_n_args(2):
+    with raises_unrecognized_args("6", "7", "8"):
         c = Container.setup("--ints 4 5 6 7 8")
 
 
@@ -40,18 +40,18 @@ def test_tuple_with_ellipsis_help_format():
     @dataclass
     class Container(TestSetup):
         ints: Tuple[int, ...] = (1, 2, 3)
-    
-    assert "".join(Container.get_help_text().split()) == "".join("""
+
+    assert_help_output_equals(Container.get_help_text(), f"""
         usage: pytest [-h] [--ints int [int, ...]]
-
+        
         optional arguments:
-        -h, --help            show this help message and exit
-
+          -h, --help            show this help message and exit
+        
         test_tuple_with_ellipsis_help_format.<locals>.Container ['container']:
-        Container(ints:Tuple[int, ...]=(1, 2, 3))
-
-        --ints int [int, ...], --container.ints int [int, ...]
-        """.split())
+          Container(ints: Tuple[int, ...] = (1, 2, 3))
+        
+          --ints int [int, ...], --container.ints int [int, ...]
+        """)
 
 def test_each_type_is_used_correctly():
     
@@ -64,7 +64,7 @@ def test_each_type_is_used_correctly():
     c = Container.setup("--mixed 1 2 0 1")
     assert c.mixed == (1, "2", False, 1.0)
     # assert False, print(Container.get_help_text())
-    assert "".join(Container.get_help_text().split()) == "".join(textwrap.dedent("""\
+    assert_help_output_equals(Container.get_help_text(), """
     usage: pytest [-h] [--mixed int str bool float]
 
     optional arguments:
@@ -74,4 +74,4 @@ def test_each_type_is_used_correctly():
     A container with mixed items in a tuple. 
 
       --mixed int str bool float, --container.mixed int str bool float
-    """).split())
+    """)
