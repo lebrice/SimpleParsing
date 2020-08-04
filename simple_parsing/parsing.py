@@ -148,7 +148,8 @@ class ArgumentParser(argparse.ArgumentParser):
 
     def parse_known_args(self,
                          args: Sequence[Text] = None,
-                         namespace: Namespace = None):
+                         namespace: Namespace = None,
+                         attempt_to_reorder: bool=False):
         # NOTE: since the usual ArgumentParser.parse_args() calls
         # parse_known_args, we therefore just need to overload the
         # parse_known_args method to support both.
@@ -162,7 +163,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
 
-        if unparsed_args and self._subparsers:
+        if unparsed_args and self._subparsers and attempt_to_reorder:
             logger.warning(
                 f"Unparsed arguments when using subparsers. Will "
                 f"attempt to automatically re-order the unparsed arguments "
@@ -172,7 +173,6 @@ class ArgumentParser(argparse.ArgumentParser):
             # Simply 'cycle' the args to the right ordering.
             new_start_args = args[index_in_start:] + args[:index_in_start]
             parsed_args, unparsed_args = super().parse_known_args(new_start_args)
-
 
         parsed_args = self._postprocessing(parsed_args)
         return parsed_args, unparsed_args
