@@ -142,7 +142,7 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
         if bound is not None:
             return get_parsing_fn(bound)
     
-    logger.warning(f"Couldn't find a parsing function for type {t}, will try "
+    logger.debug(f"Couldn't find a parsing function for type {t}, will try "
                    f"to use the type directly.")
     return t
 
