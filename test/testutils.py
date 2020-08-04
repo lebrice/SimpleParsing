@@ -102,6 +102,7 @@ class TestSetup():
               conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
               add_option_string_dash_variants: bool = False,
               parse_known_args: bool=False,
+              attempt_to_reorder: bool=False,
               ) -> Dataclass:
         """Basic setup for a test.
 
@@ -123,13 +124,13 @@ class TestSetup():
 
         if arguments is None:
             if parse_known_args:
-                args = parser.parse_known_args()
+                args = parser.parse_known_args(attempt_to_reorder=attempt_to_reorder)
             else:
                 args = parser.parse_args()
         else:
             splits = shlex.split(arguments)
             if parse_known_args:
-                args = parser.parse_known_args(splits)
+                args, unknown_args = parser.parse_known_args(splits, attempt_to_reorder=attempt_to_reorder)
             else:
                 args = parser.parse_args(splits)
         assert hasattr(

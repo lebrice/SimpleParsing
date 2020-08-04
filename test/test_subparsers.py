@@ -184,13 +184,13 @@ def test_subparser_rest_of_args_go_to_parent():
         foo: bool = simple_parsing.flag(False)
         income: float = 35_000.
 
-    p = Parent.setup("pet --kind fish --foo --income 10_000")
+    p = Parent.setup("pet --kind fish --foo --income 10_000", parse_known_args=True, attempt_to_reorder=True)
     assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
 
-    p = Parent.setup("--income 10_000 pet --kind fish --foo")
+    p = Parent.setup("--income 10_000 pet --kind fish --foo", parse_known_args=True, attempt_to_reorder=True)
     assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
 
-    p = Parent.setup("--income 10_000 --foo pet --kind fish")
+    p = Parent.setup("--income 10_000 --foo pet --kind fish", parse_known_args=True, attempt_to_reorder=True)
     assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
 
 
@@ -212,7 +212,7 @@ def test_mixing_the_ordering():
         foo: bool = False
         income: float = 35_000.
 
-    p = Parent.setup("--income 10_000 pet --foo --kind fish")
+    p = Parent.setup("--income 10_000 pet --foo --kind fish", parse_known_args=True, attempt_to_reorder=True)
     assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
 
 @xfail(reason="TODO")
@@ -232,7 +232,7 @@ def test_mixing_the_ordering_all_have_defaults():
         foo: bool = False
         income: float = 35_000.
 
-    p = Parent.setup("--income 10_000 pet --foo --kind fish")
+    p = Parent.setup("--income 10_000 pet --foo --kind fish", parse_known_args=True, attempt_to_reorder=True)
     assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
 
 
@@ -254,7 +254,7 @@ def test_argparse_version_giving_extra_args_to_parent():
     assert args == (Namespace(foo=3, bar=2, baz=3), ['--foo', '1'])
 
 
-def test_argparse_version_giving_extra_args_to_parent():
+def test_simpleparse_version_giving_extra_args_to_parent():
     parser = simple_parsing.ArgumentParser()
     parser.add_argument("--foo", type=int, default=3)
     assert not parser._subparsers
@@ -267,7 +267,7 @@ def test_argparse_version_giving_extra_args_to_parent():
     args = parser.parse_args("--foo 1 boo --bar 2 --baz 3".split())
     assert args == Namespace(foo=1, bar=2, baz=3)
 
-    args = parser.parse_known_args("boo --bar 2 --baz 3 --foo 1".split())
+    args = parser.parse_known_args("boo --bar 2 --baz 3 --foo 1".split(), attempt_to_reorder=True)
     assert args == (Namespace(foo=1, bar=2, baz=3), [])
 
 
