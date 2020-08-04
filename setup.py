@@ -9,7 +9,7 @@ print(sys.version_info)
 
 setuptools.setup(
     name="simple_parsing",
-    version="0.0.11.post17",
+    version="0.0.11.post18",
     author="Fabrice Normandin",
     author_email="fabrice.normandin@gmail.com",
     description="A small utility for simplifying and cleaning up argument parsing scripts.",

@@ -336,7 +336,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 # if the field has a weird type, we try to call it directly.
                 return self.type(raw_parsed_value)
             except Exception as e:
-                logger.warning(
+                logger.debug(
                     f"Unable to instantiate the field '{self.name}' of type "
                     f"'{self.type}' by using the type as a constructor. "
                     f"Returning the raw parsed value instead "
