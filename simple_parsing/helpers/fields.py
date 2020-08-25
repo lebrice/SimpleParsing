@@ -18,7 +18,6 @@ from simple_parsing.utils import (Dataclass, SimpleValueType,
                                   is_union, str2bool)
 
 from ..logging_utils import get_logger
-from .help_formatter import Formatter, SimpleHelpFormatter
 
 logger = get_logger(__file__)
 

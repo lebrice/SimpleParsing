@@ -1,10 +1,14 @@
 import argparse
-from ..logging_utils import get_logger
-logger = get_logger(__file__)
-from ..utils import get_type_arguments, is_optional, is_tuple_or_list, is_tuple, is_union, get_type_name
-from typing import Type
-from argparse import OPTIONAL, ZERO_OR_MORE, ONE_OR_MORE, REMAINDER, PARSER
+from argparse import ONE_OR_MORE, OPTIONAL, PARSER, REMAINDER, ZERO_OR_MORE
+from typing import Type, Callable
+from argparse import Action
 
+from .logging_utils import get_logger
+from .utils import (get_type_arguments, get_type_name, is_optional, is_tuple,
+                    is_tuple_or_list, is_union)
+from .wrappers.field_metavar import get_metavar
+
+logger = get_logger(__file__)
 
 class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
                           argparse.MetavarTypeHelpFormatter,
@@ -21,8 +25,9 @@ class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
     - Conserves the formatting of the class and argument docstrings, if given.
     """
     
-    def _format_args(self, action, default_metavar):
+    def _format_args(self, action: Action, default_metavar: str):
         get_metavar = self._metavar_formatter(action, default_metavar)
+        action_type = action.type
 
         if action.nargs is None:
             result = '%s' % get_metavar(1)
@@ -40,22 +45,7 @@ class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
             formats = ['%s' for _ in range(action.nargs)]
             result = ' '.join(formats) % get_metavar(action.nargs)
 
-        # print(f"Result: {result}, nargs: {action.nargs}")
-        origin_type = getattr(action.type, "__origin_types__", None)
-        # print("origin types: ", origin_type)
-        if origin_type is not None:
-            t = origin_type[0]
-            if is_tuple(t):
-                args = get_type_arguments(t)
-                # print(f"args: {args}")
-                metavars = []
-                for arg in args:
-                    if arg is Ellipsis:
-                        metavars.append(f"[{metavars[-1]}, ...]")
-                    else:
-                        metavars.append(get_type_name(arg))
-                # print(f"Metavars: {metavars}")
-                return " ".join(metavars)
+        # print(f"action type: {action_type}, Result: {result}, nargs: {action.nargs}, default metavar: {default_metavar}")
         return result
     
     def _get_default_metavar_for_optional(self, action: argparse.Action):
@@ -77,35 +67,28 @@ class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
             return metavar
 
     def _get_metavar_for_action(self, action: argparse.Action) -> str:
-        t = action.type
-        return self._get_metavar_for_type(t)
+        return self._get_metavar_for_type(action.type)
 
     def _get_metavar_for_type(self, t: Type) -> str:
-        logger.debug(f"Getting metavar for type {t}.")
-        optional = is_optional(t)
-        
-        if hasattr(t, "__origin_field"):
-            field = t.__origin_field
-            print(field)
-            assert False
-            return t.__name__
-        
-        elif is_union(t):
-            type_args = list(get_type_arguments(t))
-            
-            none_type = type(None)
-            while none_type in type_args:  # type: ignore
-                type_args.remove(none_type)  # type: ignore
-            
-            string = "[" if optional else ""
-            middle = []
-            for t_ in type_args:
-                middle.append(self._get_metavar_for_type(t_))
-            string += "|".join(middle)
-            if optional:
-                string += "]"
-            return string
+        return get_metavar(t) or str(t)
+
+    def _metavar_formatter(self, action: Action, default_metavar: str) -> Callable[[int], str]:
+        action_type = action.type
+        if action.metavar is not None:
+            result = action.metavar
+        elif action.choices is not None:
+            choice_strs = [str(choice) for choice in action.choices]
+            result = '{%s}' % ','.join(choice_strs)
+        elif not isinstance(action_type, type):
+            result = get_metavar(action_type)
         else:
-            return str(t)
+            result = default_metavar
+
+        def format(tuple_size):
+            if isinstance(result, tuple):
+                return result
+            else:
+                return (result, ) * tuple_size
+        return format
 
 Formatter = SimpleHelpFormatter

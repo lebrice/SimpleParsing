@@ -18,7 +18,7 @@ from typing import (Any, ClassVar, Dict, List, Sequence, Text, Type, Union,
 
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
-from .helpers import SimpleHelpFormatter
+from .help_formatter import SimpleHelpFormatter
 from .logging_utils import get_logger
 from .utils import Dataclass, split_dest
 from .wrappers import DataclassWrapper, FieldWrapper
@@ -378,5 +378,3 @@ class ArgumentParser(argparse.ArgumentParser):
             logger.debug(f"deleted values: {deleted_values}")
             logger.debug(f"leftover args: {leftover_args}")
         return leftover_args
-
-   
