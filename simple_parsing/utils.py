@@ -7,13 +7,16 @@ import json
 import re
 import warnings
 from abc import ABC
+from collections import abc as c_abc
 from collections import defaultdict
 from dataclasses import _MISSING_TYPE, MISSING, Field, dataclass
 from enum import Enum
 from functools import partial
 from inspect import isclass
-from typing import (Any, Callable, Container, Dict, Iterable, List, Set, Tuple,
-                    Type, TypeVar, Union, Mapping, MutableMapping)
+from typing import (Any, Callable, Container, Dict, Iterable, List, Mapping,
+                    MutableMapping, Optional, Set, Tuple, Type, TypeVar, Union)
+
+import typing_inspect as tpi
 
 from simple_parsing.logging_utils import get_logger
 
@@ -35,7 +38,6 @@ SimpleValueType = Union[bool, int, float, str]
 SimpleIterable = Union[List[SimpleValueType],
                        Dict[Any, SimpleValueType], Set[SimpleValueType]]
 
-from collections import abc as c_abc
 
 
 def is_subparser_field(field: Field) -> bool:
@@ -122,7 +124,7 @@ def get_item_type(container_type: Type[Container[T]]) -> T:
     Returns:
         Type -- the type of the container's items, if found, else Any.
     """
-    if container_type in {list, tuple, List, Set, Tuple, Dict}:
+    if container_type in {list, set, tuple, List, Set, Tuple, Dict, Mapping, MutableMapping}:
         # the built-in `list` and `tuple` types don't have annotations for their item types.
         return Any
     type_arguments = getattr(container_type, "__args__", None)
@@ -285,7 +287,6 @@ def is_set(t: Type) -> bool:
     mro = _mro(t)
     return set in _mro(t)
 
-import typing_inspect as tpi
 
 
 def is_dataclass_type(t: Type) -> bool:
@@ -368,7 +369,33 @@ def is_optional(t: Type) -> bool:
 
 
 def is_tuple_or_list_of_dataclasses(t: Type) -> bool:
-    return is_tuple_or_list(t) and dataclasses.is_dataclass(get_item_type(t))
+    return is_tuple_or_list(t) and is_dataclass_type(get_item_type(t))
+
+
+def contains_dataclass_type_arg(t: Type) -> bool:
+    if is_dataclass_type(t):
+        return True
+    elif is_tuple_or_list_of_dataclasses(t):
+        return True
+    elif is_union(t):
+        return any(
+            contains_dataclass_type_arg(arg)
+            for arg in get_type_arguments(t)
+        )
+    return False
+
+
+def get_dataclass_type_arg(t: Type) -> Optional[Type]:
+    if not contains_dataclass_type_arg(t):
+        return None
+    if is_dataclass_type(t):
+        return t
+    elif is_tuple_or_list(t) or is_union(t):
+        return next(filter(None, (
+            get_dataclass_type_arg(arg)
+            for arg in get_type_arguments(t)
+        )), None)
+    return None
 
 
 def get_type_arguments(container_type: Type) -> List[Type]:

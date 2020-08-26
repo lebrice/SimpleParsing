@@ -555,10 +555,17 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             # if the dataclass holding this field has a default value (either
             # when passed  manually or by nesting), use the corresponding
             # attribute on that default instance.
+            
+            # TODO: When that default value is 'None' (even for a dataclass),
+            # then we need to.. ?
+
             defaults = []
             for default_dataclass_instance in self.parent.defaults:
-                parent_value = getattr(default_dataclass_instance, self.name)
-                defaults.append(parent_value)
+                if default_dataclass_instance is None:
+                    default_value = default
+                else:
+                    default_value = getattr(default_dataclass_instance, self.name)
+                defaults.append(default_value)
             default = defaults[0] if len(defaults) == 1 else defaults
 
         if self.is_reused and default is not None:

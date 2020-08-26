@@ -26,26 +26,29 @@ class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
     """
     
     def _format_args(self, action: Action, default_metavar: str):
-        get_metavar = self._metavar_formatter(action, default_metavar)
+        _get_metavar = self._metavar_formatter(action, default_metavar)
         action_type = action.type
 
-        if action.nargs is None:
-            result = '%s' % get_metavar(1)
+        metavar = action.metavar or get_metavar(action_type)
+        if metavar and not action.choices:
+            result = metavar
+        elif action.nargs is None:
+            result = '%s' % _get_metavar(1)
         elif action.nargs == OPTIONAL:
-            result = '[%s]' % get_metavar(1)
+            result = '[%s]' % _get_metavar(1)
         elif action.nargs == ZERO_OR_MORE:
-            result = '[%s [%s ...]]' % get_metavar(2)
+            result = '[%s [%s ...]]' % _get_metavar(2)
         elif action.nargs == ONE_OR_MORE:
-            result = '%s [%s ...]' % get_metavar(2)
+            result = '%s [%s ...]' % _get_metavar(2)
         elif action.nargs == REMAINDER:
             result = '...'
         elif action.nargs == PARSER:
-            result = '%s ...' % get_metavar(1)
+            result = '%s ...' % _get_metavar(1)
         else:
             formats = ['%s' for _ in range(action.nargs)]
-            result = ' '.join(formats) % get_metavar(action.nargs)
+            result = ' '.join(formats) % _get_metavar(action.nargs)
 
-        # print(f"action type: {action_type}, Result: {result}, nargs: {action.nargs}, default metavar: {default_metavar}")
+        logger.debug(f"action type: {action_type}, Result: {result}, nargs: {action.nargs}, default metavar: {default_metavar}")
         return result
     
     def _get_default_metavar_for_optional(self, action: argparse.Action):
@@ -71,24 +74,5 @@ class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
 
     def _get_metavar_for_type(self, t: Type) -> str:
         return get_metavar(t) or str(t)
-
-    def _metavar_formatter(self, action: Action, default_metavar: str) -> Callable[[int], str]:
-        action_type = action.type
-        if action.metavar is not None:
-            result = action.metavar
-        elif action.choices is not None:
-            choice_strs = [str(choice) for choice in action.choices]
-            result = '{%s}' % ','.join(choice_strs)
-        elif not isinstance(action_type, type):
-            result = get_metavar(action_type)
-        else:
-            result = default_metavar
-
-        def format(tuple_size):
-            if isinstance(result, tuple):
-                return result
-            else:
-                return (result, ) * tuple_size
-        return format
 
 Formatter = SimpleHelpFormatter

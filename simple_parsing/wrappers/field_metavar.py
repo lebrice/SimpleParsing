@@ -1,7 +1,7 @@
 import functools
 from dataclasses import Field
 from functools import lru_cache, partial
-from typing import Dict, Optional, Type, TypeVar, List, Callable
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
 import typing_inspect as tpi
 
@@ -42,15 +42,12 @@ def get_metavar(t: Type) -> str:
     # TODO: Maybe we can create the name for each returned call, a bit like how
     # we dynamically create the parsing function itself?
     new_name: str = getattr(t, "__name__", None)
-
-    if isinstance(t, type):
-        return t.__name__
-    
+   
     optional = is_optional(t)
 
     if t in _new_metavars:
         return _new_metavars[t]
-
+    
     elif is_union(t):
         args = get_type_arguments(t)
         metavars: List[str] = []
@@ -65,7 +62,9 @@ def get_metavar(t: Type) -> str:
 
     elif is_tuple(t):
         args = get_type_arguments(t)
-        # print(f"args: {args}")
+        if not args:
+            return get_metavar(Any)
+        logger.debug(f"Tuple args: {args}")
         metavars: List[str] = []
         for arg in args:
             if arg is Ellipsis:

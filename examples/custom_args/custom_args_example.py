@@ -74,14 +74,6 @@ class Example3:
     # cache:    bool = field(default=True, "--no_cache", "store_false")
     # no_cache: bool = field(dest=cache, action="store_false")
 
-
-# parser = ArgumentParser()
-# parser.add_argument("--cache", default=True, action="store_true")
-# parser.add_argument("--no-cache", action="store_false", dest="cache")
-# print(parser.parse_args())
-# exit()
-
-
 parser = ArgumentParser()
 parser.add_arguments(Example3, "example")
 args = parser.parse_args()

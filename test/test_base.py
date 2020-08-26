@@ -158,7 +158,7 @@ def test_passing_default_value(simple_attribute, silent):
         a: some_type = passed_value #type: ignore 
         """some docstring for attribute 'a' """
     
-    parser = ArgumentParser()
+    # parser = ArgumentParser()
     some_class = SomeClass.setup(default=SomeClass(expected_value))
     assert some_class.a == expected_value
 
@@ -207,6 +207,8 @@ def test_using_a_Type_type():
             self.a = self.a_class()
     
     foo = Foo.setup("")
+    from simple_parsing.utils import contains_dataclass_type_arg
+    assert not contains_dataclass_type_arg(Type[Base])
     assert foo.a_class() == Base()
 
     @dataclass
