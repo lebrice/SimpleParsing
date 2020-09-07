@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
+import pytest
+
 from simple_parsing import ArgumentParser
 
 from .testutils import TestSetup
@@ -60,3 +62,22 @@ def test_optional_parameter_group():
     parent: Parent = Parent.setup("--name Dylan --dog_years 27")
     assert parent.dog == Dog(dog_years=27)
     assert parent.child == Child(name="Dylan")
+
+
+@dataclass
+class GrandParent(TestSetup):
+    niece: Optional[Parent] = None
+    nefew: Optional[Parent] = None
+
+
+@pytest.mark.xfail(reason="TODO: Deeper nesting doesn't work atm!")
+def test_deeply_nested_optional_parameter_groups():
+    """ Same as above test, but deeper hierarchy.
+    """
+    grandparent: GrandParent = GrandParent.setup()
+    assert grandparent.niece == None
+    assert grandparent.nefew == None
+
+    grandparent: GrandParent = GrandParent.setup("--niece.child.name Bob")
+    assert grandparent.niece == Parent(child=Child(name="Bob"))
+    assert grandparent.nefew == None
