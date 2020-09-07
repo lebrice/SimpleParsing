@@ -154,7 +154,13 @@ def get_argparse_type_for_container(container_type: Type) -> Union[Type, Callabl
 
 
 def _mro(t: Type) -> List[Type]:
-    return getattr(t, "mro", lambda: [])()
+    if hasattr(t, "__mro__"):
+        return t.__mro__
+    elif tpi.get_origin(t) is type:
+        return []
+    elif hasattr(t, "mro") and callable(t.mro):
+        return t.mro()
+    return []
 
 
 def is_list(t: Type) -> bool:
