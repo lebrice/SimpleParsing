@@ -151,6 +151,10 @@ def field(default: Union[T, _MISSING_TYPE] = MISSING,
 
 
 @overload
+def choice(*choices: T, default: T=None, **kwargs) -> T:
+    pass
+
+@overload
 def choice(choices: Type[E], default: E, **kwargs) -> E:
     pass
 
