@@ -154,8 +154,12 @@ def get_argparse_type_for_container(container_type: Type) -> Union[Type, Callabl
 
 
 def _mro(t: Type) -> List[Type]:
-    return getattr(t, "mro", lambda: [])()
-
+    try:
+        if hasattr(t, "mro") and callable(t.mro):
+            return t.mro()
+        return getattr(t, "__mro__")
+    except (TypeError, AttributeError):
+        return []
 
 def is_list(t: Type) -> bool:
     """returns True when `t` is a List type.
