@@ -142,10 +142,13 @@ class DataclassWrapper(Wrapper[Dataclass]):
             return []
         assert self.parent is not None
         if self.parent.defaults:
-            self._defaults = [
-                getattr(default, self.name)
-                for default in self.parent.defaults
-            ]
+            self._defaults = []
+            for default in self.parent.defaults:
+                if default is None:
+                    default = None
+                else:
+                    default = getattr(default, self.name)
+                self._defaults.append(default)
         else:
             default_field_value = utils.default_value(self._field)
             if isinstance(default_field_value, _MISSING_TYPE):

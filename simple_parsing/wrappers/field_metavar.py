@@ -55,7 +55,7 @@ def get_metavar(t: Type) -> str:
             if type_arg is type(None):
                 continue
             metavars.append(get_metavar(type_arg))
-        metavar = "|".join(metavars)
+        metavar = "|".join(map(str, metavars))
         if optional:
             return f"[{metavar}]"
         return metavar
