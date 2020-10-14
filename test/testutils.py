@@ -57,7 +57,9 @@ def assert_help_output_equals(actual: str, expected: str) -> bool:
     if prog != "pytest":
         expected = expected.replace("usage: pytest", f"usage: {prog}")
     remove = string.punctuation + string.whitespace
-    assert "".join(actual.split()) == "".join(expected.split())
+    actual_str = "".join(actual.split())
+    expected_str = "".join(expected.split())
+    assert actual_str == expected_str, f"{actual_str} != {expected_str}"
 
 
 T = TypeVar("T")

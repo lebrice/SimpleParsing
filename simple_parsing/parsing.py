@@ -18,7 +18,7 @@ from typing import (Any, ClassVar, Dict, List, Sequence, Text, Type, Union,
 
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
-from .helpers import SimpleHelpFormatter
+from .help_formatter import SimpleHelpFormatter
 from .logging_utils import get_logger
 from .utils import Dataclass, split_dest
 from .wrappers import DataclassWrapper, FieldWrapper
@@ -306,12 +306,33 @@ class ArgumentParser(argparse.ArgumentParser):
                 # the constructor. Might be fine though.
                 constructor = wrapper.dataclass
                 constructor_args = self.constructor_arguments[destination]
-                instance = constructor(**constructor_args)
+
+                # If the dataclass wrapper is marked as 'optional' and all the
+                # constructor args are None, then the instance is None.
+                # TODO: How to discern the case where all values ARE none, and
+                # the case where the instance is to be None?
+                if wrapper.optional:
+                    all_default_or_none = True
+                    for field_wrapper in wrapper.fields:
+                        arg_value = constructor_args[field_wrapper.name]
+                        default_value = field_wrapper.default
+                        logger.debug(f"field {field_wrapper.name}, arg value: {arg_value}, default value: {default_value}")
+                        if arg_value != default_value:
+                            all_default_or_none = False
+                            break
+                    logger.debug(f"All fields were either default or None: {all_default_or_none}")
+
+                    if all_default_or_none:
+                        instance = None
+                    else:
+                        instance = constructor(**constructor_args)
+                else:
+                    instance = constructor(**constructor_args)
 
                 if wrapper.parent is not None:
                     parent_key, attr = utils.split_dest(destination)
                     logger.debug(
-                        f"Setting a value at attribute {attr} in "
+                        f"Setting a value of {instance} at attribute {attr} in "
                         f"parent at key {parent_key}."
                     )
                     self.constructor_arguments[parent_key][attr] = instance
@@ -373,10 +394,9 @@ class ArgumentParser(argparse.ArgumentParser):
             for field in wrapper.fields:
                 value = parsed_arg_values.pop(field.dest, None)
                 deleted_values[field.dest] = value
+
         leftover_args = argparse.Namespace(**parsed_arg_values)
         if deleted_values:
             logger.debug(f"deleted values: {deleted_values}")
             logger.debug(f"leftover args: {leftover_args}")
         return leftover_args
-
-   

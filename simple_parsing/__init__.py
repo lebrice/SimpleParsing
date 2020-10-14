@@ -3,8 +3,9 @@
 """
 from . import helpers, utils, wrappers
 from .conflicts import ConflictResolution
-from .helpers import (MutableField, Serializable, SimpleHelpFormatter, choice,
-                      field, flag, list_field, mutable_field, subparsers)
+from .help_formatter import SimpleHelpFormatter
+from .helpers import (MutableField, Serializable, choice, field, flag,
+                      list_field, mutable_field, subparsers)
 from .parsing import ArgumentParser, ParsingError
 from .utils import InconsistentArgumentError
 

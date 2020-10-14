@@ -18,7 +18,6 @@ from simple_parsing.utils import (Dataclass, SimpleValueType,
                                   is_union, str2bool)
 
 from ..logging_utils import get_logger
-from .help_formatter import Formatter, SimpleHelpFormatter
 
 logger = get_logger(__file__)
 
@@ -150,6 +149,10 @@ def field(default: Union[T, _MISSING_TYPE] = MISSING,
             metadata=_metadata
         )
 
+
+@overload
+def choice(*choices: T, default: T=None, **kwargs) -> T:
+    pass
 
 @overload
 def choice(choices: Type[E], default: E, **kwargs) -> E:

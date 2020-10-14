@@ -38,9 +38,12 @@ class DataclassWrapper(Wrapper[Dataclass]):
 
         # the default values
         self._defaults: List[Dataclass] = []
-        
+
         if default:
             self.defaults = [default]
+
+        self.optional: bool = False
+
 
         for field in dataclasses.fields(self.dataclass):
             if not field.init:
@@ -61,6 +64,15 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 dataclass, name = field.type, field.name
                 child_wrapper = DataclassWrapper(dataclass, name, parent=self, _field=field)
                 self._children.append(child_wrapper)
+
+            elif utils.contains_dataclass_type_arg(field.type):
+                dataclass = utils.get_dataclass_type_arg(field.type)
+                name = field.name
+                child_wrapper = DataclassWrapper(dataclass, name, parent=self, _field=field, default=None)
+                child_wrapper.required = False
+                child_wrapper.optional = True
+                self._children.append(child_wrapper)
+
             else:
                 # a normal attribute
                 field_wrapper = FieldWrapper(field, parent=self)
@@ -130,10 +142,13 @@ class DataclassWrapper(Wrapper[Dataclass]):
             return []
         assert self.parent is not None
         if self.parent.defaults:
-            self._defaults = [
-                getattr(default, self.name)
-                for default in self.parent.defaults
-            ]
+            self._defaults = []
+            for default in self.parent.defaults:
+                if default is None:
+                    default = None
+                else:
+                    default = getattr(default, self.name)
+                self._defaults.append(default)
         else:
             default_field_value = utils.default_value(self._field)
             if isinstance(default_field_value, _MISSING_TYPE):
@@ -182,6 +197,8 @@ class DataclassWrapper(Wrapper[Dataclass]):
     @required.setter
     def required(self, value: bool):
         self._required = value
+        for field in self.fields:
+            field.required = value
         for child_wrapper in self._children:
             child_wrapper.required = value
 

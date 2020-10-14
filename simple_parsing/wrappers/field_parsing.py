@@ -3,6 +3,7 @@
 Somewhat analogous to the 'parse' function in the
 `helpers.serialization.parsing` package.
 """
+import functools
 from dataclasses import Field
 from functools import lru_cache, partial
 from typing import *
@@ -11,14 +12,13 @@ import typing_inspect as tpi
 
 from ..logging_utils import get_logger
 from ..utils import (get_item_type, get_type_arguments, is_dict, is_list,
-                     is_set, is_tuple, is_union)
+                     is_optional, is_set, is_tuple, is_union, str2bool)
 
 logger = get_logger(__file__)
 
 T = TypeVar("T")
 K = TypeVar("K")
 
-from ..utils import str2bool
 
 # Dictionary mapping from types/type annotations to their parsing functions.
 _parsing_fns: Dict[Type[T], Callable[[Any], T]] = {
@@ -37,7 +37,7 @@ def get_parsing_fn_for_field(field: Field) -> Callable[[Any], T]:
     # If the user set a custom parsing function, we use it.
     custom_parsing_fn = field.metadata.get("type")
     if custom_parsing_fn is not None:
-        return custom_parsing_fn(raw_value)
+        return custom_parsing_fn
 
     parsing_fn = get_parsing_fn(field.type)
     return parsing_fn
@@ -54,26 +54,6 @@ def register_parsing_fn(some_type: Type[T], function: Callable[[Any], T]) -> Non
     _register(some_type, function)
 
 
-from functools import wraps
-
-def save_origin_type_on_result(fn: Callable[[Type[T]], T]):
-    @wraps(fn)
-    def _fn(*args, **kwargs):
-        parsing_fn = fn(*args, **kwargs)
-        try:
-            parsing_fn.__origin_types__ = args
-        except (TypeError, AttributeError):
-            pass
-        # name = getattr(parsing_fn, "__name__", "")
-        # if not name:
-        #     return parsing_fn
-        # elif name.startswith("parse_tuple.<locals>._parse_tuple"):
-        #     name = "X"
-        # parsing_fn.__name__ = name
-        return parsing_fn
-    return _fn 
-
-@save_origin_type_on_result
 def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
     """Gets a parsing function for the given type or type annotation.
 
@@ -102,12 +82,14 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
     #         args = (Any, Any)
     #     return parse_dict(*args)
 
-    elif is_set(t):
-        logger.debug(f"parsing a Set field: {t}")
-        args = get_type_arguments(t)
-        if len(args) != 1:
-            args = (Any,)
-        return parse_set(args[0])
+    # TODO: This would require some sort of 'postprocessing' step to convert a
+    # list to a Set or something like that.
+    # elif is_set(t):
+    #     logger.debug(f"parsing a Set field: {t}")
+    #     args = get_type_arguments(t)
+    #     if len(args) != 1:
+    #         args = (Any,)
+    #     return parse_set(args[0])
 
     elif is_tuple(t):
         logger.debug(f"parsing a Tuple field: {t}")
