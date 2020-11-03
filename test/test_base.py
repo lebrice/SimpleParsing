@@ -86,7 +86,7 @@ def test_not_providing_required_argument_throws_error(some_type):
     class SomeClass(TestSetup):
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
-    with raises():
+    with raises(SystemExit):
         class_a = SomeClass.setup("")
 
 
@@ -97,7 +97,7 @@ def test_not_providing_required_argument_name_but_no_value_throws_error(some_typ
         a: some_type # type: ignore
         """some docstring for attribute 'a'"""
 
-    with raises():
+    with raises(SystemExit):
         class_a = SomeClass.setup("--a")
 
 class Color(Enum):

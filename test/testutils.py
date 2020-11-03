@@ -31,22 +31,36 @@ def raises(exception=ParsingError, match=None, code: int=None):
     with pytest.raises(exception, match=match):
         yield
 
+from io import StringIO
+from contextlib import redirect_stderr
+
+
+@contextmanager
+def exits_and_writes_to_stderr(match: str = ""):
+    s = StringIO()
+    with redirect_stderr(s), raises(SystemExit):
+        yield
+    s.seek(0)
+    err_string = s.read()
+    if match:
+        assert match in err_string, err_string
+    else:
+        assert err_string, err_string
 
 @contextmanager
 def raises_missing_required_arg():
-    with raises(match="the following arguments are required"):
+    with exits_and_writes_to_stderr("the following arguments are required"):
         yield
-
 
 @contextmanager
 def raises_expected_n_args(n: int):
-    with raises(match=f"expected {n} arguments"):
+    with exits_and_writes_to_stderr(f"expected {n} arguments"):
         yield
 
 
 @contextmanager
 def raises_unrecognized_args(*args: str):
-    with raises(match=f"unrecognized arguments: " + " ".join(args or [])):
+    with exits_and_writes_to_stderr(f"unrecognized arguments: " + " ".join(args or [])):
         yield
 
 
