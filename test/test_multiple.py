@@ -114,7 +114,7 @@ def test_parse_multiple_without_required_arguments(some_type: Type):
         a: some_type  # type: ignore
         """some docstring for attribute 'a'"""
 
-    with raises():
+    with exits_and_writes_to_stderr():
         some_class = SomeClass.setup_multiple(2, "")
 
 
@@ -125,7 +125,7 @@ def test_parse_multiple_without_required_container_arguments(container_type: Typ
     class SomeClass(TestSetup):
         a: container_type[item_type]  # type: ignore
         """some docstring for attribute 'a'"""
-    with raises():
+    with exits_and_writes_to_stderr("the following arguments are required:"):
         _ = SomeClass.setup_multiple(3, "")
 
 
@@ -137,7 +137,7 @@ def test_parse_multiple_with_arg_name_without_arg_value(container_type: Type, it
         a: container_type[item_type]  # type: ignore
         """some docstring for attribute 'a'"""
 
-    with raises():
+    with exits_and_writes_to_stderr("expected at least one argument"):
         _ = SomeClass.setup_multiple(3, "--a")
 
 @xfail(reason="BUG: When # of instances to parse is equal to item count in default value.")

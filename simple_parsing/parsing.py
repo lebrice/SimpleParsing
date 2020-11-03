@@ -181,21 +181,6 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing()
         return super().print_help(file)
 
-    def error(self, message):
-        """error(message: string)
-
-        Prints a usage message incorporating the message to stderr and
-        exits.
-
-        If you override this in a subclass, it should not return -- it
-        should either exit or raise an exception.
-        """
-        self.print_usage(sys.stderr)
-        raise ParsingError(f"{self.prog}: error: {message}")
-        # args = {'prog': self.prog, 'message': message}
-        # self.exit(2, f"{self.prog}: error: {message}")
-
-
     def equivalent_argparse_code(self) -> str:
         """Returns the argparse code equivalent to that of `simple_parsing`. 
         

@@ -17,7 +17,7 @@ def test_choice_default():
 
 
 def test_value_not_in_choices_throws_error():
-    with raises():
+    with raises(SystemExit):
         a = A.setup("--color orange")
 
 def test_passed_value_works_fine():
@@ -121,7 +121,7 @@ def test_passing_enum_to_choice_no_default_makes_required_arg():
     @dataclass
     class Something(TestSetup):
         favorite_color: Color = choice(Color)
-    with raises():
+    with raises(SystemExit):
         s = Something.setup("")
 
     s = Something.setup("--favorite_color blue")

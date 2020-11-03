@@ -21,7 +21,7 @@ def test_custom_args():
     foo = Foo.setup("--output_dir /bob")
     assert foo.output_dir == "/bob"
 
-    with raises():
+    with raises(SystemExit):
         foo = Foo.setup("-o /cat")
         assert foo.output_dir == "/cat"
 
@@ -80,7 +80,7 @@ def test_custom_nargs_plus():
     with raises_missing_required_arg():
         foo = Foo.setup("")
 
-    with raises(match="expected at least one argument"):
+    with exits_and_writes_to_stderr(match="expected at least one argument"):
         foo = Foo.setup("--some_int")
 
     foo = Foo.setup("--some_int 123")
@@ -172,7 +172,7 @@ def test_list_of_choices():
     foo = Foo.setup("--task_sequence train train ood")
     assert foo.task_sequence == ["train", "train", "ood"]
 
-    with raises(match="invalid choice:"):
+    with exits_and_writes_to_stderr(match="invalid choice:"):
         Foo.setup("--task_sequence train bob test")
     
 
