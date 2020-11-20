@@ -29,6 +29,7 @@ T = TypeVar("T")
 
 def field(default: Union[T, _MISSING_TYPE] = MISSING,
           alias: Optional[Union[str, List[str]]] = None,
+          cmd: bool = True,
           *,
           to_dict: bool=True,
           encoding_fn: Callable[[T], Any]=None,
@@ -59,6 +60,9 @@ def field(default: Union[T, _MISSING_TYPE] = MISSING,
         default None. When passing strings which do not start by "-" or "--", 
         will be prefixed with "-" if the string is one character and by "--"
         otherwise.
+    cmd: bool, optional
+        Wether to add command-line arguments for this field or not. Defaults to
+        True.
     
     ## Serialization-related Keyword Arguments:
 
@@ -105,6 +109,7 @@ def field(default: Union[T, _MISSING_TYPE] = MISSING,
         _metadata.update(dict(encoding_fn=encoding_fn))
     if decoding_fn is not None:
         _metadata.update(dict(decoding_fn=decoding_fn))
+    _metadata["cmd"] = cmd
 
     if custom_argparse_args:
         _metadata.update({"custom_args": custom_argparse_args})

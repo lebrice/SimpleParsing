@@ -89,6 +89,10 @@ class DataclassWrapper(Wrapper[Dataclass]):
         group = parser.add_argument_group(title=self.title, description=self.description)
 
         for wrapped_field in self.fields:
+            if not wrapped_field.field.metadata.get("cmd", True):
+                logger.debug(f"Skipping field {wrapped_field.name} because it has cmd=False.")
+                continue
+
             if wrapped_field.is_subparser:
                 wrapped_field.add_subparsers(parser)
                 
