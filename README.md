@@ -3,7 +3,7 @@
 
 # Simple, Elegant, Typed Argument Parsing <!-- omit in toc -->
 
-`simple-parsing` allows you to transform your ugly `argparse` scripts into beautifully structured, strongly typed little works of art.
+`simple-parsing` allows you to transform your ugly `argparse` scripts into beautifully structured, strongly typed little works of art. This isn't a fancy, complicated new command-line tool either, ***this simply adds new features to plain-old argparse!***
 Using [dataclasses](https://docs.python.org/3.7/library/dataclasses.html), `simple-parsing` makes it easier to share and reuse command-line arguments - ***no more copy pasting!***
 
 Supports inheritance, **nesting**, easy serialization to json/yaml, automatic help strings from comments, and much more!
