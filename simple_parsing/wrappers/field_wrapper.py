@@ -170,6 +170,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         
         elif self.is_optional:
             _arg_options["type"] = get_parsing_fn(self.field.type)
+            _arg_options["nargs"] = "?"
 
         elif self.is_union:
             logger.debug(f"Parsing a Union type!")
