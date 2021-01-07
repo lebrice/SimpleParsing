@@ -325,10 +325,10 @@ class ArgumentParser(argparse.ArgumentParser):
                 else:
                     # if this destination is not a nested class, we set the
                     # attribute on the returned Namespace.
-                    logger.debug(
-                        f"setting attribute '{destination}' on the Namespace "
-                        f"to a value of {instance}"
-                    )
+                    # logger.debug(
+                    #     f"setting attribute '{destination}' on the Namespace "
+                    #     f"to a value of {instance}"
+                    # )
                     assert not hasattr(parsed_args, destination), (
                         f"Namespace should not already have a '{destination}' "
                         f"attribute! (namespace: {parsed_args}) "
