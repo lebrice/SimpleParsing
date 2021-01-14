@@ -29,6 +29,25 @@ optional arguments:
 HParams ['hparams']:
    Set of options for the training of a Model. 
 
+  -n int, --num_layers int
+  -u int, --num_units int
+  -o str, --opt str, --optimizer str
+  -lr float, --learning_rate float
+"""
+
+# Now if we wanted to also be able to set the arguments using their full paths:
+parser = ArgumentParser(add_dest_to_option_strings=True)
+parser.add_arguments(HParams, dest="hparams")
+parser.print_help()
+expected += """
+usage: option_strings.py [-h] [-n int] [-u int] [-o str] [-lr float]
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+HParams ['hparams']:
+   Set of options for the training of a Model. 
+
   -n int, --num_layers int, --hparams.num_layers int
   -u int, --num_units int, --hparams.num_units int
   -o str, --opt str, --optimizer str, --hparams.optimizer str

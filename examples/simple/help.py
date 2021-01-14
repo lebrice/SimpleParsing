@@ -71,16 +71,12 @@ HParams ['hparams']:
       ./simple_parsing/utils.py
       
 
-  --num_layers int, --hparams.num_layers int
-                        Number of layers in the model. (default: 4)
-  --num_units int, --hparams.num_units int
-                        Number of units (neurons) per layer. (default: 64)
-  --optimizer str, --hparams.optimizer str
-                        Which optimizer to use. (default: ADAM)
-  --learning_rate float, --hparams.learning_rate float
+  --num_layers int      Number of layers in the model. (default: 4)
+  --num_units int       Number of units (neurons) per layer. (default: 64)
+  --optimizer str       Which optimizer to use. (default: ADAM)
+  --learning_rate float
                         Learning_rate used by the optimizer. (default: 0.001)
-  --alpha float, --hparams.alpha float
-                        A detailed description of this new 'alpha' parameter,
+  --alpha float         A detailed description of this new 'alpha' parameter,
                         which can potentially span multiple lines. (default:
                         0.05)
 """

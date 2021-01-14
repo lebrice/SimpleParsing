@@ -34,7 +34,7 @@ class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args,
                  conflict_resolution: ConflictResolution=ConflictResolution.AUTO,
                  add_option_string_dash_variants: bool=False,
-                 add_dest_to_option_strings: bool=True,
+                 add_dest_to_option_strings: bool=False,
                  formatter_class: Type[HelpFormatter]=SimpleHelpFormatter,
                  **kwargs):
         """Creates an ArgumentParser instance.
