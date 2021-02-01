@@ -362,3 +362,42 @@ for Serializable in (Serializable, YamlSerializable):
 
         g_ = Leaderboard.loads(s)
         assert isinstance(g_.participants, dict)
+
+
+def test_choice_dict_with_nonserializable_values():
+    """ Test that when a choice_dict has values of some non-json-serializable type, a
+    custom encoding/decoding function is provided that will map to/from the dict keys
+    rather than attempt to serialize the field value.
+
+    """
+    from simple_parsing import choice
+    
+    def identity(x: int):
+        print(f"Func a: {x}")
+        return x
+
+    def double(x: int):
+        print(f"func B: {x}")
+        return x * 2
+    
+    
+    @dataclass
+    class Bob(TestSetup, Serializable):
+        func: Callable = choice({"identity": identity, "double": double}, default="a")
+    b = Bob(func=identity)
+    assert b.func(10) == 10
+
+    b = Bob(func=double)
+    assert b.func(10) == 20
+
+    b = Bob.setup("--func identity")
+    assert b.func(10) == 10
+    assert b.to_dict() == {"func": "identity"}
+    assert Bob.from_dict(b.to_dict()) == b
+    
+    b = Bob.setup("--func double")
+    assert b.func(10) == 20
+    assert b.to_dict() == {"func": "double"}
+    assert Bob.from_dict(b.to_dict()) == b
+    
+    

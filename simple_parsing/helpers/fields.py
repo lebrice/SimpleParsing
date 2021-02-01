@@ -213,10 +213,33 @@ def choice(*choices: T, default: T = None, **kwargs: Any) -> T:
             # if the choices is a dict, the options are the keys
             # save the info about the choice_dict in the field metadata.
             metadata = kwargs.setdefault("metadata", {})
+            choice_dict = choices
             # save the choice_dict in metadata so that we can recover the values in postprocessing.
-            metadata["choice_dict"] = choices
-            choices = list(choices.keys())
+            metadata["choice_dict"] = choice_dict
+            choices = list(choice_dict.keys())
+        
+            # TODO: If the choice dict is given, then add encoding/decoding functions that just
+            # get/set the right key.
+            def _encoding_fn(value: Any) -> str:
+                """ Custom encoding function that will simply represent the value as the
+                the key in the dict rather than the value itself.
+                """
+                if value in choice_dict.keys():
+                    return value
+                elif value in choice_dict.values():
+                    return [k for k, v in choice_dict.items() if v == value][0]
+                return value        
+            kwargs.setdefault("encoding_fn", _encoding_fn)
+            
+            def _decoding_fn(value: Any) -> str:
+                """ Custom decoding function that will retrieve the value from the
+                stored key in the dictionary.
+                """
+                return choice_dict.get(value, value)
+    
+            kwargs.setdefault("decoding_fn", _decoding_fn)
 
+            
     return field(
         default=default,
         choices=choices,
