@@ -46,7 +46,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
 
 
         for field in dataclasses.fields(self.dataclass):
-            if not field.init:
+            if not field.init or field.metadata.get("cmd", True) == False:
                 continue
 
             if utils.is_subparser_field(field) or utils.is_choice(field):
