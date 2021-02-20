@@ -25,11 +25,13 @@ D = TypeVar("D", bound="Serializable")
 try:
     import yaml
     def ordered_dict_constructor(loader: yaml.Loader, node: yaml.Node):
-        value = loader.construct_sequence(node)
+        # NOTE(ycho): `deep` has to be true for `construct_yaml_seq`.
+        value = loader.construct_sequence(node, deep = True)
         return OrderedDict(*value)
 
     def ordered_dict_representer(dumper: yaml.Dumper, instance: OrderedDict) -> yaml.Node:
-        node = dumper.represent_sequence("OrderedDict", instance.items())
+        # NOTE(ycho): nested list for compatibility with PyYAML's representer
+        node = dumper.represent_sequence("OrderedDict", [list(instance.items())])
         return node
 
     yaml.add_representer(OrderedDict, ordered_dict_representer)
