@@ -269,6 +269,10 @@ def decode_dict(K_: Type[K], V_: Type[V]) -> Callable[[List[Tuple[Any, Any]]], D
         if isinstance(val, list):
             result = OrderedDict()
             items = val
+        elif isinstance(val, OrderedDict):
+            # NOTE(ycho): Needed to propagate `OrderedDict` type
+            result = OrderedDict()
+            items = val.items()
         else:
             items = val.items()
         for k, v in items:
