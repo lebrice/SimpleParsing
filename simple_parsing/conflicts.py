@@ -119,6 +119,8 @@ class ConflictResolver:
             else:
                 field_wrappers.extend(w.fields)
 
+        # TODO: #49: Also consider the conflicts with regular argparse arguments.
+
         conflicts: Dict[str, List[FieldWrapper]] = defaultdict(list)
         for field_wrapper in field_wrappers:
             for option_string in field_wrapper.option_strings:
