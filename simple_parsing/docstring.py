@@ -83,7 +83,7 @@ def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeD
         return AttributeDocString()
 
 def _contains_attribute_definition(line_str: str) -> bool:
-    """Returns wether or not a line contains a an class attribute definition.
+    """Returns wether or not a line contains a an dataclass field definition.
     
     Arguments:
         line_str {str} -- the line content
@@ -93,8 +93,11 @@ def _contains_attribute_definition(line_str: str) -> bool:
     """
     parts = line_str.split("#", maxsplit=1)
     before_comment = parts[0].strip()
-    parts = before_comment.split(":")
+
+    before_first_equal = before_comment.split("=", maxsplit=1)[0]
+    parts = before_first_equal.split(":")
     if len(parts) != 2:
+        # For now, I don't think it's possible to have a type annotation contain :
         return False
     attr_name = parts[0]
     attr_type = parts[1]
