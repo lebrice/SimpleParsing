@@ -48,6 +48,15 @@ def simple_attribute(request):
     logging.debug(f"Attribute type: {some_type}, passed value: '{passed_value}', expected: '{expected_value}'")
     return request.param
 
+@pytest.fixture
+def assert_equals_stdout(capsys):
+    def strip(string): return "".join(string.split())
+
+    def should_equal(expected: str, file_path: str=None):
+        out = capsys.readouterr().out
+        assert strip(out) == strip(expected), file_path
+    return should_equal
+
 
 @pytest.fixture(scope="module")
 def parser():

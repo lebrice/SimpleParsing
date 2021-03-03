@@ -24,7 +24,8 @@ class DataclassWrapper(Wrapper[Dataclass]):
         # super().__init__(dataclass, name)
         self.dataclass = dataclass
         self._name = name
-        self.default = default
+        self.default = default 
+        self.prefix = prefix
 
         self.fields: List[FieldWrapper] = []
         self._destinations: List[str] = []
@@ -75,7 +76,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
 
             else:
                 # a normal attribute
-                field_wrapper = FieldWrapper(field, parent=self)
+                field_wrapper = FieldWrapper(field, parent=self, prefix=self.prefix)
                 logger.debug(f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.default}")
                 self.fields.append(field_wrapper)
         
