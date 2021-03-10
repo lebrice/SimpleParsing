@@ -37,7 +37,15 @@ $ python issue.py --bar 456
 Foo(bar=456)
 ```
 
-**Screenshots**
+**Actual behavior**
+A clear and concise description of what is happening.
+
+```console
+$ python issue.py
+Foo(bar=123)
+$ python issue.py --bar 456
+Foo(bar=456)
+```
 
 **Desktop (please complete the following information):**
  - Version [e.g. 22]
