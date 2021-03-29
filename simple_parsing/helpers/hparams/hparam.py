@@ -134,18 +134,23 @@ def uniform(
         default = kwargs.pop("default_value")
 
     if discrete is None:
-        if min == 0 and max == 1:
-            discrete = False
-        elif (isinstance(min, int) and isinstance(max, int)) and (
-            default in {None, dataclasses.MISSING} or isinstance(default, int)
-        ):
-            # If given something like uniform(0, 100) or uniform(5,10,default=7) then
-            # we can 'safely' assume that the discrete option should be used.
-            discrete = True
+        # TODO: Set discrete = False by default, and then maybe set it to True later if
+        # the annotation on the field is int.
+        discrete = False
+        # if min == 0 and max == 1:
+        #     discrete = False
+        # elif (isinstance(min, int) and isinstance(max, int)) and (
+        #     default in {None, dataclasses.MISSING} or isinstance(default, int)
+        # ):
+        #     # If given something like uniform(0, 100) or uniform(5,10,default=7) then
+        #     # we can 'safely' assume that the discrete option should be used.
+        #     discrete = True
+
     if discrete and default not in {None, dataclasses.MISSING}:
         default = round(default)
 
-    prior = UniformPrior(min=min, max=max, discrete=discrete, default=default)
+    default_v = None if default is dataclasses.MISSING else default
+    prior = UniformPrior(min=min, max=max, discrete=discrete, default=default_v)
 
     # if default is None:
     #     default = dataclasses.MISSING
