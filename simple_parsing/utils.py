@@ -653,6 +653,24 @@ def zip_dicts(*dicts: Dict[K, V]) -> Iterable[Tuple[K, Tuple[Optional[V], ...]]]
         yield (key, tuple(d.get(key) for d in dicts))
 
 
+def dict_union(*dicts: Dict) -> Dict:
+    """ Simple dict union until we use python 3.9
+    
+    >>> from collections import OrderedDict
+    >>> a = OrderedDict(a=1, b=2, c=3)
+    >>> b = OrderedDict(c=5, d=6, e=7)
+    >>> dict_union(a, b)
+    OrderedDict([('a', 1), ('b', 2), ('c', 5), ('d', 6), ('e', 7)])
+    """
+    result: Dict = None  # type: ignore
+    for d in dicts:
+        if result is None:
+            result = type(d)()
+        result.update(d)
+    assert result is not None
+    return result
+
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod()

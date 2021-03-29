@@ -2,6 +2,7 @@
 from .fields import *
 from .flatten import FlattenedAccess
 from .serialization import Serializable, SimpleJsonEncoder, encode
+from .hyperparameters import HyperParameters
 
 try:
     from .serialization import YamlSerializable
