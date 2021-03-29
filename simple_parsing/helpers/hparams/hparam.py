@@ -176,7 +176,11 @@ def log_uniform(
             "can't pass both `default` and `default_value`"
         )
         default = kwargs.pop("default_value")
-    prior = LogUniformPrior(min=min, max=max, discrete=discrete, default=default)
+
+    default_v = default
+    if default is dataclasses.MISSING:
+        default_v = None
+    prior = LogUniformPrior(min=min, max=max, discrete=discrete, default=default_v)
 
     # TODO: Do we really want to set the default value when not passed?
     # if default in {None, dataclasses.MISSING}:
@@ -198,8 +202,9 @@ loguniform = log_uniform
 @wraps(_choice)
 def categorical(
     *choices: T,
-    default: T = None,
+    default: Union[T, dataclasses._MISSING_TYPE] = dataclasses.MISSING,
     probabilities: Union[List[float], Dict[str, float]] = None,
+    strict: bool = False,
     **kwargs: Any,
 ) -> T:
     """Marks a field as being a categorical hyper-parameter.
@@ -214,7 +219,7 @@ def categorical(
         T: the result of the usual `dataclasses.field()` function (a dataclass field).
     """
     if "default_value" in kwargs:
-        assert default is None, "can't pass both `default` and `default_value`"
+        assert default in {None, dataclasses.MISSING}, "can't pass both `default` and `default_value`"
         default = kwargs.pop("default_value")
 
     metadata = kwargs.get("metadata", {})
@@ -231,6 +236,7 @@ def categorical(
         # dataclass holding this field, so that it gets the corresponding value from the
         # dict.
         # IDEA: Adding some kind of 'hook' to be used by simple-parsing?
+
         def postprocess(value):
             if isinstance(value, (list, np.ndarray)):
                 # TODO: Weird behaviour, this gets called with list?
@@ -240,7 +246,7 @@ def categorical(
             return value
 
         metadata["postprocessing"] = postprocess
-        if default:
+        if default not in {None, dataclasses.MISSING}:
             assert default in choice_dict.values()
             default_key = [k for k, v in choice_dict.items() if v == default][0]
         options = list(choice_dict.keys())
@@ -249,23 +255,42 @@ def categorical(
 
     if isinstance(probabilities, dict):
         if not np.isclose(sum(probabilities.values()), 1):
-            raise RuntimeError(f"Probabilities should sum to 1!")
+            raise RuntimeError("Probabilities should sum to 1!")
         probs = []
         for option in options:
             if option in probabilities:
                 probs.append(probabilities[option])
             else:
                 raise RuntimeError(
-                    f"The keys to the probabilities dict should match the keys of the choice dict."
+                    "The keys to the probabilities dict should match the keys of the "
+                    "choice dict."
                 )
         probabilities = probs
+
+    default_v = default_key
+    if default is dataclasses.MISSING:
+        default_v = None
 
     prior = CategoricalPrior(
         choices=options,
         probabilities=probabilities,
-        default_value=default_key,
+        default_value=default_v,
     )
     metadata["prior"] = prior
+    
+    if strict:
+        def postprocess(value):
+            if value not in prior:
+                raise ValueOutsidePriorException(value=value, prior=prior)
+            return value
+        if "postprocessing" not in metadata:
+            metadata["postprocessing"] = postprocess
+        else:
+            # TODO: Compose both functions?
+            existing_fn = metadata["postprocessing"]
+            new_fn = postprocess
+            metadata["postprocessing"] = lambda v: new_fn(existing_fn(v))
+
     kwargs["metadata"] = metadata
     return _choice(*choices, default=default, **kwargs)
 

@@ -55,6 +55,7 @@ def test_clip_within_bounds():
     class C(HyperParameters):
         a: int = uniform(123, 456, discrete=True)
         b: float = log_uniform(4.56, 123.456)
+        c: str = categorical("foo", "bar", "baz")
 
     with pytest.raises(TypeError):
         _ = C()
@@ -65,11 +66,14 @@ def test_clip_within_bounds():
     with pytest.raises(TypeError):
         _ = C(b=4.56)
 
+    with pytest.raises(TypeError):
+        _ = C(c="bar")
+
     # TODO: IDEA: how about we actually do some post-processing to always clip stuff
     # between bounds?
     # Check that it doesn't change anything if the values are within the range.
-    assert C(a=1000, b=1.23).clip_within_bounds() == C(456, 4.56)
-    assert C(a=-1.234, b=1000).clip_within_bounds() == C(123, 123.456)
+    assert C(a=1000, b=1.23, c="bar").clip_within_bounds() == C(456, 4.56, "bar")
+    assert C(a=-1.234, b=1000, c="foo").clip_within_bounds() == C(123, 123.456, "foo")
 
 
 def test_strict_bounds():
@@ -79,15 +83,20 @@ def test_strict_bounds():
     @dataclass
     class C(HyperParameters):
         a: int = uniform(0, 1, strict=True)
-        b: float = log_uniform(4.56, 123.456, default=32.0)
+        b: float = log_uniform(4.56, 123.456)
+        c: str = categorical("foo", "bar", "baz", default="foo", strict=True)
 
-    # valid range for learning_rate is [0 - 1].
+    # valid range for a is [0, 1).
     with pytest.raises(ValueError,
                        match="Field 'a' got value 123, which is outside of the defined prior"):
-        _ = C(a=123)
+        _ = C(a=123, b=10, c="foo")
+
+    with pytest.raises(ValueError,
+                       match="Field 'c' got value 'yolo', which is outside of the defined prior"):
+        _ = C(a=0.5, b=0.1, c="yolo")
 
     # should NOT raise an error, since the field `b` isn't strict.
-    _ = C(a=0.1, b=-1.26)
+    _ = C(a=0.1, b=-1.26, c="bar")
 
 
 def test_nesting():

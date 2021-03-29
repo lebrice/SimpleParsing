@@ -79,7 +79,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
                     new_value = f.metadata["postprocessing"](value)
                 except ValueOutsidePriorException as e:
                     raise ValueError(
-                        f"Field '{name}' got value {e.value}, which is outside of the "
+                        f"Field '{name}' got value {repr(e.value)}, which is outside of the "
                         f"defined prior region: {e.prior}."
                     )
                 setattr(self, name, new_value)
