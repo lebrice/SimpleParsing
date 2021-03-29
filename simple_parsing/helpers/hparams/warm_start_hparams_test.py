@@ -1,6 +1,6 @@
 import pytest
 from .warm_start_hparams import WarmStarteableHParams
-from simple_parsing.helpers.hyperparameters import uniform
+from .hyperparameters import uniform
 from dataclasses import dataclass
 
 
