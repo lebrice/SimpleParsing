@@ -6,7 +6,10 @@ import functools
 import json
 import re
 import warnings
+import itertools
+import hashlib
 from abc import ABC
+from collections import OrderedDict
 from collections import abc as c_abc
 from collections import defaultdict
 from dataclasses import _MISSING_TYPE, MISSING, Field, dataclass
@@ -600,6 +603,54 @@ def keep_keys(d: Dict, keys_to_keep: Iterable[str]) -> Tuple[Dict, Dict]:
         if key not in keys_to_keep:
             removed[key] = d.pop(key)
     return d, removed
+
+
+def compute_identity(size: int=16, **sample) -> str:
+    """Compute a unique hash out of a dictionary
+
+    Parameters
+    ----------
+    size: int
+        size of the unique hash
+
+    **sample:
+        Dictionary to compute the hash from
+
+    """
+    sample_hash = hashlib.sha256()
+
+    for k, v in sorted(sample.items()):
+        sample_hash.update(k.encode('utf8'))
+
+        if isinstance(v, dict):
+            sample_hash.update(compute_identity(size, **v).encode('utf8'))
+        else:
+            sample_hash.update(str(v).encode('utf8'))
+
+    return sample_hash.hexdigest()[:size]
+
+
+def dict_intersection(*dicts: Dict[K, V]) -> Iterable[Tuple[K, Tuple[V, ...]]]:
+    common_keys = set(dicts[0])
+    for d in dicts:
+        common_keys.intersection_update(d)
+    for key in common_keys:
+        yield (key, tuple(d[key] for d in dicts))
+
+
+def field_dict(dataclass: Dataclass) -> Dict[str, Field]:
+    result: Dict[str, Field] = OrderedDict()
+    for field in dataclasses.fields(dataclass):
+        result[field.name] = field
+    return result
+
+
+def zip_dicts(*dicts: Dict[K, V]) -> Iterable[Tuple[K, Tuple[Optional[V], ...]]]:
+    # If any attributes are common to both the Experiment and the State,
+    # copy them over to the Experiment.
+    keys = set(itertools.chain(*dicts))
+    for key in keys:
+        yield (key, tuple(d.get(key) for d in dicts))
 
 
 if __name__ == "__main__":
