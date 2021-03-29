@@ -26,5 +26,10 @@ setuptools.setup(
     install_requires=[
         "typing_inspect",
         "dataclasses;python_version<'3.7'",
-    ]
+    ],
+    extras_require={
+        "test": [
+            "matplotlib"
+        ],
+    }
 )
