@@ -17,12 +17,6 @@ class B(A):
     momentum: float = uniform(0.0, 1.0)
 
 
-@dataclass
-class C(HyperParameters):
-    lr: float = uniform(0.0, 1.0)
-    momentum: float = uniform(0.0, 1.0)
-
-
 def test_to_array():
     b: B = B.sample()
     array = b.to_array()
@@ -35,6 +29,12 @@ def test_from_array():
     b: B = B.from_array(array)
     assert b.learning_rate == 0.0
     assert b.momentum == 1.0
+
+
+@dataclass
+class C(HyperParameters):
+    lr: float = uniform(0.0, 1.0)
+    momentum: float = uniform(0.0, 1.0)
 
 
 def test_clip_within_bounds():
@@ -56,10 +56,38 @@ def test_clip_within_bounds():
         a: int = uniform(123, 456, discrete=True)
         b: float = log_uniform(4.56, 123.456)
 
-    # Check that it doesn't change anything if the values are within the range.
-    assert C().clip_within_bounds() == C()
+    with pytest.raises(TypeError):
+        _ = C()
 
-    assert C(a=-1.234, b=10).clip_within_bounds() == C(a=123, b=10)
+    with pytest.raises(TypeError):
+        _ = C(a=123)
+
+    with pytest.raises(TypeError):
+        _ = C(b=4.56)
+
+    # TODO: IDEA: how about we actually do some post-processing to always clip stuff
+    # between bounds?
+    # Check that it doesn't change anything if the values are within the range.
+    assert C(a=1000, b=1.23).clip_within_bounds() == C(456, 4.56)
+    assert C(a=-1.234, b=1000).clip_within_bounds() == C(123, 123.456)
+
+
+def test_strict_bounds():
+    """When creating a class and using a hparam field with `strict=True`, the values
+    will be restricted to be within the given bounds.
+    """
+    @dataclass
+    class C(HyperParameters):
+        a: int = uniform(0, 1, strict=True)
+        b: float = log_uniform(4.56, 123.456, default=32.0)
+
+    # valid range for learning_rate is [0 - 1].
+    with pytest.raises(ValueError,
+                       match="Field 'a' got value 123, which is outside of the defined prior"):
+        _ = C(a=123)
+
+    # should NOT raise an error, since the field `b` isn't strict.
+    _ = C(a=0.1, b=-1.26)
 
 
 def test_nesting():

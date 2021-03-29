@@ -41,7 +41,7 @@ from simple_parsing.utils import (
     zip_dicts,
 )
 
-from .hparam import hparam, log_uniform, uniform
+from .hparam import hparam, log_uniform, uniform, ValueOutsidePriorException
 from .priors import LogUniformPrior, NormalPrior, Prior, UniformPrior
 
 logger = get_logger(__file__)
@@ -68,14 +68,20 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
     rng: ClassVar[np.random.RandomState] = np.random
 
     def __post_init__(self):
-        for field in fields(self):
-            field: Field
-            name = field.name
+        for name, f in field_dict(self).items():
+            f: Field
+            assert name == f.name
             value = getattr(self, name)
             # Apply any post-processing function, if applicable.
-            if "postprocessing" in field.metadata:
-                # print(f"Post-processing of field {name}")
-                new_value = field.metadata["postprocessing"](value)
+            if "postprocessing" in f.metadata:
+                print(f"Post-processing of field {name}")
+                try:
+                    new_value = f.metadata["postprocessing"](value)
+                except ValueOutsidePriorException as e:
+                    raise ValueError(
+                        f"Field '{name}' got value {e.value}, which is outside of the "
+                        f"defined prior region: {e.prior}."
+                    )
                 setattr(self, name, new_value)
 
     @classmethod

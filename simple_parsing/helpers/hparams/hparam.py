@@ -49,21 +49,40 @@ logger = get_logger(__file__)
 T = TypeVar("T")
 
 
+class ValueOutsidePriorException(Exception):
+    def __init__(self, value: Any, prior: Any, *args, **kwargs):
+        self.value = value
+        self.prior = prior
+        super().__init__(*args, **kwargs)
+
+
 @overload
 def uniform(
-    min: int, max: int, default: int = None, discrete: bool = True, **kwargs
+    min: int,
+    max: int,
+    default: int = None,
+    discrete: bool = True,
+    strict: bool = False,
+    **kwargs,
 ) -> int:
     pass
 
 
 @overload
-def uniform(min: float, max: float, default: float = None, **kwargs) -> float:
+def uniform(
+    min: float, max: float, default: float = None, strict: bool = False, **kwargs
+) -> float:
     pass
 
 
 @overload
 def uniform(
-    min: float, max: float, default: float = None, discrete: bool = False, **kwargs
+    min: float,
+    max: float,
+    default: float = None,
+    discrete: bool = False,
+    strict: bool = False,
+    **kwargs,
 ) -> float:
     pass
 
@@ -72,7 +91,8 @@ def uniform(
     min: Union[int, float],
     max: Union[int, float],
     discrete: bool = None,
-    default: Union[int, float] = None,
+    default: Union[int, float, dataclasses._MISSING_TYPE] = dataclasses.MISSING,
+    strict: bool = False,
     **kwargs,
 ) -> Union[int, float]:
     """Declares a Field with a Uniform prior.
@@ -95,6 +115,11 @@ def uniform(
         argument of the dataclass. Setting a value can also be useful for the experiment
         version control feature of Orion. By default None.
 
+    strict : bool, optional
+        Wether the bounds should be strictly enforced. When set to True, attempting to
+        create an object with this field, and passing a value outside the bounds will
+        raise a ValueError.
+
     Returns
     -------
     Union[int, float]
@@ -108,22 +133,25 @@ def uniform(
         assert default is None, "can't pass both `default` and `default_value`"
         default = kwargs.pop("default_value")
 
-    if default is None:
-        default = (min + max) / 2
-
     if discrete is None:
         if min == 0 and max == 1:
             discrete = False
         elif (isinstance(min, int) and isinstance(max, int)) and (
-            default is None or isinstance(default, int)
+            default in {None, dataclasses.MISSING} or isinstance(default, int)
         ):
             # If given something like uniform(0, 100) or uniform(5,10,default=7) then
             # we can 'safely' assume that the discrete option should be used.
             discrete = True
-    if discrete:
+    if discrete and default not in {None, dataclasses.MISSING}:
         default = round(default)
+
     prior = UniformPrior(min=min, max=max, discrete=discrete, default=default)
-    return hparam(default=default, prior=prior, **kwargs)
+
+    # if default is None:
+    #     default = dataclasses.MISSING
+    #     default = (min + max) / 2
+
+    return hparam(default=default, prior=prior, strict=strict, **kwargs)
 
 
 @overload
@@ -140,19 +168,23 @@ def log_uniform(
     min: Union[int, float],
     max: Union[int, float],
     discrete: bool = False,
-    default: Union[int, float] = None,
+    default: Union[int, float, dataclasses._MISSING_TYPE] = dataclasses.MISSING,
     **kwargs,
 ) -> Union[int, float]:
     if "default_value" in kwargs:
-        assert default is None, "can't pass both `default` and `default_value`"
+        assert default in {None, dataclasses.MISSING}, (
+            "can't pass both `default` and `default_value`"
+        )
         default = kwargs.pop("default_value")
     prior = LogUniformPrior(min=min, max=max, discrete=discrete, default=default)
-    if default is None:
-        log_min = math.log(min, prior.base)
-        log_max = math.log(max, prior.base)
-        default = math.pow(prior.base, (log_min + log_max) / 2)
-        if discrete or (isinstance(min, int) and isinstance(max, int)):
-            default = round(default)
+
+    # TODO: Do we really want to set the default value when not passed?
+    # if default in {None, dataclasses.MISSING}:
+    #     log_min = math.log(min, prior.base)
+    #     log_max = math.log(max, prior.base)
+    #     default = math.pow(prior.base, (log_min + log_max) / 2)
+    #     if discrete or (isinstance(min, int) and isinstance(max, int)):
+    #         default = round(default)
     return hparam(
         default=default,
         prior=prior,
@@ -239,7 +271,11 @@ def categorical(
 
 
 def hparam(
-    default: T, *args, prior: Union[Type[Prior[T]], Prior[T]] = None, **kwargs
+    default: T,
+    *args,
+    prior: Union[Type[Prior[T]], Prior[T]] = None,
+    strict: bool = False,
+    **kwargs,
 ) -> T:
     metadata = kwargs.get("metadata", {})
     min: Optional[float] = kwargs.get("min", kwargs.get("min"))
@@ -287,6 +323,16 @@ def hparam(
             "- `min` and `max` kwargs and a type of Prior to use, \n"
             "- a `Prior` instance."
         )
+
+    if strict:
+        assert "postprocessing" not in metadata
+
+        def postprocess(value):
+            if value not in prior:
+                raise ValueOutsidePriorException(value=value, prior=prior)
+            return value
+
+        metadata["postprocessing"] = postprocess
 
     kwargs["metadata"] = metadata
     return field(

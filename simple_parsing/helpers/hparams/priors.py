@@ -1,7 +1,7 @@
 import math
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Generic, List, Optional, TypeVar, Union, overload
+from typing import Generic, List, Optional, TypeVar, Union, overload, Any
 
 import numpy as np
 
@@ -26,6 +26,10 @@ class Prior(Generic[T]):
     def get_orion_space_string(self) -> str:
         """ Gets the 'Orion-formatted space string' for this Prior object. """
 
+    @abstractmethod
+    def __contains__(self, v: Union[T, Any]) -> bool:
+        pass
+
 
 @dataclass
 class NormalPrior(Prior):
@@ -45,6 +49,10 @@ class NormalPrior(Prior):
             "TODO: Add this for the normal prior, didn't check how its done in "
             "Orion yet."
         )
+
+    def __contains__(self, v: Union[T, Any]) -> bool:
+        # TODO: For normal priors, I guess we only really check if the value is a float?
+        return isinstance(v, (int, float))
 
 
 @dataclass
@@ -69,6 +77,10 @@ class UniformPrior(Prior):
             string += f", default_value={self.default}"
         string += ")"
         return string
+
+    def __contains__(self, v: Union[T, Any]) -> bool:
+        # TODO: Include the max value here? or not?
+        return isinstance(v, (int, float)) and (self.min <= v < self.max)
 
 
 @dataclass
@@ -133,6 +145,9 @@ class CategoricalPrior(Prior[T]):
         string += ")"
         return string
 
+    def __contains__(self, v: Union[T, Any]) -> bool:
+        return v in self.choices
+
 
 @dataclass
 class LogUniformPrior(Prior):
@@ -195,3 +210,6 @@ class LogUniformPrior(Prior):
             string += f", default_value={self.default}"
         string += ")"
         return string
+
+    def __contains__(self, v: Union[T, Any]) -> bool:
+        return isinstance(v, (int, float)) and (self.min <= v < self.max)
