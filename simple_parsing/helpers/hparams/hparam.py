@@ -130,7 +130,9 @@ def uniform(
     """
     # TODO: what about uniform over a "choice"?
     if "default_value" in kwargs:
-        assert default is None, "can't pass both `default` and `default_value`"
+        assert default in {None, dataclasses.MISSING}, (
+            "can't pass both `default` and `default_value`"
+        )
         default = kwargs.pop("default_value")
 
     if discrete is None:
@@ -224,7 +226,9 @@ def categorical(
         T: the result of the usual `dataclasses.field()` function (a dataclass field).
     """
     if "default_value" in kwargs:
-        assert default in {None, dataclasses.MISSING}, "can't pass both `default` and `default_value`"
+        assert default in {None, dataclasses.MISSING}, (
+            "can't pass both `default` and `default_value`"
+        )
         default = kwargs.pop("default_value")
 
     metadata = kwargs.get("metadata", {})
