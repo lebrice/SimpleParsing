@@ -8,12 +8,15 @@ from .hyperparameters import HyperParameters
 from simple_parsing.logging_utils import get_logger
 from simple_parsing.helpers.serialization import Serializable
 from simple_parsing.utils import dict_intersection
-
+import numpy as np
 logger = get_logger(__file__)
 
 
 @dataclass
 class WarmStarteableHParams(HyperParameters):
+    """ WIP: Subclass of HyperParameters, that adds methods used when warm-starting HPO.
+    """
+
     def distance_to(
         self,
         other: Union[HyperParameters, Dict],
@@ -52,7 +55,7 @@ class WarmStarteableHParams(HyperParameters):
             # inheritance.
             x2: Dict[str, float] = other.to_dict()
         elif translate:
-            raise NotImplementedError(f"Not using this 'translate' feature here yet.")
+            raise NotImplementedError("Not using this 'translate' feature here yet.")
             translator = self.get_translator()
             logger.debug(f"x2 before: {other}")
             # 'Translate' the other into a dict with the same keys as 'self'
@@ -113,6 +116,4 @@ class WarmStarteableHParams(HyperParameters):
 
     def to_orion_trial(self):
         from orion.core.utils.format_trials import dict_to_trial
-        from orion.core.worker.trial import Trial
-
         return dict_to_trial(self.to_dict(), self.get_orion_space_dict())

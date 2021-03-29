@@ -1,8 +1,7 @@
 import math
-import random
 from abc import abstractmethod
-from dataclasses import InitVar, dataclass, field
-from typing import TypeVar, Generic, Union, List, Optional, ClassVar
+from dataclasses import dataclass
+from typing import Generic, List, Optional, TypeVar, Union, overload
 
 import numpy as np
 
@@ -25,7 +24,8 @@ class Prior(Generic[T]):
 
     @abstractmethod
     def get_orion_space_string(self) -> str:
-        """ Gets the 'Orion-formatted space string' for this Prior object. """ 
+        """ Gets the 'Orion-formatted space string' for this Prior object. """
+
 
 @dataclass
 class NormalPrior(Prior):
@@ -45,6 +45,7 @@ class NormalPrior(Prior):
             "TODO: Add this for the normal prior, didn't check how its done in "
             "Orion yet."
         )
+
 
 @dataclass
 class UniformPrior(Prior):
@@ -68,8 +69,6 @@ class UniformPrior(Prior):
             string += f", default_value={self.default}"
         string += ")"
         return string
-
-from typing import overload
 
 
 @dataclass
@@ -106,11 +105,11 @@ class CategoricalPrior(Prior[T]):
         else:
             choices = self.choices
             probabilities = self.probabilities
-        
+
         print(choices, n, probabilities)
-        
+
         s = self.rng.choice(choices, size=n, p=probabilities)
-        samples =  [(s_i.item() if isinstance(s_i, np.ndarray) else s_i) for s_i in s]
+        samples = [(s_i.item() if isinstance(s_i, np.ndarray) else s_i) for s_i in s]
         return samples[0] if n in {None, 1} else samples
 
     def get_orion_space_string(self) -> str:
@@ -186,7 +185,7 @@ class LogUniformPrior(Prior):
                 return f"{value:.0e}"
             else:
                 return f"{value:g}"
-        
+
         min_str = format_power(self.min, self.log_min)
         max_str = format_power(self.max, self.log_max)
         string = f"loguniform({min_str}, {max_str}"
@@ -196,6 +195,3 @@ class LogUniformPrior(Prior):
             string += f", default_value={self.default}"
         string += ")"
         return string
-
-
-
