@@ -181,7 +181,7 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
             except Exception as ex:
                 e = ex
         else:
-            logger.error(f"Couldn't parse value {val}, returning it as-is. (exception: {e})")
+            logger.debug(f"Couldn't parse value {val}, returning it as-is. (exception: {e})")
         return val
     return _try_functions
 
