@@ -681,21 +681,53 @@ def zip_dicts(*dicts: Dict[K, V]) -> Iterable[Tuple[K, Tuple[Optional[V], ...]]]
         yield (key, tuple(d.get(key) for d in dicts))
 
 
-def dict_union(*dicts: Dict) -> Dict:
-    """ Simple dict union until we use python 3.9
-    
+def dict_union(
+    *dicts: Dict[K, V], recurse: bool = True, dict_factory=dict
+) -> Dict[K, V]:
+    """Simple dict union until we use python 3.9
+
+    If `recurse` is True, also does the union of nested dictionaries.
+    NOTE: The returned dictionary has keys sorted alphabetically.
     >>> from collections import OrderedDict
     >>> a = OrderedDict(a=1, b=2, c=3)
     >>> b = OrderedDict(c=5, d=6, e=7)
-    >>> dict_union(a, b)
+    >>> dict_union(a, b, dict_factory=OrderedDict)
     OrderedDict([('a', 1), ('b', 2), ('c', 5), ('d', 6), ('e', 7)])
+    >>> a = OrderedDict(a=1, b=OrderedDict(c=2, d=3))
+    >>> b = OrderedDict(a=2, b=OrderedDict(c=3, e=6))
+    >>> dict_union(a, b, dict_factory=OrderedDict)
+    OrderedDict([('a', 2), ('b', OrderedDict([('c', 3), ('d', 3), ('e', 6)]))])
     """
-    result: Dict = None  # type: ignore
-    for d in dicts:
-        if result is None:
-            result = type(d)()
-        result.update(d)
-    assert result is not None
+    result: Dict = dict_factory()
+    if not dicts:
+        return result
+    assert len(dicts) >= 1
+    all_keys: Set[str] = set()
+    all_keys.update(*dicts)
+    all_keys = sorted(all_keys)
+
+    # Create a neat generator of generators, to save some memory.
+    all_values: Iterable[Tuple[V, Iterable[K]]] = (
+        (k, (d[k] for d in dicts if k in d)) for k in all_keys
+    )
+    for k, values in all_values:
+        sub_dicts: List[Dict] = []
+        new_value: V = None
+        n_values = 0
+        for v in values:
+            if isinstance(v, dict) and recurse:
+                sub_dicts.append(v)
+            else:
+                # Overwrite the new value for that key.
+                new_value = v
+            n_values += 1
+
+        if len(sub_dicts) == n_values and recurse:
+            # We only get here if all values for key `k` were dictionaries,
+            # and if recurse was True.
+            new_value = dict_union(*sub_dicts, recurse=True, dict_factory=dict_factory)
+
+        result[k] = new_value
     return result
 
 
