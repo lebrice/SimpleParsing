@@ -267,13 +267,8 @@ def categorical(
             raise RuntimeError("Probabilities should sum to 1!")
         probs = []
         for option in options:
-            if option in probabilities:
-                probs.append(probabilities[option])
-            else:
-                raise RuntimeError(
-                    "The keys to the probabilities dict should match the keys of the "
-                    "choice dict."
-                )
+            probability = probabilities.get(option, 0.)
+            probs.append(probability)
         probabilities = probs
 
     default_v = default_key
