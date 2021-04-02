@@ -16,8 +16,22 @@ from dataclasses import _MISSING_TYPE, MISSING, Field, dataclass
 from enum import Enum
 from functools import partial
 from inspect import isclass
-from typing import (Any, Callable, Container, Dict, Iterable, List, Mapping,
-                    MutableMapping, Optional, Set, Tuple, Type, TypeVar, Union)
+from typing import (
+    Any,
+    Callable,
+    Container,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import typing_inspect as tpi
 
@@ -25,8 +39,11 @@ from simple_parsing.logging_utils import get_logger
 
 logger = get_logger(__file__)
 
-builtin_types = [getattr(builtins, d) for d in dir(
-    builtins) if isinstance(getattr(builtins, d), type)]
+builtin_types = [
+    getattr(builtins, d)
+    for d in dir(builtins)
+    if isinstance(getattr(builtins, d), type)
+]
 
 K = TypeVar("K")
 T = TypeVar("T")
@@ -38,9 +55,9 @@ Dataclass = TypeVar("Dataclass")
 DataclassType = Type[Dataclass]
 
 SimpleValueType = Union[bool, int, float, str]
-SimpleIterable = Union[List[SimpleValueType],
-                       Dict[Any, SimpleValueType], Set[SimpleValueType]]
-
+SimpleIterable = Union[
+    List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]
+]
 
 
 def is_subparser_field(field: Field) -> bool:
@@ -60,12 +77,12 @@ class InconsistentArgumentError(RuntimeError):
 
 
 def camel_case(name):
-    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+    s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
-TRUE_STRINGS: List[str] = ['yes', 'true', 't', 'y', '1']
-FALSE_STRINGS: List[str] = ['no', 'false', 'f', 'n', '0']
+TRUE_STRINGS: List[str] = ["yes", "true", "t", "y", "1"]
+FALSE_STRINGS: List[str] = ["no", "false", "f", "n", "0"]
 
 
 def str2bool(raw_value: Union[str, bool]) -> bool:
@@ -81,17 +98,18 @@ def str2bool(raw_value: Union[str, bool]) -> bool:
         return False
     else:
         raise argparse.ArgumentTypeError(
-            f"Boolean value expected for argument, received '{raw_value}'")
+            f"Boolean value expected for argument, received '{raw_value}'"
+        )
 
 
 def get_item_type(container_type: Type[Container[T]]) -> T:
     """Returns the `type` of the items in the provided container `type`.
-    
+
     When no type annotation is found, or no item type is found, returns
     `typing.Any`.
     NOTE: If a type with multiple arguments is passed, only the first type
     argument is returned.
-    
+
     >>> import typing
     >>> from typing import List, Tuple
     >>> get_item_type(list)
@@ -127,7 +145,17 @@ def get_item_type(container_type: Type[Container[T]]) -> T:
     Returns:
         Type -- the type of the container's items, if found, else Any.
     """
-    if container_type in {list, set, tuple, List, Set, Tuple, Dict, Mapping, MutableMapping}:
+    if container_type in {
+        list,
+        set,
+        tuple,
+        List,
+        Set,
+        Tuple,
+        Dict,
+        Mapping,
+        MutableMapping,
+    }:
         # the built-in `list` and `tuple` types don't have annotations for their item types.
         return Any
     type_arguments = getattr(container_type, "__args__", None)
@@ -137,7 +165,9 @@ def get_item_type(container_type: Type[Container[T]]) -> T:
         return Any
 
 
-def get_argparse_type_for_container(container_type: Type) -> Union[Type, Callable[[str], bool]]:
+def get_argparse_type_for_container(
+    container_type: Type,
+) -> Union[Type, Callable[[str], bool]]:
     """Gets the argparse 'type' option to be used for a given container type.
     When an annotation is present, the 'type' option of argparse is set to that type.
     if not, then the default value of 'str' is returned.
@@ -174,7 +204,7 @@ def is_list(t: Type) -> bool:
 
     Returns:
         bool: True if `t` is list or a subclass of list.
-    
+
     >>> from typing import *
     >>> is_list(list)
     True
@@ -205,7 +235,7 @@ def is_tuple(t: Type) -> bool:
 
     Returns:
         bool: True if `t` is tuple or a subclass of tuple.
-    
+
     >>> from typing import *
     >>> is_tuple(list)
     False
@@ -234,7 +264,7 @@ def is_dict(t: Type) -> bool:
 
     Returns:
         bool: True if `t` is dict or a subclass of dict.
-    
+
     >>> from typing import *
     >>> from collections import OrderedDict
     >>> is_dict(dict)
@@ -271,7 +301,7 @@ def is_set(t: Type) -> bool:
 
     Returns:
         bool: True if `t` is set or a subclass of set.
-    
+
     >>> from typing import *
     >>> is_set(set)
     True
@@ -295,7 +325,6 @@ def is_set(t: Type) -> bool:
     """
     mro = _mro(t)
     return set in _mro(t)
-
 
 
 def is_dataclass_type(t: Type) -> bool:
@@ -350,13 +379,13 @@ def is_choice(field: Field) -> bool:
 
 def is_optional(t: Type) -> bool:
     """Returns True if the given Type is a variant of the Optional type.
-    
+
     Parameters
     ----------
     - t : Type
-    
+
         a Type annotation (or "live" type)
-    
+
     Returns
     -------
     bool
@@ -387,10 +416,7 @@ def contains_dataclass_type_arg(t: Type) -> bool:
     elif is_tuple_or_list_of_dataclasses(t):
         return True
     elif is_union(t):
-        return any(
-            contains_dataclass_type_arg(arg)
-            for arg in get_type_arguments(t)
-        )
+        return any(contains_dataclass_type_arg(arg) for arg in get_type_arguments(t))
     return False
 
 
@@ -400,10 +426,12 @@ def get_dataclass_type_arg(t: Type) -> Optional[Type]:
     if is_dataclass_type(t):
         return t
     elif is_tuple_or_list(t) or is_union(t):
-        return next(filter(None, (
-            get_dataclass_type_arg(arg)
-            for arg in get_type_arguments(t)
-        )), None)
+        return next(
+            filter(
+                None, (get_dataclass_type_arg(arg) for arg in get_type_arguments(t))
+            ),
+            None,
+        )
     return None
 
 
@@ -432,15 +460,16 @@ def get_container_nargs(container_type: Type) -> Union[int, str]:
     return "*"
 
 
-def _parse_multiple_containers(container_type: type, append_action: bool = False) -> Callable[[str], List[Any]]:
+def _parse_multiple_containers(
+    container_type: type, append_action: bool = False
+) -> Callable[[str], List[Any]]:
     T = get_argparse_type_for_container(container_type)
     factory = tuple if is_tuple(container_type) else list
 
     result = factory()
 
     def parse_fn(value: str):
-        logger.debug(
-            f"parsing multiple {container_type} of {T}s, value is: '{value}'")
+        logger.debug(f"parsing multiple {container_type} of {T}s, value is: '{value}'")
         values = _parse_container(container_type)(value)
         logger.debug(f"parsing result is '{values}'")
 
@@ -449,6 +478,7 @@ def _parse_multiple_containers(container_type: type, append_action: bool = False
             return result
         else:
             return values
+
     return parse_fn
 
 
@@ -465,7 +495,8 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
             values = _parse_literal(value)
         except Exception as e:
             logger.debug(
-                f"Exception while trying to parse '{value}' as a literal: {type(e)}: {e}")
+                f"Exception while trying to parse '{value}' as a literal: {type(e)}: {e}"
+            )
             # if it doesnt work, fall back to the parse_fn.
             values = _fallback_parse(value)
 
@@ -475,7 +506,7 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
         return values
 
     def _parse_literal(value: str) -> Union[List[Any], Any]:
-        """ try to parse the string to a python expression directly.
+        """try to parse the string to a python expression directly.
         (useful for nested lists or tuples.)
         """
         literal = ast.literal_eval(value)
@@ -490,7 +521,7 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
             return values
 
     def _fallback_parse(v: str) -> List[Any]:
-        v = ' '.join(v.split())
+        v = " ".join(v.split())
         if v.startswith("[") and v.endswith("]"):
             v = v[1:-1]
 
@@ -530,9 +561,7 @@ def get_nesting_level(possibly_nested_list):
     elif len(possibly_nested_list) == 0:
         return 1
     else:
-        return 1 + max(
-            get_nesting_level(item) for item in possibly_nested_list
-        )
+        return 1 + max(get_nesting_level(item) for item in possibly_nested_list)
 
 
 def default_value(field: dataclasses.Field) -> Union[T, _MISSING_TYPE]:
@@ -548,7 +577,7 @@ def default_value(field: dataclasses.Field) -> Union[T, _MISSING_TYPE]:
     if field.default is not dataclasses.MISSING:
         return field.default
     elif field.default_factory is not dataclasses.MISSING:  # type: ignore
-        constructor = field.default_factory # type: ignore
+        constructor = field.default_factory  # type: ignore
         return constructor()
     else:
         return dataclasses.MISSING
@@ -562,7 +591,7 @@ def trie(sentences: List[List[str]]) -> Dict[str, Union[str, Dict]]:
 
     Returns:
         Dict[str, Union[str, Dict[str, ...]]]: A tree where each node is a word in a sentence.
-        Sentences which begin with the same words share the first nodes, etc. 
+        Sentences which begin with the same words share the first nodes, etc.
     """
     first_word_to_sentences: Dict[str, List[List[str]]] = defaultdict(list)
     for sentence in sentences:
@@ -574,8 +603,7 @@ def trie(sentences: List[List[str]]) -> Dict[str, Union[str, Dict]]:
         if len(sentences) == 1:
             return_dict[first_word] = ".".join(sentences[0])
         else:
-            sentences_without_first_word = [
-                sentence[1:] for sentence in sentences]
+            sentences_without_first_word = [sentence[1:] for sentence in sentences]
             return_dict[first_word] = trie(sentences_without_first_word)
     return return_dict
 
@@ -605,7 +633,7 @@ def keep_keys(d: Dict, keys_to_keep: Iterable[str]) -> Tuple[Dict, Dict]:
     return d, removed
 
 
-def compute_identity(size: int=16, **sample) -> str:
+def compute_identity(size: int = 16, **sample) -> str:
     """Compute a unique hash out of a dictionary
 
     Parameters
@@ -620,12 +648,12 @@ def compute_identity(size: int=16, **sample) -> str:
     sample_hash = hashlib.sha256()
 
     for k, v in sorted(sample.items()):
-        sample_hash.update(k.encode('utf8'))
+        sample_hash.update(k.encode("utf8"))
 
         if isinstance(v, dict):
-            sample_hash.update(compute_identity(size, **v).encode('utf8'))
+            sample_hash.update(compute_identity(size, **v).encode("utf8"))
         else:
-            sample_hash.update(str(v).encode('utf8'))
+            sample_hash.update(str(v).encode("utf8"))
 
     return sample_hash.hexdigest()[:size]
 
@@ -673,4 +701,5 @@ def dict_union(*dicts: Dict) -> Dict:
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

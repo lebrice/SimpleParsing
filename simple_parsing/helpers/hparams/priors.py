@@ -2,7 +2,6 @@ import math
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Generic, List, Optional, TypeVar, Union, overload, Any
-
 import numpy as np
 
 T = TypeVar("T")
@@ -10,7 +9,7 @@ T = TypeVar("T")
 
 @dataclass  # type: ignore
 class Prior(Generic[T]):
-
+    
     def __post_init__(self):
         self.rng = np.random
 
@@ -61,6 +60,9 @@ class UniformPrior(Prior):
     max: float = 1.
     discrete: bool = False
     default: Optional[float] = None
+
+    def __post_init__(self):
+        assert self.min <= self.max
 
     def sample(self) -> Union[float, int]:
         # TODO: add suport for enums?
