@@ -1,46 +1,10 @@
-import copy
 import dataclasses
-import inspect
-import itertools
-import logging
-import math
-import pickle
-import random
-import sys
-from abc import ABC, abstractmethod
-from collections import OrderedDict, defaultdict
-from contextlib import contextmanager
-from dataclasses import Field, InitVar, dataclass, fields
-from functools import singledispatch, total_ordering, wraps
-from pathlib import Path
-from typing import (
-    Any,
-    Callable,
-    ClassVar,
-    Dict,
-    List,
-    NamedTuple,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-    overload,
-)
+from functools import wraps
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
 
-import numpy as np
-from simple_parsing.helpers import Serializable, encode
 from simple_parsing.helpers.fields import choice as _choice
 from simple_parsing.helpers.fields import field
-from simple_parsing.helpers.serialization import register_decoding_fn
 from simple_parsing.logging_utils import get_logger
-from simple_parsing.utils import (
-    compute_identity,
-    dict_intersection,
-    field_dict,
-    zip_dicts,
-)
 
 from .priors import CategoricalPrior, LogUniformPrior, NormalPrior, Prior, UniformPrior
 
@@ -130,9 +94,10 @@ def uniform(
     """
     # TODO: what about uniform over a "choice"?
     if "default_value" in kwargs:
-        assert default in {None, dataclasses.MISSING}, (
-            "can't pass both `default` and `default_value`"
-        )
+        assert default in {
+            None,
+            dataclasses.MISSING,
+        }, "can't pass both `default` and `default_value`"
         default = kwargs.pop("default_value")
 
     if discrete is None:
@@ -179,9 +144,10 @@ def log_uniform(
     **kwargs,
 ) -> Union[int, float]:
     if "default_value" in kwargs:
-        assert default in {None, dataclasses.MISSING}, (
-            "can't pass both `default` and `default_value`"
-        )
+        assert default in {
+            None,
+            dataclasses.MISSING,
+        }, "can't pass both `default` and `default_value`"
         default = kwargs.pop("default_value")
 
     default_v = default
@@ -226,9 +192,10 @@ def categorical(
         T: the result of the usual `dataclasses.field()` function (a dataclass field).
     """
     if "default_value" in kwargs:
-        assert default in {None, dataclasses.MISSING}, (
-            "can't pass both `default` and `default_value`"
-        )
+        assert default in {
+            None,
+            dataclasses.MISSING,
+        }, "can't pass both `default` and `default_value`"
         default = kwargs.pop("default_value")
 
     metadata = kwargs.get("metadata", {})
@@ -247,9 +214,6 @@ def categorical(
         # IDEA: Adding some kind of 'hook' to be used by simple-parsing?
 
         def postprocess(value):
-            if isinstance(value, (list, np.ndarray)):
-                # TODO: Weird behaviour, this gets called with list?
-                assert False, (value, choice_dict)
             if value in choice_dict:
                 return choice_dict[value]
             return value
@@ -263,11 +227,11 @@ def categorical(
         options = list(choices)
 
     if isinstance(probabilities, dict):
-        if not np.isclose(sum(probabilities.values()), 1):
+        if abs(sum(probabilities.values()) - 1) > 1e-5:
             raise RuntimeError("Probabilities should sum to 1!")
         probs = []
         for option in options:
-            probability = probabilities.get(option, 0.)
+            probability = probabilities.get(option, 0.0)
             probs.append(probability)
         probabilities = probs
 
@@ -281,12 +245,14 @@ def categorical(
         default_value=default_v,
     )
     metadata["prior"] = prior
-    
+
     if strict:
+
         def postprocess(value):
             if value not in prior:
                 raise ValueOutsidePriorException(value=value, prior=prior)
             return value
+
         if "postprocessing" not in metadata:
             metadata["postprocessing"] = postprocess
         else:

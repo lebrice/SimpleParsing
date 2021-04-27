@@ -1,7 +1,6 @@
-import dataclasses
-from dataclasses import Field, dataclass, fields
+import math
+from dataclasses import dataclass, fields
 
-import numpy as np
 
 @dataclass
 class Point:
@@ -11,7 +10,7 @@ class Point:
     z: float = 0.
 
     def distance(self, other: "Point") -> float:
-        return np.sqrt(
+        return math.sqrt(
             (self.x - other.x) ** 2 +
             (self.y - other.y) ** 2 +
             (self.z - other.z) ** 2

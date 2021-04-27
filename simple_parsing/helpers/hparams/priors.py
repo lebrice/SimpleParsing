@@ -2,16 +2,26 @@ import math
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import Generic, List, Optional, TypeVar, Union, overload, Any
-import numpy as np
+import random
+
+numpy_installed = False
+try:
+    import numpy as np
+    numpy_installed = True
+except ImportError:
+    pass
+
 
 T = TypeVar("T")
 
 
 @dataclass  # type: ignore
 class Prior(Generic[T]):
-    
     def __post_init__(self):
-        self.rng = np.random
+        if numpy_installed:
+            self.np_rng = np.random
+        else:
+            self.rng: random.Random = random.Random()
 
     @abstractmethod
     def sample(self) -> T:
@@ -19,7 +29,10 @@ class Prior(Generic[T]):
 
     def seed(self, seed: Optional[int]) -> None:
         # Should this seed this individual prior?
-        self.rng = np.random.RandomState(seed)
+        if numpy_installed:
+            self.np_rng = np.random.RandomState(seed)
+        else:
+            self.rng = random.Random(seed)
 
     @abstractmethod
     def get_orion_space_string(self) -> str:
@@ -38,7 +51,10 @@ class NormalPrior(Prior):
     default: Optional[float] = None
 
     def sample(self) -> Union[float, int]:
-        value = self.rng.normal(self.mu, self.sigma)
+        if numpy_installed:
+            value = self.np_rng.normal(self.mu, self.sigma)
+        else:
+            value = self.rng.normalvariate(self.mu, self.sigma)
         if self.discrete:
             return round(value)
         return value
@@ -66,7 +82,10 @@ class UniformPrior(Prior):
 
     def sample(self) -> Union[float, int]:
         # TODO: add suport for enums?
-        value = self.rng.uniform(self.min, self.max)
+        if numpy_installed:
+            value = self.np_rng.uniform(self.min, self.max)
+        else:
+            value = self.rng.uniform(self.min, self.max)
         if self.discrete:
             return round(value)
         return value
@@ -121,9 +140,12 @@ class CategoricalPrior(Prior[T]):
             probabilities = self.probabilities
 
         print(choices, n, probabilities)
+        if numpy_installed:
+            s = self.np_rng.choice(choices, size=n, p=probabilities)
+            samples = [(s_i.item() if isinstance(s_i, np.ndarray) else s_i) for s_i in s]
+        else:
+            samples = self.rng.choices(choices, weights=probabilities, k=n or 1)
 
-        s = self.rng.choice(choices, size=n, p=probabilities)
-        samples = [(s_i.item() if isinstance(s_i, np.ndarray) else s_i) for s_i in s]
         return samples[0] if n in {None, 1} else samples
 
     def get_orion_space_string(self) -> str:
@@ -155,7 +177,7 @@ class CategoricalPrior(Prior[T]):
 class LogUniformPrior(Prior):
     min: float = 1e-3
     max: float = 1e+3
-    base: float = np.e
+    base: float = math.e
     discrete: bool = False
     default: Optional[float] = None
 
@@ -163,8 +185,10 @@ class LogUniformPrior(Prior):
         # TODO: Might not be 100% numerically stable.
         assert self.min > 0, "min of LogUniform can't be negative!"
         assert self.min < self.max, "max should be greater than min!"
-
-        log_val = self.rng.uniform(self.log_min, self.log_max)
+        if numpy_installed:
+            log_val = self.np_rng.uniform(self.log_min, self.log_max)
+        else:
+            log_val = self.rng.uniform(self.log_min, self.log_max)
         value = math.pow(self.base, log_val)
         if self.discrete:
             return round(value)
@@ -172,19 +196,31 @@ class LogUniformPrior(Prior):
 
     @property
     def log_min(self) -> Union[int, float]:
-        if self.base is np.e:
-            log_min = np.log(self.min)
+        if numpy_installed:
+            if self.base in {np.e, math.e}:
+                log_min = np.log(self.min)
+            else:
+                log_min = np.log(self.min)
         else:
-            log_min = math.log(self.min, self.base)
+            if self.base is math.e:
+                log_min = math.log(self.min)
+            else:
+                log_min = math.log(self.min, self.base)
         assert isinstance(log_min, (int, float))
         return log_min
 
     @property
     def log_max(self) -> Union[int, float]:
-        if self.base is np.e:
-            log_max = np.log(self.max)
+        if numpy_installed:
+            if self.base in {math.e, np.e}:
+                log_max = np.log(self.max)
+            else:
+                log_max = np.log(self.max) / np.log(self.base)
         else:
-            log_max = math.log(self.max, self.base)
+            if self.base is math.e:
+                log_max = math.log(self.max)
+            else:
+                log_max = math.log(self.max, self.base)
         assert isinstance(log_max, (int, float))
         return log_max
 

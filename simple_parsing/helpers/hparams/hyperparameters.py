@@ -1,20 +1,14 @@
-import copy
 import dataclasses
 import inspect
-import itertools
-import logging
-import math
 import pickle
+import math
 import random
-from abc import ABC, abstractmethod
-from collections import OrderedDict, defaultdict
-from contextlib import contextmanager
-from dataclasses import Field, InitVar, dataclass, fields
+from collections import OrderedDict
+from dataclasses import Field, dataclass, fields
 from functools import singledispatch, total_ordering
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     ClassVar,
     Dict,
     List,
@@ -23,30 +17,30 @@ from typing import (
     Tuple,
     Type,
     TypeVar,
-    Union,
-    cast,
-    overload,
 )
 
-import numpy as np
-from simple_parsing.helpers.fields import field
-from simple_parsing.helpers import Serializable, encode
-from simple_parsing.helpers.serialization import register_decoding_fn
+from simple_parsing.helpers import Serializable
 from simple_parsing.logging_utils import get_logger
 from simple_parsing.utils import (
     compute_identity,
-    dict_intersection,
     dict_union,
     field_dict,
-    zip_dicts,
 )
 
-from .hparam import hparam, log_uniform, uniform, ValueOutsidePriorException
-from .priors import LogUniformPrior, NormalPrior, Prior, UniformPrior
+from .hparam import ValueOutsidePriorException, hparam, uniform, log_uniform
+from .priors import Prior
+
 
 logger = get_logger(__file__)
 T = TypeVar("T")
 HP = TypeVar("HP", bound="HyperParameters")
+
+numpy_installed = False
+try:
+    import numpy as np
+    numpy_installed = True
+except ImportError:
+    pass
 
 
 @dataclass
@@ -56,7 +50,7 @@ class BoundInfo(Serializable):
     name: str
     # One of 'continuous', 'discrete' or 'bandit' (unsuported).
     type: str = "continuous"
-    domain: Tuple[float, float] = (np.NINF, np.Infinity)
+    domain: Tuple[float, float] = (-math.inf, math.inf)
 
 
 @dataclass
@@ -65,7 +59,10 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
 
     # Class variable holding the random number generator used to create the
     # samples.
-    rng: ClassVar[np.random.RandomState] = np.random
+    if numpy_installed:
+        np_rng: ClassVar[np.random.RandomState] = np.random
+    else:
+        rng: ClassVar[random.Random] = random.Random()
 
     def __post_init__(self):
         for name, f in field_dict(self).items():
@@ -74,7 +71,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
             value = getattr(self, name)
             # Apply any post-processing function, if applicable.
             if "postprocessing" in f.metadata:
-                print(f"Post-processing of field {name}")
+                logger.debug(f"Post-processing of field {name}")
                 try:
                     new_value = f.metadata["postprocessing"](value)
                 except ValueOutsidePriorException as e:
@@ -190,9 +187,12 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
             else:
                 prior: Optional[Prior] = field.metadata.get("prior")
                 if prior is not None:
-                    prior.rng = cls.rng
+                    if numpy_installed:
+                        prior.np_rng = cls.np_rng
+                    else:
+                        prior.rng = cls.rng
                     value = prior.sample()
-                    if isinstance(value, np.ndarray):
+                    if numpy_installed and isinstance(value, np.ndarray):
                         value = value.item()
                         assert False, value
                     kwargs[field.name] = value
@@ -211,37 +211,38 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
     #     yield
     #     cls.sample_from_priors = temp
 
-    def to_array(self, dtype=np.float32) -> np.ndarray:
-        values: List[float] = []
-        for k, v in self.to_dict(dict_factory=OrderedDict).items():
-            try:
-                v = float(v)
-            except Exception as e:
-                logger.warning(
-                    f"Ignoring field {k} because we can't make a float out of it."
-                )
-            else:
-                values.append(v)
-        return np.array(values, dtype=dtype)
+    if numpy_installed:
+        def to_array(self, dtype=np.float32) -> np.ndarray:
+            values: List[float] = []
+            for k, v in self.to_dict(dict_factory=OrderedDict).items():
+                try:
+                    v = float(v)
+                except Exception:
+                    logger.warning(
+                        f"Ignoring field {k} because we can't make a float out of it."
+                    )
+                else:
+                    values.append(v)
+            return np.array(values, dtype=dtype)
 
-    @classmethod
-    def from_array(cls: Type[HP], array: np.ndarray) -> HP:
-        if len(array.shape) == 2 and array.shape[0] == 1:
-            array = array[0]
+        @classmethod
+        def from_array(cls: Type[HP], array: np.ndarray) -> HP:
+            if len(array.shape) == 2 and array.shape[0] == 1:
+                array = array[0]
 
-        keys = list(field_dict(cls))
-        # idea: could use to_dict and to_array together to determine how many
-        # values to get for each field. For now we assume that each field is one
-        # variable.
-        # cls.sample().to_dict()
-        # assert len(keys) == len(array), "assuming that each field is dim 1 for now."
-        assert len(keys) == len(array), "assuming that each field is dim 1 for now."
-        d = OrderedDict(zip(keys, array))
-        logger.debug(f"Creating an instance of {cls} using args {d}")
-        d = OrderedDict(
-            (k, v.item() if isinstance(v, np.ndarray) else v) for k, v in d.items()
-        )
-        return cls.from_dict(d)
+            keys = list(field_dict(cls))
+            # idea: could use to_dict and to_array together to determine how many
+            # values to get for each field. For now we assume that each field is one
+            # variable.
+            # cls.sample().to_dict()
+            # assert len(keys) == len(array), "assuming that each field is dim 1 for now."
+            assert len(keys) == len(array), "assuming that each field is dim 1 for now."
+            d = OrderedDict(zip(keys, array))
+            logger.debug(f"Creating an instance of {cls} using args {d}")
+            d = OrderedDict(
+                (k, v.item() if isinstance(v, np.ndarray) else v) for k, v in d.items()
+            )
+            return cls.from_dict(d)
 
     def clip_within_bounds(self: HP) -> HP:
         d = self.to_dict()

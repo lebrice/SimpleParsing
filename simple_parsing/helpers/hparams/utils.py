@@ -1,9 +1,14 @@
-import numpy as np
 import random
 
+
 def set_seed(seed: int) -> None:
-    np.random.seed(seed)
     random.seed(seed)
+    try:
+        import numpy as np
+        np.random.seed(seed)
+    except ImportError:
+        pass
+
     try:
         import torch
     except ImportError:
