@@ -76,6 +76,7 @@ def encode(obj: Any) -> Union[Dict, List, int, str, bool, None]:
         logger.debug(f"Cannot encode object {obj}: {e}")
         raise e
 
+
 @encode.register(list)
 @encode.register(tuple)
 # @encode.register(Sequence) # Would also encompass `str!`

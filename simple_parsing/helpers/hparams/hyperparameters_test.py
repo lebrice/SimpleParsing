@@ -1,10 +1,16 @@
 from dataclasses import dataclass
 from typing import Union
-
-import numpy as np
 import pytest
 
 from .hyperparameters import HyperParameters, hparam, log_uniform, uniform
+
+
+numpy_installed = False
+try:
+    import numpy as np
+    numpy_installed = True
+except ImportError:
+    pass
 
 
 @dataclass
@@ -17,6 +23,7 @@ class B(A):
     momentum: float = uniform(0.0, 1.0)
 
 
+@pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
 def test_to_array():
     b: B = B.sample()
     array = b.to_array()
@@ -24,6 +31,7 @@ def test_to_array():
     assert np.isclose(array[1], b.momentum)
 
 
+@pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
 def test_from_array():
     array = np.arange(2)
     b: B = B.from_array(array)

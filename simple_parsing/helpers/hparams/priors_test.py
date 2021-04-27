@@ -1,12 +1,26 @@
-
+import pytest
 from collections import Counter
 from dataclasses import dataclass
-
-import numpy as np
+import math
 
 from .hyperparameters import HyperParameters, hparam
 from .priors import CategoricalPrior, LogUniformPrior, UniformPrior
 from .utils import set_seed
+
+numpy_installed = False
+try:
+    import numpy as np
+    numpy_installed = True
+except ImportError:
+    pass
+
+
+matplotlib_installed = False
+try:
+    import matplotlib.pyplot as plt
+    matplotlib_installed = True
+except ImportError:
+    pass
 
 
 @dataclass
@@ -14,6 +28,8 @@ class A(HyperParameters):
     learning_rate: float = hparam(default=0.001, prior=LogUniformPrior(min=1e-6, max=1))
 
 
+@pytest.mark.skipif(not matplotlib_installed, reason="Test requires matplotlib.")
+@pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
 def test_log_uniform():
     n_bins = 5
     n_points = 200
@@ -21,7 +37,6 @@ def test_log_uniform():
     x = [
         A.sample().to_array() for i in range(n_points)
     ]
-    import matplotlib.pyplot as plt
     hist, bins, _ = plt.hist(x, bins=n_bins)
     # histogram on log scale.
     # Use non-equal bin sizes, such that they look equal on log scale.
@@ -46,6 +61,7 @@ class B(A):
     momentum: float = hparam(default=0., prior=UniformPrior(min=-2., max=2.))
 
 
+@pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
 def test_to_array():
     b = B.sample()
     array = b.to_array()
@@ -53,6 +69,7 @@ def test_to_array():
     assert np.isclose(array[1], b.momentum)
 
 
+@pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
 def test_log_uniform_and_uniform():
     n_points = 100
     set_seed(123)
@@ -67,8 +84,8 @@ def test_log_uniform_and_uniform():
         x.to_array() for x in x_samples
     ])
 
-    x0 = x[:, 0] # learning rate
-    x1 = x[:, 1] # momentum
+    x0 = x[:, 0]  # learning rate
+    x1 = x[:, 1]  # momentum
     print(x0.mean(), x0.std())
     print(x1.mean(), x1.std())
 
@@ -81,8 +98,8 @@ def test_loguniform_prior():
     prior = LogUniformPrior(min=1, max=1e5, base=10)
     samples = [prior.sample() for _ in range(1000)]
     assert all(1 < x < 1e5 for x in samples)
-    log_samples = np.log10(samples)
-    mean = np.mean(log_samples)
+    log_samples = [math.log10(s) for s in samples]
+    mean = sum(log_samples) / len(log_samples)
     # mean base-10 exponent should be around 2.5
     assert 2.4 <= mean <= 2.6
 
