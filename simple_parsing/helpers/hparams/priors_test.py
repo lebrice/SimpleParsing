@@ -15,11 +15,20 @@ except ImportError:
     pass
 
 
+matplotlib_installed = False
+try:
+    import matplotlib.pyplot as plt
+    matplotlib_installed = True
+except ImportError:
+    pass
+
+
 @dataclass
 class A(HyperParameters):
     learning_rate: float = hparam(default=0.001, prior=LogUniformPrior(min=1e-6, max=1))
 
 
+@pytest.mark.skipif(not matplotlib_installed, reason="Test requires matplotlib.")
 @pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
 def test_log_uniform():
     n_bins = 5
@@ -28,7 +37,6 @@ def test_log_uniform():
     x = [
         A.sample().to_array() for i in range(n_points)
     ]
-    import matplotlib.pyplot as plt
     hist, bins, _ = plt.hist(x, bins=n_bins)
     # histogram on log scale.
     # Use non-equal bin sizes, such that they look equal on log scale.
