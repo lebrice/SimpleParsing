@@ -95,12 +95,16 @@ def test_strict_bounds():
         c: str = categorical("foo", "bar", "baz", default="foo", strict=True)
 
     # valid range for a is [0, 1).
-    with pytest.raises(ValueError,
-                       match="Field 'a' got value 123, which is outside of the defined prior"):
+    with pytest.raises(
+        ValueError,
+        match="Field 'a' got value 123, which is outside of the defined prior",
+    ):
         _ = C(a=123, b=10, c="foo")
 
-    with pytest.raises(ValueError,
-                       match="Field 'c' got value 'yolo', which is outside of the defined prior"):
+    with pytest.raises(
+        ValueError,
+        match="Field 'c' got value 'yolo', which is outside of the defined prior",
+    ):
         _ = C(a=0.5, b=0.1, c="yolo")
 
     # should NOT raise an error, since the field `b` isn't strict.
@@ -195,3 +199,44 @@ def test_replace_int_or_float_preserves_type():
     assert isinstance(a.limit_test_batches, float)
     b = a.replace(limit_train_batches=0.5)
     assert isinstance(b.limit_test_batches, float)
+
+
+from typing import Sequence
+
+try:
+    from orion.core.io.space_builder import SpaceBuilder
+    orion_installed = True
+except ImportError:
+    orion_installed = False
+
+
+@dataclass
+class Foo(HyperParameters):
+    x: Sequence[int] = uniform(0, 10, default=(5, 5), shape=2)
+    y: Sequence[int] = uniform(0, 10, default=(5, 5, 5), shape=3)
+    z: Sequence[int] = uniform(0, 10, default=2, shape=5)
+
+
+def test_priors_with_shape():
+   
+
+    foo = Foo()
+    assert foo.x == (5, 5)
+    assert foo.y == (5, 5, 5)
+    assert foo.z == (2, 2, 2, 2, 2)
+
+    foo = Foo.sample()
+    assert len(foo.x) == 2
+    assert len(foo.y) == 3
+    assert len(foo.z) == 5
+
+
+@pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
+@pytest.mark.skipif(not orion_installed, reason="Test requires Orion.")
+def test_contains():
+    # TODO: Add a convenience method for creating a Space object from Orion directly.
+    foo = Foo(x=(2, 3), y=(1, 2, 3), z=(1, 2, 3, 4, 5))
+    space_builder = SpaceBuilder()
+    space_config = Foo.get_orion_space_dict()
+    space = space_builder.build(space_config)
+    assert foo.to_array() in space

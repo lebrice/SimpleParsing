@@ -1,6 +1,6 @@
 import dataclasses
 from functools import wraps
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload, Tuple
 
 from simple_parsing.helpers.fields import choice as _choice
 from simple_parsing.helpers.fields import field
@@ -27,6 +27,7 @@ def uniform(
     default: int = None,
     discrete: bool = True,
     strict: bool = False,
+    shape: Union[int, Tuple[int, ...]] = None,
     **kwargs,
 ) -> int:
     pass
@@ -34,7 +35,12 @@ def uniform(
 
 @overload
 def uniform(
-    min: float, max: float, default: float = None, strict: bool = False, **kwargs
+    min: float,
+    max: float,
+    default: float = None,
+    strict: bool = False,
+    shape: Union[int, Tuple[int, ...]] = None,
+    **kwargs,
 ) -> float:
     pass
 
@@ -46,6 +52,7 @@ def uniform(
     default: float = None,
     discrete: bool = False,
     strict: bool = False,
+    shape: Union[int, Tuple[int, ...]] = None,
     **kwargs,
 ) -> float:
     pass
@@ -57,6 +64,7 @@ def uniform(
     discrete: bool = None,
     default: Union[int, float, dataclasses._MISSING_TYPE] = dataclasses.MISSING,
     strict: bool = False,
+    shape: Union[int, Tuple[int, ...]] = None,
     **kwargs,
 ) -> Union[int, float]:
     """Declares a Field with a Uniform prior.
@@ -112,12 +120,25 @@ def uniform(
         #     # If given something like uniform(0, 100) or uniform(5,10,default=7) then
         #     # we can 'safely' assume that the discrete option should be used.
         #     discrete = True
+    if shape and default not in {None, dataclasses.MISSING}:
+        assert isinstance(shape, int), "only support int shapes for now."
+        if isinstance(default, (int, float)):
+            default = tuple(default for _ in range(shape))
 
     if discrete and default not in {None, dataclasses.MISSING}:
-        default = round(default)
+        if shape is None:
+            default = round(default)
+        else:
+            assert isinstance(shape, int), "only support int shapes for now."
+            default = tuple(round(default[i]) for i in range(shape))
 
+    # TODO: Make sure this doesn't by accident make some fields behave as positional
+    # fields
     default_v = None if default is dataclasses.MISSING else default
-    prior = UniformPrior(min=min, max=max, discrete=discrete, default=default_v)
+
+    prior = UniformPrior(
+        min=min, max=max, discrete=discrete, default=default_v, shape=shape
+    )
 
     # if default is None:
     #     default = dataclasses.MISSING
@@ -127,12 +148,24 @@ def uniform(
 
 
 @overload
-def log_uniform(min: int, max: int, discrete: bool = True, **kwargs) -> int:
+def log_uniform(
+    min: int,
+    max: int,
+    discrete: bool = True,
+    shape: Union[int, Tuple[int, ...]] = None,
+    **kwargs,
+) -> int:
     pass
 
 
 @overload
-def log_uniform(min: float, max: float, discrete: bool = False, **kwargs) -> float:
+def log_uniform(
+    min: float,
+    max: float,
+    discrete: bool = False,
+    shape: Union[int, Tuple[int, ...]] = None,
+    **kwargs,
+) -> float:
     pass
 
 
@@ -141,6 +174,7 @@ def log_uniform(
     max: Union[int, float],
     discrete: bool = False,
     default: Union[int, float, dataclasses._MISSING_TYPE] = dataclasses.MISSING,
+    shape: Union[int, Tuple[int, ...]] = None,
     **kwargs,
 ) -> Union[int, float]:
     if "default_value" in kwargs:
@@ -153,7 +187,9 @@ def log_uniform(
     default_v = default
     if default is dataclasses.MISSING:
         default_v = None
-    prior = LogUniformPrior(min=min, max=max, discrete=discrete, default=default_v)
+    prior = LogUniformPrior(
+        min=min, max=max, discrete=discrete, default=default_v, shape=shape
+    )
 
     # TODO: Do we really want to set the default value when not passed?
     # if default in {None, dataclasses.MISSING}:
@@ -162,11 +198,7 @@ def log_uniform(
     #     default = math.pow(prior.base, (log_min + log_max) / 2)
     #     if discrete or (isinstance(min, int) and isinstance(max, int)):
     #         default = round(default)
-    return hparam(
-        default=default,
-        prior=prior,
-        **kwargs,
-    )
+    return hparam(default=default, prior=prior, **kwargs,)
 
 
 loguniform = log_uniform
@@ -240,9 +272,7 @@ def categorical(
         default_v = None
 
     prior = CategoricalPrior(
-        choices=options,
-        probabilities=probabilities,
-        default_value=default_v,
+        choices=options, probabilities=probabilities, default_value=default_v,
     )
     metadata["prior"] = prior
 
@@ -281,11 +311,7 @@ def hparam(
         # if min and max are passed but no Prior object, assume a Uniform prior.
         prior = UniformPrior(min=min, max=max)
         metadata.update(
-            {
-                "min": min,
-                "max": max,
-                "prior": prior,
-            }
+            {"min": min, "max": max, "prior": prior,}
         )
 
     elif isinstance(prior, type) and issubclass(prior, (UniformPrior, LogUniformPrior)):
@@ -296,19 +322,9 @@ def hparam(
     elif isinstance(prior, Prior):
         metadata["prior"] = prior
         if isinstance(prior, (UniformPrior, LogUniformPrior)):
-            metadata.update(
-                dict(
-                    min=prior.min,
-                    max=prior.max,
-                )
-            )
+            metadata.update(dict(min=prior.min, max=prior.max,))
         elif isinstance(prior, (NormalPrior)):
-            metadata.update(
-                dict(
-                    mu=prior.mu,
-                    sigma=prior.sigma,
-                )
-            )
+            metadata.update(dict(mu=prior.mu, sigma=prior.sigma,))
 
     else:
         # TODO: maybe support an arbitrary callable?
@@ -330,8 +346,5 @@ def hparam(
         metadata["postprocessing"] = postprocess
 
     kwargs["metadata"] = metadata
-    return field(
-        default=default,
-        *args,
-        **kwargs,
-    )
+    return field(default=default, *args, **kwargs,)
+

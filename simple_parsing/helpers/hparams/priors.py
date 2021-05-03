@@ -1,12 +1,23 @@
 import math
 from abc import abstractmethod
 from dataclasses import dataclass
-from typing import Generic, List, Optional, TypeVar, Union, overload, Any
+from typing import (
+    Generic,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+    Any,
+    Tuple,
+    Sequence,
+)
 import random
 
 numpy_installed = False
 try:
     import numpy as np
+
     numpy_installed = True
 except ImportError:
     pass
@@ -45,12 +56,31 @@ class Prior(Generic[T]):
 
 @dataclass
 class NormalPrior(Prior):
-    mu: float = 0.
-    sigma: float = 1.
+    mu: float = 0.0
+    sigma: float = 1.0
     discrete: bool = False
     default: Optional[float] = None
+    shape: Union[int, Tuple[int, ...]] = None
+
+    def __post_init__(self):
+        super().__post_init__()
+        if self.shape:
+            if isinstance(self.default, (int, float)):
+                self.default = [self.default for _ in range(self.shape)]
 
     def sample(self) -> Union[float, int]:
+        if self.shape:
+            assert isinstance(self.shape, int), "only support int shape for now."
+            if numpy_installed:
+                return self.np_rng.normal(self.mu, self.sigma, size=self.shape)
+            elif isinstance(self.shape, int):
+                _shape = self.shape
+                self.shape = None
+                values = [self.sample() for _ in range(_shape)]
+                self.shape = _shape
+                return values
+            else:
+                raise NotImplementedError(self.shape)
         if numpy_installed:
             value = self.np_rng.normal(self.mu, self.sigma)
         else:
@@ -72,17 +102,33 @@ class NormalPrior(Prior):
 
 @dataclass
 class UniformPrior(Prior):
-    min: float = 0.
-    max: float = 1.
+    min: float = 0.0
+    max: float = 1.0
     discrete: bool = False
     default: Optional[float] = None
+    shape: Union[int, Tuple[int, ...]] = None
 
     def __post_init__(self):
         super().__post_init__()
         assert self.min <= self.max
+        if self.shape:
+            if isinstance(self.default, (int, float)):
+                self.default = [self.default for _ in range(self.shape)]
 
     def sample(self) -> Union[float, int]:
         # TODO: add suport for enums?
+        if self.shape:
+            assert isinstance(self.shape, int), "only support int shape for now."
+            if numpy_installed:
+                return self.np_rng.uniform(self.min, self.max, size=self.shape)
+            elif isinstance(self.shape, int):
+                _shape = self.shape
+                self.shape = None
+                values = [self.sample() for _ in range(_shape)]
+                self.shape = _shape
+                return values
+            else:
+                raise NotImplementedError(self.shape)
         if numpy_installed:
             value = self.np_rng.uniform(self.min, self.max)
         else:
@@ -97,6 +143,8 @@ class UniformPrior(Prior):
             string += ", discrete=True"
         if self.default is not None:
             string += f", default_value={self.default}"
+        if self.shape is not None:
+            string += f", shape={self.shape}"
         string += ")"
         return string
 
@@ -122,9 +170,12 @@ class CategoricalPrior(Prior[T]):
                 self.probabilities.append(v)
 
     @overload
-    def sample(self, n: int) -> List[T]: ...
+    def sample(self, n: int) -> List[T]:
+        ...
+
     @overload
-    def sample(self) -> T: ...
+    def sample(self) -> T:
+        ...
 
     def sample(self, n: int = None) -> Union[T, List[T]]:
         assert self.choices
@@ -143,7 +194,9 @@ class CategoricalPrior(Prior[T]):
         print(choices, n, probabilities)
         if numpy_installed:
             s = self.np_rng.choice(choices, size=n, p=probabilities)
-            samples = [(s_i.item() if isinstance(s_i, np.ndarray) else s_i) for s_i in s]
+            samples = [
+                (s_i.item() if isinstance(s_i, np.ndarray) else s_i) for s_i in s
+            ]
         else:
             samples = self.rng.choices(choices, weights=probabilities, k=n or 1)
 
@@ -177,15 +230,40 @@ class CategoricalPrior(Prior[T]):
 @dataclass
 class LogUniformPrior(Prior):
     min: float = 1e-3
-    max: float = 1e+3
+    max: float = 1e3
     base: float = math.e
     discrete: bool = False
     default: Optional[float] = None
+    shape: Union[int, Tuple[int, ...]] = None
+
+    def __post_init__(self):
+        super().__post_init__()
+        if self.shape:
+            if isinstance(self.default, (int, float)):
+                self.default = [self.default for _ in range(self.shape)]
 
     def sample(self) -> float:
         # TODO: Might not be 100% numerically stable.
         assert self.min > 0, "min of LogUniform can't be negative!"
         assert self.min < self.max, "max should be greater than min!"
+        if self.shape:
+            assert isinstance(self.shape, int), "only support in shape for now."
+            if numpy_installed:
+                log_vals = self.np_rng.uniform(
+                    self.log_min, self.log_max, size=self.shape
+                )
+                values = np.power(self.base, log_vals)
+                if self.discrete:
+                    values = np.round(values)
+                return values
+            elif isinstance(self.shape, int):
+                _shape = self.shape
+                self.shape = None
+                values = [self.sample() for _ in range(_shape)]
+                self.shape = _shape
+                return values
+            else:
+                raise NotImplementedError(self.shape)
         if numpy_installed:
             log_val = self.np_rng.uniform(self.log_min, self.log_max)
         else:
@@ -247,8 +325,28 @@ class LogUniformPrior(Prior):
             string += ", discrete=True"
         if self.default is not None:
             string += f", default_value={self.default}"
+        if self.shape is not None:
+            string += f", shape={self.shape}"
         string += ")"
         return string
 
     def __contains__(self, v: Union[T, Any]) -> bool:
+        if self.shape:
+            assert isinstance(self.shape, int), "only support int shape for now."
+            mins: Sequence[float]
+            if isinstance(self.min, (int, float)):
+                mins = [self.min for _ in range(self.shape)]
+            else:
+                mins = self.min
+
+            maxes: Sequence[float]
+            if isinstance(self.max, (int, float)):
+                maxes = [self.max for _ in range(self.shape)]
+            else:
+                maxes = self.max
+
+            return all(
+                isinstance(v_i, (int, float)) and mins[i] <= v_i < maxes[i]
+                for i, v_i in enumerate(v)
+            )
         return isinstance(v, (int, float)) and (self.min <= v < self.max)
