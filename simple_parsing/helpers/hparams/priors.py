@@ -78,6 +78,7 @@ class UniformPrior(Prior):
     default: Optional[float] = None
 
     def __post_init__(self):
+        super().__post_init__()
         assert self.min <= self.max
 
     def sample(self) -> Union[float, int]:
