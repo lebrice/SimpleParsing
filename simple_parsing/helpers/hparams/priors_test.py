@@ -111,7 +111,7 @@ def test_loguniform_prior():
     log_samples = [math.log10(s) for s in samples]
     mean = sum(log_samples) / len(log_samples)
     # mean base-10 exponent should be around 2.5
-    assert 2.4 <= mean <= 2.6
+    assert 2.35 <= mean <= 2.65
 
 
 def test_categorical_prior():

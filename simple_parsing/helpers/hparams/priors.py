@@ -120,7 +120,11 @@ class UniformPrior(Prior):
         if self.shape:
             assert isinstance(self.shape, int), "only support int shape for now."
             if numpy_installed:
-                return self.np_rng.uniform(self.min, self.max, size=self.shape)
+                values = self.np_rng.uniform(self.min, self.max, size=self.shape)
+                if self.discrete:
+                    values = np.round(values)
+                    values = values.astype(int)
+                return values
             elif isinstance(self.shape, int):
                 _shape = self.shape
                 self.shape = None

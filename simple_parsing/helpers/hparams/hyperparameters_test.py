@@ -269,6 +269,9 @@ def test_field_types():
 
     assert C.get_priors()["e"].discrete is False
     assert all(all(isinstance(v, float) for v in c.e) for c in cs)
-
     assert C.get_priors()["f"].discrete is True
-    assert all(all(isinstance(v, int) for v in c.f) for c in cs)
+
+    if numpy_installed:
+        assert all(c.f.dtype == np.int for c in cs)
+    else:
+        assert all(all(isinstance(v, int) for v in c.f) for c in cs)
