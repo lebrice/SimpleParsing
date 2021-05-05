@@ -363,6 +363,15 @@ for Serializable in (Serializable, YamlSerializable):
         g_ = Leaderboard.loads(s)
         assert isinstance(g_.participants, dict)
 
+    def test_tuple_with_ellipsis():
+
+        @dataclass
+        class Container(Serializable):
+            ints: Tuple[int, ...] = ()
+
+        container = Container(ints = (1,2))
+        assert Container.loads(container.dumps()) == container
+
 
 def test_choice_dict_with_nonserializable_values():
     """ Test that when a choice_dict has values of some non-json-serializable type, a
