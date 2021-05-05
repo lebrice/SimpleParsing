@@ -8,6 +8,7 @@ from .hyperparameters import HyperParameters, hparam, log_uniform, uniform
 numpy_installed = False
 try:
     import numpy as np
+
     numpy_installed = True
 except ImportError:
     pass
@@ -88,6 +89,7 @@ def test_strict_bounds():
     """When creating a class and using a hparam field with `strict=True`, the values
     will be restricted to be within the given bounds.
     """
+
     @dataclass
     class C(HyperParameters):
         a: int = uniform(0, 1, strict=True)
@@ -218,7 +220,7 @@ class Foo(HyperParameters):
 
 
 def test_priors_with_shape():
-   
+
 
     foo = Foo()
     assert foo.x == (5, 5)
@@ -240,3 +242,33 @@ def test_contains():
     space_config = Foo.get_orion_space_dict()
     space = space_builder.build(space_config)
     assert foo.to_array() in space
+
+
+def test_field_types():
+    @dataclass
+    class C(HyperParameters):
+        a: int = uniform(123, 456)
+        b: float = uniform(4.56, 123.456, default=123)
+        c: float = uniform(4.56, 123.456, default=10, discrete=True)
+        d: float = uniform(4.56, 123.456, default=10, discrete=False)
+        e: float = uniform(4.56, 123.456, default=10, discrete=False, shape=2)
+        f: float = uniform(10, 100, default=20, shape=2)
+
+    cs = [C.sample() for _ in range(100)]
+    assert C.get_priors()["a"].discrete is True
+    assert all(isinstance(c.a, int) for c in cs)
+
+    assert C.get_priors()["b"].discrete is False
+    assert all(isinstance(c.b, float) for c in cs)
+
+    assert C.get_priors()["c"].discrete is True
+    assert all(isinstance(c.c, int) for c in cs)
+
+    assert C.get_priors()["d"].discrete is False
+    assert all(isinstance(c.d, float) for c in cs)
+
+    assert C.get_priors()["e"].discrete is False
+    assert all(all(isinstance(v, float) for v in c.e) for c in cs)
+
+    assert C.get_priors()["f"].discrete is True
+    assert all(all(isinstance(v, int) for v in c.f) for c in cs)
