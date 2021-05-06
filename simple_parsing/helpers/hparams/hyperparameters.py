@@ -192,9 +192,9 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
                     else:
                         prior.rng = cls.rng
                     value = prior.sample()
-                    if numpy_installed and isinstance(value, np.ndarray):
+                    shape = getattr(prior, "shape", None)
+                    if numpy_installed and isinstance(value, np.ndarray) and not shape:
                         value = value.item()
-                        assert False, value
                     kwargs[field.name] = value
         return cls(**kwargs)
 

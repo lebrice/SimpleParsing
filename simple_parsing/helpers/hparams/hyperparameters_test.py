@@ -8,6 +8,7 @@ from .hyperparameters import HyperParameters, hparam, log_uniform, uniform
 numpy_installed = False
 try:
     import numpy as np
+
     numpy_installed = True
 except ImportError:
     pass
@@ -88,6 +89,7 @@ def test_strict_bounds():
     """When creating a class and using a hparam field with `strict=True`, the values
     will be restricted to be within the given bounds.
     """
+
     @dataclass
     class C(HyperParameters):
         a: int = uniform(0, 1, strict=True)
@@ -95,12 +97,16 @@ def test_strict_bounds():
         c: str = categorical("foo", "bar", "baz", default="foo", strict=True)
 
     # valid range for a is [0, 1).
-    with pytest.raises(ValueError,
-                       match="Field 'a' got value 123, which is outside of the defined prior"):
+    with pytest.raises(
+        ValueError,
+        match="Field 'a' got value 123, which is outside of the defined prior",
+    ):
         _ = C(a=123, b=10, c="foo")
 
-    with pytest.raises(ValueError,
-                       match="Field 'c' got value 'yolo', which is outside of the defined prior"):
+    with pytest.raises(
+        ValueError,
+        match="Field 'c' got value 'yolo', which is outside of the defined prior",
+    ):
         _ = C(a=0.5, b=0.1, c="yolo")
 
     # should NOT raise an error, since the field `b` isn't strict.
@@ -195,3 +201,77 @@ def test_replace_int_or_float_preserves_type():
     assert isinstance(a.limit_test_batches, float)
     b = a.replace(limit_train_batches=0.5)
     assert isinstance(b.limit_test_batches, float)
+
+
+from typing import Sequence
+
+try:
+    from orion.core.io.space_builder import SpaceBuilder
+    orion_installed = True
+except ImportError:
+    orion_installed = False
+
+
+@dataclass
+class Foo(HyperParameters):
+    x: Sequence[int] = uniform(0, 10, default=(5, 5), shape=2)
+    y: Sequence[int] = uniform(0, 10, default=(5, 5, 5), shape=3)
+    z: Sequence[int] = uniform(0, 10, default=2, shape=5)
+
+
+def test_priors_with_shape():
+
+
+    foo = Foo()
+    assert foo.x == (5, 5)
+    assert foo.y == (5, 5, 5)
+    assert foo.z == (2, 2, 2, 2, 2)
+
+    foo = Foo.sample()
+    assert len(foo.x) == 2
+    assert len(foo.y) == 3
+    assert len(foo.z) == 5
+
+
+@pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
+@pytest.mark.skipif(not orion_installed, reason="Test requires Orion.")
+def test_contains():
+    # TODO: Add a convenience method for creating a Space object from Orion directly.
+    foo = Foo(x=(2, 3), y=(1, 2, 3), z=(1, 2, 3, 4, 5))
+    space_builder = SpaceBuilder()
+    space_config = Foo.get_orion_space_dict()
+    space = space_builder.build(space_config)
+    assert foo.to_array() in space
+
+
+def test_field_types():
+    @dataclass
+    class C(HyperParameters):
+        a: int = uniform(123, 456)
+        b: float = uniform(4.56, 123.456, default=123)
+        c: float = uniform(4.56, 123.456, default=10, discrete=True)
+        d: float = uniform(4.56, 123.456, default=10, discrete=False)
+        e: float = uniform(4.56, 123.456, default=10, discrete=False, shape=2)
+        f: float = uniform(10, 100, default=20, shape=2)
+
+    cs = [C.sample() for _ in range(100)]
+    assert C.get_priors()["a"].discrete is True
+    assert all(isinstance(c.a, int) for c in cs)
+
+    assert C.get_priors()["b"].discrete is False
+    assert all(isinstance(c.b, float) for c in cs)
+
+    assert C.get_priors()["c"].discrete is True
+    assert all(isinstance(c.c, int) for c in cs)
+
+    assert C.get_priors()["d"].discrete is False
+    assert all(isinstance(c.d, float) for c in cs)
+
+    assert C.get_priors()["e"].discrete is False
+    assert all(all(isinstance(v, float) for v in c.e) for c in cs)
+    assert C.get_priors()["f"].discrete is True
+
+    if numpy_installed:
+        assert all(c.f.dtype == np.int for c in cs)
+    else:
+        assert all(all(isinstance(v, int) for v in c.f) for c in cs)

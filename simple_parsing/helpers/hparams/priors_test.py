@@ -69,8 +69,18 @@ def test_to_array():
     assert np.isclose(array[1], b.momentum)
 
 
-@pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
 def test_log_uniform_and_uniform():
+    n_points = 100
+    set_seed(123)
+    x_samples = [
+        B.sample() for i in range(n_points)
+    ]
+    assert all([0. < x.learning_rate < 1 for x in x_samples]), x_samples
+    assert all([-2 < x.momentum < 2 for x in x_samples]), x_samples
+
+
+@pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
+def test_log_uniform_and_uniform_np():
     n_points = 100
     set_seed(123)
     x_samples = [
@@ -101,7 +111,7 @@ def test_loguniform_prior():
     log_samples = [math.log10(s) for s in samples]
     mean = sum(log_samples) / len(log_samples)
     # mean base-10 exponent should be around 2.5
-    assert 2.4 <= mean <= 2.6
+    assert 2.35 <= mean <= 2.65
 
 
 def test_categorical_prior():
@@ -120,3 +130,12 @@ def test_categorical_prior():
     assert 50 <= counter["a"] <= 150
     assert 50 <= counter["b"] <= 150
     assert 700 <= counter["c"] <= 900
+
+
+from .hparam import log_uniform
+
+
+def test_log_uniform_with_shape():
+    prior = LogUniformPrior(min=1e-6, max=1, default=0.001, shape=2)
+    assert len(prior.sample()) == 2
+    assert [0.1, 0.2] in prior
