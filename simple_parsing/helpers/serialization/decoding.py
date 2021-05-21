@@ -218,18 +218,28 @@ def decode_tuple(*tuple_item_types: Type[T]) -> Callable[[List[T]], Tuple[T, ...
         Callable[[List[T]], Tuple[T, ...]]: A parsing function for creating tuples.
     """
     # Get the decoding function for each item type
-    decoding_fns = [
-        get_decoding_fn(t) for t in tuple_item_types
-    ]
+    has_ellipsis = False
+    if Ellipsis in tuple_item_types:
+        ellipsis_index = tuple_item_types.index(Ellipsis)
+        decoding_fn_index = ellipsis_index - 1
+        decoding_fn = get_decoding_fn(tuple_item_types[decoding_fn_index])
+        has_ellipsis = True
+    else:
+        decoding_fns = [
+            get_decoding_fn(t) for t in tuple_item_types
+        ]
     # Note, if there are more values than types in the tuple type, then the
     # last type is used.
-    # TODO: support the Ellipsis?
-
     def _decode_tuple(val: Tuple[Any, ...]) -> Tuple[T, ...]:
         result: List[T] = []
-        return tuple(
-            decoding_fns[i](v) for i, v in enumerate(val)
-        )
+        if has_ellipsis:
+            return tuple(
+                decoding_fn(v) for v in val
+            )
+        else:
+            return tuple(
+                decoding_fns[i](v) for i, v in enumerate(val)
+            )
     return _decode_tuple
 
 
