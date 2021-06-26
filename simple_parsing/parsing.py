@@ -192,7 +192,7 @@ class ArgumentParser(argparse.ArgumentParser):
             A string containing the auto-generated argparse code.
         """
         self._preprocessing()
-        code = f"parser = ArgumentParser()"
+        code = f"parser = ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)"
         for wrapper in self._wrappers:
             code += "\n"
             code += wrapper.equivalent_argparse_code()

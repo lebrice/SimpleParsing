@@ -47,23 +47,24 @@ MAML ['hparams']:
   Overwrites some of the default values and adds new arguments/attributes.
       
 
-  --num_layers int
-  --num_units int
-  --optimizer str
+  --num_layers int      (default: 6)
+  --num_units int       (default: 128)
+  --optimizer str       (default: ADAM)
   --learning_rate float
+                        (default: 0.001)
   --name str            method (default: MAML)
 """
 
 
 print(parser.equivalent_argparse_code())
 expected += """
-parser = ArgumentParser()
+parser = ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 group = parser.add_argument_group(title="MAML ['hparams']", description="Overwrites some of the default values and adds new arguments/attributes.")
-group.add_argument(*['--num_layers'], **{'type': int, 'help': None, 'required': False, 'dest': 'hparams.num_layers', 'default': 6})
-group.add_argument(*['--num_units'], **{'type': int, 'help': None, 'required': False, 'dest': 'hparams.num_units', 'default': 128})
-group.add_argument(*['--optimizer'], **{'type': str, 'help': None, 'required': False, 'dest': 'hparams.optimizer', 'default': 'ADAM'})
-group.add_argument(*['--learning_rate'], **{'type': float, 'help': None, 'required': False, 'dest': 'hparams.learning_rate', 'default': 0.001})
+group.add_argument(*['--num_layers'], **{'type': int, 'help': ' ', 'required': False, 'dest': 'hparams.num_layers', 'default': 6})
+group.add_argument(*['--num_units'], **{'type': int, 'help': ' ', 'required': False, 'dest': 'hparams.num_units', 'default': 128})
+group.add_argument(*['--optimizer'], **{'type': str, 'help': ' ', 'required': False, 'dest': 'hparams.optimizer', 'default': 'ADAM'})
+group.add_argument(*['--learning_rate'], **{'type': float, 'help': ' ', 'required': False, 'dest': 'hparams.learning_rate', 'default': 0.001})
 group.add_argument(*['--name'], **{'type': str, 'help': 'method', 'required': False, 'dest': 'hparams.name', 'default': 'MAML'})
 
 args = parser.parse_args()

@@ -34,22 +34,23 @@ optional arguments:
 HParams ['hparams']:
    Set of options for the training of a Model.
 
-  --num_layers int
-  --num_units int
-  --optimizer str
+  --num_layers int      (default: 4)
+  --num_units int       (default: 64)
+  --optimizer str       (default: ADAM)
   --learning_rate float
+                        (default: 0.001)
 """
 
 
 print(parser.equivalent_argparse_code())
 expected += """
-parser = ArgumentParser()
+parser = ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 group = parser.add_argument_group(title="HParams ['hparams']", description="Set of options for the training of a Model.")
-group.add_argument(*['--num_layers'], **{'type': int, 'help': None, 'required': False, 'dest': 'hparams.num_layers', 'default': 4})
-group.add_argument(*['--num_units'], **{'type': int, 'help': None, 'required': False, 'dest': 'hparams.num_units', 'default': 64})
-group.add_argument(*['--optimizer'], **{'type': str, 'help': None, 'required': False, 'dest': 'hparams.optimizer', 'default': 'ADAM'})
-group.add_argument(*['--learning_rate'], **{'type': float, 'help': None, 'required': False, 'dest': 'hparams.learning_rate', 'default': 0.001})
+group.add_argument(*['--num_layers'], **{'type': int, 'help': ' ', 'required': False, 'dest': 'hparams.num_layers', 'default': 4})
+group.add_argument(*['--num_units'], **{'type': int, 'help': ' ', 'required': False, 'dest': 'hparams.num_units', 'default': 64})
+group.add_argument(*['--optimizer'], **{'type': str, 'help': ' ', 'required': False, 'dest': 'hparams.optimizer', 'default': 'ADAM'})
+group.add_argument(*['--learning_rate'], **{'type': float, 'help': ' ', 'required': False, 'dest': 'hparams.learning_rate', 'default': 0.001})
 
 args = parser.parse_args()
 print(args)

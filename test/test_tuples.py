@@ -50,7 +50,7 @@ def test_tuple_with_ellipsis_help_format():
         test_tuple_with_ellipsis_help_format.<locals>.Container ['container']:
           Container(ints: Tuple[int, ...] = (1, 2, 3))
         
-          --ints int [int, ...]
+          --ints int [int, ...]   (default: (1, 2, 3))
         """)
 
 def test_each_type_is_used_correctly():
@@ -75,7 +75,7 @@ def test_each_type_is_used_correctly():
     test_each_type_is_used_correctly.<locals>.Container ['container']:
     A container with mixed items in a tuple. 
 
-      --mixed int str bool float
+      --mixed int str bool float   (default: (1, 'bob', False, 1.23))
     """)
 
 
