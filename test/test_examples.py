@@ -36,9 +36,17 @@ import textwrap
 def assert_equals_stdout(capsys):
     def strip(string): return "".join(string.split())
 
+    import difflib
     def should_equal(expected: str, file_path: str):
         out = capsys.readouterr().out
-        assert strip(out) == strip(expected), file_path
+        # assert strip(out) == strip(expected), file_path
+        # assert out == expected, file_path
+        out_lines = out.splitlines(keepends=False)
+        out_lines = [line.strip() for line in out_lines if line and not line.isspace()]
+        expected_lines = expected.splitlines(keepends=False)
+        expected_lines = [line.strip() for line in expected_lines if line and not line.isspace()]
+        assert out_lines == expected_lines, file_path
+
     return should_equal
 
 
@@ -54,16 +62,23 @@ def test_running_example_outputs_expected(
         assert_equals_stdout: Callable[[str, str], None]
 ):
     script = file_path.split("/")[-1]
-    set_prog_name(script, args)
+    # set_prog_name(script, args)
     file_path = Path(file_path).as_posix()
     module_name = file_path.replace("/", ".").replace(".py", "")
     try:
         # programmatically import the example script, which also runs it.
         # (Equivalent to executing "from <module_name> import expected")
-        module = __import__(module_name, globals(), locals(), ["expected"], 0)
+        import runpy
+        resulting_globals = runpy.run_module(module_name, init_globals=None, run_name="__main__", alter_sys=True)
+        # module = __import__(module_name, globals(), locals(), ["expected"], 0)
+        # resulting_globals = vars(module)
         # get the 'expected'
-        if hasattr(module, "expected"):
-            assert_equals_stdout(module.expected, file_path)
+        # assert "expected" in resulting_globals
+        if "expected" not in resulting_globals:
+            pytest.xfail(reason="Example doesn't have an 'expected' global variable.")
+        expected = resulting_globals["expected"]
+        assert_equals_stdout(expected, file_path)
+
     except SystemExit as e:
         pytest.xfail(f"SystemExit in example {file_path}.")
 

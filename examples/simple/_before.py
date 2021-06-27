@@ -18,8 +18,8 @@ Namespace(learning_rate=0.001, num_layers=4, num_units=64, optimizer='ADAM')
 parser.print_help()
 expected += """
 usage: _before.py [-h] [--num_layers NUM_LAYERS] [--num_units NUM_UNITS]
-                 [--learning_rate LEARNING_RATE]
-                 [--optimizer {ADAM,SGD,RMSPROP}]
+                  [--learning_rate LEARNING_RATE]
+                  [--optimizer {ADAM,SGD,RMSPROP}]
 
 optional arguments:
   -h, --help            show this help message and exit
