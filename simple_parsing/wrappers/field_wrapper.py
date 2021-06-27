@@ -154,7 +154,13 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         # TODO: [Improvement] @lebrice Maybe overhaul the 'type' function, in a
         # similar way as with is done with fields in the Serializable class. 
         _arg_options["type"] = get_parsing_fn(self.type)
-        _arg_options["help"] = self.help
+        if self.help:
+            _arg_options["help"] = self.help
+        elif self.default is not None:
+            # issue 64: Need to add an empty 'help' string, so that the formatter
+            # automatically adds the (default: '123')
+            _arg_options["help"] = " "
+
         _arg_options["required"] = self.required
         _arg_options["dest"] = self.dest
         _arg_options["default"] = self.default

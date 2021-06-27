@@ -45,18 +45,26 @@ optional arguments:
   -h, --help            show this help message and exit
 
 HParams ['train']:
-  Set of options for the training of a Model.
+   Set of options for the training of a Model.
 
   --train.num_layers int
+                        (default: 4)
   --train.num_units int
+                        (default: 64)
   --train.optimizer str
+                        (default: ADAM)
   --train.learning_rate float
+                        (default: 0.001)
 
 HParams ['valid']:
-  Set of options for the training of a Model.
+   Set of options for the training of a Model.
 
   --valid.num_layers int
+                        (default: 4)
   --valid.num_units int
+                        (default: 64)
   --valid.optimizer str
+                        (default: ADAM)
   --valid.learning_rate float
+                        (default: 0.001)
 """
