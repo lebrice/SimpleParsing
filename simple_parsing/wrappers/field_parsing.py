@@ -99,8 +99,9 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
     elif is_tuple(t):
         logger.debug(f"parsing a Tuple field: {t}")
         args = get_type_arguments(t)
-
         if is_homogeneous_tuple_type(t):
+            if not args:
+                args = (str, ...)
             parsing_fn = get_parsing_fn(args[0])
         else:
             parsing_fn = parse_tuple(args)

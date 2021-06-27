@@ -42,14 +42,14 @@ from simple_parsing.logging_utils import get_logger
 try:
     from typing import get_args
 except ImportError:
-    try:
-        # TODO: Not sure we should depend on typing_inspect, results appear to vary
-        # greatly
-        # between python versions.
-        from typing_inspect import get_args
-    except ImportError:
-        def get_args(some_type: Type) -> Tuple[Type, ...]:
-            return getattr(some_type, "__args__", ())
+    # try:
+    #     # TODO: Not sure we should depend on typing_inspect, results appear to vary
+    #     # greatly
+    #     # between python versions.
+    #     from typing_inspect import get_args
+    # except ImportError:
+    def get_args(some_type: Type) -> Tuple[Type, ...]:
+        return getattr(some_type, "__args__", ())
 
 try:
     from typing import get_origin
@@ -280,6 +280,8 @@ def is_tuple(t: Type) -> bool:
     ...
     >>> is_tuple(foo)
     True
+    >>> is_tuple(List[int])
+    False
     """
     return tuple in _mro(t)
 
@@ -412,7 +414,6 @@ def is_homogeneous_tuple_type(t: Type[Tuple]) -> bool:
     Returns
     -------
     bool
-        [description]
 
     >>> from typing import *
     >>> is_homogeneous_tuple_type(Tuple)
@@ -422,18 +423,18 @@ def is_homogeneous_tuple_type(t: Type[Tuple]) -> bool:
     >>> is_homogeneous_tuple_type(Tuple[int, str])
     False
     >>> is_homogeneous_tuple_type(Tuple[int, str, float])
-    True
+    False
     >>> is_homogeneous_tuple_type(Tuple[int, ...])
     True
     >>> is_homogeneous_tuple_type(Tuple[Tuple[int, str], ...])
     True
     >>> is_homogeneous_tuple_type(Tuple[List[int], List[str]])
-    True
+    False
     """
     if not is_tuple(t):
         return False
     type_arguments = get_type_arguments(t)
-    if type_arguments is None:
+    if not type_arguments:
         return True
     assert isinstance(type_arguments, tuple), type_arguments
     if len(type_arguments) == 2 and type_arguments[1] is Ellipsis:

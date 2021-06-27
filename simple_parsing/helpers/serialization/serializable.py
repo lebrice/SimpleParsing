@@ -59,8 +59,9 @@ class Serializable:
     >>> config
     Config(a=123, b='456')
     >>> config.to_dict()
-    {"a": 123, "b": 456}
+    {'a': 123, 'b': '456'}
     >>> config_ = Config.from_dict({"a": 123, "b": 456})
+    >>> config_
     Config(a=123, b='456')
     >>> assert config == config_
     """

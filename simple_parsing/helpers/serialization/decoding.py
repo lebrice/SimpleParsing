@@ -220,6 +220,7 @@ def decode_tuple(*tuple_item_types: Type[T]) -> Callable[[List[T]], Tuple[T, ...
     # Get the decoding function for each item type
     has_ellipsis = False
     if Ellipsis in tuple_item_types:
+        # TODO: This isn't necessary, the ellipsis will always be at index 1.
         ellipsis_index = tuple_item_types.index(Ellipsis)
         decoding_fn_index = ellipsis_index - 1
         decoding_fn = get_decoding_fn(tuple_item_types[decoding_fn_index])

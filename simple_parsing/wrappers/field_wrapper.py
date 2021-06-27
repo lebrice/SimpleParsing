@@ -296,7 +296,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["nargs"] = "+"
             else:
                 _arg_options["nargs"] = "*"
-
         return _arg_options
 
     def duplicate_if_needed(self, parsed_values: Any) -> List[Any]:
@@ -900,7 +899,7 @@ def only_keep_action_args(
 
 
 def get_argparse_options_for_annotation(t: Type) -> Dict[str, Any]:
-    """ Generates some of the argparse arguments for `parser.add_argument` based on the
+    """Generates some of the argparse arguments for `parser.add_argument` based on the
     given type annotation.
 
     This is able to generate some, but not all the necessary options.
@@ -1006,12 +1005,10 @@ def get_argparse_options_for_annotation(t: Type) -> Dict[str, Any]:
         #     type_fn.__name__ = utils.get_type_name(self.type)
         #     _arg_options["type"] = type_fn
         # else:
-            # _arg_options["type"] = utils.get_argparse_type_for_container(self.type)
+        # _arg_options["type"] = utils.get_argparse_type_for_container(self.type)
 
     elif utils.is_tuple(t):
-        logger.debug(
-            f"Adding a Tuple attribute with type {t}"
-        )
+        logger.debug(f"Adding a Tuple attribute with type {t}")
         _arg_options["nargs"] = utils.get_container_nargs(t)
         _arg_options["type"] = get_parsing_fn(t)
         _arg_options["nargs"] = utils.get_container_nargs(t)

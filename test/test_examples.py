@@ -76,7 +76,6 @@ def test_running_example_outputs_expected(
             "examples/subparsers/subparsers_example.py",
             "examples/serialization/custom_types_example.py",
         }],
-        xfail_param("examples/merging/multiple_lists_example.py", reason="BUG"),
     ])
 def test_running_example_outputs_expected_without_arg(
         file_path: str,
