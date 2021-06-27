@@ -1,6 +1,8 @@
 """Utility functions used in various parts of the simple_parsing package."""
 import argparse
 import builtins
+import inspect
+import enum
 import dataclasses
 import functools
 import json
@@ -36,6 +38,24 @@ from typing import (
 import typing_inspect as tpi
 
 from simple_parsing.logging_utils import get_logger
+
+try:
+    from typing import get_args
+except ImportError:
+    # try:
+    #     # TODO: Not sure we should depend on typing_inspect, results appear to vary
+    #     # greatly
+    #     # between python versions.
+    #     from typing_inspect import get_args
+    # except ImportError:
+    def get_args(some_type: Type) -> Tuple[Type, ...]:
+        return getattr(some_type, "__args__", ())
+
+try:
+    from typing import get_origin
+except ImportError:
+    from typing_inspect import get_origin
+
 
 logger = get_logger(__file__)
 
@@ -177,6 +197,10 @@ def get_argparse_type_for_container(
 
     Returns:
         typing.Type -- the type that should be used in argparse 'type' argument option.
+    
+    TODO: This overlaps in a weird way with `get_parsing_fn`, which returns the 'type'
+    to use for a given annotation! This function however doesn't deal with 'weird' item
+    types, it just returns the first annotation.
     """
     T = get_item_type(container_type)
     if T is bool:
@@ -187,6 +211,10 @@ def get_argparse_type_for_container(
 
 
 def _mro(t: Type) -> List[Type]:
+    # TODO: This is mostly used in 'is_tuple' and such, and should be replaced with
+    # either the build-in 'get_origin' from typing, or from typing-inspect.
+    if t is None:
+        return []
     if hasattr(t, "__mro__"):
         return t.__mro__
     elif tpi.get_origin(t) is type:
@@ -252,6 +280,8 @@ def is_tuple(t: Type) -> bool:
     ...
     >>> is_tuple(foo)
     True
+    >>> is_tuple(List[int])
+    False
     """
     return tuple in _mro(t)
 
@@ -342,6 +372,8 @@ def is_dataclass_type(t: Type) -> bool:
 
 
 def is_enum(t: Type) -> bool:
+    if inspect.isclass(t):
+        return issubclass(t, enum.Enum)
     return Enum in _mro(t)
 
 
@@ -371,6 +403,46 @@ def is_union(t: Type) -> bool:
     False
     """
     return getattr(t, "__origin__", "") == Union
+
+
+def is_homogeneous_tuple_type(t: Type[Tuple]) -> bool:
+    """Returns wether the given Tuple type is homogeneous: if all items types are the
+    same.
+
+    This also includes Tuple[<some_type>, ...]
+
+    Returns
+    -------
+    bool
+
+    >>> from typing import *
+    >>> is_homogeneous_tuple_type(Tuple)
+    True
+    >>> is_homogeneous_tuple_type(Tuple[int, int])
+    True
+    >>> is_homogeneous_tuple_type(Tuple[int, str])
+    False
+    >>> is_homogeneous_tuple_type(Tuple[int, str, float])
+    False
+    >>> is_homogeneous_tuple_type(Tuple[int, ...])
+    True
+    >>> is_homogeneous_tuple_type(Tuple[Tuple[int, str], ...])
+    True
+    >>> is_homogeneous_tuple_type(Tuple[List[int], List[str]])
+    False
+    """
+    if not is_tuple(t):
+        return False
+    type_arguments = get_type_arguments(t)
+    if not type_arguments:
+        return True
+    assert isinstance(type_arguments, tuple), type_arguments
+    if len(type_arguments) == 2 and type_arguments[1] is Ellipsis:
+        return True
+    # Tuple[str, str, str] -> True
+    # Tuple[str, str, float] -> False
+    # TODO: Not sure if this will work with more complex item times (like nested tuples)
+    return len(set(type_arguments)) == 1
 
 
 def is_choice(field: Field) -> bool:
@@ -435,8 +507,9 @@ def get_dataclass_type_arg(t: Type) -> Optional[Type]:
     return None
 
 
-def get_type_arguments(container_type: Type) -> List[Type]:
-    return getattr(container_type, "__args__", [])
+def get_type_arguments(container_type: Type) -> Tuple[Type, ...]:
+    # return getattr(container_type, "__args__", ())
+    return get_args(container_type)
 
 
 def get_type_name(some_type: Type):
@@ -448,16 +521,54 @@ def get_type_name(some_type: Type):
 
 
 def get_container_nargs(container_type: Type) -> Union[int, str]:
-    if is_tuple(container_type):
-        type_arguments = getattr(container_type, "__args__", [])
-        if type_arguments and Ellipsis not in type_arguments:
-            nargs = len(type_arguments)
-            # if nargs == 1:
-            #     # a `Tuple[int]` annotation can be interpreted as "a tuple of an unknown number of ints"?.
-            #     return "*"
-            return nargs
+    """Gets the value of 'nargs' appropriate for the given container type.
+    
+    Parameters
+    ----------
+    container_type : Type
+        Some container type.
 
-    return "*"
+    Returns
+    -------
+    Union[int, str]
+        [description]
+    """
+    if is_tuple(container_type):
+        # TODO: Should a `Tuple[int]` annotation be interpreted as "a tuple of an
+        # unknown number of ints"?.
+        type_arguments: Tuple[Type, ...] = get_type_arguments(container_type)
+        if not type_arguments:
+            return "*"
+        if len(type_arguments) == 2 and type_arguments[1] is Ellipsis:
+            return "*"
+
+        total_nargs: int = 0
+        for item_type in type_arguments:
+            # TODO: Handle the 'nargs' for nested container types!
+            if is_list(item_type) or is_tuple(item_type):
+                # BUG: If it's a container like Tuple[Tuple[int, str], Tuple[int, str]]
+                # we could do one of two things:
+                # 
+                # - Option 1: Use nargs=4 and re-organize/split values in
+                #   post-processing.
+                # item_nargs: Union[int, str] = get_container_nargs(item_type)
+                # if isinstance(item_nargs, int):
+                #     total_nargs += item_nargs
+                # else:
+                #     return "*"
+                # 
+                # This is a bit confusing, and IMO it might be best to just do
+                # - Option 2: Use `nargs='*'` and use a custom parsing function that
+                #   will convert entries appropriately..
+                return "*"
+            total_nargs += 1
+        return total_nargs
+
+    if is_list(container_type):
+        return "*"
+    raise NotImplementedError(
+        f"Not sure what 'nargs' should be for type {container_type}"
+    )
 
 
 def _parse_multiple_containers(

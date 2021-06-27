@@ -102,19 +102,20 @@ parser.add_arguments(HyperParameters, dest="hparams")
 args = parser.parse_args()
 hparams: HyperParameters = args.hparams
 print(hparams)
-expected = """HyperParameters(batch_size=128, optimizer='sgd', \
-learning_rate=0.001, num_like_pages=10000, gender_loss_weight=1.0, \
-age_loss_weight=1.0, max_number_of_likes=2000, embedding_dim=8, \
-shared_likes_embedding=True, use_custom_likes=True, \
-gender=TaskHyperParameters(name='gender', num_layers=1, num_units=32, \
-activation='tanh', use_batchnorm=False, use_dropout=True, dropout_rate=0.1,\
-use_image_features=True, use_likes=True, l1_reg=0.005, l2_reg=0.005, \
-embed_likes=False), age_group=TaskHyperParameters(name='age_group',\
-num_layers=2, num_units=64, activation='tanh', use_batchnorm=False, \
-use_dropout=True, dropout_rate=0.1, use_image_features=True, use_likes=True, \
-l1_reg=0.005, l2_reg=0.005, embed_likes=False), \
-personality=TaskHyperParameters(name='personality', num_layers=1, num_units=8, \
-activation='tanh', use_batchnorm=False, use_dropout=True, dropout_rate=0.1, \
-use_image_features=False, use_likes=False, l1_reg=0.005, l2_reg=0.005, \
-embed_likes=False))
-"""
+expected = (
+    "HyperParameters(batch_size=128, optimizer='sgd', "
+    "learning_rate=0.001, num_like_pages=10000, gender_loss_weight=1.0, "
+    "age_loss_weight=1.0, max_number_of_likes=2000, embedding_dim=8, "
+    "shared_likes_embedding=True, use_custom_likes=True, "
+    "gender=TaskHyperParameters(name='gender', num_layers=1, num_units=32, "
+    "activation='tanh', use_batchnorm=False, use_dropout=True, dropout_rate=0.1, "
+    "use_image_features=True, use_likes=True, l1_reg=0.005, l2_reg=0.005, "
+    "embed_likes=False), age_group=TaskHyperParameters(name='age_group', "
+    "num_layers=2, num_units=64, activation='tanh', use_batchnorm=False, "
+    "use_dropout=True, dropout_rate=0.1, use_image_features=True, use_likes=True, "
+    "l1_reg=0.005, l2_reg=0.005, embed_likes=False), "
+    "personality=TaskHyperParameters(name='personality', num_layers=1, num_units=8, "
+    "activation='tanh', use_batchnorm=False, use_dropout=True, dropout_rate=0.1, "
+    "use_image_features=False, use_likes=False, l1_reg=0.005, l2_reg=0.005, "
+    "embed_likes=False))"
+)

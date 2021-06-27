@@ -200,10 +200,12 @@ class Parameters():
     
 param = Parameters()
 args = param.parse()
-print(args)
+import textwrap
+print("\n".join(textwrap.wrap(str(args), width=80)))
+# print(args)
 expected = """
-Namespace(alt_opt_zn_interval=None, alt_opt_zn_start=100000, angle=30,
-at=[0.05, 0.0, 0], axis=[0.0, 1.0, 0.0], batchSize=4, beta1=0.0,
+Namespace(alt_opt_zn_interval=None, alt_opt_zn_start=100000, angle=30, at=[0.05,
+0.0, 0], axis=[0.0, 1.0, 0.0], batchSize=4, beta1=0.0,
 bg_model='../../../data/halfbox.obj', cam_dist=3.0, cam_pos=None, clamp=0.01,
 classes='bowl', criterion='WGAN', critic_iters=5,
 dataset='objects_folder_multi', dis_model_path=None, dis_model_path2=None,
@@ -229,4 +231,5 @@ splats_radius=0.05, stoch_enc=False, synsets='', test_cam_dist=False, theta=[20,
 80], toy_example=False, unit_normalloss=0.0, use_mesh=True, use_old_sign=True,
 use_penality=True, use_quartic=False, width=128, workers=0,
 z_lr_sched_gamma=1.0, z_lr_sched_step=100000, z_norm_activate_iter=1000,
-z_norm_weight_init=0.01, zloss=0.0)"""
+z_norm_weight_init=0.01, zloss=0.0)
+"""

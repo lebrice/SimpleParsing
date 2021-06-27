@@ -12,7 +12,8 @@ import typing_inspect as tpi
 
 from ..logging_utils import get_logger
 from ..utils import (get_item_type, get_type_arguments, is_dict, is_list,
-                     is_optional, is_set, is_tuple, is_union, str2bool)
+                     is_optional, is_set, is_tuple, is_union, str2bool,
+                     is_homogeneous_tuple_type)
 
 logger = get_logger(__file__)
 
@@ -54,6 +55,10 @@ def register_parsing_fn(some_type: Type[T], function: Callable[[Any], T]) -> Non
     _register(some_type, function)
 
 
+# This doesn't work as well as it did for serialization, in large part due to how
+# argparse uses the `type` function when parsing containers.
+# TODO: Replace this with a simpler function that just returns the 'arg_options' dict to
+# give for a given type annotation. 
 def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
     """Gets a parsing function for the given type or type annotation.
 
@@ -64,7 +69,7 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
         Callable[[Any], T]: A function that will parse a value of the given type
             from the command-line when available, or a no-op function that
             will return the raw value, when a parsing fn cannot be found or
-            constructed. 
+            constructed.
     """
     if t in _parsing_fns:
         logger.debug(f"The type {t} has a dedicated parsing function.")
@@ -94,8 +99,13 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
     elif is_tuple(t):
         logger.debug(f"parsing a Tuple field: {t}")
         args = get_type_arguments(t)
-        parsing_fn = parse_tuple(args)
-        parsing_fn.__name__ = str(t)
+        if is_homogeneous_tuple_type(t):
+            if not args:
+                args = (str, ...)
+            parsing_fn = get_parsing_fn(args[0])
+        else:
+            parsing_fn = parse_tuple(args)
+            parsing_fn.__name__ = str(t)
         return parsing_fn
 
     elif is_list(t):

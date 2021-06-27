@@ -59,8 +59,9 @@ class Serializable:
     >>> config
     Config(a=123, b='456')
     >>> config.to_dict()
-    {"a": 123, "b": 456}
+    {'a': 123, 'b': '456'}
     >>> config_ = Config.from_dict({"a": 123, "b": 456})
+    >>> config_
     Config(a=123, b='456')
     >>> assert config == config_
     """
@@ -517,6 +518,7 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool=N
     return instance
 
 
+# TODO: Remove, unused.
 def get_key_and_value_types(dict_type: Type[Dict], Serializable=Serializable) -> Tuple[Optional[Type], Optional[Type]]:
     args = get_type_arguments(dict_type)
 

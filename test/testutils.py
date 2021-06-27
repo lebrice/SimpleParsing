@@ -20,6 +20,8 @@ parametrize = pytest.mark.parametrize
 
 
 def xfail_param(*args, reason: str):
+    if len(args) == 1 and isinstance(args[0], tuple):
+        args = args[0]
     return pytest.param(*args, marks=pytest.mark.xfail(reason=reason))
 
 

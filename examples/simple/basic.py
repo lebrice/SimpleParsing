@@ -47,10 +47,10 @@ expected += """
 parser = ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 group = parser.add_argument_group(title="HParams ['hparams']", description="Set of options for the training of a Model.")
-group.add_argument(*['--num_layers'], **{'type': int, 'help': ' ', 'required': False, 'dest': 'hparams.num_layers', 'default': 4})
-group.add_argument(*['--num_units'], **{'type': int, 'help': ' ', 'required': False, 'dest': 'hparams.num_units', 'default': 64})
-group.add_argument(*['--optimizer'], **{'type': str, 'help': ' ', 'required': False, 'dest': 'hparams.optimizer', 'default': 'ADAM'})
-group.add_argument(*['--learning_rate'], **{'type': float, 'help': ' ', 'required': False, 'dest': 'hparams.learning_rate', 'default': 0.001})
+group.add_argument(*['--num_layers'], **{'type': int, 'required': False, 'dest': 'hparams.num_layers', 'default': 4, 'help': ' '})
+group.add_argument(*['--num_units'], **{'type': int, 'required': False, 'dest': 'hparams.num_units', 'default': 64, 'help': ' '})
+group.add_argument(*['--optimizer'], **{'type': str, 'required': False, 'dest': 'hparams.optimizer', 'default': 'ADAM', 'help': ' '})
+group.add_argument(*['--learning_rate'], **{'type': float, 'required': False, 'dest': 'hparams.learning_rate', 'default': 0.001, 'help': ' '})
 
 args = parser.parse_args()
 print(args)

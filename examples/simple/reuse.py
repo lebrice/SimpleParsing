@@ -34,12 +34,10 @@ HParams(num_layers=4, num_units=64, optimizer='ADAM', learning_rate=0.001)
 
 parser.print_help()
 expected += """
-usage: reuse.py [-h] [--train.num_layers int]
-                          [--train.num_units int] [--train.optimizer str]
-                          [--train.learning_rate float]
-                          [--valid.num_layers int] [--valid.num_units int]
-                          [--valid.optimizer str]
-                          [--valid.learning_rate float]
+usage: reuse.py [-h] [--train.num_layers int] [--train.num_units int]
+                [--train.optimizer str] [--train.learning_rate float]
+                [--valid.num_layers int] [--valid.num_units int]
+                [--valid.optimizer str] [--valid.learning_rate float]
 
 optional arguments:
   -h, --help            show this help message and exit

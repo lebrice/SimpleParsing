@@ -1,4 +1,3 @@
-
 import json
 import logging
 import textwrap
@@ -13,15 +12,22 @@ import pytest
 import yaml
 
 from simple_parsing import field, mutable_field
-from simple_parsing.helpers import (Serializable, YamlSerializable, dict_field,
-                                    list_field)
+from simple_parsing.helpers import (
+    Serializable,
+    YamlSerializable,
+    dict_field,
+    list_field,
+)
 from simple_parsing.helpers.serialization.decoding import (
-    get_decoding_fn, register_decoding_fn)
+    get_decoding_fn,
+    register_decoding_fn,
+)
 
 
 def test_encode_something(simple_attribute):
 
     some_type, passed_value, expected_value = simple_attribute
+
     @dataclass
     class SomeClass(Serializable):
         d: Dict[str, some_type] = dict_field()
@@ -30,14 +36,9 @@ def test_encode_something(simple_attribute):
         # w: Dict[str, Union[some_type, int, str, None, str, None]] = dict_field()
 
     b = SomeClass()
-    b.d.update({
-        "hey": expected_value
-    })
+    b.d.update({"hey": expected_value})
     b.l.append((expected_value, expected_value))
-    b.t.update({
-        "hey": None,
-        "hey2": expected_value
-    })
+    b.t.update({"hey": None, "hey2": expected_value})
     # b.w.update({
     #     "hey": None,
     #     "hey2": "heyo",
@@ -47,9 +48,7 @@ def test_encode_something(simple_attribute):
     assert SomeClass.loads(b.dumps()) == b
 
 
-
 def test_typevar_decoding(simple_attribute):
-    
     @dataclass
     class Item(Serializable, decode_into_subclasses=True):
         name: str = "chair"
@@ -66,16 +65,14 @@ def test_typevar_decoding(simple_attribute):
     class Container(Serializable, Generic[I]):
         items: List[I] = list_field()
 
-
     chair = Item()
     cheap_chair = DiscountedItem(name="Cheap chair")
     c = Container(items=[chair, cheap_chair])
 
     assert Container.loads(c.dumps()) == c
 
-
-
     some_type, passed_value, expected_value = simple_attribute
+
     @dataclass
     class SomeClass(Serializable):
         d: Dict[str, some_type] = dict_field()
@@ -84,14 +81,9 @@ def test_typevar_decoding(simple_attribute):
         # w: Dict[str, Union[some_type, int, str, None, str, None]] = dict_field()
 
     b = SomeClass()
-    b.d.update({
-        "hey": expected_value
-    })
+    b.d.update({"hey": expected_value})
     b.l.append((expected_value, expected_value))
-    b.t.update({
-        "hey": None,
-        "hey2": expected_value
-    })
+    b.t.update({"hey": None, "hey2": expected_value})
     # b.w.update({
     #     "hey": None,
     #     "hey2": "heyo",
@@ -104,17 +96,21 @@ def test_typevar_decoding(simple_attribute):
 def test_super_nesting():
     @dataclass
     class Complicated(Serializable):
-        x: List[List[List[Dict[int, Tuple[int, float, str, List[float]]]]]] = list_field()
-    
+        x: List[
+            List[List[Dict[int, Tuple[int, float, str, List[float]]]]]
+        ] = list_field()
+
     c = Complicated()
-    c.x = [
-        [
-            [
-                {
-                    0: (2, 1.23, "bob", [1.2, 1.3])
-                }
-            ]
-        ]
-    ]
+    c.x = [[[{0: (2, 1.23, "bob", [1.2, 1.3])}]]]
     assert Complicated.loads(c.dumps()) == c
     assert c.dumps() == '{"x": [[[{"0": [2, 1.23, "bob", [1.2, 1.3]]}]]]}'
+
+
+@pytest.mark.parametrize("some_type, encoded_value, expected_value", [
+    # (Tuple[int, float], json.loads(json.dumps([1, 2])), (1, 2.0)),
+    (List[Tuple[int, float]], json.loads(json.dumps([[1, 2], [3, 4]])), [(1, 2.0), (3, 4.0)]),
+])
+def test_decode_tuple(some_type: Type, encoded_value: Any, expected_value: Any):
+    decoding_function = get_decoding_fn(some_type)
+    actual = decoding_function(encoded_value)
+    assert actual == expected_value
