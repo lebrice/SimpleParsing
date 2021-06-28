@@ -115,6 +115,10 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
     elif is_list(t):
         logger.debug(f"Decoding a List field: {t}")
         args = get_type_arguments(t)
+        if not args:
+            # Using a `List` or `list` annotation, so we don't know what do decode the
+            # items into!
+            args = (Any,)
         assert len(args) == 1
         return decode_list(args[0])
 
