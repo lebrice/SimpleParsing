@@ -10,39 +10,56 @@ def encode_ndarray(obj: np.ndarray) -> str:
 """
 import copy
 import json
-from collections import OrderedDict
 from dataclasses import fields, is_dataclass
 from functools import singledispatch
-from pathlib import Path
-from typing import (Any, Dict, Hashable, Iterable, List, Sequence,
-                    Set, Tuple, TypeVar, Union, overload)
+from os import PathLike
+from typing import (Any, Dict, Hashable, List,
+                    Set, Tuple, Union)
 from collections.abc import Mapping
 from ...logging_utils import get_logger
 
-Dataclass = TypeVar("Dataclass")
 
 logger = get_logger(__file__)
 
 
 class SimpleJsonEncoder(json.JSONEncoder):
-    def default(self, o: Any):
+    def default(self, o: Any) -> Any:
         return encode(o)
 
-T = TypeVar("T", bound=Union[List, int, str, bool, None])
+
+"""
+# NOTE: This code is commented because of static typing check error.
+# The problem is incompatibility of mypy and singledispatch.
+# See mypy issues for more info:
+# https://github.com/python/mypy/issues/8356
+# https://github.com/python/mypy/issues/2904
+# https://github.com/python/mypy/issues/9112#issuecomment-725316936
+
+class Dataclass(Protocol):
+    # see dataclasses.is_dataclass implementation with _FIELDS
+    __dataclass_fields__: Dict[str, Field[Any]]
+
+
+T = TypeVar("T", bool, int, None, str)
+
 
 @overload
-def encode(obj: Dataclass) -> Dict: ...
+def encode(obj: Dataclass) -> Dict[str, Any]: ...
+
 @overload
-def encode(obj: Dict) -> Dict: ...
+def encode(obj: Union[List[Any], Set[Any], Tuple[Any, ...]]) -> List[Any]:
+    ...
+
 @overload
-def encode(obj: List) -> List: ...
-@overload
-def encode(obj: Tuple) -> Tuple: ...
+def encode(obj: Mapping[Any, Any]) -> Dict[Any, Any]: ...
+
 @overload
 def encode(obj: T) -> T: ...
+"""
+
 
 @singledispatch
-def encode(obj: Any) -> Union[Dict, List, int, str, bool, None]:
+def encode(obj: Any) -> Any:
     """ Encodes an object into a json/yaml-compatible primitive type.
 
     This called to convert field attributes when calling `to_dict()` on a
@@ -60,7 +77,7 @@ def encode(obj: Any) -> Union[Dict, List, int, str, bool, None]:
     try:
         if is_dataclass(obj):
             # logger.debug(f"encoding object {obj} of class {type(obj)}")
-            d: Dict = dict()
+            d: Dict[str, Any] = dict()
             for field in fields(obj):
                 value = getattr(obj, field.name)
                 try:
@@ -81,7 +98,7 @@ def encode(obj: Any) -> Union[Dict, List, int, str, bool, None]:
 @encode.register(tuple)
 # @encode.register(Sequence) # Would also encompass `str!`
 @encode.register(set)
-def encode_list(obj: Iterable) -> Sequence:
+def encode_list(obj: Union[List[Any], Set[Any], Tuple[Any, ...]]) -> List[Any]:
     # TODO: Here we basically say "Encode all these types as lists before serializing"
     # That's ok for JSON, but YAML can serialize stuff directly though.
     # TODO: Also, with this, we also need to convert back to the right type when
@@ -89,9 +106,8 @@ def encode_list(obj: Iterable) -> Sequence:
     # but maybe not for other stuff.
     return list(map(encode, obj))
 
-@encode.register(dict)
 @encode.register(Mapping)
-def encode_dict(obj: Mapping) -> Dict:
+def encode_dict(obj: Mapping) -> Dict[Any, Any]:
     constructor = type(obj)
     result = constructor()
     for k, v in obj.items():
@@ -112,6 +128,7 @@ def encode_dict(obj: Mapping) -> Dict:
 
     return type(obj)((encode(k), encode(v)) for k, v in obj.items())
 
-@encode.register(Path)
-def encode_using_str(obj: Any) -> str:
-    return str(obj)
+
+@encode.register(PathLike)
+def encode_path(obj: PathLike) -> str:
+    return obj.__fspath__()
