@@ -8,17 +8,21 @@ from .testutils import *
 @dataclass
 class A(TestSetup):
     color: str = choice("red", "green", "blue", default="red")
+    colors: List[str] = choice("red", "green", "blue", default_factory=["red"].copy)
 
 
 
 def test_choice_default():
     a = A.setup("")
     assert a.color == "red"
+    assert a.colors == ["red"]
 
 
 def test_value_not_in_choices_throws_error():
     with raises(SystemExit):
         a = A.setup("--color orange")
+    with raises(SystemExit):
+        A.setup("--colors red orange")
 
 def test_passed_value_works_fine():
     a = A.setup("--color red")
@@ -29,6 +33,12 @@ def test_passed_value_works_fine():
 
     a = A.setup("--color blue")
     assert a.color == "blue"
+
+    a = A.setup("--colors red blue")
+    assert a.colors == ["red", "blue"]
+
+    a = A.setup("--colors blue red green red")
+    assert a.colors == ["blue", "red", "green", "red"]
 
 
 
@@ -48,33 +58,34 @@ class BB(Base):
 def test_choice_with_dict():
     @dataclass
     class C(TestSetup):
-        option: Union[AA, BB] = choice({
+        option: Union[AA, BB, float] = choice({
             "a": AA("aaa"),
             "b": BB("bbb"),
             "bob": AA("bobobo"),
+            "f": 1.23
         }, default="a")
-    c = C.setup("--option a")
-    assert c.option.value == "aaa"
+        options: List[Union[AA, BB, float]] = choice({
+            "a": AA("aaa"),
+            "b": BB("bbb"),
+            "bob": AA("bobobo"),
+            "f": 1.23
+        }, default_factory=["a"].copy)
 
-    c = C.setup("--option bob")
-    assert c.option.value == "bobobo"
+    c = C.setup("")
+    assert c.option == AA("aaa")
+    assert c.options == [AA("aaa")]
 
-def test_choice_with_dict_weird():
-    @dataclass
-    class D(TestSetup):
-        option: List[Base] = choice({
-            "a": [AA("aa1"), AA("aa2")],
-            "b": 1.23,
-            "bob": BB("bobobo"),
-        }, default="a")
-    c = D.setup("--option a")
-    assert c.option == [AA("aa1"), AA("aa2")]
+    c = C.setup("--option a --options a a")
+    assert c.option == AA("aaa")
+    assert c.options == [AA("aaa"), AA("aaa")]
 
-    c = D.setup("--option b")
+    c = C.setup("--option bob --options bob a")
+    assert c.option == AA("bobobo")
+    assert c.options == [AA("bobobo"), AA("aaa")]
+
+    c = C.setup("--option f --options a f a b")
     assert c.option == 1.23
-    
-    c = D.setup("--option bob")
-    assert c.option == BB("bobobo")
+    assert c.options == [AA("aaa"), 1.23, AA("aaa"), BB("bbb")]
 
 
 def test_choice_with_default_instance():
@@ -108,12 +119,15 @@ def test_passing_enum_to_choice():
 
     @dataclass
     class Something(TestSetup):
-        favorite_color: Color = choice(Color, default=Color.green) 
+        favorite_color: Color = choice(Color, default=Color.green)
+        colors: List[Color] = choice(Color, default_factory=[Color.green].copy)
+
     s = Something.setup("")
     assert s.favorite_color == Color.green
+    assert s.colors == [Color.green]
 
-    s = Something.setup("--favorite_color blue")
-    assert s.favorite_color == Color.blue
+    s = Something.setup("--colors blue red")
+    assert s.colors == [Color.blue, Color.red]
 
 
 def test_passing_enum_to_choice_no_default_makes_required_arg():

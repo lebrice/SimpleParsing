@@ -156,10 +156,6 @@ def field(default: Union[T, _MISSING_TYPE] = MISSING,
 
 
 @overload
-def choice(*choices: T, default: T=None, **kwargs) -> T:
-    pass
-
-@overload
 def choice(choices: Type[E], default: E, **kwargs) -> E:
     pass
 
@@ -167,7 +163,7 @@ def choice(choices: Type[E], default: E, **kwargs) -> E:
 def choice(choices: Dict[K, V], default: K, **kwargs) -> V:
     pass
 
-def choice(*choices: T, default: T = None, **kwargs: Any) -> T:
+def choice(*choices: T, default: Union[T, _MISSING_TYPE] = MISSING, **kwargs: Any) -> T:
     """ Makes a field which can be chosen from the set of choices from the
     command-line.
 
@@ -179,7 +175,7 @@ def choice(*choices: T, default: T = None, **kwargs: Any) -> T:
     Similarly for Enum types, passing a type of enum will  
 
     Args:
-        default (T, optional): The default value of the field. Defaults to None,
+        default (T, optional): The default value of the field. Defaults to dataclasses.MISSING,
         in which case the command-line argument is required.
 
     Raises:
@@ -198,7 +194,7 @@ def choice(*choices: T, default: T = None, **kwargs: Any) -> T:
             choices = OrderedDict(
                 (e.name, e) for e in choice_enum
             )
-            if default is not None and not isinstance(default, choice_enum):
+            if default is not MISSING and not isinstance(default, choice_enum):
                 if default in choices:
                     warnings.warn(UserWarning(
                         f"Setting default={default} could perhaps be ambiguous "
