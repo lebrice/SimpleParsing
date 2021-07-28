@@ -63,11 +63,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         # stores the resulting values for each of the destination attributes.
         self._results: Dict[str, Any] = {}
 
-        if self.is_choice:
-            choice_dict = self.field.metadata.get("choice_dict")
-            if choice_dict:
-                self._type = str
-
     @property
     def arg_options(self) -> Dict[str, Any]:
         """Dictionary of values to be passed to the `add_argument` method.
@@ -373,8 +368,10 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             choice_dict = self.field.metadata.get("choice_dict")
             if choice_dict:
                 key_type = type(next(iter(choice_dict.keys())))
-                if isinstance(raw_parsed_value, key_type):
-                    return choice_dict.get(raw_parsed_value)
+                if self.is_list and isinstance(raw_parsed_value[0], key_type):
+                    return [choice_dict[value] for value in raw_parsed_value]
+                elif isinstance(raw_parsed_value, key_type):
+                    return choice_dict[raw_parsed_value]
             return raw_parsed_value
 
         elif self.is_tuple:
@@ -687,10 +684,15 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     @property
     def type(self) -> Type[Any]:
         """Returns the wrapped field's type annotation."""
-        if self._type is not None:
-            return self._type
-        else:
+        if self._type is None:
             self._type = self.field.type
+            
+            if self.is_choice and self.choice_dict:
+                if utils.is_list(self.field.type):
+                    self._type = List[str]
+                else:
+                    self._type = str
+
         return self._type
 
     def __str__(self):
