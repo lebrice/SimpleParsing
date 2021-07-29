@@ -6,16 +6,16 @@ Somewhat analogous to the 'parse' function in the
 import functools
 from dataclasses import Field
 from functools import lru_cache, partial
+from logging import getLogger
 from typing import *
 
 import typing_inspect as tpi
 
-from ..logging_utils import get_logger
 from ..utils import (get_item_type, get_type_arguments, is_dict, is_list,
                      is_optional, is_set, is_tuple, is_union, str2bool,
                      is_homogeneous_tuple_type)
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
 
 T = TypeVar("T")
 K = TypeVar("K")

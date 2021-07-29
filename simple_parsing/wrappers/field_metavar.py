@@ -1,17 +1,17 @@
 import functools
 from dataclasses import Field
 from functools import lru_cache, partial
+from logging import getLogger
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
 import typing_inspect as tpi
 
-from ..logging_utils import get_logger
 from ..utils import (get_item_type, get_type_arguments, is_dict, is_list,
                      is_optional, is_set, is_tuple, is_union, str2bool)
 
 T = TypeVar("T")
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
 
 _new_metavars: Dict[Type[T], Optional[str]] = {
     # the 'primitive' types don't get a 'new' metavar.

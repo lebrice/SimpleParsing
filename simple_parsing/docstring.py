@@ -6,10 +6,11 @@ import typing
 from argparse import ArgumentTypeError
 from dataclasses import dataclass
 from typing import *
+from logging import getLogger
 
-from .logging_utils import get_logger
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
+
 
 @dataclass
 class AttributeDocString():

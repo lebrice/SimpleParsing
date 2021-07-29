@@ -17,9 +17,9 @@ from simple_parsing.utils import (Dataclass, SimpleValueType,
                                   get_type_arguments, is_optional, is_tuple,
                                   is_union, str2bool)
 
-from ..logging_utils import get_logger
+from logging import getLogger
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
 
 E = TypeVar("E", bound=Enum)
 K = TypeVar("K")

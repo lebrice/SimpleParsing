@@ -13,17 +13,17 @@ import typing
 import warnings
 from argparse import HelpFormatter, Namespace
 from collections import defaultdict
+from logging import getLogger
 from typing import (Any, ClassVar, Dict, List, Sequence, Text, Type, Union,
                     overload)
 
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
 from .help_formatter import SimpleHelpFormatter
-from .logging_utils import get_logger
 from .utils import Dataclass, split_dest
 from .wrappers import DataclassWrapper, FieldWrapper
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
 
 
 class ParsingError(RuntimeError, SystemExit):

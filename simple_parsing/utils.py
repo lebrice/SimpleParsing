@@ -18,6 +18,7 @@ from dataclasses import _MISSING_TYPE, MISSING, Field, dataclass
 from enum import Enum
 from functools import partial
 from inspect import isclass
+from logging import getLogger
 from typing import (
     Any,
     Callable,
@@ -37,7 +38,6 @@ from typing import (
 
 import typing_inspect as tpi
 
-from simple_parsing.logging_utils import get_logger
 
 try:
     from typing import get_args
@@ -57,7 +57,7 @@ except ImportError:
     from typing_inspect import get_origin
 
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
 
 builtin_types = [
     getattr(builtins, d)
