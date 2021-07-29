@@ -1,10 +1,11 @@
 import dataclasses
 import warnings
+from logging import getLogger
 from typing import *
 
-from ..logging_utils import get_logger
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
+
 
 class FlattenedAccess:
     """ Allows flattened access to the attributes of all children dataclasses.

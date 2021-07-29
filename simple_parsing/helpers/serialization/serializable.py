@@ -5,19 +5,19 @@ import warnings
 from collections import OrderedDict
 from dataclasses import MISSING, Field, asdict, dataclass, fields, is_dataclass
 from functools import singledispatch
+from logging import getLogger
 from pathlib import Path
 from typing import *
 from typing import IO, TypeVar
 
 import typing_inspect as tpi
 
-from ...logging_utils import get_logger
 from ...utils import get_type_arguments, is_dict, is_list, is_union
 from .decoding import (_decoding_fns, decode_field, get_decoding_fn,
                        register_decoding_fn)
 from .encoding import SimpleJsonEncoder, encode
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
 
 Dataclass = TypeVar("Dataclass")
 D = TypeVar("D", bound="Serializable")

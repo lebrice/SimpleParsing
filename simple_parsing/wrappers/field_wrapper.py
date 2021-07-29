@@ -2,17 +2,17 @@ import argparse
 import dataclasses
 import inspect
 from enum import Enum
+from logging import getLogger
 from typing import cast, ClassVar, Any, Optional, List, Type, Dict, Set, Union, Tuple
 
 from .. import docstring, utils
-from ..logging_utils import get_logger
 
 # from ..utils import Dataclass, DataclassType
 from .field_parsing import get_parsing_fn
 from .field_metavar import get_metavar
 from .wrapper import Wrapper
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
 
 
 class FieldWrapper(Wrapper[dataclasses.Field]):

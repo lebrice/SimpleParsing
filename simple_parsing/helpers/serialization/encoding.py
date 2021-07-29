@@ -12,14 +12,14 @@ import copy
 import json
 from dataclasses import fields, is_dataclass
 from functools import singledispatch
+from logging import getLogger
 from os import PathLike
 from typing import (Any, Dict, Hashable, List,
                     Set, Tuple, Union)
 from collections.abc import Mapping
-from ...logging_utils import get_logger
 
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
 
 
 class SimpleJsonEncoder(json.JSONEncoder):

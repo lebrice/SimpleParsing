@@ -6,14 +6,14 @@ import warnings
 from collections import OrderedDict
 from dataclasses import Field, fields, is_dataclass
 from functools import lru_cache, partial
+from logging import getLogger
 from typing import *
 
-from ...logging_utils import get_logger
 from ...utils import (get_item_type, get_type_arguments, is_dict, is_list,
                       is_set, is_tuple, is_union)
 
-logger = get_logger(__file__)
-# logger.setLevel(logging.DEBUG)
+logger = getLogger(__name__)
+
 T = TypeVar("T")
 K = TypeVar("K")
 V = TypeVar("V")

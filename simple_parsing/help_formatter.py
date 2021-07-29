@@ -1,14 +1,14 @@
 import argparse
 from argparse import ONE_OR_MORE, OPTIONAL, PARSER, REMAINDER, ZERO_OR_MORE
+from logging import getLogger
 from typing import Type, Callable
 from argparse import Action
 
-from .logging_utils import get_logger
 from .utils import (get_type_arguments, get_type_name, is_optional, is_tuple,
                     is_tuple_or_list, is_union)
 from .wrappers.field_metavar import get_metavar
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
 
 class SimpleHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
                           argparse.MetavarTypeHelpFormatter,

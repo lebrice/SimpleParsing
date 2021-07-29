@@ -20,7 +20,7 @@ from typing import (
 )
 
 from simple_parsing.helpers import Serializable
-from simple_parsing.logging_utils import get_logger
+from logging import getLogger
 from simple_parsing.utils import (
     compute_identity,
     dict_union,
@@ -31,7 +31,7 @@ from .hparam import ValueOutsidePriorException, hparam, uniform, log_uniform
 from .priors import Prior
 
 
-logger = get_logger(__file__)
+logger = getLogger(__name__)
 T = TypeVar("T")
 HP = TypeVar("HP", bound="HyperParameters")
 

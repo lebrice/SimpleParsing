@@ -1,15 +1,15 @@
 import dataclasses
 from functools import wraps
+from logging import getLogger
 from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload, Tuple
 
 from simple_parsing.helpers.fields import choice as _choice
 from simple_parsing.helpers.fields import field
-from simple_parsing.logging_utils import get_logger
 
 from .priors import CategoricalPrior, LogUniformPrior, NormalPrior, Prior, UniformPrior
 
 HP = TypeVar("HP", bound="HyperParameters")
-logger = get_logger(__file__)
+logger = getLogger(__name__)
 T = TypeVar("T")
 
 
