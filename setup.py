@@ -1,5 +1,6 @@
 import sys
 import setuptools
+import versioneer
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -9,7 +10,8 @@ print(sys.version_info)
 
 setuptools.setup(
     name="simple_parsing",
-    version="0.0.15.post1",
+    version=versioneer.get_version(),
+    cmdclass=versioneer.get_cmdclass(),
     author="Fabrice Normandin",
     author_email="fabrice.normandin@gmail.com",
     description="A small utility for simplifying and cleaning up argument parsing scripts.",
