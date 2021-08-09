@@ -176,15 +176,16 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             _arg_options["required"] = False
 
             type_arguments = utils.get_args(self.type)
-            assert type_arguments
-            if len(type_arguments) != 2:
-                raise NotImplementedError(
-                    "Can only handle `Optional[<something>]`, not "
-                    "`Union[<something>, <something_else>, None]`"
-                )
             # NOTE: Optional[<something>] is always translated to
             # Union[<something>, NoneType]
-            wrapped_type: Type = type_arguments[0]
+            assert type_arguments
+            non_none_types = [t for t in type_arguments if t is not type(None)]
+            assert non_none_types
+
+            if len(non_none_types) == 1:
+                wrapped_type = non_none_types[0]
+            else:
+                wrapped_type = Union[tuple(non_none_types)]
 
             if utils.is_tuple(wrapped_type):
                 # TODO: ISSUE 42: better handle optional/nested tuples.
