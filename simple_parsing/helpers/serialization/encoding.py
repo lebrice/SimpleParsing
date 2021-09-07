@@ -17,6 +17,7 @@ from os import PathLike
 from typing import (Any, Dict, Hashable, List,
                     Set, Tuple, Union)
 from collections.abc import Mapping
+from argparse import Namespace
 
 
 logger = getLogger(__name__)
@@ -132,3 +133,7 @@ def encode_dict(obj: Mapping) -> Dict[Any, Any]:
 @encode.register(PathLike)
 def encode_path(obj: PathLike) -> str:
     return obj.__fspath__()
+
+@encode.register(Namespace)
+def encode_namespace(obj: Namespace) -> Any:
+    return encode(vars(obj))
