@@ -2,25 +2,17 @@
 @author: Fabrice Normandin
 """
 import argparse
-import collections
-import dataclasses
-import enum
-import inspect
-import re
 import sys
-import textwrap
-import typing
-import warnings
 from argparse import HelpFormatter, Namespace
 from collections import defaultdict
 from logging import getLogger
-from typing import (Any, ClassVar, Dict, List, Sequence, Text, Type, Union,
+from typing import (Any, Dict, List, Sequence, Text, Type, Union,
                     overload)
 
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
 from .help_formatter import SimpleHelpFormatter
-from .utils import Dataclass, split_dest
+from .utils import Dataclass
 from .wrappers import DataclassWrapper, FieldWrapper
 
 logger = getLogger(__name__)
@@ -32,10 +24,10 @@ class ParsingError(RuntimeError, SystemExit):
 
 class ArgumentParser(argparse.ArgumentParser):
     def __init__(self, *args,
-                 conflict_resolution: ConflictResolution=ConflictResolution.AUTO,
-                 add_option_string_dash_variants: bool=False,
-                 add_dest_to_option_strings: bool=False,
-                 formatter_class: Type[HelpFormatter]=SimpleHelpFormatter,
+                 conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
+                 add_option_string_dash_variants: bool = False,
+                 add_dest_to_option_strings: bool = False,
+                 formatter_class: Type[HelpFormatter] = SimpleHelpFormatter,
                  **kwargs):
         """Creates an ArgumentParser instance.
 
@@ -94,18 +86,18 @@ class ArgumentParser(argparse.ArgumentParser):
         FieldWrapper.add_dest_to_option_strings = add_dest_to_option_strings
 
     @overload
-    def add_arguments(self, dataclass: Type[Dataclass], dest: str, prefix: str="", default: Dataclass=None):
+    def add_arguments(self, dataclass: Type[Dataclass], dest: str, prefix: str = "", default: Dataclass = None):
         pass
-    
+
     @overload
-    def add_arguments(self, dataclass: Dataclass, dest: str, prefix: str=""):
+    def add_arguments(self, dataclass: Dataclass, dest: str, prefix: str = ""):
         pass
 
     def add_arguments(self,
                       dataclass: Union[Type[Dataclass], Dataclass],
                       dest: str,
-                      prefix: str="",
-                      default: Dataclass = None):
+                      prefix: str = "",
+                      default: Union[Dataclass, Dict] = None):
         """Adds command-line arguments for the fields of `dataclass`.
 
         Parameters
@@ -131,8 +123,8 @@ class ArgumentParser(argparse.ArgumentParser):
                 raise argparse.ArgumentError(
                     argument=None,
                     message=f"Destination attribute {dest} is already used for "
-                    f"dataclass of type {dataclass}. Make sure all destinations"
-                    f" are unique."
+                            f"dataclass of type {dataclass}. Make sure all destinations"
+                            f" are unique."
                 )
         if not isinstance(dataclass, type):
             default = dataclass if default is None else default
@@ -149,7 +141,7 @@ class ArgumentParser(argparse.ArgumentParser):
     def parse_known_args(self,
                          args: Sequence[Text] = None,
                          namespace: Namespace = None,
-                         attempt_to_reorder: bool=False):
+                         attempt_to_reorder: bool = False):
         # NOTE: since the usual ArgumentParser.parse_args() calls
         # parse_known_args, we therefore just need to overload the
         # parse_known_args method to support both.
@@ -301,7 +293,8 @@ class ArgumentParser(argparse.ArgumentParser):
                     for field_wrapper in wrapper.fields:
                         arg_value = constructor_args[field_wrapper.name]
                         default_value = field_wrapper.default
-                        logger.debug(f"field {field_wrapper.name}, arg value: {arg_value}, default value: {default_value}")
+                        logger.debug(
+                            f"field {field_wrapper.name}, arg value: {arg_value}, default value: {default_value}")
                         if arg_value != default_value:
                             all_default_or_none = False
                             break

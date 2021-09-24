@@ -12,19 +12,20 @@ from .field_wrapper import FieldWrapper
 
 logger = getLogger(__name__)
 
+
 class DataclassWrapper(Wrapper[Dataclass]):
     def __init__(self,
                  dataclass: Type[Dataclass],
                  name: str,
-                 default: Dataclass=None,
-                 prefix: str="",
-                 parent: "DataclassWrapper"=None,
-                 _field: dataclasses.Field=None,
+                 default: Union[Dataclass, Dict] = None,
+                 prefix: str = "",
+                 parent: "DataclassWrapper" = None,
+                 _field: dataclasses.Field = None,
                  ):
         # super().__init__(dataclass, name)
         self.dataclass = dataclass
         self._name = name
-        self.default = default 
+        self.default = default
         self.prefix = prefix
 
         self.fields: List[FieldWrapper] = []
@@ -44,7 +45,6 @@ class DataclassWrapper(Wrapper[Dataclass]):
             self.defaults = [default]
 
         self.optional: bool = False
-
 
         for field in dataclasses.fields(self.dataclass):
             if not field.init or field.metadata.get("cmd", True) == False:
@@ -130,7 +130,6 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 code += textwrap.dedent(wrapped_field.equivalent_argparse_code()) + "\n"
         return code
 
-    
     @property
     def name(self) -> str:
         return self._name

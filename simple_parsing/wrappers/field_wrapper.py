@@ -626,6 +626,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             for default_dataclass_instance in self.parent.defaults:
                 if default_dataclass_instance is None:
                     default_value = default
+                elif isinstance(default_dataclass_instance, dict):
+                    default_value = default_dataclass_instance.get(self.name, default)
                 else:
                     default_value = getattr(default_dataclass_instance, self.name)
                 defaults.append(default_value)
