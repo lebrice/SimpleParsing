@@ -21,8 +21,11 @@ data_dir = args.data_dir
 log_dir = args.log_dir
 checkpoint_dir = args.checkpoint_dir
 
-class MyModel():
-    def __init__(self, data_dir, log_dir, checkpoint_dir, learning_rate, momentum, *args):
+
+class MyModel:
+    def __init__(
+        self, data_dir, log_dir, checkpoint_dir, learning_rate, momentum, *args
+    ):
         # config:
         self.data_dir = data_dir
         self.log_dir = log_dir
@@ -31,6 +34,7 @@ class MyModel():
         # hyperparameters:
         self.learning_rate = learning_rate
         self.momentum = momentum
+
 
 m = MyModel(data_dir, log_dir, checkpoint_dir, learning_rate, momentum)
 # Ok, what if we wanted to add a new hyperparameter?!

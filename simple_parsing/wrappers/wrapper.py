@@ -6,15 +6,15 @@ from typing import Generic, Optional, List, Type
 
 from ..utils import T
 
+
 class Wrapper(Generic[T], ABC):
     def __init__(self, wrapped: T, name: str):
         self.wrapped = wrapped
         self._dest: Optional[str] = None
-        
 
     @property
     def dest(self) -> str:
-        """ Where the attribute will be stored in the Namespace. """
+        """Where the attribute will be stored in the Namespace."""
         lineage_names: List[str] = [w.name for w in self.lineage()]
         self._dest = ".".join(reversed([self.name] + lineage_names))
         assert self._dest is not None
@@ -26,7 +26,7 @@ class Wrapper(Generic[T], ABC):
         while parent is not None:
             lineage.append(parent)
             parent = parent.parent
-        return lineage   
+        return lineage
 
     @property
     def nesting_level(self) -> int:
@@ -37,11 +37,11 @@ class Wrapper(Generic[T], ABC):
             parent = parent.parent
             level += 1
         return level
-    
+
     @abstractmethod
     def equivalent_argparse_code(self) -> str:
         pass
-    
+
     @property
     @abstractmethod
     def name(self) -> str:

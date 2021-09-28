@@ -9,13 +9,12 @@ from simple_parsing import ArgumentParser, field
 from .testutils import *
 from typing import List
 
+
 def test_custom_args():
     @dataclass
     class Foo(TestSetup):
         output_dir: str = field(
-            default="/out",
-            alias=["-o", "--out"],
-            choices=["/out", "/bob"]
+            default="/out", alias=["-o", "--out"], choices=["/out", "/bob"]
         )
 
     foo = Foo.setup("--output_dir /bob")
@@ -57,7 +56,8 @@ def test_custom_action_args():
 
 
 def test_custom_nargs_int():
-    """Shows that you can use 'nargs' with the field() function. """
+    """Shows that you can use 'nargs' with the field() function."""
+
     @dataclass
     class Foo(TestSetup):
         output_dir: str = field(type=str, nargs=2)
@@ -164,7 +164,7 @@ def test_store_false_action():
 def test_list_of_choices():
     @dataclass
     class Foo(TestSetup):
-        """ Some class Foo """
+        """Some class Foo"""
 
         # A sequence of tasks.
         task_sequence: List[str] = field(choices=["train", "test", "ood"])
@@ -174,10 +174,10 @@ def test_list_of_choices():
 
     with exits_and_writes_to_stderr(match="invalid choice:"):
         Foo.setup("--task_sequence train bob test")
-    
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--foo', action='store_const', const=42)
+    parser.add_argument("--foo", action="store_const", const=42)
     args = parser.parse_args()
     print(args)

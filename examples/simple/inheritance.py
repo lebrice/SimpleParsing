@@ -4,23 +4,23 @@ from simple_parsing import ArgumentParser
 
 @dataclass
 class Method:
-    """ Set of options for the training of a Model."""
+    """Set of options for the training of a Model."""
+
     num_layers: int = 4
-    num_units:  int = 64
-    optimizer:  str = "ADAM"
+    num_units: int = 64
+    optimizer: str = "ADAM"
     learning_rate: float = 0.001
 
 
 @dataclass
 class MAML(Method):
-    """Overwrites some of the default values and adds new arguments/attributes.
-    """
+    """Overwrites some of the default values and adds new arguments/attributes."""
+
     num_layers: int = 6
-    num_units:  int = 128
+    num_units: int = 128
 
     # method
     name: str = "MAML"
-
 
 
 parser = ArgumentParser()

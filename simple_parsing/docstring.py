@@ -13,25 +13,27 @@ logger = getLogger(__name__)
 
 
 @dataclass
-class AttributeDocString():
-    """Simple dataclass for holding the comments of a given field.
-    """
+class AttributeDocString:
+    """Simple dataclass for holding the comments of a given field."""
+
     comment_above: str = ""
     comment_inline: str = ""
     docstring_below: str = ""
 
 
-def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeDocString:
+def get_attribute_docstring(
+    some_dataclass: Type, field_name: str
+) -> AttributeDocString:
     """Returns the docstrings of a dataclass field.
-    NOTE: a docstring can either be: 
+    NOTE: a docstring can either be:
     - An inline comment, starting with <#>
     - A Comment on the preceding line, starting with <#>
     - A docstring on the following line, starting with either <\"\"\"> or <'''>
-    
+
     Arguments:
         some_dataclass {type} -- a dataclass
         field_name {str} -- the name of the field.
-    
+
     Returns:
         AttributeDocString -- an object holding the three possible comments
     """
@@ -52,23 +54,22 @@ def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeD
         start_line_index += 1
 
     lines_with_attribute_defs = [
-        (index, line) for index, line in enumerate(code_lines)
+        (index, line)
+        for index, line in enumerate(code_lines)
         if _contains_attribute_definition(line)
     ]
     for i, line in lines_with_attribute_defs:
         parts: List[str] = line.split(":", maxsplit=1)
         if parts[0].strip() == field_name:
             # we found the line with the definition of this field.
-            comment_above   = _get_comment_ending_at_line(code_lines, i-1)
-            comment_inline  = _get_inline_comment_at_line(code_lines, i)
-            docstring_below = _get_docstring_starting_at_line(code_lines, i+1)
+            comment_above = _get_comment_ending_at_line(code_lines, i - 1)
+            comment_inline = _get_inline_comment_at_line(code_lines, i)
+            docstring_below = _get_docstring_starting_at_line(code_lines, i + 1)
             complete_docstring = AttributeDocString(
-                comment_above,
-                comment_inline,
-                docstring_below
+                comment_above, comment_inline, docstring_below
             )
             return complete_docstring
-    
+
     # we didn't find the attribute.
     mro = inspect.getmro(some_dataclass)
     if len(mro) == 1:
@@ -83,12 +84,13 @@ def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeD
         logger.warning(UserWarning(f"Couldn't find the docstring: {e}"))
         return AttributeDocString()
 
+
 def _contains_attribute_definition(line_str: str) -> bool:
     """Returns wether or not a line contains a an dataclass field definition.
-    
+
     Arguments:
         line_str {str} -- the line content
-    
+
     Returns:
         bool -- True if there is an attribute definition in the line.
     """
@@ -108,15 +110,17 @@ def _contains_attribute_definition(line_str: str) -> bool:
 def _is_empty(line_str: str) -> bool:
     return line_str.strip() == ""
 
+
 def _is_comment(line_str: str) -> bool:
     return line_str.strip().startswith("#")
 
+
 def _get_comment_at_line(code_lines: List[str], line: int) -> str:
     """Gets the comment at line `line` in `code_lines`.
-    
+
     Arguments:
         line {int} -- the index of the line in code_lines
-    
+
     Returns:
         str -- the comment at the given line. empty string if not present.
     """
@@ -125,15 +129,16 @@ def _get_comment_at_line(code_lines: List[str], line: int) -> str:
     if "#" not in line_str:
         return ""
     parts = line_str.split("#", maxsplit=1)
-    comment = parts[1].strip()   
+    comment = parts[1].strip()
     return comment
 
+
 def _get_inline_comment_at_line(code_lines: List[str], line: int) -> str:
-    """Gets the inline comment at line `line`. 
-    
+    """Gets the inline comment at line `line`.
+
     Arguments:
         line {int} -- the index of the line in code_lines
-    
+
     Returns:
         str -- the inline comment at the given line, else an empty string.
     """
@@ -160,14 +165,14 @@ def _get_comment_ending_at_line(code_lines: List[str], line: int) -> str:
     while start_line > 0:
         line_str = code_lines[start_line]
         if _contains_attribute_definition(line_str):
-            break # previous line is an assignment
+            break  # previous line is an assignment
         if '"""' in line_str or "'''" in line_str:
-            break # previous line has a docstring
+            break  # previous line has a docstring
         start_line -= 1
     start_line += 1
 
     lines = []
-    for i in range(start_line, end_line+1):
+    for i in range(start_line, end_line + 1):
         # print(f"line {i}: {code_lines[i]}")
         if _is_empty(code_lines[i]):
             continue
@@ -185,9 +190,9 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
     triple_single = "'''"
     triple_double = '"""'
     # print("finding docstring starting from line", line)
-    
+
     # if we are looking further down than the end of the code, there is no
-    # docstring. 
+    # docstring.
     if line >= len(code_lines):
         return ""
     # the list of lines making up the docstring.
@@ -202,9 +207,8 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
             if _is_empty(line_str):
                 i += 1
                 continue
-            
-            elif (_contains_attribute_definition(line_str) or
-                  _is_comment(line_str)):
+
+            elif _contains_attribute_definition(line_str) or _is_comment(line_str):
                 # we haven't reached the start of a docstring yet (since token
                 # is None), and we reached a line with an attribute definition,
                 # or a comment, hence the docstring is empty.
@@ -221,7 +225,7 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
                 #     """
                 triple_single_index = line_str.index(triple_single)
                 triple_double_index = line_str.index(triple_double)
-                if triple_single_index  < triple_double_index:
+                if triple_single_index < triple_double_index:
                     token = triple_single
                 else:
                     token = triple_double
@@ -238,7 +242,7 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
                     f"Warning: Unable to parse attribute docstring: {line_str}"
                 )
                 return ""
-            
+
             # get the string portion of the line (after a token or possibly
             # between two tokens).
             parts = line_str.split(token, maxsplit=2)
@@ -252,7 +256,7 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
                 # print("Between tokens:", between_tokens)
                 docstring_contents.append(between_tokens)
                 break
-            
+
             elif len(parts) == 2:
                 after_token = parts[1].strip()
                 # print("After token:", after_token)

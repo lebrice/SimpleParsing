@@ -21,6 +21,7 @@ class YamlSerializable(Serializable):
 
     Requires the pyyaml package.
     """
+
     def dump(self, fp: IO[str], dump_fn=yaml.dump, **kwargs) -> None:
         dump_fn(self.to_dict(), fp, **kwargs)
 
@@ -28,13 +29,37 @@ class YamlSerializable(Serializable):
         return dump_fn(self.to_dict(), **kwargs)
 
     @classmethod
-    def load(cls: Type[D], path: Union[Path, str, IO[str]], drop_extra_fields: bool=None, load_fn=yaml.full_load, **kwargs) -> D:
-        return super().load(path, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
+    def load(
+        cls: Type[D],
+        path: Union[Path, str, IO[str]],
+        drop_extra_fields: bool = None,
+        load_fn=yaml.full_load,
+        **kwargs
+    ) -> D:
+        return super().load(
+            path, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs
+        )
 
     @classmethod
-    def loads(cls: Type[D], s: str, drop_extra_fields: bool=None, load_fn=yaml.full_load, **kwargs) -> D:
-        return super().loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
+    def loads(
+        cls: Type[D],
+        s: str,
+        drop_extra_fields: bool = None,
+        load_fn=yaml.full_load,
+        **kwargs
+    ) -> D:
+        return super().loads(
+            s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs
+        )
 
     @classmethod
-    def _load(cls: Type[D], fp: IO[str], drop_extra_fields: bool=None, load_fn=yaml.full_load, **kwargs) -> D:
-        return super()._load(fp, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
+    def _load(
+        cls: Type[D],
+        fp: IO[str],
+        drop_extra_fields: bool = None,
+        load_fn=yaml.full_load,
+        **kwargs
+    ) -> D:
+        return super()._load(
+            fp, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs
+        )

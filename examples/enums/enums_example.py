@@ -5,10 +5,12 @@ from simple_parsing import ArgumentParser
 
 parser = ArgumentParser()
 
+
 class Color(enum.Enum):
     RED = "RED"
     ORANGE = "ORANGE"
     BLUE = "BLUE"
+
 
 class Temperature(enum.Enum):
     HOT = 1
@@ -16,11 +18,14 @@ class Temperature(enum.Enum):
     COLD = -1
     MONTREAL = -35
 
+
 @dataclass
 class MyPreferences:
     """You can use Enums"""
-    color: Color = Color.BLUE # my favorite colour
+
+    color: Color = Color.BLUE  # my favorite colour
     temp: Temperature = Temperature.WARM
+
 
 parser.add_arguments(MyPreferences, "my_preferences")
 args = parser.parse_args()

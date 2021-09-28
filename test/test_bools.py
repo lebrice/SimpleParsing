@@ -4,18 +4,21 @@ import pytest
 
 from .testutils import TestSetup
 
+
 @dataclass
 class Base(TestSetup):
-    """ Some extension of base-class `Base` """
+    """Some extension of base-class `Base`"""
+
     a: int = 5
     f: bool = False
 
 
 @dataclass
 class Flags(TestSetup):
-    a: bool # an example required flag (defaults to False)
-    b: bool = True # optional flag 'b'.
-    c: bool = False # optional flag 'c'.
+    a: bool  # an example required flag (defaults to False)
+    b: bool = True  # optional flag 'b'.
+    c: bool = False  # optional flag 'c'.
+
 
 def test_bool_attributes_work():
     ext = Base.setup("--a 5 --f")

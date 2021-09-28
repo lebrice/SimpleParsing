@@ -17,12 +17,14 @@ from typing import List, Tuple
 
 from simple_parsing import ArgumentParser, ConflictResolution
 
+
 @dataclass
-class CNNStack():
+class CNNStack:
     name: str = "stack"
     num_layers: int = 3
-    kernel_sizes: Tuple[int,int,int] = (7, 5, 5)
+    kernel_sizes: Tuple[int, int, int] = (7, 5, 5)
     num_filters: List[int] = field(default_factory=[32, 64, 64].copy)
+
 
 parser = ArgumentParser(conflict_resolution=ConflictResolution.ALWAYS_MERGE)
 

@@ -5,11 +5,11 @@ from simple_parsing import ArgumentParser, choice
 from typing import Union
 from .testutils import *
 
+
 @dataclass
 class A(TestSetup):
     color: str = choice("red", "green", "blue", default="red")
     colors: List[str] = choice("red", "green", "blue", default_factory=["red"].copy)
-
 
 
 def test_choice_default():
@@ -23,6 +23,7 @@ def test_value_not_in_choices_throws_error():
         a = A.setup("--color orange")
     with raises(SystemExit):
         A.setup("--colors red orange")
+
 
 def test_passed_value_works_fine():
     a = A.setup("--color red")
@@ -41,14 +42,15 @@ def test_passed_value_works_fine():
     assert a.colors == ["blue", "red", "green", "red"]
 
 
-
 @dataclass
 class Base:
     value: str = "hello base"
 
+
 @dataclass
 class AA(Base):
     value: str = "hello a"
+
 
 @dataclass
 class BB(Base):
@@ -58,18 +60,14 @@ class BB(Base):
 def test_choice_with_dict():
     @dataclass
     class C(TestSetup):
-        option: Union[AA, BB, float] = choice({
-            "a": AA("aaa"),
-            "b": BB("bbb"),
-            "bob": AA("bobobo"),
-            "f": 1.23
-        }, default="a")
-        options: List[Union[AA, BB, float]] = choice({
-            "a": AA("aaa"),
-            "b": BB("bbb"),
-            "bob": AA("bobobo"),
-            "f": 1.23
-        }, default_factory=["a"].copy)
+        option: Union[AA, BB, float] = choice(
+            {"a": AA("aaa"), "b": BB("bbb"), "bob": AA("bobobo"), "f": 1.23},
+            default="a",
+        )
+        options: List[Union[AA, BB, float]] = choice(
+            {"a": AA("aaa"), "b": BB("bbb"), "bob": AA("bobobo"), "f": 1.23},
+            default_factory=["a"].copy,
+        )
 
     c = C.setup("")
     assert c.option == AA("aaa")
@@ -91,19 +89,22 @@ def test_choice_with_dict():
 def test_choice_with_default_instance():
     @dataclass
     class D(TestSetup):
-        option: Union[AA, BB, float] = choice({
-            "a": [AA("aa1"), AA("aa2")],
-            "b": 1.23,
-            "bob": BB("bobobo"),
-        }, default="a")
+        option: Union[AA, BB, float] = choice(
+            {
+                "a": [AA("aa1"), AA("aa2")],
+                "b": 1.23,
+                "bob": BB("bobobo"),
+            },
+            default="a",
+        )
 
     @dataclass
     class Parent(TestSetup):
         d: D = D(option=AA("parent"))
 
-
     p = Parent.setup("")
     assert p.d.option == AA("parent")
+
 
 from enum import Enum
 
@@ -116,7 +117,6 @@ class Color(Enum):
 
 
 def test_passing_enum_to_choice():
-
     @dataclass
     class Something(TestSetup):
         favorite_color: Color = choice(Color, default=Color.green)
@@ -131,10 +131,10 @@ def test_passing_enum_to_choice():
 
 
 def test_passing_enum_to_choice_no_default_makes_required_arg():
-
     @dataclass
     class Something(TestSetup):
         favorite_color: Color = choice(Color)
+
     with raises(SystemExit):
         s = Something.setup("")
 
@@ -144,17 +144,17 @@ def test_passing_enum_to_choice_no_default_makes_required_arg():
 
 def test_passing_enum_to_choice_with_key_as_default():
     with pytest.warns(UserWarning):
+
         @dataclass
         class Something(TestSetup):
             favorite_color: Color = choice(Color, default="blue")
-        
+
 
 def test_passing_enum_to_choice_is_same_as_enum_attr():
-
     @dataclass
     class Something1(TestSetup):
         favorite_color: Color = Color.orange
- 
+
     @dataclass
     class Something2(TestSetup):
         favorite_color: Color = choice(Color, default=Color.orange)
@@ -163,9 +163,7 @@ def test_passing_enum_to_choice_is_same_as_enum_attr():
     s2 = Something2.setup("--favorite_color green")
     assert s1.favorite_color == s2.favorite_color
 
-
     s = Something1.setup("--favorite_color blue")
     assert s.favorite_color == Color.blue
     s = Something2.setup("--favorite_color blue")
     assert s.favorite_color == Color.blue
-

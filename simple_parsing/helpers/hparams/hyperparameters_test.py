@@ -207,6 +207,7 @@ from typing import Sequence
 
 try:
     from orion.core.io.space_builder import SpaceBuilder
+
     orion_installed = True
 except ImportError:
     orion_installed = False
@@ -220,7 +221,6 @@ class Foo(HyperParameters):
 
 
 def test_priors_with_shape():
-
 
     foo = Foo()
     assert foo.x == (5, 5)

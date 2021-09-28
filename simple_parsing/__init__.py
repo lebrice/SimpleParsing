@@ -4,19 +4,37 @@
 from . import helpers, utils, wrappers
 from .conflicts import ConflictResolution
 from .help_formatter import SimpleHelpFormatter
-from .helpers import (MutableField, Serializable, choice, field, flag,
-                      list_field, mutable_field, subparsers)
+from .helpers import (
+    MutableField,
+    Serializable,
+    choice,
+    field,
+    flag,
+    list_field,
+    mutable_field,
+    subparsers,
+)
 from .parsing import ArgumentParser, ParsingError
 from .utils import InconsistentArgumentError
 
 __all__ = [
-    "helpers", "utils", "wrappers",
+    "helpers",
+    "utils",
+    "wrappers",
     "ConflictResolution",
-    "MutableField", "Serializable", "SimpleHelpFormatter", "choice",
-    "field", "flag", "list_field", "mutable_field", "subparsers",
+    "MutableField",
+    "Serializable",
+    "SimpleHelpFormatter",
+    "choice",
+    "field",
+    "flag",
+    "list_field",
+    "mutable_field",
+    "subparsers",
     "ArgumentParser",
     "InconsistentArgumentError",
 ]
 
 from . import _version
-__version__ = _version.get_versions()['version']
+
+__version__ = _version.get_versions()["version"]

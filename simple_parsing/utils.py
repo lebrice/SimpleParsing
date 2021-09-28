@@ -51,6 +51,7 @@ except ImportError:
     def get_args(some_type: Type) -> Tuple[Type, ...]:
         return getattr(some_type, "__args__", ())
 
+
 try:
     from typing import get_origin
 except ImportError:
@@ -197,7 +198,7 @@ def get_argparse_type_for_container(
 
     Returns:
         typing.Type -- the type that should be used in argparse 'type' argument option.
-    
+
     TODO: This overlaps in a weird way with `get_parsing_fn`, which returns the 'type'
     to use for a given annotation! This function however doesn't deal with 'weird' item
     types, it just returns the first annotation.
@@ -522,7 +523,7 @@ def get_type_name(some_type: Type):
 
 def get_container_nargs(container_type: Type) -> Union[int, str]:
     """Gets the value of 'nargs' appropriate for the given container type.
-    
+
     Parameters
     ----------
     container_type : Type
@@ -548,7 +549,7 @@ def get_container_nargs(container_type: Type) -> Union[int, str]:
             if is_list(item_type) or is_tuple(item_type):
                 # BUG: If it's a container like Tuple[Tuple[int, str], Tuple[int, str]]
                 # we could do one of two things:
-                # 
+                #
                 # - Option 1: Use nargs=4 and re-organize/split values in
                 #   post-processing.
                 # item_nargs: Union[int, str] = get_container_nargs(item_type)
@@ -556,7 +557,7 @@ def get_container_nargs(container_type: Type) -> Union[int, str]:
                 #     total_nargs += item_nargs
                 # else:
                 #     return "*"
-                # 
+                #
                 # This is a bit confusing, and IMO it might be best to just do
                 # - Option 2: Use `nargs='*'` and use a custom parsing function that
                 #   will convert entries appropriately..

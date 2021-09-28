@@ -1,14 +1,14 @@
 import dataclasses
 import warnings
 from logging import getLogger
-from typing import *
+from typing import Iterable, Tuple, Any, List, Dict
 
 
 logger = getLogger(__name__)
 
 
 class FlattenedAccess:
-    """ Allows flattened access to the attributes of all children dataclasses.
+    """Allows flattened access to the attributes of all children dataclasses.
 
     This is meant to simplify the adoption of dataclasses for argument
     hierarchies, rather than a single-level dictionary.
@@ -18,32 +18,32 @@ class FlattenedAccess:
     - The dictionary access syntax is often more natural than using getattr()
         when reading an attribute whose name is a variable.
     """
-    
-    def attributes(self,
-                   recursive: bool=True,
-                   prefix: str="") -> Iterable[Tuple[str, Any]]:
+
+    def attributes(
+        self, recursive: bool = True, prefix: str = ""
+    ) -> Iterable[Tuple[str, Any]]:
         """Returns an Iterator over the attributes of the dataclass.
-        
+
         [extended_summary]
-        
+
         Parameters
         ----------
         - dataclass : Dataclass
-        
+
             A dataclass type or instance.
         - recursive : bool, optional, by default True
-        
+
             Wether or not to recurse and yield all the elements of the children
             dataclass attributes.
         - prefix : str, optional, by default ""
-        
+
             A prefix to prepend to all the attribute names before yielding them.
-        
+
         Returns
         -------
         Iterable[Tuple[str, Any]]
             An iterable of attribute names and values.
-        
+
         Yields
         -------
         Iterable[Tuple[str, Any]]
@@ -55,18 +55,16 @@ class FlattenedAccess:
                 continue
             # get the field value (without needless recursion)
             field_value = self.__dict__[field.name]
-            
+
             yield prefix + field.name, field_value
             if recursive and dataclasses.is_dataclass(field_value):
                 yield from FlattenedAccess.attributes(
-                    field_value,
-                    recursive=True,
-                    prefix=prefix + field.name + "."
+                    field_value, recursive=True, prefix=prefix + field.name + "."
                 )
 
     def __getattr__(self, name: str):
         """Retrieves the attribute on self, or recursively on the children.
-        
+
         NOTE: `__getattribute__` is always called before `__getattr__`, hence we
         always get here because `self` does not have an attribute of `name`.
         """
@@ -79,10 +77,10 @@ class FlattenedAccess:
             # some list of potential parent attributes.
             name_parts = name.split(".")
             dest_parts = attr_name.split(".")
-            if dest_parts[-len(name_parts):] == name_parts:
+            if dest_parts[-len(name_parts) :] == name_parts:
                 parents.append(attr_name)
                 values.append(attr_value)
-        
+
         if not parents:
             raise AttributeError(
                 f"{type(self)} object has no attribute '{name}', "
@@ -90,8 +88,9 @@ class FlattenedAccess:
             )
         elif len(parents) > 1:
             raise AttributeError(
-                f"Ambiguous Attribute access: name '{name}' may refer to:\n" + 
-                "\n".join(f"- '{parent}' (with a value of: '{value}')"
+                f"Ambiguous Attribute access: name '{name}' may refer to:\n"
+                + "\n".join(
+                    f"- '{parent}' (with a value of: '{value}')"
                     for parent, value in zip(parents, values)
                 )
             )
@@ -102,7 +101,7 @@ class FlattenedAccess:
         """Write the attribute in self or in the children that has it.
 
         If more than one child has attributes that match the given one, an
-        `AttributeError` is raised. 
+        `AttributeError` is raised.
         """
         # potential parents and corresponding values.
         parents: List[str] = []
@@ -118,23 +117,28 @@ class FlattenedAccess:
             # to some list of potential parent attributes.
             name_parts = name.split(".")
             dest_parts = attr_name.split(".")
-            if dest_parts[-len(name_parts):] == name_parts:
+            if dest_parts[-len(name_parts) :] == name_parts:
                 parents.append(attr_name)
                 values.append(attr_value)
-        
+
         if not parents:
             # We set the value on the dataclass directly, since it wasn't found.
-            warnings.warn(UserWarning(f"Setting a new attribute '{name}' on the"
-                f" dataclass, but it does not have a field of the same name. \n"
-                f"(Consider adding a field '{name}' of type {type(value)} to "
-                f"{type(self)})"))      
+            warnings.warn(
+                UserWarning(
+                    f"Setting a new attribute '{name}' on the"
+                    f" dataclass, but it does not have a field of the same name. \n"
+                    f"(Consider adding a field '{name}' of type {type(value)} to "
+                    f"{type(self)})"
+                )
+            )
             object.__setattr__(self, name, value)
 
         elif len(parents) > 1:
             # more than one parent (ambiguous).
             raise AttributeError(
-                f"Ambiguous Attribute access: name '{name}' may refer to:\n" + 
-                "\n".join(f"- '{parent}' (with a value of: '{value}')"
+                f"Ambiguous Attribute access: name '{name}' may refer to:\n"
+                + "\n".join(
+                    f"- '{parent}' (with a value of: '{value}')"
                     for parent, value in zip(parents, values)
                 )
             )
@@ -147,15 +151,15 @@ class FlattenedAccess:
                 # NOTE: we can't use getattr, otherwise we would recurse.
                 parent = object.__getattribute__(parent, parent_name)
             # destination attribute name
-            dest_name = name.split(".")[-1]   
+            dest_name = name.split(".")[-1]
             # Set the attribute on the parent.
-            object.__setattr__(parent, dest_name, value) 
+            object.__setattr__(parent, dest_name, value)
 
     def __getitem__(self, key):
         return getattr(self, key)
 
     def __setitem__(self, key, value):
         setattr(self, key, value)
-    
+
     def asdict(self) -> Dict:
         return dataclasses.asdict(self)

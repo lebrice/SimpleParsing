@@ -7,8 +7,7 @@ from typing import *
 
 import pytest
 
-from simple_parsing import (InconsistentArgumentError,
-                            ArgumentParser)
+from simple_parsing import InconsistentArgumentError, ArgumentParser
 
 from .testutils import *
 
@@ -37,7 +36,9 @@ def test_multiple_append_syntax():
 
 
 @parametrize("num_instances", [1, 2, 5])
-def test_parse_multiple_with_no_arguments_sets_default_value(num_instances: int, simple_attribute, silent):
+def test_parse_multiple_with_no_arguments_sets_default_value(
+    num_instances: int, simple_attribute, silent
+):
     some_type, passed_value, expected_value = simple_attribute
 
     @dataclass
@@ -66,6 +67,7 @@ def test_parse_multiple_with_single_arg_value_sets_that_value_for_all_instances(
     class SomeClass(TestSetup):
         a: some_type = expected_value  # type: ignore
         """some docstring for attribute 'a'"""
+
     classes = SomeClass.setup_multiple(num_instances, f"--a {passed_value}")
 
     assert len(classes) == num_instances
@@ -79,22 +81,20 @@ def test_parse_multiple_with_single_arg_value_sets_that_value_for_all_instances(
 @parametrize(
     "some_type, default_value,  passed_values",
     [
-        (int,   123524,     [1, 2, 3]),
-        (float, 123.456,    [4.5, -12.3, 9]),
-        (str,   "bob",      ["random", "triceratops", "cocobongo"]),
-        (bool,  True,       [False, True, False]),
-    ])
+        (int, 123524, [1, 2, 3]),
+        (float, 123.456, [4.5, -12.3, 9]),
+        (str, "bob", ["random", "triceratops", "cocobongo"]),
+        (bool, True, [False, True, False]),
+    ],
+)
 def test_parse_multiple_with_provided_value_for_each_instance(
-    some_type: Type,
-    default_value: Any,
-    passed_values: List[Any],
-    silent
+    some_type: Type, default_value: Any, passed_values: List[Any], silent
 ):
-
     @dataclass
     class SomeClass(TestSetup):
         a: some_type = default_value  # type: ignore
         """some docstring for attribute 'a'"""
+
     # TODO: maybe test out other syntaxes for passing in multiple argument values? (This looks a lot like passing in a list of values..)
     arguments = f"--a {' '.join(str(p) for p in passed_values)}"
     classes = SomeClass.setup_multiple(3, arguments)
@@ -120,18 +120,23 @@ def test_parse_multiple_without_required_arguments(some_type: Type):
 
 @parametrize("container_type", [List, Tuple])
 @parametrize("item_type", [int, float, str, bool])
-def test_parse_multiple_without_required_container_arguments(container_type: Type, item_type: Type):
+def test_parse_multiple_without_required_container_arguments(
+    container_type: Type, item_type: Type
+):
     @dataclass
     class SomeClass(TestSetup):
         a: container_type[item_type]  # type: ignore
         """some docstring for attribute 'a'"""
+
     with exits_and_writes_to_stderr("the following arguments are required:"):
         _ = SomeClass.setup_multiple(3, "")
 
 
 @parametrize("container_type", [List, Tuple])
 @parametrize("item_type", [int, float, str, bool])
-def test_parse_multiple_with_arg_name_without_arg_value(container_type: Type, item_type: Type):
+def test_parse_multiple_with_arg_name_without_arg_value(
+    container_type: Type, item_type: Type
+):
     @dataclass
     class SomeClass(TestSetup):
         a: container_type[item_type]  # type: ignore
@@ -140,18 +145,22 @@ def test_parse_multiple_with_arg_name_without_arg_value(container_type: Type, it
     with exits_and_writes_to_stderr("expected at least one argument"):
         _ = SomeClass.setup_multiple(3, "--a")
 
-@xfail(reason="BUG: When # of instances to parse is equal to item count in default value.")
+
+@xfail(
+    reason="BUG: When # of instances to parse is equal to item count in default value."
+)
 @parametrize("num_instances", [1, 2, 3, 5])
-@parametrize("container_type, default_value", [
-    (List[str], ["1", "2", "3"]),
-    (List[str], ["1", "2"]),
-    (Tuple[str, int], ["1", 2]),
-    (List[Union[str, bool]], ["1", False]),
-])
+@parametrize(
+    "container_type, default_value",
+    [
+        (List[str], ["1", "2", "3"]),
+        (List[str], ["1", "2"]),
+        (Tuple[str, int], ["1", 2]),
+        (List[Union[str, bool]], ["1", False]),
+    ],
+)
 def test_parse_multiple_containers_default_value(
-        num_instances: int,
-        container_type: Type[Container],
-        default_value: Container
+    num_instances: int, container_type: Type[Container], default_value: Container
 ):
     @dataclass
     class SomeClass(TestSetup):

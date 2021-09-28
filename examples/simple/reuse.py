@@ -12,13 +12,16 @@ prefixes to the arguments for you.
 from dataclasses import dataclass
 from simple_parsing import ArgumentParser
 
+
 @dataclass
 class HParams:
-    """ Set of options for the training of a Model."""
+    """Set of options for the training of a Model."""
+
     num_layers: int = 4
-    num_units:  int = 64
-    optimizer:  str = "ADAM"
+    num_units: int = 64
+    optimizer: str = "ADAM"
     learning_rate: float = 0.001
+
 
 parser = ArgumentParser()
 parser.add_arguments(HParams, dest="train")

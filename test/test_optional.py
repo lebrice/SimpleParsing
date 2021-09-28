@@ -11,9 +11,10 @@ from .testutils import TestSetup
 class Config:
     seed: Optional[int] = None
 
+
 def test_optional_seed():
     """Test that a value marked as Optional works fine.
-    
+
     (Reproduces https://github.com/lebrice/SimpleParsing/issues/14#issue-562538623)
     """
     parser = ArgumentParser()
@@ -47,7 +48,7 @@ class Parent(TestSetup):
 
 
 def test_optional_parameter_group():
-    """ Reproduces issue #28 :
+    """Reproduces issue #28 :
     https://github.com/lebrice/SimpleParsing/issues/28#issue-663689719
     """
     parent: Parent = Parent.setup("--breed Shitzu")
@@ -71,8 +72,7 @@ class GrandParent(TestSetup):
 
 @pytest.mark.xfail(reason="TODO: Deeper nesting doesn't work atm!")
 def test_deeply_nested_optional_parameter_groups():
-    """ Same as above test, but deeper hierarchy.
-    """
+    """Same as above test, but deeper hierarchy."""
     grandparent: GrandParent = GrandParent.setup()
     assert grandparent.niece == None
     assert grandparent.nefew == None
@@ -86,7 +86,7 @@ def test_optional_int():
     @dataclass
     class Bob(TestSetup):
         num_workers: Optional[int] = 12
-  
+
     assert Bob.setup("--num_workers") == Bob(num_workers=None)
     # assert Bob.setup("--num_workers None") == Bob(num_workers=None)
     assert Bob.setup("--num_workers 123") == Bob(num_workers=123)
@@ -97,7 +97,7 @@ def test_optional_str():
     @dataclass
     class Bob(TestSetup):
         a: Optional[str] = "123"
-  
+
     assert Bob.setup("--a") == Bob(a=None)
     # assert Bob.setup("--a None") == Bob(a="None")
     assert Bob.setup("--a 123") == Bob(a="123")
@@ -109,7 +109,7 @@ def test_optional_list_of_ints():
     @dataclass
     class Bob(TestSetup):
         a: Optional[List[int]] = field(default_factory=list)
-  
+
     # assert Bob.setup("--a") == Bob(a=None)
     assert Bob.setup("--a 1") == Bob(a=[1])
     assert Bob.setup("--a 1 2 3") == Bob(a=[1, 2, 3])
@@ -123,21 +123,20 @@ def test_optional_without_default():
     @dataclass
     class Bob(TestSetup):
         a: Optional[int]
-    
+
     assert Bob.setup("") == Bob(a=None)
     assert Bob.setup("--a") == Bob(a=None)
     # assert Bob.setup("--a None") == Bob(a=None)
     assert Bob.setup("--a 123") == Bob(a=123)
     # assert Bob.setup("--a none") == Bob(a=None)
-    
-    
+
 
 # def test_simple_optional_argument(simple_attribute, silent):
 #     some_type, passed_value, expected_value = simple_attribute
 #     @dataclass
 #     class SomeDataclass(TestSetup):
 #         some_attribute: Optional[some_type] # type: ignore
-    
+
 #     actual = SomeDataclass.setup(f"--some_attribute {passed_value}")
 #     assert actual.some_attribute == expected_value
 #     assert isinstance(actual.some_attribute, some_type)

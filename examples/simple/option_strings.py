@@ -4,11 +4,13 @@ from simple_parsing import ArgumentParser, choice, field
 
 @dataclass
 class HParams:
-    """ Set of options for the training of a Model. """
-    num_layers: int = field(4,  alias="-n")
-    num_units:  int = field(64, alias="-u")
-    optimizer:  str = field("ADAM", alias=["-o", "--opt"])
+    """Set of options for the training of a Model."""
+
+    num_layers: int = field(4, alias="-n")
+    num_units: int = field(64, alias="-u")
+    optimizer: str = field("ADAM", alias=["-o", "--opt"])
     learning_rate: float = field(0.001, alias="-lr")
+
 
 parser = ArgumentParser()
 parser.add_arguments(HParams, dest="hparams")

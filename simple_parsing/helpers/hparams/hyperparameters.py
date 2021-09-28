@@ -38,6 +38,7 @@ HP = TypeVar("HP", bound="HyperParameters")
 numpy_installed = False
 try:
     import numpy as np
+
     numpy_installed = True
 except ImportError:
     pass
@@ -55,7 +56,7 @@ class BoundInfo(Serializable):
 
 @dataclass
 class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignore
-    """ Base class for dataclasses of HyperParameters. """
+    """Base class for dataclasses of HyperParameters."""
 
     # Class variable holding the random number generator used to create the
     # samples.
@@ -96,7 +97,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
 
     @classmethod
     def get_priors(cls) -> Dict[str, Prior]:
-        """ Returns a dictionary of the Priors for the hparam fields in this class. """
+        """Returns a dictionary of the Priors for the hparam fields in this class."""
         priors_dict: Dict[str, Prior] = {}
         for field in fields(cls):
             # If a HyperParameters class contains another HyperParameters class as a field
@@ -212,6 +213,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
     #     cls.sample_from_priors = temp
 
     if numpy_installed:
+
         def to_array(self, dtype=np.float32) -> np.ndarray:
             values: List[float] = []
             for k, v in self.to_dict(dict_factory=OrderedDict).items():

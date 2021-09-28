@@ -1,15 +1,18 @@
 from simple_parsing.helpers import Serializable
 from dataclasses import dataclass
 
+
 @dataclass
 class Person(Serializable):
     name: str = "Bob"
     age: int = 20
 
+
 @dataclass
 class Student(Person):
     domain: str = "Computer Science"
     average_grade: float = 0.80
+
 
 expected: str = ""
 
@@ -26,7 +29,7 @@ print(charlie.dumps_json())
 expected += """\
 {"name": "Charlie", "age": 20}
 """
-print(charlie.dumps()) # JSON by default
+print(charlie.dumps())  # JSON by default
 expected += """\
 {"name": "Charlie", "age": 20}
 """
@@ -46,4 +49,5 @@ assert _bob == bob
 
 # Cleaning up
 import os
+
 os.remove("bob.yaml")

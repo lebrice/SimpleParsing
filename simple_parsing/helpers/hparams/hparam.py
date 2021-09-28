@@ -198,7 +198,11 @@ def log_uniform(
     #     default = math.pow(prior.base, (log_min + log_max) / 2)
     #     if discrete or (isinstance(min, int) and isinstance(max, int)):
     #         default = round(default)
-    return hparam(default=default, prior=prior, **kwargs,)
+    return hparam(
+        default=default,
+        prior=prior,
+        **kwargs,
+    )
 
 
 loguniform = log_uniform
@@ -272,7 +276,9 @@ def categorical(
         default_v = None
 
     prior = CategoricalPrior(
-        choices=options, probabilities=probabilities, default_value=default_v,
+        choices=options,
+        probabilities=probabilities,
+        default_value=default_v,
     )
     metadata["prior"] = prior
 
@@ -311,7 +317,11 @@ def hparam(
         # if min and max are passed but no Prior object, assume a Uniform prior.
         prior = UniformPrior(min=min, max=max)
         metadata.update(
-            {"min": min, "max": max, "prior": prior,}
+            {
+                "min": min,
+                "max": max,
+                "prior": prior,
+            }
         )
 
     elif isinstance(prior, type) and issubclass(prior, (UniformPrior, LogUniformPrior)):
@@ -322,9 +332,19 @@ def hparam(
     elif isinstance(prior, Prior):
         metadata["prior"] = prior
         if isinstance(prior, (UniformPrior, LogUniformPrior)):
-            metadata.update(dict(min=prior.min, max=prior.max,))
+            metadata.update(
+                dict(
+                    min=prior.min,
+                    max=prior.max,
+                )
+            )
         elif isinstance(prior, (NormalPrior)):
-            metadata.update(dict(mu=prior.mu, sigma=prior.sigma,))
+            metadata.update(
+                dict(
+                    mu=prior.mu,
+                    sigma=prior.sigma,
+                )
+            )
 
     else:
         # TODO: maybe support an arbitrary callable?
@@ -346,5 +366,9 @@ def hparam(
         metadata["postprocessing"] = postprocess
 
     kwargs["metadata"] = metadata
-    return field(default=default, *args, **kwargs,)
-
+    assert "default" not in kwargs
+    return field(
+        default=default,
+        *args,
+        **kwargs,
+    )

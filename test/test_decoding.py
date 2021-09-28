@@ -106,10 +106,17 @@ def test_super_nesting():
     assert c.dumps() == '{"x": [[[{"0": [2, 1.23, "bob", [1.2, 1.3]]}]]]}'
 
 
-@pytest.mark.parametrize("some_type, encoded_value, expected_value", [
-    # (Tuple[int, float], json.loads(json.dumps([1, 2])), (1, 2.0)),
-    (List[Tuple[int, float]], json.loads(json.dumps([[1, 2], [3, 4]])), [(1, 2.0), (3, 4.0)]),
-])
+@pytest.mark.parametrize(
+    "some_type, encoded_value, expected_value",
+    [
+        # (Tuple[int, float], json.loads(json.dumps([1, 2])), (1, 2.0)),
+        (
+            List[Tuple[int, float]],
+            json.loads(json.dumps([[1, 2], [3, 4]])),
+            [(1, 2.0), (3, 4.0)],
+        ),
+    ],
+)
 def test_decode_tuple(some_type: Type, encoded_value: Any, expected_value: Any):
     decoding_function = get_decoding_fn(some_type)
     actual = decoding_function(encoded_value)

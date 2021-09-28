@@ -1,11 +1,12 @@
 from simple_parsing import ArgumentParser, field
 from dataclasses import dataclass
 
+
 @dataclass
 class InputArgs:
     # Start date from which to collect data about base users. Input in iso format (YYYY-MM-DD).
     # The date is included in the data
-    start_date: str = field(alias="s", metadata={'a':'b'})
+    start_date: str = field(alias="s", metadata={"a": "b"})
 
     # End date for collecting base users. Input in iso format (YYYY-MM-DD). The date is included in the data.
     # Should not be before `start_date`
@@ -22,7 +23,10 @@ def test_issue_48():
     s = StringIO()
     parser.print_help(file=s)
     s.seek(0)
-    assert s.read().replace(" ", "") == textwrap.dedent("""\
+    assert (
+        s.read().replace(" ", "")
+        == textwrap.dedent(
+            """\
         usage: Prepare input data for training [-h] -s str -e str
 
         optional arguments:
@@ -39,7 +43,8 @@ def test_issue_48():
                                 End date for collecting base users. Input in iso
                                 format (YYYY-MM-DD). The date is included in the data.
                                 Should not be before `start_date` (default: None)
-        """).replace(" ", "")
-    
-    
+        """
+        ).replace(" ", "")
+    )
+
     # args = parser.parse_args()

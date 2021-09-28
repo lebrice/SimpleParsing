@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 
 from test.testutils import TestSetup

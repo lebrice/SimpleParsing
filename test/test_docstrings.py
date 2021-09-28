@@ -9,36 +9,36 @@ from typing import List
 from test.testutils import TestSetup
 from .testutils import TestSetup
 
-@dataclass
-class Base():
-    """A simple base-class example"""
-    a: int # TODO: finetune this
 
+@dataclass
+class Base:
+    """A simple base-class example"""
+
+    a: int  # TODO: finetune this
 
     """docstring for attribute 'a'"""
 
+    b: float = 5.0  # inline comment on attribute 'b'
 
-
-    b: float = 5.0 # inline comment on attribute 'b'
-    
-    
     c: str = ""
     """Multi
     Line
     Docstring for 'c'
     """
 
+
 @dataclass
 class Extended(Base):
-    """ Some extension of base-class `Base` """
+    """Some extension of base-class `Base`"""
+
     ## Comment above d)
     # its multiline, does it still work?
     d: int = 5
     """ docstring for 'd' in Extended. """
-    
+
     # Comment above e, but with a line skipped
 
-    e: float = -1               #*# comment on the side of e
+    e: float = -1  # *# comment on the side of e
 
 
 def test_docstring_parsing_work_on_base():
@@ -75,7 +75,10 @@ def test_docstring_parsing_works_on_extended():
     assert docstring.docstring_below == "Multi\nLine\nDocstring for 'c'\n"
 
     docstring = get_attribute_docstring(Extended, "d")
-    assert docstring.comment_above == "# Comment above d)\nits multiline, does it still work?"
+    assert (
+        docstring.comment_above
+        == "# Comment above d)\nits multiline, does it still work?"
+    )
     assert docstring.comment_inline == ""
     assert docstring.docstring_below == "docstring for 'd' in Extended."
 
@@ -84,15 +87,15 @@ def test_docstring_parsing_works_on_extended():
     assert docstring.comment_inline == "*# comment on the side of e"
     assert docstring.docstring_below == ""
 
+
 def test_docstring_works_with_field_function():
     @dataclass
     class Foo(TestSetup):
-        """ Some class Foo """
+        """Some class Foo"""
 
         # A sequence of tasks.
-        task_sequence: List[str] = field(choices=["train", "test", "ood"]) # side
+        task_sequence: List[str] = field(choices=["train", "test", "ood"])  # side
         """Below"""
-
 
     docstring = get_attribute_docstring(Foo, "task_sequence")
     assert docstring.comment_above == "A sequence of tasks."
