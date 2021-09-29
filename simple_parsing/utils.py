@@ -31,10 +31,7 @@ from typing import (
     Union,
 )
 
-try:
-    from typing import _GenericAlias as GenericAlias, Final
-except:
-    from typing_extensions import GenericAlias, Final
+from typing_extensions import Final, Literal
 
 import typing_inspect as tpi
 
@@ -480,7 +477,7 @@ def is_optional(t: Type) -> bool:
 
 
 # Note: the typing module is still under development
-# and the way to detect Final may change in the future
+# and the way to detect Final and Literal may change in the future
 
 
 def is_final(t: Type) -> bool:

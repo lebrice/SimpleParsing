@@ -84,6 +84,6 @@ def get_metavar(t: Type) -> str:
                 break
             else:
                 metavars.append(get_metavar(arg))
-        return " ".join(metavars)
+        return " ".join(m for m in metavars if m is not None)
 
     return new_name
