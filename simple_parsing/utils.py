@@ -1,23 +1,18 @@
 """Utility functions used in various parts of the simple_parsing package."""
 import argparse
 import builtins
-import inspect
-import enum
 import dataclasses
-import functools
-import json
-import re
-import warnings
-import itertools
+import enum
 import hashlib
-from abc import ABC
+import inspect
+import itertools
+import re
+import sys
 from collections import OrderedDict
 from collections import abc as c_abc
 from collections import defaultdict
-from dataclasses import _MISSING_TYPE, MISSING, Field, dataclass
+from dataclasses import _MISSING_TYPE, Field
 from enum import Enum
-from functools import partial
-from inspect import isclass
 from logging import getLogger
 from typing import (
     Any,
@@ -35,6 +30,11 @@ from typing import (
     TypeVar,
     Union,
 )
+
+try:
+    from typing import _GenericAlias as GenericAlias, Final
+except:
+    from typing_extensions import GenericAlias, Final
 
 import typing_inspect as tpi
 
@@ -477,6 +477,21 @@ def is_optional(t: Type) -> bool:
     True
     """
     return is_union(t) and type(None) in get_type_arguments(t)
+
+
+# Note: the typing module is still under development
+# and the way to detect Final may change in the future
+
+
+def is_final(t: Type) -> bool:
+    return isinstance(t, GenericAlias) and t.__origin__ == Final
+
+
+def is_literal(t: Type) -> bool:
+    if sys.version_info < (3, 8, 0):
+        return False
+
+    return isinstance(t, GenericAlias) and t.__origin__ == Literal
 
 
 def is_tuple_or_list_of_dataclasses(t: Type) -> bool:

@@ -703,6 +703,9 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                     self._type = List[str]
                 else:
                     self._type = str
+            elif utils.is_final(self.field.type):
+                # Ignore Final specifier on field type
+                self._type = utils.get_type_arguments(self.field.type)[0]
 
         return self._type
 
