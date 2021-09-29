@@ -1,4 +1,3 @@
-
 """Adds typed dataclasses for the "config" yaml files.
 """
 from dataclasses import dataclass, field, fields
@@ -7,16 +6,20 @@ from simple_parsing import mutable_field
 
 from test.testutils import *
 
+
 @dataclass()
 class LabelOffset:
     """Offset of the label within a dataset."""
+
     mnist: Optional[int] = None
     cifar10: Optional[int] = None
     ciraf100: Optional[int] = None
 
+
 @dataclass
 class DatasetConfig:
     """Dataset Config."""
+
     data_root: str = "./data"
     batch_size: int = 10
     num_workers: int = 16
@@ -27,9 +30,11 @@ class DatasetConfig:
 
     label_offset: LabelOffset = LabelOffset(mnist=0)
 
+
 @dataclass
 class ModelConfig:
     """Model configuration."""
+
     x_c: int = 1
     x_h: int = 28
     x_w: int = 28
@@ -52,8 +57,9 @@ class ModelConfig:
 
 
 @dataclass
-class DPMoEConfig():
-    """Configuration of the Dirichlet Process Mixture of Experts Model. """
+class DPMoEConfig:
+    """Configuration of the Dirichlet Process Mixture of Experts Model."""
+
     log_alpha: int = 410
     stm_capacity: int = 1000
     sleep_val_size: int = 0
@@ -68,8 +74,10 @@ class DPMoEConfig():
 @dataclass(init=False)
 class ObjectConfig:
     """Configuration for a generic Object with a type and some kwargs."""
+
     type: str = ""
     options: Dict[str, Any] = field(default_factory=dict)
+
     def __init__(self, type: str, **kwargs):
         self.type = type
         self.options = kwargs
@@ -77,24 +85,29 @@ class ObjectConfig:
 
 @dataclass
 class TrainConfig:
-    """ Training Configuration. """
+    """Training Configuration."""
+
     weight_decay: float = 0.00001
     implicit_lr_decay: bool = False
     optimizer_g: ObjectConfig = ObjectConfig(type="Adam", lr=0.0003)
-    lr_scheduler_g: ObjectConfig = ObjectConfig(type="MultiStepLR", milestones=[1], gamma=0.003)
+    lr_scheduler_g: ObjectConfig = ObjectConfig(
+        type="MultiStepLR", milestones=[1], gamma=0.003
+    )
     clip_grad: ObjectConfig = ObjectConfig(type="value", clip_value=0.5)
 
 
 @dataclass
 class EvalConfig:
-    """ Eval configuration. """
+    """Eval configuration."""
+
     eval_d: bool = False
     eval_g: bool = True
 
 
 @dataclass
 class SummaryConfig:
-    """ Settings related to the summaries generated during training. """  
+    """Settings related to the summaries generated during training."""
+
     summary_step: int = 250
     eval_step: int = 250
     ckpt_step: int = 1000000000
@@ -108,11 +121,12 @@ from simple_parsing.helpers import FlattenedAccess
 @dataclass
 class Config(FlattenedAccess):
     """Overall Configuration."""
+
     dataset: DatasetConfig = mutable_field(DatasetConfig)
-    model:   ModelConfig   = mutable_field(ModelConfig)
-    dpmmoe:  DPMoEConfig   = mutable_field(DPMoEConfig)
-    train:   TrainConfig   = mutable_field(TrainConfig)
-    eval:    EvalConfig    = mutable_field(EvalConfig)
+    model: ModelConfig = mutable_field(ModelConfig)
+    dpmmoe: DPMoEConfig = mutable_field(DPMoEConfig)
+    train: TrainConfig = mutable_field(TrainConfig)
+    eval: EvalConfig = mutable_field(EvalConfig)
     summary: SummaryConfig = mutable_field(SummaryConfig)
     et: float = 1.23
 

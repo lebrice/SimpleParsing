@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
 
-def test_optional_union():
 
+def test_optional_union():
     @dataclass
     class Config(TestSetup):
         path: Optional[Union[Path, str]] = None

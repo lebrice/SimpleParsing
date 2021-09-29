@@ -6,15 +6,14 @@ from typing import *
 import pytest
 
 from . import TestSetup
-from simple_parsing import (InconsistentArgumentError,
-                            ArgumentParser, ConflictResolution)
+from simple_parsing import InconsistentArgumentError, ArgumentParser, ConflictResolution
 
 
 def test_real_use_case(silent, HyperParameters, TaskHyperParameters):
     default = HyperParameters()
     hparams = HyperParameters.setup(
         "--hyper_parameters.age_group.num_layers 5",
-        conflict_resolution_mode=ConflictResolution.EXPLICIT
+        conflict_resolution_mode=ConflictResolution.EXPLICIT,
     )
     assert isinstance(hparams, HyperParameters)
     # print(hparams.get_help_text())

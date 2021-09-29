@@ -1,4 +1,5 @@
 from .serializable import Serializable
+
 JsonSerializable = Serializable
 try:
     from .yaml_serialization import YamlSerializable

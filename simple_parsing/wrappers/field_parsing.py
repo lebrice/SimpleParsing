@@ -1,19 +1,22 @@
-"""Functions that are to be used to parse a field. 
+"""Functions that are to be used to parse a field.
 
 Somewhat analogous to the 'parse' function in the
 `helpers.serialization.parsing` package.
 """
-import functools
 from dataclasses import Field
-from functools import lru_cache, partial
 from logging import getLogger
-from typing import *
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import typing_inspect as tpi
 
-from ..utils import (get_item_type, get_type_arguments, is_dict, is_list,
-                     is_optional, is_set, is_tuple, is_union, str2bool,
-                     is_homogeneous_tuple_type)
+from ..utils import (
+    get_type_arguments,
+    is_homogeneous_tuple_type,
+    is_list,
+    is_tuple,
+    is_union,
+    str2bool,
+)
 
 logger = getLogger(__name__)
 
@@ -24,13 +27,14 @@ K = TypeVar("K")
 # Dictionary mapping from types/type annotations to their parsing functions.
 _parsing_fns: Dict[Type[T], Callable[[Any], T]] = {
     # the 'primitive' types are parsed using the type fn as a constructor.
-    t: t for t in [str, float, int, bytes] 
+    t: t
+    for t in [str, float, int, bytes]
 }
 _parsing_fns[bool] = str2bool
 
+
 def get_parsing_fn_for_field(field: Field) -> Callable[[Any], T]:
-    """ Gets the parsing function for the field `field`.
-    """
+    """Gets the parsing function for the field `field`."""
     name = field.name
     field_type = field.type
     logger.debug(f"name = {name}, field_type = {field_type}")
@@ -51,14 +55,14 @@ def _register(t: Type, func: Callable) -> None:
 
 
 def register_parsing_fn(some_type: Type[T], function: Callable[[Any], T]) -> None:
-    """Register a parsing function for the type `some_type`. """
+    """Register a parsing function for the type `some_type`."""
     _register(some_type, function)
 
 
 # This doesn't work as well as it did for serialization, in large part due to how
 # argparse uses the `type` function when parsing containers.
 # TODO: Replace this with a simpler function that just returns the 'arg_options' dict to
-# give for a given type annotation. 
+# give for a given type annotation.
 def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
     """Gets a parsing function for the given type or type annotation.
 
@@ -133,27 +137,35 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
         logger.debug(f"parsing a typevar: {t}, bound type is {bound}.")
         if bound is not None:
             return get_parsing_fn(bound)
-    
-    logger.debug(f"Couldn't find a parsing function for type {t}, will try "
-                   f"to use the type directly.")
+
+    logger.debug(
+        f"Couldn't find a parsing function for type {t}, will try "
+        f"to use the type directly."
+    )
     return t
 
 
 def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
-    """ Tries to use the functions in succession, else returns the same value unchanged. """
+    """Tries to use the functions in succession, else returns the same value unchanged."""
+
     def _try_functions(val: Any) -> Union[T, Any]:
         logger.debug(f"Debugging the 'raw value' of {val}, will try functions {funcs}")
         e: Optional[Exception] = None
         for func in funcs:
             try:
                 parsed = func(val)
-                logger.debug(f"Successfully used the function {func} to get a parsed value of {parsed}.")
+                logger.debug(
+                    f"Successfully used the function {func} to get a parsed value of {parsed}."
+                )
                 return parsed
             except Exception as ex:
                 e = ex
         else:
-            logger.error(f"Couldn't parse value {val}, returning it as-is. (exception: {e})")
+            logger.error(
+                f"Couldn't parse value {val}, returning it as-is. (exception: {e})"
+            )
         return val
+
     return _try_functions
 
 
@@ -173,14 +185,18 @@ def parse_union(*types: Type[T]) -> Callable[[Any], Union[T, Any]]:
 
 def parse_optional(t: Type[T]) -> Callable[[Optional[Any]], Optional[T]]:
     parse = get_parsing_fn(t)
+
     def _parse_optional(val: Optional[Any]) -> Optional[T]:
         return val if val is None else parse(val)
+
     return _parse_optional
 
 
-def parse_tuple(tuple_item_types: Tuple[Type[T], ...]) -> Callable[[List[T]], Tuple[T, ...]]:
+def parse_tuple(
+    tuple_item_types: Tuple[Type[T], ...]
+) -> Callable[[List[T]], Tuple[T, ...]]:
     """Makes a parsing function for creating tuples from the command-line args.
-    
+
     Can handle tuples with different item types, for instance:
     - `Tuple[int, Foo, str, float, ...]`.
 
@@ -192,14 +208,14 @@ def parse_tuple(tuple_item_types: Tuple[Type[T], ...]) -> Callable[[List[T]], Tu
     # TODO: support the Ellipsis?
     if not tuple_item_types:
         tuple_item_types = (Any, Ellipsis)
-    
+
     calls_count: int = 0
 
     def _parse_tuple(val: Any) -> Tuple[T, ...]:
         nonlocal calls_count
-        logger.debug(f"Parsing a Tuple with item types {tuple_item_types}, raw value is {val}.")
-        result: List[T] = []
-
+        logger.debug(
+            f"Parsing a Tuple with item types {tuple_item_types}, raw value is {val}."
+        )
         parsing_fn_index = calls_count
 
         if Ellipsis in tuple_item_types:
@@ -212,15 +228,15 @@ def parse_tuple(tuple_item_types: Tuple[Type[T], ...]) -> Callable[[List[T]], Tu
             # unknown number of arguments of type `t1`.
             if parsing_fn_index >= ellipsis_index:
                 parsing_fn_index = ellipsis_index - 1
-        
+
         item_type = tuple_item_types[parsing_fn_index]
         parsing_fn = get_parsing_fn(item_type)
         parsed_value = parsing_fn(val)
 
         calls_count += 1
-        
+
         return parsed_value
-    
+
     _parse_tuple.__name__ = "BOB"
 
     return _parse_tuple

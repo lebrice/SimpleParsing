@@ -3,11 +3,17 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
 
 group = parser.add_argument_group(
-    title="Options", description="Set of options for the training of a Model.")
+    title="Options", description="Set of options for the training of a Model."
+)
 group.add_argument("--num_layers", default=4, help="Number of layers to use")
 group.add_argument("--num_units", default=64, help="Number of units per layer")
-group.add_argument("--learning_rate", default=0.001,help="Learning rate to use")
-group.add_argument("--optimizer", default="ADAM", choices=["ADAM", "SGD", "RMSPROP"], help="Which optimizer to use")
+group.add_argument("--learning_rate", default=0.001, help="Learning rate to use")
+group.add_argument(
+    "--optimizer",
+    default="ADAM",
+    choices=["ADAM", "SGD", "RMSPROP"],
+    help="Which optimizer to use",
+)
 
 args = parser.parse_args()
 print(args)

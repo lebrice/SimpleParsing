@@ -6,8 +6,7 @@ import sys
 from argparse import HelpFormatter, Namespace
 from collections import defaultdict
 from logging import getLogger
-from typing import (Any, Dict, List, Sequence, Text, Type, Union,
-                    overload)
+from typing import Any, Dict, List, Sequence, Text, Type, Union, overload
 
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
@@ -23,12 +22,15 @@ class ParsingError(RuntimeError, SystemExit):
 
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, *args,
-                 conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
-                 add_option_string_dash_variants: bool = False,
-                 add_dest_to_option_strings: bool = False,
-                 formatter_class: Type[HelpFormatter] = SimpleHelpFormatter,
-                 **kwargs):
+    def __init__(
+        self,
+        *args,
+        conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
+        add_option_string_dash_variants: bool = False,
+        add_dest_to_option_strings: bool = False,
+        formatter_class: Type[HelpFormatter] = SimpleHelpFormatter,
+        **kwargs,
+    ):
         """Creates an ArgumentParser instance.
 
         Parameters
@@ -46,7 +48,7 @@ class ArgumentParser(argparse.ArgumentParser):
             For example, when set to `True`, "--no-cache" and "--no_cache" can
             both be used to point to the same attribute `no_cache` on some
             dataclass.
-        
+
         - add_dest_to_option_strings: bool, optional
 
             Wether or not to add the `dest` of each field to the list of option
@@ -55,7 +57,7 @@ class ArgumentParser(argparse.ArgumentParser):
             auto-generated option string or the full 'destination' of the field
             in the resulting namespace.
             When False, only uses the auto-generated option strings.
-            
+
             The auto-generated option strings are usually just the field names,
             except when there are multiple arguments with the same name. In this
             case, the conflicts are resolved as determined by the value of
@@ -86,18 +88,26 @@ class ArgumentParser(argparse.ArgumentParser):
         FieldWrapper.add_dest_to_option_strings = add_dest_to_option_strings
 
     @overload
-    def add_arguments(self, dataclass: Type[Dataclass], dest: str, prefix: str = "", default: Dataclass = None):
+    def add_arguments(
+        self,
+        dataclass: Type[Dataclass],
+        dest: str,
+        prefix: str = "",
+        default: Dataclass = None,
+    ):
         pass
 
     @overload
     def add_arguments(self, dataclass: Dataclass, dest: str, prefix: str = ""):
         pass
 
-    def add_arguments(self,
-                      dataclass: Union[Type[Dataclass], Dataclass],
-                      dest: str,
-                      prefix: str = "",
-                      default: Union[Dataclass, Dict] = None):
+    def add_arguments(
+        self,
+        dataclass: Union[Type[Dataclass], Dataclass],
+        dest: str,
+        prefix: str = "",
+        default: Union[Dataclass, Dict] = None,
+    ):
         """Adds command-line arguments for the fields of `dataclass`.
 
         Parameters
@@ -123,25 +133,22 @@ class ArgumentParser(argparse.ArgumentParser):
                 raise argparse.ArgumentError(
                     argument=None,
                     message=f"Destination attribute {dest} is already used for "
-                            f"dataclass of type {dataclass}. Make sure all destinations"
-                            f" are unique."
+                    f"dataclass of type {dataclass}. Make sure all destinations"
+                    f" are unique.",
                 )
         if not isinstance(dataclass, type):
             default = dataclass if default is None else default
             dataclass = type(dataclass)
 
-        new_wrapper = DataclassWrapper(
-            dataclass,
-            dest,
-            prefix=prefix,
-            default=default
-        )
+        new_wrapper = DataclassWrapper(dataclass, dest, prefix=prefix, default=default)
         self._wrappers.append(new_wrapper)
 
-    def parse_known_args(self,
-                         args: Sequence[Text] = None,
-                         namespace: Namespace = None,
-                         attempt_to_reorder: bool = False):
+    def parse_known_args(
+        self,
+        args: Sequence[Text] = None,
+        namespace: Namespace = None,
+        attempt_to_reorder: bool = False,
+    ):
         # NOTE: since the usual ArgumentParser.parse_args() calls
         # parse_known_args, we therefore just need to overload the
         # parse_known_args method to support both.
@@ -174,10 +181,10 @@ class ArgumentParser(argparse.ArgumentParser):
         return super().print_help(file)
 
     def equivalent_argparse_code(self) -> str:
-        """Returns the argparse code equivalent to that of `simple_parsing`. 
-        
+        """Returns the argparse code equivalent to that of `simple_parsing`.
+
         TODO: Could be fun, pretty sure this is useless though.
-        
+
         Returns
         -------
         str
@@ -224,7 +231,7 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args : Namespace
             the result of calling `super().parse_args(...)` or
             `super().parse_known_args(...)`.
-            TODO: Try and maybe return a nicer, typed version of parsed_args.  
+            TODO: Try and maybe return a nicer, typed version of parsed_args.
 
 
         Returns
@@ -233,7 +240,7 @@ class ArgumentParser(argparse.ArgumentParser):
             The original Namespace, with all the arguments corresponding to the
             dataclass fields removed, and with the added dataclass instances.
             Also keeps whatever arguments were added in the traditional fashion,
-            i.e. with `parser.add_argument(...)`. 
+            i.e. with `parser.add_argument(...)`.
         """
         logger.debug("\nPOST PROCESSING\n")
         logger.debug(f"(raw) parsed args: {parsed_args}")
@@ -243,7 +250,9 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args = self._set_instances_in_namespace(parsed_args)
         return parsed_args
 
-    def _set_instances_in_namespace(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+    def _set_instances_in_namespace(
+        self, parsed_args: argparse.Namespace
+    ) -> argparse.Namespace:
         """Create the instances set them at their destination in the namespace.
 
         We now have all the constructor arguments for each instance.
@@ -264,14 +273,12 @@ class ArgumentParser(argparse.ArgumentParser):
         Returns
         -------
         argparse.Namespace
-            The transformed namespace with the instances set at their 
+            The transformed namespace with the instances set at their
             corresponding destinations.
         """
         # sort the wrappers so as to construct the leaf nodes first.
         sorted_wrappers: List[DataclassWrapper] = sorted(
-            self._wrappers,
-            key=lambda w: w.nesting_level,
-            reverse=True
+            self._wrappers, key=lambda w: w.nesting_level, reverse=True
         )
 
         for wrapper in sorted_wrappers:
@@ -294,11 +301,14 @@ class ArgumentParser(argparse.ArgumentParser):
                         arg_value = constructor_args[field_wrapper.name]
                         default_value = field_wrapper.default
                         logger.debug(
-                            f"field {field_wrapper.name}, arg value: {arg_value}, default value: {default_value}")
+                            f"field {field_wrapper.name}, arg value: {arg_value}, default value: {default_value}"
+                        )
                         if arg_value != default_value:
                             all_default_or_none = False
                             break
-                    logger.debug(f"All fields were either default or None: {all_default_or_none}")
+                    logger.debug(
+                        f"All fields were either default or None: {all_default_or_none}"
+                    )
 
                     if all_default_or_none:
                         instance = None
@@ -335,7 +345,9 @@ class ArgumentParser(argparse.ArgumentParser):
         assert not self.constructor_arguments
         return parsed_args
 
-    def _consume_constructor_arguments(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+    def _consume_constructor_arguments(
+        self, parsed_args: argparse.Namespace
+    ) -> argparse.Namespace:
         """Create the constructor arguments for each instance.
 
         Creates the arguments by consuming all the attributes from

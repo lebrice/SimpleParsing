@@ -1,7 +1,6 @@
-
 from dataclasses import dataclass, field
-from typing import *
-from . import TestSetup
+from typing import ClassVar, List
+from ..test_utils import TestSetup
 
 __all__ = [
     "HParams",
@@ -11,24 +10,28 @@ __all__ = [
     "HyperParameters",
 ]
 
+
 @dataclass
 class HParams(TestSetup):
     """
     Model Hyper-parameters
     """
+
     # Number of examples per batch
     batch_size: int = 32
     # fixed learning rate passed to the optimizer.
-    learning_rate: float = 0.005 
+    learning_rate: float = 0.005
     # name of the optimizer class to use
     optimizer: str = "ADAM"
 
     default_num_layers: ClassVar[int] = 10
-    
+
     # number of layers.
     num_layers: int = default_num_layers
     # the number of neurons at each layer
-    neurons_per_layer: List[int] = field(default_factory=lambda: [128] * HParams.default_num_layers)
+    neurons_per_layer: List[int] = field(
+        default_factory=lambda: [128] * HParams.default_num_layers
+    )
 
 
 @dataclass
@@ -36,14 +39,16 @@ class RunConfig(TestSetup):
     """
     Group of settings used during a training or validation run.
     """
+
     # the set of hyperparameters for this run.
     hparams: HParams = HParams()
-    log_dir: str = "logs" # The logging directory where
+    log_dir: str = "logs"  # The logging directory where
     checkpoint_dir: str = field(init=False)
-    
+
     def __post_init__(self):
         """Post-Init to set the fields that shouldn't be constructor arguments."""
         import os
+
         self.checkpoint_dir = os.path.join(self.log_dir, "checkpoints")
 
 
@@ -52,16 +57,19 @@ class TrainConfig(TestSetup):
     """
     Top-level settings for multiple runs.
     """
+
     # run config to be used during training
     train: RunConfig = RunConfig(log_dir="train")
     # run config to be used during validation.
     valid: RunConfig = RunConfig(log_dir="valid")
+
 
 @dataclass
 class TaskHyperParameters(TestSetup):
     """
     HyperParameters for a task-specific model
     """
+
     # name of the task
     name: str
     # number of dense layers
@@ -88,9 +96,11 @@ class TaskHyperParameters(TestSetup):
     # When set to 'True', it is expected that there no shared embedding is used.
     embed_likes: bool = False
 
+
 @dataclass
 class HyperParameters(TestSetup):
     """Hyperparameters of our model."""
+
     # the batch size
     batch_size: int = 128
     # Which optimizer to use during training.
@@ -102,8 +112,8 @@ class HyperParameters(TestSetup):
     # This corresponds to the number of entries in the multi-hot like vector.
     num_like_pages: int = 10_000
 
-    gender_loss_weight: float   = 1.0
-    age_loss_weight: float      = 1.0
+    gender_loss_weight: float = 1.0
+    age_loss_weight: float = 1.0
 
     num_text_features: ClassVar[int] = 91
     num_image_features: ClassVar[int] = 65

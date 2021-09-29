@@ -1,16 +1,20 @@
-""" Functions for decoding dataclass fields from "raw" values (e.g. from json).  
+""" Functions for decoding dataclass fields from "raw" values (e.g. from json).
 """
-import inspect
-import itertools
 import warnings
 from collections import OrderedDict
-from dataclasses import Field, fields, is_dataclass
+from dataclasses import Field
 from functools import lru_cache, partial
 from logging import getLogger
-from typing import *
+from typing import TypeVar, Any, Dict, Type, Callable, Optional, Union, List, Tuple, Set
 
-from ...utils import (get_item_type, get_type_arguments, is_dict, is_list,
-                      is_set, is_tuple, is_union)
+from ...utils import (
+    get_type_arguments,
+    is_dict,
+    is_list,
+    is_set,
+    is_tuple,
+    is_union,
+)
 
 logger = getLogger(__name__)
 
@@ -21,13 +25,14 @@ V = TypeVar("V")
 # Dictionary mapping from types/type annotations to their decoding functions.
 _decoding_fns: Dict[Type[T], Callable[[Any], T]] = {
     # the 'primitive' types are decoded using the type fn as a constructor.
-    t: t for t in [str, float, int, bool, bytes] 
+    t: t
+    for t in [str, float, int, bool, bytes]
 }
 
 
 def decode_field(field: Field, raw_value: Any) -> Any:
-    """ Converts a "raw" value (e.g. from json file) to the type of the `field`.
-    
+    """Converts a "raw" value (e.g. from json file) to the type of the `field`.
+
     When serializing a dataclass to json, all objects are converted to dicts.
     The values which have a special type (not str, int, float, bool) are
     converted to string or dict. Hence this function allows us to recover the
@@ -56,16 +61,16 @@ def decode_field(field: Field, raw_value: Any) -> Any:
 
 @lru_cache(maxsize=100)
 def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
-    """Fetches/Creates a decoding function for the given type annotation. 
+    """Fetches/Creates a decoding function for the given type annotation.
 
     This decoding function can then be used to create an instance of the type
     when deserializing dicts (which could have been obtained with JSON or YAML).
-    
+
     This function inspects the type annotation and creates the right decoding
     function recursively in a "dynamic-programming-ish" fashion.
     NOTE: We cache the results in a `functools.lru_cache` decorator to avoid
     wasteful calls to the function. This makes this process pretty efficient.
-    
+
     Args:
         t (Type[T]):
             A type or type annotation. Can be arbitrarily nested.
@@ -146,13 +151,14 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
         logger.debug(f"Decoding a typevar: {t}, bound type is {bound}.")
         if bound is not None:
             return get_decoding_fn(bound)
-        
 
     # Unknown type.
-    warnings.warn(UserWarning(
-        f"Unable to find a decoding function for type {t}. "
-        f"Will try to use the type as a constructor."
-    ))
+    warnings.warn(
+        UserWarning(
+            f"Unable to find a decoding function for type {t}. "
+            f"Will try to use the type as a constructor."
+        )
+    )
     return try_constructor(t)
 
 
@@ -163,7 +169,7 @@ def _register(t: Type, func: Callable) -> None:
 
 
 def register_decoding_fn(some_type: Type[T], function: Callable[[Any], T]) -> None:
-    """Register a decoding function for the type `some_type`. """
+    """Register a decoding function for the type `some_type`."""
     _register(some_type, function)
 
 
@@ -172,11 +178,13 @@ def decode_optional(t: Type[T]) -> Callable[[Optional[Any]], Optional[T]]:
 
     def _decode_optional(val: Optional[Any]) -> Optional[T]:
         return val if val is None else decode(val)
+
     return _decode_optional
 
 
 def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
-    """ Tries to use the functions in succession, else returns the same value unchanged. """
+    """Tries to use the functions in succession, else returns the same value unchanged."""
+
     def _try_functions(val: Any) -> Union[T, Any]:
         e: Optional[Exception] = None
         for func in funcs:
@@ -185,8 +193,11 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
             except Exception as ex:
                 e = ex
         else:
-            logger.debug(f"Couldn't parse value {val}, returning it as-is. (exception: {e})")
+            logger.debug(
+                f"Couldn't parse value {val}, returning it as-is. (exception: {e})"
+            )
         return val
+
     return _try_functions
 
 
@@ -209,12 +220,13 @@ def decode_list(t: Type[T]) -> Callable[[List[Any]], List[T]]:
 
     def _decode_list(val: List[Any]) -> List[T]:
         return [decode_item(v) for v in val]
+
     return _decode_list
 
 
 def decode_tuple(*tuple_item_types: Type[T]) -> Callable[[List[T]], Tuple[T, ...]]:
     """Makes a parsing function for creating tuples.
-    
+
     Can handle tuples with different item types, for instance:
     - `Tuple[int, Foo, str, float, ...]`.
 
@@ -230,21 +242,16 @@ def decode_tuple(*tuple_item_types: Type[T]) -> Callable[[List[T]], Tuple[T, ...
         decoding_fn = get_decoding_fn(tuple_item_types[decoding_fn_index])
         has_ellipsis = True
     else:
-        decoding_fns = [
-            get_decoding_fn(t) for t in tuple_item_types
-        ]
+        decoding_fns = [get_decoding_fn(t) for t in tuple_item_types]
     # Note, if there are more values than types in the tuple type, then the
     # last type is used.
+
     def _decode_tuple(val: Tuple[Any, ...]) -> Tuple[T, ...]:
-        result: List[T] = []
         if has_ellipsis:
-            return tuple(
-                decoding_fn(v) for v in val
-            )
+            return tuple(decoding_fn(v) for v in val)
         else:
-            return tuple(
-                decoding_fns[i](v) for i, v in enumerate(val)
-            )
+            return tuple(decoding_fns[i](v) for i, v in enumerate(val))
+
     return _decode_tuple
 
 
@@ -262,10 +269,13 @@ def decode_set(item_type: Type[T]) -> Callable[[List[T]], Set[T]]:
 
     def _decode_set(val: List[Any]) -> Set[T]:
         return set(parse_list_fn(val))
+
     return _decode_set
 
 
-def decode_dict(K_: Type[K], V_: Type[V]) -> Callable[[List[Tuple[Any, Any]]], Dict[K, V]]:
+def decode_dict(
+    K_: Type[K], V_: Type[V]
+) -> Callable[[List[Tuple[Any, Any]]], Dict[K, V]]:
     """Creates a decoding function for a dict type. Works with OrderedDict too.
 
     Args:
@@ -295,6 +305,7 @@ def decode_dict(K_: Type[K], V_: Type[V]) -> Callable[[List[Tuple[Any, Any]]], D
             v_ = decode_v(v)
             result[k_] = v_
         return result
+
     return _decode_dict
 
 

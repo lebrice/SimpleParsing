@@ -4,10 +4,10 @@ from simple_parsing import ArgumentParser
 
 @dataclass
 class HParams:
-    """ Set of options for the training of a ML Model.
+    """Set of options for the training of a ML Model.
 
     Some more detailed description can be placed here, and will show-up in
-    the auto-generated "--help" text. 
+    the auto-generated "--help" text.
 
     Some other **cool** uses for this space:
     - Provide links to previous works: (easy to click on from the command-line)
@@ -19,12 +19,13 @@ class HParams:
     The default HelpFormatter used by `simple_parsing` will keep the formatting
     of this section intact, will add an indicator of the default values, and
     will use the name of the attribute's type as the metavar in the help string.
-    For more info, check out the `SimpleFormatter` class found in 
+    For more info, check out the `SimpleFormatter` class found in
     ./simple_parsing/utils.py
     """
-    num_layers: int = 4   # Number of layers in the model.
-    num_units:  int = 64  # Number of units (neurons) per layer.
-    optimizer:  str = "ADAM"      # Which optimizer to use.
+
+    num_layers: int = 4  # Number of layers in the model.
+    num_units: int = 64  # Number of units (neurons) per layer.
+    optimizer: str = "ADAM"  # Which optimizer to use.
     learning_rate: float = 0.001  # Learning_rate used by the optimizer.
 
     alpha: float = 0.05  # TODO: Tune this. (This doesn't appear in '--help')

@@ -14,8 +14,7 @@ from dataclasses import fields, is_dataclass
 from functools import singledispatch
 from logging import getLogger
 from os import PathLike
-from typing import (Any, Dict, Hashable, List,
-                    Set, Tuple, Union)
+from typing import Any, Dict, Hashable, List, Set, Tuple, Union
 from collections.abc import Mapping
 from argparse import Namespace
 
@@ -61,7 +60,7 @@ def encode(obj: T) -> T: ...
 
 @singledispatch
 def encode(obj: Any) -> Any:
-    """ Encodes an object into a json/yaml-compatible primitive type.
+    """Encodes an object into a json/yaml-compatible primitive type.
 
     This called to convert field attributes when calling `to_dict()` on a
     `DictSerializable` instance (including JsonSerializable and YamlSerializable).
@@ -69,11 +68,11 @@ def encode(obj: Any) -> Any:
     This is used as the 'default' keyword argument to `json.dumps` and
     `json.dump`, and is called when an object is encountered that `json` doesn't
     know how to serialize.
-    
+
     To register a type as JsonSerializable, you can just register a custom
-    serialization function. (There should be no need to do it for dataclasses, 
+    serialization function. (There should be no need to do it for dataclasses,
     since that is supported by this function), use @encode.register
-    (see the docs for singledispatch).    
+    (see the docs for singledispatch).
     """
     try:
         if is_dataclass(obj):
@@ -82,7 +81,7 @@ def encode(obj: Any) -> Any:
             for field in fields(obj):
                 value = getattr(obj, field.name)
                 try:
-                    d[field.name] = encode(value) 
+                    d[field.name] = encode(value)
                 except TypeError as e:
                     logger.error(f"Unable to encode field {field.name}: {e}")
                     raise e
@@ -107,6 +106,7 @@ def encode_list(obj: Union[List[Any], Set[Any], Tuple[Any, ...]]) -> List[Any]:
     # but maybe not for other stuff.
     return list(map(encode, obj))
 
+
 @encode.register(Mapping)
 def encode_dict(obj: Mapping) -> Dict[Any, Any]:
     constructor = type(obj)
@@ -122,10 +122,6 @@ def encode_dict(obj: Mapping) -> Dict[Any, Any]:
                 result = list(result.items())
             result.append((k_, v_))
     return result
-        
-        
-
-
 
     return type(obj)((encode(k), encode(v)) for k, v in obj.items())
 
@@ -133,6 +129,7 @@ def encode_dict(obj: Mapping) -> Dict[Any, Any]:
 @encode.register(PathLike)
 def encode_path(obj: PathLike) -> str:
     return obj.__fspath__()
+
 
 @encode.register(Namespace)
 def encode_namespace(obj: Namespace) -> Any:

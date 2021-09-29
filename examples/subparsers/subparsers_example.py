@@ -1,11 +1,13 @@
 from dataclasses import dataclass
-from typing import *
+from typing import Union
 from pathlib import Path
 from simple_parsing import ArgumentParser, subparsers
+
 
 @dataclass
 class Train:
     """Example of a command to start a Training run."""
+
     # the training directory
     train_dir: Path = Path("~/train")
 
@@ -16,6 +18,7 @@ class Train:
 @dataclass
 class Test:
     """Example of a command to start a Test run."""
+
     # the testing directory
     test_dir: Path = Path("~/train")
 
@@ -26,9 +29,10 @@ class Test:
 @dataclass
 class Program:
     """Some top-level command"""
+
     command: Union[Train, Test]
-    verbose: bool = False   # log additional messages in the console.
-    
+    verbose: bool = False  # log additional messages in the console.
+
     def execute(self):
         print(f"Program (verbose: {self.verbose})")
         return self.command.execute()

@@ -11,6 +11,7 @@ from simple_parsing.helpers.serialization import encode, register_decoding_fn
 
 expected: str = ""
 
+
 @dataclass
 class Person(Serializable):
     name: str = "Bob"
@@ -26,8 +27,9 @@ class Student(Person):
 
 @encode.register
 def encode_tensor(obj: Tensor) -> List:
-    """ We choose to encode a tensor as a list, for instance """
+    """We choose to encode a tensor as a list, for instance"""
     return obj.tolist()
+
 
 # We will use `torch.as_tensor` as our decoding function
 register_decoding_fn(Tensor, torch.as_tensor)

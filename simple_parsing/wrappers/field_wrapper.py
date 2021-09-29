@@ -138,7 +138,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             )
 
     def get_arg_options(self) -> Dict[str, Any]:
-        """ Create the `parser.add_arguments` kwargs for this field. """
+        """Create the `parser.add_arguments` kwargs for this field."""
         if not self.field.init:
             # Don't add command-line arguments for fields that have `init=False`.
             # TODO: See (https://github.com/lebrice/SimpleParsing/issues/20#issue-619198492)
@@ -329,7 +329,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 and len(parsed_values) == 1
                 and len(parsed_values[0]) == num_instances_to_parse
             ):
-                return parsed_values[0]
+                result: List = parsed_values[0]
+                return result
 
         if not isinstance(parsed_values, (list, tuple)):
             parsed_values = [parsed_values]
@@ -689,7 +690,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         """Returns the wrapped field's type annotation."""
         if self._type is None:
             self._type = self.field.type
-            
+
             if self.is_choice and self.choice_dict:
                 if utils.is_list(self.field.type):
                     self._type = List[str]

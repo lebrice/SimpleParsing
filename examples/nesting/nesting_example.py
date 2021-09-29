@@ -1,12 +1,14 @@
 from simple_parsing import ArgumentParser
 from dataclasses import dataclass
-from typing import *
+from typing import ClassVar
+
 
 @dataclass
-class TaskHyperParameters():
+class TaskHyperParameters:
     """
     HyperParameters for a task-specific model
     """
+
     # name of the task
     name: str
     # number of dense layers
@@ -33,9 +35,11 @@ class TaskHyperParameters():
     # When set to 'True', it is expected that there no shared embedding is used.
     embed_likes: bool = False
 
+
 @dataclass
-class HyperParameters():
+class HyperParameters:
     """Hyperparameters of our model."""
+
     # the batch size
     batch_size: int = 128
     # Which optimizer to use during training.
@@ -47,8 +51,8 @@ class HyperParameters():
     # This corresponds to the number of entries in the multi-hot like vector.
     num_like_pages: int = 10_000
 
-    gender_loss_weight: float   = 1.0
-    age_loss_weight: float      = 1.0
+    gender_loss_weight: float = 1.0
+    age_loss_weight: float = 1.0
 
     num_text_features: ClassVar[int] = 91
     num_image_features: ClassVar[int] = 65
@@ -96,6 +100,7 @@ class HyperParameters():
         use_image_features=False,
         use_likes=False,
     )
+
 
 parser = ArgumentParser()
 parser.add_arguments(HyperParameters, dest="hparams")

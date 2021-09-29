@@ -1,12 +1,14 @@
 import simple_parsing
 from dataclasses import dataclass
 
-# create a parser, 
+# create a parser,
 parser = simple_parsing.ArgumentParser()
 
+
 @dataclass
-class MyModelHyperParameters():
+class MyModelHyperParameters:
     """Hyperparameters of MyModel"""
+
     # Batch size (per-GPU)
     batch_size: int = 32
     # Learning rate of the Adam optimizer.
@@ -14,17 +16,22 @@ class MyModelHyperParameters():
     # Momentum of the optimizer.
     momentum: float = 0.01
 
+
 @dataclass
-class TrainingConfig():
-    """ Settings related to Training"""
+class TrainingConfig:
+    """Settings related to Training"""
+
     data_dir: str = "data"
     log_dir: str = "logs"
     checkpoint_dir: str = "checkpoints"
 
+
 @dataclass
-class EvalConfig():
-    """ Settings related to evaluation """
+class EvalConfig:
+    """Settings related to evaluation"""
+
     eval_dir: str = "eval_data"
+
 
 # automatically add arguments for all the fields of the classes above:
 parser.add_arguments(MyModelHyperParameters, "hparams")
@@ -44,7 +51,7 @@ args = parser.parse_args()
 # Retrieve the objects from the parsed args!
 hparams: MyModelHyperParameters = args.hparams
 train_config: TrainingConfig = args.train_config
-eval_config: EvalConfig = args.eval_config 
+eval_config: EvalConfig = args.eval_config
 
 print(hparams, train_config, eval_config, sep="\n")
 expected = """

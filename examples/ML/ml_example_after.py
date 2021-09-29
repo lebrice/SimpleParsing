@@ -4,17 +4,21 @@ from simple_parsing import ArgumentParser
 # create a parser, as usual
 parser = ArgumentParser()
 
+
 @dataclass
 class MyModelHyperParameters:
     """Hyperparameters of MyModel"""
+
     # Learning rate of the Adam optimizer.
     learning_rate: float = 0.05
     # Momentum of the optimizer.
     momentum: float = 0.01
 
+
 @dataclass
 class TrainingConfig:
     """Training configuration settings"""
+
     data_dir: str = "/data"
     log_dir: str = "/logs"
     checkpoint_dir: str = "checkpoints"
@@ -30,11 +34,13 @@ args = parser.parse_args()
 hyperparameters: MyModelHyperParameters = args.hparams
 config: TrainingConfig = args.config
 
-class MyModel():
+
+class MyModel:
     def __init__(self, hyperparameters: MyModelHyperParameters, config: TrainingConfig):
         # hyperparameters:
         self.hyperparameters = hyperparameters
         # config:
         self.config = config
+
 
 m = MyModel(hyperparameters, config)

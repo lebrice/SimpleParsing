@@ -10,6 +10,7 @@ from simple_parsing.helpers.serialization import YamlSerializable
 from test.conftest import silent
 import yaml
 
+
 @dataclass
 class Point(YamlSerializable):
     x: int = 0
@@ -29,7 +30,8 @@ def test_dumps():
     p1 = Point(x=1, y=6)
     p2 = Point(x=3, y=1)
     config = Config(name="heyo", points=[p1, p2])
-    assert config.dumps() == textwrap.dedent("""\
+    assert config.dumps() == textwrap.dedent(
+        """\
         bob: 123
         name: heyo
         points:
@@ -38,7 +40,8 @@ def test_dumps():
         - x: 3
           y: 1
         some_float: 1.23
-        """)
+        """
+    )
 
 
 def test_dumps_loads():
@@ -46,8 +49,10 @@ def test_dumps_loads():
     p2 = Point(x=3, y=1)
     config = Config(name="heyo", points=[p1, p2])
     assert Config.loads(config.dumps()) == config
-    
-    assert config == Config.loads(textwrap.dedent("""\
+
+    assert config == Config.loads(
+        textwrap.dedent(
+            """\
         bob: 123
         name: heyo
         points:
@@ -56,7 +61,10 @@ def test_dumps_loads():
         - x: 3
           y: 1
         some_float: 1.23
-        """))
+        """
+        )
+    )
+
 
 def test_save_yaml(HyperParameters, tmpdir: Path):
     hparams = HyperParameters.setup("")
@@ -82,6 +90,7 @@ def test_save_yml(HyperParameters, tmpdir: Path):
 
     _hparams = HyperParameters.load(tmp_path)
     assert hparams == _hparams
+
 
 # def test_save_yml(HyperParameters, tmpdir: Path):
 #     hparams = HyperParameters.setup("")

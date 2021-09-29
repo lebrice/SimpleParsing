@@ -10,6 +10,7 @@ from .utils import set_seed
 numpy_installed = False
 try:
     import numpy as np
+
     numpy_installed = True
 except ImportError:
     pass
@@ -18,6 +19,7 @@ except ImportError:
 matplotlib_installed = False
 try:
     import matplotlib.pyplot as plt
+
     matplotlib_installed = True
 except ImportError:
     pass
@@ -34,9 +36,7 @@ def test_log_uniform():
     n_bins = 5
     n_points = 200
     set_seed(123)
-    x = [
-        A.sample().to_array() for i in range(n_points)
-    ]
+    x = [A.sample().to_array() for i in range(n_points)]
     hist, bins, _ = plt.hist(x, bins=n_bins)
     # histogram on log scale.
     # Use non-equal bin sizes, such that they look equal on log scale.
@@ -48,17 +48,17 @@ def test_log_uniform():
     mean = np.mean(counts)
     std = np.std(counts)
 
-    error_to_mean_ratio = (std / mean)
+    error_to_mean_ratio = std / mean
     # TODO: This is not ideal, since changing the seed might break the test.
     # For this particular seed  (123), the variance is about 5.
-    assert error_to_mean_ratio < 0.25, (
-        f"Variance is too large!{error_to_mean_ratio} {std}, {counts},"
-    )
+    assert (
+        error_to_mean_ratio < 0.25
+    ), f"Variance is too large!{error_to_mean_ratio} {std}, {counts},"
 
 
 @dataclass
 class B(A):
-    momentum: float = hparam(default=0., prior=UniformPrior(min=-2., max=2.))
+    momentum: float = hparam(default=0.0, prior=UniformPrior(min=-2.0, max=2.0))
 
 
 @pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
@@ -72,10 +72,8 @@ def test_to_array():
 def test_log_uniform_and_uniform():
     n_points = 100
     set_seed(123)
-    x_samples = [
-        B.sample() for i in range(n_points)
-    ]
-    assert all([0. < x.learning_rate < 1 for x in x_samples]), x_samples
+    x_samples = [B.sample() for i in range(n_points)]
+    assert all([0.0 < x.learning_rate < 1 for x in x_samples]), x_samples
     assert all([-2 < x.momentum < 2 for x in x_samples]), x_samples
 
 
@@ -83,16 +81,12 @@ def test_log_uniform_and_uniform():
 def test_log_uniform_and_uniform_np():
     n_points = 100
     set_seed(123)
-    x_samples = [
-        B.sample() for i in range(n_points)
-    ]
+    x_samples = [B.sample() for i in range(n_points)]
 
-    assert all([0. < x.learning_rate < 1 for x in x_samples]), x_samples
+    assert all([0.0 < x.learning_rate < 1 for x in x_samples]), x_samples
     assert all([-2 < x.momentum < 2 for x in x_samples]), x_samples
 
-    x = np.stack([
-        x.to_array() for x in x_samples
-    ])
+    x = np.stack([x.to_array() for x in x_samples])
 
     x0 = x[:, 0]  # learning rate
     x1 = x[:, 1]  # momentum
