@@ -1,7 +1,11 @@
-from dataclasses import dataclass
-import simple_parsing
+import os.path
+import sys
 import textwrap
+from dataclasses import dataclass
+
 import pytest
+
+import simple_parsing
 
 
 @dataclass
@@ -18,10 +22,11 @@ def test_issue_46(assert_equals_stdout):
 
     parser.print_help()
 
+    running_name = os.path.basename(sys.argv[0])
     assert_equals_stdout(
         textwrap.dedent(
-            """\
-        usage: pytest [-h] [--run_id str] --jbuildid int --jbuildurl str
+            f"""\
+        usage: {running_name} [-h] [--run_id str] --jbuildid int --jbuildurl str
                       --jbuilddocker_image str
         
         optional arguments:
@@ -40,7 +45,7 @@ def test_issue_46(assert_equals_stdout):
     from .testutils import raises_missing_required_arg
 
     with raises_missing_required_arg():
-        args = parser.parse_args(
+        parser.parse_args(
             "--id 123 --jbuild.id 456 --jbuild.url bob --jbuild.docker_image foo".split()
         )
 
@@ -52,10 +57,11 @@ def test_issue_46_solution2(assert_equals_stdout):
     parser.add_arguments(JBuildRelease, dest="jbuild", prefix="jbuild.")
 
     parser.print_help()
+
+    running_name = os.path.basename(sys.argv[0])
     assert_equals_stdout(
         textwrap.dedent(
-            """\
-        usage: pytest [-h] [--run_id str] --jbuild.id int --jbuild.url str
+            f"""usage: {running_name} [-h] [--run_id str] --jbuild.id int --jbuild.url str
                       --jbuild.docker_image str
 
         optional arguments:
@@ -91,8 +97,6 @@ def test_conflict_with_regular_argparse_arg():
 
 @pytest.mark.xfail(reason="TODO: Issue #49")
 def test_workaround():
-    from simple_parsing import mutable_field, ConflictResolution
-
     # This also doesn't work, since the prefix is only added to the 'offending'
     # argument, rather than to all the args in that group.
     @dataclass
