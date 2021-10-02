@@ -39,7 +39,7 @@ def get_attribute_docstring(
     """
     try:
         source = inspect.getsource(some_dataclass)
-    except TypeError as e:
+    except (TypeError, OSError) as e:
         logger.debug(f"Couldn't find the attribute docstring: {e}")
         return AttributeDocString()
 
