@@ -49,6 +49,7 @@ def field(
     default: Union[T, _MISSING_TYPE] = MISSING,
     alias: Optional[Union[str, List[str]]] = None,
     cmd: bool = True,
+    positional: bool = False,
     *,
     to_dict: bool = True,
     encoding_fn: Callable[[T], Any] = None,
@@ -130,6 +131,7 @@ def field(
     if decoding_fn is not None:
         _metadata.update(dict(decoding_fn=decoding_fn))
     _metadata["cmd"] = cmd
+    _metadata["positional"] = positional
 
     if custom_argparse_args:
         _metadata.update({"custom_args": custom_argparse_args})
