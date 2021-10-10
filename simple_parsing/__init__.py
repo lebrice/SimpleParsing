@@ -14,7 +14,7 @@ from .helpers import (
     mutable_field,
     subparsers,
 )
-from .parsing import ArgumentParser, ParsingError
+from .parsing import ArgumentParser, ParsingError, DashVariant
 from .utils import InconsistentArgumentError
 
 __all__ = [
@@ -22,6 +22,7 @@ __all__ = [
     "utils",
     "wrappers",
     "ConflictResolution",
+    "DashVariant"
     "MutableField",
     "Serializable",
     "SimpleHelpFormatter",

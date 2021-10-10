@@ -25,6 +25,7 @@ from simple_parsing import (
     InconsistentArgumentError,
     ParsingError,
     SimpleHelpFormatter,
+    DashVariant,
 )
 from simple_parsing.utils import camel_case
 from simple_parsing.wrappers import DataclassWrapper
@@ -131,7 +132,7 @@ class TestSetup:
         dest: Optional[str] = None,
         default: Optional[Dataclass] = None,
         conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
-        add_option_string_dash_variants: bool = False,
+        add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
         parse_known_args: bool = False,
         attempt_to_reorder: bool = False,
     ) -> Dataclass:
@@ -202,13 +203,18 @@ class TestSetup:
         cls,
         multiple=False,
         conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
+        add_option_string_dash_variants = DashVariant.AUTO,
     ) -> str:
         import contextlib
         from io import StringIO
 
         f = StringIO()
         with contextlib.suppress(SystemExit), contextlib.redirect_stdout(f):
-            _ = cls.setup("--help", conflict_resolution_mode=conflict_resolution_mode)
+            _ = cls.setup(
+                "--help",
+                conflict_resolution_mode=conflict_resolution_mode,
+                add_option_string_dash_variants=add_option_string_dash_variants,
+            )
         s = f.getvalue()
         return s
 

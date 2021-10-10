@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from simple_parsing import ArgumentParser, field
+from simple_parsing import ArgumentParser, field, DashVariant
+from simple_parsing.wrappers.field_wrapper import FieldWrapper
 
 from .testutils import *
 from typing import List
@@ -159,7 +160,29 @@ def test_store_false_action():
     args = parser.parse_args("".split())
     foo: Foo = args.foo
     assert foo.no_cache == True
+ 
+def test_only_dashes():
+    @dataclass
+    class SomeClass(TestSetup):
+        """lol"""
+        my_var: int
 
+    assert_help_output_equals(
+        SomeClass.get_help_text(add_option_string_dash_variants=DashVariant.DASH),
+        """
+    usage: pytest [-h] --my-var int
+
+    optional arguments:
+    -h, --help            show this help message and exit
+
+    test_only_dashes.<locals>.SomeClass ['some_class']:
+    lol
+
+      --my-var int
+    """,
+    )
+    sc = SomeClass.setup('--my-var 2', add_option_string_dash_variants=DashVariant.DASH)
+    assert sc.my_var == 2
 
 def test_list_of_choices():
     @dataclass
