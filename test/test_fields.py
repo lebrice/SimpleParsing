@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from test.testutils import TestSetup
 
 from simple_parsing import ArgumentParser, field, ConflictResolution
+from simple_parsing.wrappers.field_wrapper import BoolAction
 
 
 def test_cmd_false_doesnt_create_conflicts():
@@ -57,7 +58,7 @@ from simple_parsing.utils import str2bool
         (List[str], dict(nargs="*", type=str)),
         (Optional[List[str]], dict(nargs="*", type=str, required=False)),
         (Optional[str], dict(nargs="?", type=str, required=False)),
-        (Optional[bool], dict(nargs="?", type=str2bool, required=False)),
+        (Optional[bool], dict(nargs="?", action=BoolAction, required=False)),
         # (Optional[Tuple[Color, str]], dict(nargs=2, type=get_parsing_fn(Tuple[Color, str]), required=False)),
     ],
 )

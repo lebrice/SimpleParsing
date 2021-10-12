@@ -1,4 +1,5 @@
 import argparse
+import logging
 import shlex
 import string
 import sys
@@ -92,7 +93,13 @@ def assert_help_output_equals(actual: str, expected: str) -> bool:
     remove = string.punctuation + string.whitespace
     actual_str = "".join(actual.split())
     expected_str = "".join(expected.split())
-    assert actual_str == expected_str, f"{actual_str} != {expected_str}"
+    if actual_str != expected_str:
+        from textwrap import dedent
+        logging.error(f"Expected:\n{dedent(expected)}")
+        logging.error(f"Actual:\n{dedent(actual)}")
+        # Whitespace doesn't matter for comparison, but when logging, it makes it far easier to compare,
+        # especially since pytest doesn't seem to want to do the convenient string diffs for us.
+        assert actual_str == expected_str
 
 
 T = TypeVar("T")

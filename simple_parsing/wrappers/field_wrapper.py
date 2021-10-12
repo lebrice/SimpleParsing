@@ -270,10 +270,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["type"] = type_fn
 
         elif utils.is_bool(self.type):
-            _arg_options["type"] = utils.str2bool
-            _arg_options["type"].__name__ = "bool"
-            _arg_options["nargs"] = "?"
-
+            _arg_options["action"] = BoolAction
+            _arg_options["metavar"] = '[bool]'
         else:
             # "Plain" / simple argument.
             # For the metavar, use a custom passed value, if present, else do
@@ -384,16 +382,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 return tuple(raw_parsed_value)
 
         elif self.is_bool:
-            # print(self.name, raw_parsed_value)
-            if self.dest_field:
-                # TODO: This isn't used anywhere, what was the idea again?
-                # other_default = self.dest_field.field.metadata.get("_original_default")
-                pass
-                # print(other_default)
-
-            if raw_parsed_value is None and self.default is not None:
-                logger.debug("value is None, returning opposite of the default")
-                return not self.default
             return raw_parsed_value
 
         elif self.is_list:
@@ -1025,10 +1013,7 @@ def get_argparse_options_for_annotation(t: Type) -> Dict[str, Any]:
         #     _arg_options["type"] = type_fn
 
     elif utils.is_bool(t):
-        _arg_options["type"] = utils.str2bool
-        _arg_options["type"].__name__ = "bool"
-        _arg_options["nargs"] = "?"
-
+        _arg_options["action"] = BoolAction
     else:
         # "Plain" / simple argument.
         # For the metavar, use a custom passed value, if present, else do
@@ -1042,3 +1027,59 @@ def get_argparse_options_for_annotation(t: Type) -> Dict[str, Any]:
     #     else:
     #         _arg_options["nargs"] = "*"
     return _arg_options
+
+# https://stackoverflow.com/a/20422915
+class BoolAction(argparse.Action):
+    # Customizable prefix, can set BoolAction.no_prefix = 'un', for example.
+    no_prefix = "no"
+
+    def __init__(self, option_strings, dest, default=None, required=False, help=None, **kwargs):
+        self._single_char_true_flag: Union[str, bool] = False  # .e.g '-v' if '-v' is an option, else False.
+        new_option_strings: List[str] = []
+
+        # If args are_like_this or are-like-this, prefix with no_ or no-, respectively.
+        suffix = "-" if FieldWrapper.add_dash_variants else "_"
+        self._no_prefix = type(self).no_prefix + suffix
+
+        for opt_string in option_strings:
+            if opt_string.startswith('--'):
+                opt = opt_string[2:]
+                new_option_strings.extend([f'--{opt}', f'--{self._no_prefix}{opt}'])
+            elif opt_string.startswith('-'):
+                # Flag like -v, short for --verbose
+                self._single_char_true_flag = opt_string
+                new_option_strings.append(opt_string)
+            else:
+                raise ValueError(
+                    "boolean arguments can not be positional. "
+                   "They must be prefixed with -- or -."
+                )
+
+
+        kwarg_defaults = dict(
+            nargs='?',
+            const=None,
+            metavar='[bool]',
+        )
+        kwarg_defaults.update(kwargs)
+        super().__init__(new_option_strings, dest, default=default, required=required, help=help, **kwarg_defaults)
+
+    def __call__(self, parser, namespace, values, option_strings=None):
+        short_flag_used = self._single_char_true_flag and option_strings == self._single_char_true_flag
+        positive_arg_used = short_flag_used or not option_strings.startswith(f'--{self._no_prefix}')
+        # Handle when we're passed --flag true false true
+        if isinstance(values, list):
+            parsed_values = [utils.str2bool(val) for val in values]
+            setattr(namespace, self.dest, parsed_values)
+            return
+
+        # Normal bool, --flag / --flag False / --no-flag
+        passed_value = utils.str2bool(values) if values is not None else None
+        negate = passed_value is False  # Passing no value or passing "True" has no effect.
+        value = positive_arg_used
+        if negate:
+            value = not value
+        # Note that accepting values at all is only done for backwards-compat; would prefer only
+        # --my-flag and --no-my-flag.
+        setattr(namespace, self.dest, value)
+
