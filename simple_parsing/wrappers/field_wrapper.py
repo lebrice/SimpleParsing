@@ -173,8 +173,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         # 5. Return that dictionary.
         _arg_options: Dict[str, Any] = {}
 
-        _arg_options["required"] = self.required
-        _arg_options["dest"] = self.dest
+        # Not sure why, but argparse doesn't allow using a different dest for a positional arg.
+        # _Appears_ trivial to support within argparse.
+        if not self.field.metadata.get("positional"):
+            _arg_options["required"] = self.required
+            _arg_options["dest"] = self.dest
         _arg_options["default"] = self.default
         _arg_options["metavar"] = get_metavar(self.type)
 
@@ -514,6 +517,10 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         option = f"{self.prefix}{self.name}"
         if add_dash_variants == DashVariant.DASH:
             option = option.replace("_", "-")
+
+        if self.field.metadata.get("positional"):
+            # Can't be positional AND have flags at same time. Also, need dest to be be this and not just option.
+            return [self.dest]
 
         dashes.append(dash)
         options.append(option)
