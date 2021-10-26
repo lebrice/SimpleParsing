@@ -21,6 +21,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         prefix: str = "",
         parent: "DataclassWrapper" = None,
         _field: dataclasses.Field = None,
+        field_wrapper_class: Type[FieldWrapper] = FieldWrapper
     ):
         # super().__init__(dataclass, name)
         self.dataclass = dataclass
@@ -51,7 +52,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 continue
 
             if utils.is_subparser_field(field) or utils.is_choice(field):
-                wrapper = FieldWrapper(field, parent=self, prefix=prefix)
+                wrapper = field_wrapper_class(field, parent=self, prefix=prefix)
                 self.fields.append(wrapper)
 
             elif utils.is_tuple_or_list_of_dataclasses(field.type):
@@ -80,7 +81,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
 
             else:
                 # a normal attribute
-                field_wrapper = FieldWrapper(field, parent=self, prefix=self.prefix)
+                field_wrapper = field_wrapper_class(field, parent=self, prefix=self.prefix)
                 logger.debug(
                     f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.default}"
                 )
