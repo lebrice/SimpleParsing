@@ -94,11 +94,17 @@ class ArgumentParser(argparse.ArgumentParser):
         dest: str,
         prefix: str = "",
         default: Dataclass = None,
+        dataclass_wrapper_class: Type[DataclassWrapper] = DataclassWrapper,
     ):
         pass
 
     @overload
-    def add_arguments(self, dataclass: Dataclass, dest: str, prefix: str = ""):
+    def add_arguments(self,
+        dataclass: Dataclass,
+        dest: str,
+        prefix: str = "",
+        dataclass_wrapper_class: Type[DataclassWrapper] = DataclassWrapper,
+    ):
         pass
 
     def add_arguments(
@@ -107,6 +113,7 @@ class ArgumentParser(argparse.ArgumentParser):
         dest: str,
         prefix: str = "",
         default: Union[Dataclass, Dict] = None,
+        dataclass_wrapper_class: Type[DataclassWrapper] = DataclassWrapper,
     ):
         """Adds command-line arguments for the fields of `dataclass`.
 
@@ -140,7 +147,7 @@ class ArgumentParser(argparse.ArgumentParser):
             default = dataclass if default is None else default
             dataclass = type(dataclass)
 
-        new_wrapper = DataclassWrapper(dataclass, dest, prefix=prefix, default=default)
+        new_wrapper = dataclass_wrapper_class(dataclass, dest, prefix=prefix, default=default)
         self._wrappers.append(new_wrapper)
 
     def parse_known_args(
