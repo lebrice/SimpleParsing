@@ -15,6 +15,26 @@ from .wrapper import Wrapper
 logger = getLogger(__name__)
 
 
+class DashVariant(Enum):
+    """Specifies whether to prefer only '_', both '_'/'-', or only '-', for cmd-line-flags.
+
+    - AUTO (default):
+        Currently, UNDERSCORE.
+
+    - UNDERSCORE:
+
+    - UNDERSCORE_AND_DASH:
+
+    - DASH:
+
+    """
+
+    AUTO = False
+    UNDERSCORE = False
+    UNDERSCORE_AND_DASH = True
+    DASH = 'only'
+
+
 class FieldWrapper(Wrapper[dataclasses.Field]):
     """
     The FieldWrapper class acts a bit like an 'argparse.Action' class, which
@@ -33,10 +53,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
     # Wether or not `simple_parsing` should add option_string variants where
     # underscores in attribute names are replaced with dashes.
-    # For example, when set to `True`, "--no-cache" and "--no_cache" could both
+    # For example, when set to DashVariant.UNDERSCORE_AND_DASH,
+    #   "--no-cache" and "--no_cache" could both
     # be used to point to the same attribute `no_cache` on some dataclass.
     # TODO: This can often make "--help" messages a bit crowded
-    add_dash_variants: ClassVar[bool] = False
+    add_dash_variants: ClassVar[DashVariant] = DashVariant.AUTO
 
     # Wether to add the `dest` to the list of option strings.
     add_dest_to_option_strings: ClassVar[bool] = True
@@ -489,8 +510,13 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         dashes: List[str] = []  # contains the leading dashes.
         options: List[str] = []  # contains the name following the dashes.
 
+        # Handle user passing us "True" or "only" directly.
+        add_dash_variants = DashVariant(FieldWrapper.add_dash_variants)
+
         dash = "-" if len(self.name) == 1 else "--"
         option = f"{self.prefix}{self.name}"
+        if add_dash_variants == DashVariant.DASH:
+            option = option.replace("_", "-")
 
         if self.field.metadata.get("positional"):
             # Can't be positional AND have flags at same time. Also, need dest to be be this and not just option.
@@ -524,7 +550,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         # For example, "--no-cache" will correctly set the `no_cache` attribute,
         # even if an alias isn't explicitly created.
 
-        if FieldWrapper.add_dash_variants:
+        if add_dash_variants == DashVariant.UNDERSCORE_AND_DASH:
             additional_options = [
                 option.replace("_", "-") for option in options if "_" in option
             ]

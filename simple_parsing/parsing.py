@@ -12,7 +12,7 @@ from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
 from .help_formatter import SimpleHelpFormatter
 from .utils import Dataclass
-from .wrappers import DataclassWrapper, FieldWrapper
+from .wrappers import DataclassWrapper, FieldWrapper, DashVariant
 
 logger = getLogger(__name__)
 
@@ -26,7 +26,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self,
         *args,
         conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
-        add_option_string_dash_variants: bool = False,
+        add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
         add_dest_to_option_strings: bool = False,
         formatter_class: Type[HelpFormatter] = SimpleHelpFormatter,
         **kwargs,
@@ -41,13 +41,13 @@ class ArgumentParser(argparse.ArgumentParser):
             (argument groups).
             For more info, check the docstring of the `ConflictResolution` Enum.
 
-        - add_option_string_dash_variants : bool, optional
+        - add_option_string_dash_variants : DashVariant, optional
 
             Wether or not to add option_string variants where the underscores in
             attribute names are replaced with dashes.
-            For example, when set to `True`, "--no-cache" and "--no_cache" can
-            both be used to point to the same attribute `no_cache` on some
-            dataclass.
+            For example, when set to DashVariant.UNDERSCORE_AND_DASH,
+            "--no-cache" and "--no_cache" can both be used to point to the same
+            attribute `no_cache` on some dataclass.
 
         - add_dest_to_option_strings: bool, optional
 
