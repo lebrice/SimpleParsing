@@ -244,3 +244,51 @@ def test_using_a_Type_type():
 
     foo = OtherFoo.setup("")
     assert foo.a == Extended()
+
+
+def test_issue62():
+    import enum
+    from simple_parsing.helpers import list_field
+    from typing import List
+    parser = ArgumentParser()
+
+    class Color(enum.Enum):
+        RED = "RED"
+        ORANGE = "ORANGE"
+        BLUE = "BLUE"
+
+    class Temperature(enum.Enum):
+        HOT = 1
+        WARM = 0
+        COLD = -1
+        MONTREAL = -35
+
+    @dataclass
+    class MyPreferences(TestSetup):
+        """You can use Enums"""
+
+        color: Color = Color.BLUE  # my favorite colour
+        # a list of colors
+        color_list: List[Color] = list_field(Color.ORANGE)
+        # pick a temperature
+        temp: Temperature = Temperature.WARM
+        # a list of temperatures
+        temp_list: List[Temperature] = list_field(Temperature.COLD, Temperature.WARM)
+
+    parser.add_arguments(MyPreferences, "my_preferences")
+    assert MyPreferences.setup(
+        "--color ORANGE --color_list RED BLUE --temp MONTREAL"
+    ) == MyPreferences(
+        color=Color.ORANGE,
+        color_list=[Color.RED, Color.BLUE],
+        temp=Temperature.MONTREAL,
+        temp_list=[Temperature.COLD, Temperature.WARM],
+    )
+    assert MyPreferences.setup(
+        "--color ORANGE --color_list RED BLUE --temp MONTREAL --temp_list MONTREAL"
+    ) == MyPreferences(
+        color=Color.ORANGE,
+        color_list=[Color.RED, Color.BLUE],
+        temp=Temperature.MONTREAL,
+        temp_list=[Temperature.MONTREAL],
+    )
