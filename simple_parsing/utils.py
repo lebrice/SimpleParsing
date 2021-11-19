@@ -187,8 +187,8 @@ def get_item_type(container_type: Type[Container[T]]) -> T:
 
 
 def get_argparse_type_for_container(
-    container_type: Type,
-) -> Union[Type, Callable[[str], bool]]:
+    container_type: Type[Container[T]],
+) -> Union[Type[T], Callable[[str], T]]:
     """Gets the argparse 'type' option to be used for a given container type.
     When an annotation is present, the 'type' option of argparse is set to that type.
     if not, then the default value of 'str' is returned.
@@ -208,6 +208,12 @@ def get_argparse_type_for_container(
         return str2bool
     if T is Any:
         return str
+    if is_enum(T):
+        # IDEA: Fix this weirdness by first moving all this weird parsing logic into the
+        # field wrapper class, and then split it up into different subclasses of FieldWrapper,
+        # each for a different type of field.
+        from simple_parsing.wrappers.field_parsing import parse_enum
+        return parse_enum(T)
     return T
 
 

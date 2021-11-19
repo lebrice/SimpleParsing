@@ -292,3 +292,22 @@ def test_issue62():
         temp=Temperature.MONTREAL,
         temp_list=[Temperature.MONTREAL],
     )
+    assert Temperature["MONTREAL"] is Temperature.MONTREAL
+    assert Temperature(-35) is Temperature.MONTREAL
+
+    assert MyPreferences.get_help_text() == textwrap.dedent("""\
+    usage: pytest [-h] [--color Color] [--color_list List] [--temp Temperature]
+                  [--temp_list List]
+    
+    optional arguments:
+      -h, --help          show this help message and exit
+    
+    test_issue62.<locals>.MyPreferences ['my_preferences']:
+      You can use Enums
+    
+      --color Color       my favorite colour (default: BLUE)
+      --color_list List   a list of colors (default: [<Color.ORANGE: 'ORANGE'>])
+      --temp Temperature  pick a temperature (default: WARM)
+      --temp_list List    a list of temperatures (default: [<Temperature.COLD:
+                          -1>, <Temperature.WARM: 0>])
+    """)
