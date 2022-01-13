@@ -1,11 +1,11 @@
 import json
 import warnings
 from collections import OrderedDict
-from dataclasses import Field, MISSING, dataclass, fields, is_dataclass
+from dataclasses import MISSING, Field, dataclass, fields, is_dataclass
+from itertools import chain
 from logging import getLogger
 from pathlib import Path
-from typing import ClassVar, List, Type, Dict, Any, Union, Optional, Tuple
-from typing import IO, TypeVar
+from typing import IO, Any, ClassVar, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import typing_inspect as tpi
 
@@ -44,8 +44,7 @@ except ImportError:
     pass
 
 
-@dataclass
-class Serializable:
+class SerializableMixin:
     """Makes a dataclass serializable to and from dictionaries.
 
     Supports JSON and YAML files for now.
@@ -84,7 +83,7 @@ class Serializable:
             logger.debug(f"parents: {parents}")
 
             for parent in parents:
-                if parent in Serializable.subclasses and parent is not Serializable:
+                if parent in SerializableMixin.subclasses and parent is not SerializableMixin:
                     decode_into_subclasses = parent.decode_into_subclasses
                     logger.debug(
                         f"Parent class {parent} has decode_into_subclasses = {decode_into_subclasses}"
@@ -92,8 +91,8 @@ class Serializable:
                     break
 
         cls.decode_into_subclasses = decode_into_subclasses or False
-        if cls not in Serializable.subclasses:
-            Serializable.subclasses.append(cls)
+        if cls not in SerializableMixin.subclasses:
+            SerializableMixin.subclasses.append(cls)
 
         encode.register(cls, cls.to_dict)
         register_decoding_fn(cls, cls.from_dict)
@@ -123,7 +122,7 @@ class Serializable:
                 continue
 
             encoding_fn = encode
-            if isinstance(value, Serializable) and recurse:
+            if isinstance(value, SerializableMixin) and recurse:
                 try:
                     encoded = value.to_dict(dict_factory=dict_factory, recurse=recurse)
                 except TypeError:
@@ -419,66 +418,79 @@ class Serializable:
 
         if load_fn is None:
             load_fn = yaml.full_load
-        return cls.loads(
-            s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs
-        )
+        return cls.loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
 
 @dataclass
-class SimpleSerializable(Serializable, decode_into_subclasses=True):
+class Serializable(SerializableMixin):
+    """Makes a dataclass serializable to and from dictionaries.
+
+    Supports JSON and YAML files for now.
+
+    >>> from dataclasses import dataclass
+    >>> from simple_parsing.helpers import Serializable
+    >>> @dataclass
+    ... class Config(Serializable):
+    ...   a: int = 123
+    ...   b: str = "456"
+    ...
+    >>> config = Config()
+    >>> config
+    Config(a=123, b='456')
+    >>> config.to_dict()
+    {'a': 123, 'b': '456'}
+    >>> config_ = Config.from_dict({"a": 123, "b": 456})
+    >>> config_
+    Config(a=123, b='456')
+    >>> assert config == config_
+    """
+
+
+@dataclass(frozen=True)
+class FrozenSerializable(SerializableMixin):
+    """Makes a (frozen) dataclass serializable to and from dictionaries.
+
+    Supports JSON and YAML files for now.
+
+    >>> from dataclasses import dataclass
+    >>> from simple_parsing.helpers import Serializable
+    >>> @dataclass
+    ... class Config(Serializable):
+    ...   a: int = 123
+    ...   b: str = "456"
+    ...
+    >>> config = Config()
+    >>> config
+    Config(a=123, b='456')
+    >>> config.to_dict()
+    {'a': 123, 'b': '456'}
+    >>> config_ = Config.from_dict({"a": 123, "b": 456})
+    >>> config_
+    Config(a=123, b='456')
+    >>> assert config == config_
+    """
+
+
+@dataclass
+class SimpleSerializable(SerializableMixin, decode_into_subclasses=True):
     pass
 
 
-def get_dataclass_type_from_forward_ref(
-    forward_ref: Type, Serializable=Serializable
-) -> Optional[Type]:
+S = TypeVar("S", bound=SerializableMixin)
+
+
+def get_dataclass_types_from_forward_ref(
+    forward_ref: Type, serializable_base_class: Type[S] = SerializableMixin
+) -> List[Type[S]]:
     arg = tpi.get_forward_arg(forward_ref)
     potential_classes: List[Type] = []
-
-    for serializable_class in Serializable.subclasses:
+    for serializable_class in serializable_base_class.subclasses:
         if serializable_class.__name__ == arg:
             potential_classes.append(serializable_class)
-
-    if not potential_classes:
-        logger.warning(
-            f"Unable to find a corresponding type for forward ref "
-            f"{forward_ref} inside the registered {Serializable} subclasses. "
-            f"(Consider adding {Serializable} as a base class to <{arg}>? )."
-        )
-        return None
-    elif len(potential_classes) > 1:
-        logger.warning(
-            f"More than one potential {Serializable} subclass was found for "
-            f"forward ref '{forward_ref}'. The appropriate dataclass will be "
-            f"selected based on the matching fields. \n"
-            f"Potential classes: {potential_classes}"
-        )
-        return Serializable
-    else:
-        assert len(potential_classes) == 1
-        return potential_classes[0]
+    return potential_classes
 
 
-def get_actual_type(field_type: Type) -> Type:
-    if is_union(field_type):
-        logger.debug(f"field has union type: {field_type}")
-        t = get_first_non_None_type(field_type)
-        logger.debug(f"First non-none type: {t}")
-        if t is not None:
-            field_type = t
-
-    if tpi.is_forward_ref(field_type):
-        logger.debug(f"field_type {field_type} is a forward ref.")
-        dc = get_dataclass_type_from_forward_ref(field_type)
-        logger.debug(f"Found the corresponding type: {dc}")
-        if dc is not None:
-            field_type = dc
-    return field_type
-
-
-def from_dict(
-    cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool = None
-) -> Dataclass:
+def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool = None) -> Dataclass:
     """Parses an instance of the dataclass `cls` from the dict `d`.
 
     Args:
@@ -515,17 +527,16 @@ def from_dict(
         drop_extra_fields = not getattr(cls, "decode_into_subclasses", False)
         logger.debug("drop_extra_fields is None. Using cls attribute.")
 
-        if cls is Serializable:
+        if cls in {Serializable, FrozenSerializable, SerializableMixin}:
             # Passing `Serializable` means that we want to find the right
             # subclass depending on the keys.
             # We set the value to False when `Serializable` is passed, since
             # we use this mechanism when we don't know which dataclass to use.
-            logger.debug("cls is `Serializable`, drop_extra_fields = False.")
+            logger.debug("cls is `SerializableMixin`, drop_extra_fields = False.")
             drop_extra_fields = False
 
     logger.debug(f"from_dict for {cls}, drop extra fields: {drop_extra_fields}")
-
-    for field in fields(cls):
+    for field in fields(cls) if is_dataclass(cls) else []:
         name = field.name
         if name not in obj_dict:
             if (
@@ -534,8 +545,7 @@ def from_dict(
                 and field.default_factory is MISSING
             ):
                 logger.warning(
-                    f"Couldn't find the field '{name}' in the dict with keys "
-                    f"{list(d.keys())}"
+                    f"Couldn't find the field '{name}' in the dict with keys " f"{list(d.keys())}"
                 )
             continue
 
@@ -555,21 +565,17 @@ def from_dict(
             logger.warning(f"Dropping extra args {extra_args}")
             extra_args.clear()
 
-        elif issubclass(cls, Serializable):
+        elif issubclass(cls, (Serializable, FrozenSerializable, SerializableMixin)):
             # Use the first Serializable derived class that has all the required
             # fields.
             logger.debug(f"Missing field names: {extra_args.keys()}")
 
             # Find all the "registered" subclasses of `cls`. (from Serializable)
-            derived_classes: List[Type[Serializable]] = []
-            for subclass in Serializable.subclasses:
+            derived_classes: List[Type[SerializableMixin]] = []
+            for subclass in cls.subclasses:
                 if issubclass(subclass, cls) and subclass is not cls:
                     derived_classes.append(subclass)
-            logger.debug(
-                f"All serializable derived classes of {cls} available: {derived_classes}"
-            )
-
-            from itertools import chain
+            logger.debug(f"All serializable derived classes of {cls} available: {derived_classes}")
 
             # All the arguments that the dataclass should be able to accept in
             # its 'init'.
@@ -606,51 +612,6 @@ def from_dict(
     return instance
 
 
-# TODO: Remove, unused.
-def get_key_and_value_types(
-    dict_type: Type[Dict], Serializable=Serializable
-) -> Tuple[Optional[Type], Optional[Type]]:
-    args = get_type_arguments(dict_type)
-
-    if len(args) != 2:
-        logger.debug(f"Weird.. the type {dict_type} doesn't have 2 args: {args}")
-        return None, None
-    K_ = args[0]
-    V_ = args[1]
-    # Get rid of Unions or ForwardRefs or Optionals
-    V_ = get_actual_type(V_)
-
-    logger.debug(f"K_: {K_}, V_: {V_}")
-    if isinstance(V_, tuple):
-        V_ = get_first_non_None_type(V_)
-    elif tpi.is_optional_type(V_):
-        logger.debug(f"V_ is optional: {V_}")
-        V_ = get_first_non_None_type(V_)
-    return K_, V_
-
-
-def get_list_item_type(list_type: Type[List]) -> Optional[Type]:
-    logger.debug(f"list type: {list_type}")
-    args = tpi.get_args(list_type)
-    logger.debug(f"args = {args}")
-
-    if not args:
-        return None
-
-    assert isinstance(args, tuple), args
-    if isinstance(args[0], tuple):
-        args = args[0]
-    assert isinstance(args, tuple), args
-    logger.debug(f"args tuple: {args}")
-    V_ = get_first_non_None_type(args)
-    logger.debug(f"item type: {V_}")
-    assert V_ is not None
-    V_ = get_actual_type(V_)
-
-    assert not isinstance(V_, tuple), V_
-    return V_
-
-
 def get_init_fields(dataclass: Type) -> Dict[str, Field]:
     result: Dict[str, Field] = {}
     for field in fields(dataclass):
@@ -659,9 +620,7 @@ def get_init_fields(dataclass: Type) -> Dict[str, Field]:
     return result
 
 
-def get_first_non_None_type(
-    optional_type: Union[Type, Tuple[Type, ...]]
-) -> Optional[Type]:
+def get_first_non_None_type(optional_type: Union[Type, Tuple[Type, ...]]) -> Optional[Type]:
     if not isinstance(optional_type, tuple):
         optional_type = tpi.get_args(optional_type)
     for arg in optional_type:

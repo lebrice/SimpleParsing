@@ -187,6 +187,11 @@ def choice(choices: Dict[K, V], default: K, **kwargs) -> V:
     pass
 
 
+@overload
+def choice(*choices: T, default: T, **kwargs) -> T:
+    pass
+
+
 def choice(*choices: T, default: Union[T, _MISSING_TYPE] = MISSING, **kwargs: Any) -> T:
     """Makes a field which can be chosen from the set of choices from the
     command-line.
