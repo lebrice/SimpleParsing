@@ -1,11 +1,11 @@
 import json
 import warnings
 from collections import OrderedDict
-from dataclasses import Field, MISSING, dataclass, fields, is_dataclass
+from dataclasses import MISSING, Field, dataclass, fields, is_dataclass
+from itertools import chain
 from logging import getLogger
 from pathlib import Path
-from typing import ClassVar, List, Type, Dict, Any, Union, Optional, Tuple
-from typing import IO, TypeVar
+from typing import IO, Any, ClassVar, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 import typing_inspect as tpi
 
