@@ -1,7 +1,7 @@
 """ Collection of helper classes and functions to reduce boilerplate code. """
 from .fields import *
 from .flatten import FlattenedAccess
-from .serialization import Serializable, SimpleJsonEncoder, encode
+from .serialization import Serializable, FrozenSerializable, SimpleJsonEncoder, encode
 from .hparams import HyperParameters
 
 try:

@@ -1,4 +1,4 @@
-from .serializable import Serializable
+from .serializable import Serializable, FrozenSerializable
 
 JsonSerializable = Serializable
 try:

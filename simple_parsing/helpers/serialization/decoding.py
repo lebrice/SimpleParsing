@@ -2,13 +2,14 @@
 """
 import warnings
 from collections import OrderedDict
-from dataclasses import Field
+from dataclasses import Field, fields
 from functools import lru_cache, partial
 from logging import getLogger
 from typing import TypeVar, Any, Dict, Type, Callable, Optional, Union, List, Tuple, Set
 
 from ...utils import (
     get_type_arguments,
+    is_dataclass_type,
     is_dict,
     is_list,
     is_set,
@@ -94,30 +95,30 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
         # The type has a dedicated decoding function.
         return _decoding_fns[t]
 
-    elif t is Any:
+    if t is Any:
         logger.debug(f"Decoding an Any type: {t}")
         return no_op
 
-    elif is_dict(t):
+    if is_dict(t):
         logger.debug(f"Decoding a Dict field: {t}")
         args = get_type_arguments(t)
         if len(args) != 2:
             args = (Any, Any)
         return decode_dict(*args)
 
-    elif is_set(t):
+    if is_set(t):
         logger.debug(f"Decoding a Set field: {t}")
         args = get_type_arguments(t)
         if len(args) != 1:
             args = (Any,)
         return decode_set(args[0])
 
-    elif is_tuple(t):
+    if is_tuple(t):
         logger.debug(f"Decoding a Tuple field: {t}")
         args = get_type_arguments(t)
         return decode_tuple(*args)
 
-    elif is_list(t):
+    if is_list(t):
         logger.debug(f"Decoding a List field: {t}")
         args = get_type_arguments(t)
         if not args:
@@ -127,24 +128,41 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
         assert len(args) == 1
         return decode_list(args[0])
 
-    elif is_union(t):
+    if is_union(t):
         logger.debug(f"Decoding a Union field: {t}")
         args = get_type_arguments(t)
         return decode_union(*args)
 
     import typing_inspect as tpi
-    from .serializable import get_dataclass_type_from_forward_ref, Serializable
+    from .serializable import (
+        get_dataclass_types_from_forward_ref,
+        Serializable,
+        SerializableMixin,
+        FrozenSerializable,
+    )
 
     if tpi.is_forward_ref(t):
-        dc = get_dataclass_type_from_forward_ref(t)
-        if dc is Serializable:
-            # Since dc is Serializable, this means that we found more than one
-            # matching dataclass the the given forward ref, and the right
-            # subclass will be determined based on the matching fields.
-            # Therefore we set drop_extra_fields=False.
-            return partial(dc.from_dict, drop_extra_fields=False)
-        if dc:
+        dcs = get_dataclass_types_from_forward_ref(t)
+        if len(dcs) == 1:
+            dc = dcs[0]
             return dc.from_dict
+        if len(dcs) > 1:
+            logger.warning(
+                RuntimeWarning(
+                    f"More than one potential Serializable dataclass was found with a name matching "
+                    f"the type annotation {t}. This will simply try each one, and return the "
+                    f"first one that works. Potential classes: {dcs}"
+                )
+            )
+            return try_functions(*[partial(dc.from_dict, drop_extra_fields=False) for dc in dcs])
+        else:
+            # No idea what the forward ref refers to!
+            logger.warning(
+                f"Unable to find a dataclass that matches the forward ref {t} inside the "
+                f"registered {SerializableMixin} subclasses. Leaving the value as-is."
+                f"(Consider using Serializable or FrozenSerializable as a base class?)."
+            )
+            return no_op
 
     if tpi.is_typevar(t):
         bound = tpi.get_bound(t)
