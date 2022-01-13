@@ -520,8 +520,8 @@ def test_choice_dict_with_nonserializable_values(frozen: bool):
         print(f"func B: {x}")
         return x * 2
 
-    @dataclass
-    class Bob(TestSetup, FrozenSerializable if frozen else Serializable):
+    @dataclass(frozen=frozen)
+    class Bob(FrozenSerializable if frozen else Serializable, TestSetup):
         func: Callable = choice({"identity": identity, "double": double}, default="a")
 
     b = Bob(func=identity)
