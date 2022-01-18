@@ -856,13 +856,21 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         from simple_parsing import ArgumentParser  # Just for typing.
 
         # add subparsers for each dataclass type in the field.
+        default_value = self.field.default
+        if default_value is dataclasses.MISSING:
+            if self.field.default_factory is not dataclasses.MISSING:
+                default_value = self.field.default_factory()
+
         subparsers = parser.add_subparsers(
             title=self.name,
             description=self.help,
             dest=self.dest,
             parser_class=ArgumentParser,
+            required=(default_value is dataclasses.MISSING),
         )
-        subparsers.required = True
+        if default_value is not dataclasses.MISSING:
+            parser.set_defaults(**{self.dest: default_value})
+        # subparsers.required = default_value is dataclasses.MISSING
         for subcommand, dataclass_type in self.subparsers_dict.items():
             logger.debug(f"adding subparser '{subcommand}' for type {dataclass_type}")
             subparser = subparsers.add_parser(subcommand)
