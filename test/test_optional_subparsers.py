@@ -1,3 +1,5 @@
+import collections
+from simple_parsing.helpers.hparams import uniform
 from typing import Union
 from simple_parsing.helpers.fields import field, subparsers
 from simple_parsing.helpers.hparams.hyperparameters import HyperParameters
@@ -102,3 +104,34 @@ def test_nesting_of_optional_subparsers():
     assert NestedOptions.setup("clarice b --bar 0.") == NestedOptions(
         friend=Clarice(config=B(bar=0.0))
     )
+
+
+class ModelA(HyperParameters):
+    foo: float = uniform(0, 1, default=0.5)
+
+
+class ModelB(HyperParameters):
+    bar: int = uniform(0, 10, default=5, discrete=True)
+
+
+@dataclass
+class Options(HyperParameters):
+    model: Union[ModelA, ModelB] = field(default_factory=ModelA)
+
+
+import pytest
+
+import random
+
+
+@pytest.mark.parametrize("seed", [123, 456, 789])
+def test_sample_with_subparsers_field(seed: int):
+
+    random.seed(seed)
+
+    samples = [Options.sample() for _ in range(10)]
+    assert not all(sample == Options() for sample in samples), samples
+
+    model_types = [type(Options.sample().model) for _ in range(100)]
+    assert len(set(model_types)) == 2
+    assert 40 <= collections.Counter(model_types)[ModelA] <= 60

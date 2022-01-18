@@ -18,13 +18,14 @@ from typing import (
     Type,
     TypeVar,
 )
-
+from simple_parsing import utils
 from simple_parsing.helpers import Serializable
 from logging import getLogger
 from simple_parsing.utils import (
     compute_identity,
     dict_union,
     field_dict,
+    get_type_arguments,
 )
 
 from .hparam import ValueOutsidePriorException, hparam, uniform, log_uniform
@@ -185,6 +186,15 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
             if inspect.isclass(field.type) and issubclass(field.type, HyperParameters):
                 # TODO: Should we allow adding a 'prior' in terms of a dataclass field?
                 kwargs[field.name] = field.type.sample()
+
+            elif utils.is_union(field.type) and all(
+                inspect.isclass(v) and issubclass(v, HyperParameters)
+                for v in utils.get_type_arguments(field.type)
+            ):
+                chosen_class = random.choice(get_type_arguments(field.type))
+                # BUG: Seems to be a bit of a bug here, when the numpy rng is set!
+                value = chosen_class.sample()
+                kwargs[field.name] = value
             else:
                 prior: Optional[Prior] = field.metadata.get("prior")
                 if prior is not None:
