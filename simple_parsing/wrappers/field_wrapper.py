@@ -861,13 +861,22 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             if self.field.default_factory is not dataclasses.MISSING:
                 default_value = self.field.default_factory()
 
-        subparsers = parser.add_subparsers(
+        add_subparser_kwargs = dict(
             title=self.name,
             description=self.help,
             dest=self.dest,
             parser_class=ArgumentParser,
             required=(default_value is dataclasses.MISSING),
         )
+        import sys
+
+        if sys.version_info[:2] == (3, 6):
+            required = add_subparser_kwargs.pop("required")
+            subparsers = parser.add_subparsers(**add_subparser_kwargs)
+            subparsers.required = required
+        else:
+            subparsers = parser.add_subparsers(**add_subparser_kwargs)
+
         if default_value is not dataclasses.MISSING:
             parser.set_defaults(**{self.dest: default_value})
         # subparsers.required = default_value is dataclasses.MISSING
