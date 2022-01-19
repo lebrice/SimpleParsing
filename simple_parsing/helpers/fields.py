@@ -344,11 +344,14 @@ def mutable_field(
 MutableField = mutable_field
 
 
-def subparsers(subcommands: Dict[str, Type[Dataclass]], **kwargs) -> Any:
+def subparsers(
+    subcommands: Dict[str, Type[Dataclass]], default: Dataclass = MISSING, **kwargs
+) -> Any:
     return field(
         metadata={
             "subparsers": subcommands,
         },
+        default=default,
         **kwargs,
     )
 
