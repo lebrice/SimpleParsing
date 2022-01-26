@@ -287,31 +287,33 @@ def test_issue62():
         temp_list=[Temperature.COLD, Temperature.WARM],
     )
     assert MyPreferences.setup(
-        "--color ORANGE --color_list RED BLUE --temp MONTREAL --temp_list MONTREAL"
+        "--color ORANGE --color_list RED BLUE --temp MONTREAL --temp_list MONTREAL HOT"
     ) == MyPreferences(
         color=Color.ORANGE,
         color_list=[Color.RED, Color.BLUE],
         temp=Temperature.MONTREAL,
-        temp_list=[Temperature.MONTREAL],
+        temp_list=[Temperature.MONTREAL, Temperature.HOT],
     )
     assert Temperature["MONTREAL"] is Temperature.MONTREAL
     assert Temperature(-35) is Temperature.MONTREAL
 
-    assert MyPreferences.get_help_text() == textwrap.dedent("""\
-        usage: pytest [-h] [--color Color] [--color_list Color] [--floats float]
-                      [--temp Temperature] [--temp_list Temperature]
+    # NOTE: This kind of test (comparing the help str) is unreliable, changes depending on the
+    # python version.
+    # assert MyPreferences.get_help_text() == textwrap.dedent("""\
+    #     usage: pytest [-h] [--color Color] [--color_list Color] [--floats float]
+    #                   [--temp Temperature] [--temp_list Temperature]
 
-        optional arguments:
-          -h, --help            show this help message and exit
+    #     optional arguments:
+    #       -h, --help            show this help message and exit
 
-        test_issue62.<locals>.MyPreferences ['my_preferences']:
-          You can use Enums
+    #     test_issue62.<locals>.MyPreferences ['my_preferences']:
+    #       You can use Enums
 
-          --color Color         my favorite colour (default: BLUE)
-          --color_list Color    a list of colors (default: [<Color.ORANGE: 'orange'>])
-          --floats float        Some floats. (default: [1.1, 2.2, 3.3])
-          --temp Temperature    pick a temperature (default: WARM)
-          --temp_list Temperature
-                                a list of temperatures (default: [<Temperature.COLD:
-                                -1>, <Temperature.WARM: 0>])
-    """)
+    #       --color Color         my favorite colour (default: BLUE)
+    #       --color_list Color    a list of colors (default: [<Color.ORANGE: 'orange'>])
+    #       --floats float        Some floats. (default: [1.1, 2.2, 3.3])
+    #       --temp Temperature    pick a temperature (default: WARM)
+    #       --temp_list Temperature
+    #                             a list of temperatures (default: [<Temperature.COLD:
+    #                             -1>, <Temperature.WARM: 0>])
+    # """)
