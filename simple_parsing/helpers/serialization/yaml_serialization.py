@@ -17,7 +17,7 @@ class YamlSerializable(Serializable):
     """Convenience class, just sets different `load_fn` and `dump_fn` defaults
     for the `dump`, `dumps`, `load`, `loads` methods of `Serializable`.
 
-    Uses the `yaml.full_load` and `yaml.dump` for loading and dumping.
+    Uses the `yaml.safe_load` and `yaml.dump` for loading and dumping.
 
     Requires the pyyaml package.
     """
@@ -33,7 +33,7 @@ class YamlSerializable(Serializable):
         cls: Type[D],
         path: Union[Path, str, IO[str]],
         drop_extra_fields: bool = None,
-        load_fn=yaml.full_load,
+        load_fn=yaml.safe_load,
         **kwargs
     ) -> D:
         return super().load(
@@ -45,7 +45,7 @@ class YamlSerializable(Serializable):
         cls: Type[D],
         s: str,
         drop_extra_fields: bool = None,
-        load_fn=yaml.full_load,
+        load_fn=yaml.safe_load,
         **kwargs
     ) -> D:
         return super().loads(
@@ -57,7 +57,7 @@ class YamlSerializable(Serializable):
         cls: Type[D],
         fp: IO[str],
         drop_extra_fields: bool = None,
-        load_fn=yaml.full_load,
+        load_fn=yaml.safe_load,
         **kwargs
     ) -> D:
         return super()._load(
