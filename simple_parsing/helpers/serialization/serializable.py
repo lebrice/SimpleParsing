@@ -212,8 +212,8 @@ class SerializableMixin:
                 to None, in which case we try to use the appropriate loading
                 function depending on `path.suffix`:
                 {
-                    ".yml": yaml.full_load,
-                    ".yaml": yaml.full_load,
+                    ".yml": yaml.safe_load,
+                    ".yaml": yaml.safe_load,
                     ".json": json.load,
                     ".pth": torch.load,
                     ".pkl": pickle.load,
@@ -319,7 +319,7 @@ class SerializableMixin:
             cls (Type[D]): A dataclass type to load.
             path (Union[str, Path]): Path to a yaml-formatted file.
             load_fn ([type], optional): Loading function to use. Defaults to
-                None, in which case `yaml.full_load` is used.
+                None, in which case `yaml.safe_load` is used.
 
         Returns:
             D: an instance of the dataclass.
@@ -327,7 +327,7 @@ class SerializableMixin:
         import yaml
 
         if load_fn is None:
-            load_fn = yaml.full_load
+            load_fn = yaml.safe_load
         return cls.load(
             path, load_fn=load_fn, drop_extra_fields=drop_extra_fields, **kwargs
         )
@@ -417,7 +417,7 @@ class SerializableMixin:
         import yaml
 
         if load_fn is None:
-            load_fn = yaml.full_load
+            load_fn = yaml.safe_load
         return cls.loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
 
