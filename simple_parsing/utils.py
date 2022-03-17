@@ -3,6 +3,7 @@ import argparse
 import builtins
 import inspect
 import enum
+import sys
 import dataclasses
 import functools
 import json
@@ -35,9 +36,28 @@ from typing import (
     TypeVar,
     Union,
 )
+import typing
+from typing import get_type_hints
+# from typing_inspect import get_origin, is_typevar, get_bound, is_forward_ref, get_forward_arg
+NEW_TYPING = sys.version_info[:3] >= (3, 7, 0)  # PEP 560
 
-import typing_inspect as tpi
-
+if sys.version_info < (3, 9):
+    # TODO: Add 3.9 compatibility, remove typing_inspect dependency.
+    from typing_inspect import get_origin, is_typevar, get_bound, get_forward_arg, is_forward_ref
+else:
+    from typing import get_origin
+    # NOTE: Copied over from typing_inspect.
+    def is_typevar(t) -> bool:
+        return type(t) is TypeVar
+    def get_bound(t):
+        if is_typevar(t):
+            return getattr(t, '__bound__', None)
+        else:
+            raise TypeError(f"type is not a `TypeVar`: {t}")
+    def is_forward_ref(t):
+        return isinstance(t, typing.ForwardRef)
+    def get_forward_arg(fr):    
+        return getattr(fr, "__forward_arg__", None)
 
 try:
     from typing import get_args
@@ -224,7 +244,7 @@ def _mro(t: Type) -> List[Type]:
         return []
     if hasattr(t, "__mro__"):
         return t.__mro__
-    elif tpi.get_origin(t) is type:
+    elif get_origin(t) is type:
         return []
     elif hasattr(t, "mro") and callable(t.mro):
         return t.mro()
@@ -374,7 +394,7 @@ def is_dataclass_type(t: Type) -> bool:
         bool: Wether its a dataclass type.
     """
     return dataclasses.is_dataclass(t) or (
-        tpi.is_typevar(t) and dataclasses.is_dataclass(tpi.get_bound(t))
+        is_typevar(t) and dataclasses.is_dataclass(get_bound(t))
     )
 
 
@@ -848,6 +868,45 @@ def dict_union(
         result[k] = new_value
     return result
 
+
+# NOTE: This dict is used to enable forward compatibility with things such as `tuple[int, str]`,
+# `list[float]`, etc. when using `from __future__ import annotations`.
+forward_refs_to_types = {
+    "tuple": typing.Tuple, "set": typing.Set, "dict": typing.Dict, "list": typing.List, "type": Type
+}
+
+
+def get_field_type_from_field_annotation(some_class: type, field_name: str) -> type:
+    """
+    If the script uses `from __future__ import annotations`, and we are in python<3.9,
+    Then we need to actually first make this forward-compatibility 'patch' so that we
+    don't run into a "`type` object is not subscriptable" error.
+
+    NOTE: If you get errors of this kind from the function below, then you might want to add an
+    entry to the `forward_refs_to_types` dict above.
+    """
+    # The type of the field might be a string when using `from __future__ import annotations`.
+    localns = {}
+    if sys.version_info < (3, 9):
+        localns = forward_refs_to_types
+
+    global_ns = sys.modules[some_class.__module__].__dict__
+    class_type_hints = get_type_hints(some_class, localns=localns, globalns=global_ns)
+    field_type = class_type_hints[field_name]
+    if sys.version_info[:2] >= (3, 7):
+        # Weird bug happens when mixing postponed evaluation of type annotations + forward
+        # references: The ForwardRefs are left as-is, and not evaluated!
+        from typing import ForwardRef
+        if isinstance(field_type, ForwardRef):
+            forward_arg = field_type.__forward_arg__
+            if forward_arg in global_ns:
+                field_type = global_ns[forward_arg]
+            else:
+                logger.warning(
+                    f"Unable to evaluate forward reference {field_type} for field '{field_name}'.\n"
+                    f"Leaving it as-is."
+                )
+    return field_type
 
 if __name__ == "__main__":
     import doctest

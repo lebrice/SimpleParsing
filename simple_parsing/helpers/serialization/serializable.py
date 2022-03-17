@@ -1,4 +1,5 @@
 import json
+import sys
 import warnings
 from collections import OrderedDict
 from dataclasses import MISSING, Field, dataclass, fields, is_dataclass
@@ -7,9 +8,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import IO, Any, ClassVar, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
-import typing_inspect as tpi
-
-from ...utils import get_type_arguments, is_union
+from simple_parsing.utils import is_optional, get_args, get_forward_arg
 from .decoding import decode_field, register_decoding_fn
 from .encoding import SimpleJsonEncoder, encode
 
@@ -482,7 +481,7 @@ S = TypeVar("S", bound=SerializableMixin)
 def get_dataclass_types_from_forward_ref(
     forward_ref: Type, serializable_base_class: Type[S] = SerializableMixin
 ) -> List[Type[S]]:
-    arg = tpi.get_forward_arg(forward_ref)
+    arg = get_forward_arg(forward_ref)
     potential_classes: List[Type] = []
     for serializable_class in serializable_base_class.subclasses:
         if serializable_class.__name__ == arg:
@@ -622,7 +621,7 @@ def get_init_fields(dataclass: Type) -> Dict[str, Field]:
 
 def get_first_non_None_type(optional_type: Union[Type, Tuple[Type, ...]]) -> Optional[Type]:
     if not isinstance(optional_type, tuple):
-        optional_type = tpi.get_args(optional_type)
+        optional_type = get_args(optional_type)
     for arg in optional_type:
         if arg is not Union and arg is not type(None):
             logger.debug(f"arg: {arg} is not union? {arg is not Union}")
@@ -634,5 +633,5 @@ def get_first_non_None_type(optional_type: Union[Type, Tuple[Type, ...]]) -> Opt
 def is_dataclass_or_optional_dataclass_type(t: Type) -> bool:
     """Returns wether `t` is a dataclass type or an Optional[<dataclass type>]."""
     return is_dataclass(t) or (
-        tpi.is_optional_type(t) and is_dataclass(tpi.get_args(t)[0])
+        is_optional(t) and is_dataclass(get_args(t)[0])
     )

@@ -1,14 +1,15 @@
 import argparse
+import sys
 import dataclasses
 from dataclasses import _MISSING_TYPE
 from logging import getLogger
-from typing import Dict, List, Optional, Type, Union, cast
+from typing import Dict, List, Optional, Type, Union, cast, get_type_hints
+import typing
 
 from .. import docstring, utils
 from ..utils import Dataclass
 from .field_wrapper import FieldWrapper
 from .wrapper import Wrapper
-
 logger = getLogger(__name__)
 
 
@@ -50,6 +51,13 @@ class DataclassWrapper(Wrapper[Dataclass]):
         for field in dataclasses.fields(self.dataclass):
             if not field.init or field.metadata.get("cmd", True) is False:
                 continue
+
+            if isinstance(field.type, str):
+                # NOTE: Here we'd like to convert the fields type to an actual type, in case the
+                # `from __future__ import annotations` feature is used.
+                field_type = utils.get_field_type_from_field_annotation(self.dataclass, field.name)
+                # Modify the `type` of the Field object, in-place.
+                field.type = field_type
 
             if utils.is_subparser_field(field) or utils.is_choice(field):
                 wrapper = field_wrapper_class(field, parent=self, prefix=prefix)

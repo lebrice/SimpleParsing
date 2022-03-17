@@ -1,5 +1,7 @@
 import logging
+from pathlib import Path
 import shlex
+import sys
 from dataclasses import dataclass, field
 from typing import *
 
@@ -7,8 +9,12 @@ import pytest
 
 from simple_parsing import choice
 from simple_parsing.helpers import Serializable
-
 from .testutils import TestSetup
+
+collect_ignore = []
+if sys.version_info < (3, 7):
+    collect_ignore.append("test_future_annotations.py")
+
 
 # List of simple attributes to use in test:
 simple_arguments: List[Tuple[Type, Any, Any]] = [

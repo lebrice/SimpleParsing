@@ -7,7 +7,7 @@ from functools import lru_cache, partial
 from logging import getLogger
 from typing import TypeVar, Any, Dict, Type, Callable, Optional, Union, List, Tuple, Set
 
-from ...utils import (
+from simple_parsing.utils import (
     get_type_arguments,
     is_dataclass_type,
     is_dict,
@@ -15,6 +15,9 @@ from ...utils import (
     is_set,
     is_tuple,
     is_union,
+    is_forward_ref,
+    is_typevar,
+    get_bound,
 )
 
 logger = getLogger(__name__)
@@ -133,7 +136,6 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
         args = get_type_arguments(t)
         return decode_union(*args)
 
-    import typing_inspect as tpi
     from .serializable import (
         get_dataclass_types_from_forward_ref,
         Serializable,
@@ -141,7 +143,7 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
         FrozenSerializable,
     )
 
-    if tpi.is_forward_ref(t):
+    if is_forward_ref(t):
         dcs = get_dataclass_types_from_forward_ref(t)
         if len(dcs) == 1:
             dc = dcs[0]
@@ -164,8 +166,8 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
             )
             return no_op
 
-    if tpi.is_typevar(t):
-        bound = tpi.get_bound(t)
+    if is_typevar(t):
+        bound = get_bound(t)
         logger.debug(f"Decoding a typevar: {t}, bound type is {bound}.")
         if bound is not None:
             return get_decoding_fn(bound)
