@@ -4,8 +4,6 @@ from functools import lru_cache, partial
 from logging import getLogger
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
-import typing_inspect as tpi
-
 from ..utils import (
     get_item_type,
     get_type_arguments,

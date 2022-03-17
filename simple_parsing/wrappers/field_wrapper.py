@@ -1,4 +1,5 @@
 import argparse
+import typing
 import dataclasses
 import inspect
 from enum import Enum
@@ -11,6 +12,9 @@ from .. import docstring, utils
 from .field_parsing import get_parsing_fn
 from .field_metavar import get_metavar
 from .wrapper import Wrapper
+
+if typing.TYPE_CHECKING:
+    from .dataclass_wrapper import DataclassWrapper
 
 logger = getLogger(__name__)
 
@@ -316,6 +320,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["nargs"] = "+"
             else:
                 _arg_options["nargs"] = "*"
+
         return _arg_options
 
     def duplicate_if_needed(self, parsed_values: Any) -> List[Any]:
@@ -723,6 +728,13 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         """Returns the wrapped field's type annotation."""
         if self._type is None:
             self._type = self.field.type
+            if isinstance(self._type, str):
+                # The type of the field might be a string when using `from __future__ import annotations`.
+                # NOTE: Here we'd like to convert the fields type to an actual type, in case the
+                # `from __future__ import annotations` feature is used.
+                # This should also resolve most forward references.
+                field_type = utils.get_field_type_from_field_annotation(self.parent.dataclass, self.field.name)
+                self._type = field_type
 
             if self.is_choice and self.choice_dict:
                 if utils.is_list(self.field.type):

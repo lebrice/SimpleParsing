@@ -9,9 +9,7 @@ from dataclasses import Field
 from logging import getLogger
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
-import typing_inspect as tpi
-
-from ..utils import (
+from simple_parsing.utils import (
     get_type_arguments,
     is_enum,
     is_homogeneous_tuple_type,
@@ -19,6 +17,10 @@ from ..utils import (
     is_tuple,
     is_union,
     str2bool,
+    is_typevar,
+    get_bound,
+    is_forward_ref,
+    get_forward_arg,
 )
 
 logger = getLogger(__name__)
@@ -132,14 +134,14 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
     # import typing_inspect as tpi
     # from .serializable import get_dataclass_type_from_forward_ref, Serializable
 
-    if tpi.is_forward_ref(t):
-        forward_arg = tpi.get_forward_arg(t)
+    if is_forward_ref(t):
+        forward_arg = get_forward_arg(t)
         for t, fn in _parsing_fns.items():
             if getattr(t, "__name__", str(t)) == forward_arg:
                 return fn
 
-    if tpi.is_typevar(t):
-        bound = tpi.get_bound(t)
+    if is_typevar(t):
+        bound = get_bound(t)
         logger.debug(f"parsing a typevar: {t}, bound type is {bound}.")
         if bound is not None:
             return get_parsing_fn(bound)

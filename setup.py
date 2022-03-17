@@ -27,7 +27,7 @@ setuptools.setup(
     ],
     python_requires=">=3.6",
     install_requires=[
-        "typing_inspect",
+        "typing_inspect;python_version<'3.9'",
         "dataclasses;python_version<'3.7'",
     ],
     setup_requires=["pre-commit"],

@@ -52,8 +52,8 @@ def field(
     positional: bool = False,
     *,
     to_dict: bool = True,
-    encoding_fn: Callable[[T], Any] = None,
-    decoding_fn: Callable[[Any], T] = None,
+    encoding_fn: Optional[Callable[[T], Any]] = None,
+    decoding_fn: Optional[Callable[[Any], T]] = None,
     # dataclasses.field arguments
     default_factory: Union[Callable[[], T], _MISSING_TYPE] = MISSING,
     init: bool = True,

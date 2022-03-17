@@ -2,6 +2,7 @@
 (Could be seen as a kind of integration test.)
 
 """
+from collections import Counter
 import contextlib
 import glob
 import importlib
@@ -52,7 +53,10 @@ def assert_equals_stdout(capsys):
         expected_lines = [
             line.strip() for line in expected_lines if line and not line.isspace()
         ]
-        assert out_lines == expected_lines, file_path
+        if sys.version_info[:2] >= (3, 9):
+            assert Counter("".join(out_lines)) == Counter("".join(expected_lines))
+        else:
+            assert out_lines == expected_lines, file_path
 
     return should_equal
 
