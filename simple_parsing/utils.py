@@ -970,7 +970,7 @@ def _replace_new_union_syntax_with_old_union_syntax(annotations_dict: Dict[str, 
 
     def _get_type(ann: str) -> Union[type, str]: 
         # Try locals, then globals, then builtins. Otherwise, use the annotation itself.
-        return local_ns.get(ann, global_ns.get(ann, getattr(builtins, ann, ann)))
+        return forward_refs_to_types.get(ann, local_ns.get(ann, global_ns.get(ann, getattr(builtins, ann, ann))))
     
     def _not_supported() -> typing.NoReturn:
         raise NotImplementedError(f"Don't yet support annotations like these: {annotations_dict}")
