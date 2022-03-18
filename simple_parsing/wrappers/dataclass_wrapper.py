@@ -55,7 +55,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
             if isinstance(field.type, str):
                 # NOTE: Here we'd like to convert the fields type to an actual type, in case the
                 # `from __future__ import annotations` feature is used.
-                field_type = utils.get_field_type_from_field_annotation(self.dataclass, field.name)
+                field_type = utils.get_field_type_from_annotations(self.dataclass, field.name)
                 # Modify the `type` of the Field object, in-place.
                 field.type = field_type
 

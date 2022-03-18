@@ -733,7 +733,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 # NOTE: Here we'd like to convert the fields type to an actual type, in case the
                 # `from __future__ import annotations` feature is used.
                 # This should also resolve most forward references.
-                field_type = utils.get_field_type_from_field_annotation(self.parent.dataclass, self.field.name)
+                field_type = utils.get_field_type_from_annotations(self.parent.dataclass, self.field.name)
                 self._type = field_type
 
             if self.is_choice and self.choice_dict:

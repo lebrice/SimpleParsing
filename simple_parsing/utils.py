@@ -1,6 +1,7 @@
 """Utility functions used in various parts of the simple_parsing package."""
 import argparse
 import builtins
+import copy
 import inspect
 import enum
 import sys
@@ -38,26 +39,38 @@ from typing import (
 )
 import typing
 from typing import get_type_hints
+
 # from typing_inspect import get_origin, is_typevar, get_bound, is_forward_ref, get_forward_arg
 NEW_TYPING = sys.version_info[:3] >= (3, 7, 0)  # PEP 560
 
 if sys.version_info < (3, 9):
     # TODO: Add 3.9 compatibility, remove typing_inspect dependency.
-    from typing_inspect import get_origin, is_typevar, get_bound, get_forward_arg, is_forward_ref
+    from typing_inspect import (
+        get_origin,
+        is_typevar,
+        get_bound,
+        get_forward_arg,
+        is_forward_ref,
+    )
 else:
     from typing import get_origin
+
     # NOTE: Copied over from typing_inspect.
     def is_typevar(t) -> bool:
         return type(t) is TypeVar
+
     def get_bound(t):
         if is_typevar(t):
-            return getattr(t, '__bound__', None)
+            return getattr(t, "__bound__", None)
         else:
             raise TypeError(f"type is not a `TypeVar`: {t}")
+
     def is_forward_ref(t):
         return isinstance(t, typing.ForwardRef)
-    def get_forward_arg(fr):    
+
+    def get_forward_arg(fr):
         return getattr(fr, "__forward_arg__", None)
+
 
 try:
     from typing import get_args
@@ -233,6 +246,7 @@ def get_argparse_type_for_container(
         # field wrapper class, and then split it up into different subclasses of FieldWrapper,
         # each for a different type of field.
         from simple_parsing.wrappers.field_parsing import parse_enum
+
         return parse_enum(T)
     return T
 
@@ -872,11 +886,15 @@ def dict_union(
 # NOTE: This dict is used to enable forward compatibility with things such as `tuple[int, str]`,
 # `list[float]`, etc. when using `from __future__ import annotations`.
 forward_refs_to_types = {
-    "tuple": typing.Tuple, "set": typing.Set, "dict": typing.Dict, "list": typing.List, "type": Type
+    "tuple": typing.Tuple,
+    "set": typing.Set,
+    "dict": typing.Dict,
+    "list": typing.List,
+    "type": Type,
 }
 
 
-def get_field_type_from_field_annotation(some_class: type, field_name: str) -> type:
+def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     """
     If the script uses `from __future__ import annotations`, and we are in python<3.9,
     Then we need to actually first make this forward-compatibility 'patch' so that we
@@ -886,17 +904,42 @@ def get_field_type_from_field_annotation(some_class: type, field_name: str) -> t
     entry to the `forward_refs_to_types` dict above.
     """
     # The type of the field might be a string when using `from __future__ import annotations`.
-    localns = {}
+    # Get the local and global namespaces to pass to the `get_type_hints` function.
+    local_ns = {}
     if sys.version_info < (3, 9):
-        localns = forward_refs_to_types
-
+        local_ns = forward_refs_to_types
     global_ns = sys.modules[some_class.__module__].__dict__
-    class_type_hints = get_type_hints(some_class, localns=localns, globalns=global_ns)
-    field_type = class_type_hints[field_name]
+    # BUG: Spoke too soon, doesn't work when one of the field uses the `str | bool` syntax.
+    try:
+        class_type_hints = get_type_hints(
+            some_class, localns=local_ns, globalns=global_ns
+        )
+        field_type = class_type_hints[field_name]
+    except TypeError as err:
+        annotations_dict = some_class.__annotations__.copy()
+        if any(isinstance(annotation, str) and "|" in annotation for annotation in annotations_dict.values()):
+            # Pretty hacky: Modify the type annotations of the class (preferably a copy of the class
+            # if possible, to avoid modifying things in-place), and replace  the `a | b`-type
+            # expressions with `Union[a, b]`, so that `get_type_hints` doesn't raise an error.
+            some_class = _replace_new_union_syntax_with_old_union_syntax(some_class, local_ns=local_ns, global_ns=global_ns)
+            class_type_hints = get_type_hints(
+                some_class, localns=local_ns, globalns=global_ns
+            )
+            field_type = class_type_hints[field_name]
+        else:
+            annotation = annotations_dict[field_name]
+            logger.error(
+                f"Error when parsing type annotations of class {some_class}: {err}\n"
+                f"Using a 'str' type for the field instead of the original type: {annotation}).\n"
+                f"Please make an issue at https://www.github.com/lebrice/SimpleParsing/issues "
+                f"if you believe this annotation should be supported explicitly."
+            )
+            return str
     if sys.version_info[:2] >= (3, 7):
         # Weird bug happens when mixing postponed evaluation of type annotations + forward
         # references: The ForwardRefs are left as-is, and not evaluated!
         from typing import ForwardRef
+
         if isinstance(field_type, ForwardRef):
             forward_arg = field_type.__forward_arg__
             if forward_arg in global_ns:
@@ -907,6 +950,30 @@ def get_field_type_from_field_annotation(some_class: type, field_name: str) -> t
                     f"Leaving it as-is."
                 )
     return field_type
+
+
+def _replace_new_union_syntax_with_old_union_syntax(some_class: Type[T], local_ns: dict, global_ns: dict) -> Type[T]:
+    # Pretty hacky: Modify the type annotations of the class (preferably a copy of the class
+    # if possible, to avoid modifying things in-place), and replace  the `a | b`-type
+    # expressions with `Union[a, b]`, so that `get_type_hints` doesn't raise an error.
+    # The type of the field might be a string when using `from __future__ import annotations`.
+    try:
+        some_class = copy.deepcopy(some_class)
+    except:
+        pass
+    annotations_dict = some_class.__annotations__
+    for field, annotation_str in annotations_dict.items():
+        if "|" in annotation_str:
+            import builtins
+            # Try the builtins, then locals, then globals. Otherwise use the string itself.
+            live_types_maybe = [
+                getattr(builtins, p, local_ns.get(p, global_ns.get(p, p)))
+                for p in annotation_str.replace(" ", "").split("|")
+            ]
+            # Hacky, but create a new annotation to use instead.
+            new_field_annotation = Union[tuple(live_types_maybe)]  # type: ignore
+            some_class.__annotations__[field] = new_field_annotation
+    return some_class
 
 if __name__ == "__main__":
     import doctest

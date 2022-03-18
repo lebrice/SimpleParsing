@@ -154,11 +154,12 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
 
 
 def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
-    """Tries to use the functions in succession, else returns the same value unchanged."""
+    """Tries to use the functions in succession, else raises a ValueError."""
 
     def _try_functions(val: Any) -> Union[T, Any]:
         logger.debug(f"Debugging the 'raw value' of {val}, will try functions {funcs}")
         e: Optional[Exception] = None
+        exceptions: list[Exception] = []
         for func in funcs:
             try:
                 parsed = func(val)
@@ -167,15 +168,14 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
                 )
                 return parsed
             except Exception as ex:
-                e = ex
-        else:
-            logger.error(
-                f"Couldn't parse value {val}, returning it as-is. (exception: {e})"
-            )
-        return val
+                exceptions.append(ex)
+        logger.error(
+            f"Couldn't parse value {val}, returning the value as-is. (exceptions: {exceptions})"
+        )
+        raise ValueError(f"Couldn't parse value {val}, returning the value as-is. (exceptions: {exceptions})")
 
+    _try_functions.__name__ = "Try<" + " and ".join(str(func.__name__) for func in funcs) + ">"
     return _try_functions
-
 
 def parse_union(*types: Type[T]) -> Callable[[Any], Union[T, Any]]:
     types = list(types)
@@ -188,8 +188,11 @@ def parse_union(*types: Type[T]) -> Callable[[Any], Union[T, Any]]:
         parse_optional(t) if optional else get_parsing_fn(t) for t in types
     ]
     # Try using each of the non-None types, in succession. Worst case, return the value.
-    return try_functions(*parsing_fns)
-
+    f = try_functions(*parsing_fns)
+    from simple_parsing.wrappers.field_metavar import get_metavar
+    f.__name__ = get_metavar(Union[tuple(types)])  # type: ignore
+    # f.__name__ = "|".join(str(t.__name__) for t in types)
+    return f
 
 def parse_optional(t: Type[T]) -> Callable[[Optional[Any]], Optional[T]]:
     parse = get_parsing_fn(t)
