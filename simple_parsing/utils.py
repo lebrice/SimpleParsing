@@ -905,11 +905,10 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     """
     # The type of the field might be a string when using `from __future__ import annotations`.
     # Get the local and global namespaces to pass to the `get_type_hints` function.
-    local_ns = {}
+    local_ns: Dict[str, Any] = {"typing": typing, **vars(typing)}
     if sys.version_info < (3, 9):
-        local_ns = forward_refs_to_types
+        local_ns.update(forward_refs_to_types)
     global_ns = sys.modules[some_class.__module__].__dict__
-    # BUG: Spoke too soon, doesn't work when one of the field uses the `str | bool` syntax.
     try:
         class_type_hints = get_type_hints(
             some_class, localns=local_ns, globalns=global_ns
@@ -921,20 +920,29 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
             # Pretty hacky: Modify the type annotations of the class (preferably a copy of the class
             # if possible, to avoid modifying things in-place), and replace  the `a | b`-type
             # expressions with `Union[a, b]`, so that `get_type_hints` doesn't raise an error.
-            some_class = _replace_new_union_syntax_with_old_union_syntax(some_class, local_ns=local_ns, global_ns=global_ns)
-            class_type_hints = get_type_hints(
-                some_class, localns=local_ns, globalns=global_ns
-            )
-            field_type = class_type_hints[field_name]
-        else:
-            annotation = annotations_dict[field_name]
-            logger.error(
-                f"Error when parsing type annotations of class {some_class}: {err}\n"
-                f"Using a 'str' type for the field instead of the original type: {annotation}).\n"
-                f"Please make an issue at https://www.github.com/lebrice/SimpleParsing/issues "
-                f"if you believe this annotation should be supported explicitly."
-            )
-            return str
+            try:
+                before = some_class.__annotations__.copy()
+                after = _replace_new_union_syntax_with_old_union_syntax(before, local_ns=local_ns, global_ns=global_ns)
+                class _Temp:
+                    pass
+                _Temp.__annotations__ = after
+                class_type_hints = get_type_hints(
+                    _Temp, localns=local_ns, globalns=global_ns
+                )
+                field_type = class_type_hints[field_name]
+                return field_type
+            except (TypeError, NotImplementedError) as exc:
+                print(err)
+                err = exc
+                pass
+        annotation = annotations_dict[field_name]
+        logger.error(
+            f"Error when parsing type annotations of class {some_class}: {err}\n"
+            f"Using a 'str' type for the field instead of the original type: {annotation}).\n"
+            f"Please make an issue at https://www.github.com/lebrice/SimpleParsing/issues "
+            f"if you believe this annotation should be supported explicitly."
+        )
+        return str
     if sys.version_info[:2] >= (3, 7):
         # Weird bug happens when mixing postponed evaluation of type annotations + forward
         # references: The ForwardRefs are left as-is, and not evaluated!
@@ -952,28 +960,55 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     return field_type
 
 
-def _replace_new_union_syntax_with_old_union_syntax(some_class: Type[T], local_ns: dict, global_ns: dict) -> Type[T]:
+def _replace_new_union_syntax_with_old_union_syntax(annotations_dict: Dict[str, str], local_ns: dict, global_ns: dict) -> Dict[str, Any]:
     # Pretty hacky: Modify the type annotations of the class (preferably a copy of the class
     # if possible, to avoid modifying things in-place), and replace  the `a | b`-type
     # expressions with `Union[a, b]`, so that `get_type_hints` doesn't raise an error.
     # The type of the field might be a string when using `from __future__ import annotations`.
-    try:
-        some_class = copy.deepcopy(some_class)
-    except:
-        pass
-    annotations_dict = some_class.__annotations__
+
+    import builtins
+
+    def _get_type(ann: str) -> Union[type, str]: 
+        # Try locals, then globals, then builtins. Otherwise, use the annotation itself.
+        return local_ns.get(ann, global_ns.get(ann, getattr(builtins, ann, ann)))
+    
+    def _not_supported() -> typing.NoReturn:
+        raise NotImplementedError(f"Don't yet support annotations like these: {annotations_dict}")
+
+    def _get_old_style_annotation(annotation: str) -> str:
+        # TODO: Add proper support for things like `list[int | float]`, which isn't currently
+        # working, even without the new-style union.
+        if "|" not in annotation:
+            return annotation
+
+        annotation = annotation.strip()        
+        if "[" not in annotation:
+            assert "]" not in annotation
+            return "Union[" + ", ".join(v.strip() for v in annotation.split("|")) + "]"
+        
+        before, lsep, rest = annotation.partition("[")
+        middle, rsep, after = rest.rpartition("]")
+        assert not after.strip(), "can't have text at HERE in <something>[<something>]<HERE>!"
+
+        if "|" in before or "|" in after:
+            _not_supported()
+        assert "|" in middle
+        
+        if "," in middle:
+            parts = [v.strip() for v in middle.split(",")]
+            parts = [_get_old_style_annotation(part) for part in parts]
+            middle = ", ".join(parts)
+        
+        new_middle = _get_old_style_annotation(annotation=middle)
+        new_annotation = str(_get_type(before)) + lsep + new_middle + rsep + after
+        return new_annotation
+
+    new_annotations = annotations_dict.copy()
     for field, annotation_str in annotations_dict.items():
-        if "|" in annotation_str:
-            import builtins
-            # Try the builtins, then locals, then globals. Otherwise use the string itself.
-            live_types_maybe = [
-                getattr(builtins, p, local_ns.get(p, global_ns.get(p, p)))
-                for p in annotation_str.replace(" ", "").split("|")
-            ]
-            # Hacky, but create a new annotation to use instead.
-            new_field_annotation = Union[tuple(live_types_maybe)]  # type: ignore
-            some_class.__annotations__[field] = new_field_annotation
-    return some_class
+        updated_annotation = _get_old_style_annotation(annotation_str)
+        new_annotations[field] = updated_annotation
+
+    return new_annotations
 
 if __name__ == "__main__":
     import doctest

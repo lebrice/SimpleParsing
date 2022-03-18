@@ -1,14 +1,14 @@
 """ Tests for compatibility with the postponed evaluation of annotations. """
 from __future__ import annotations
-import dataclasses
-
-from simple_parsing import ArgumentParser
-import sys
+import typing
 import pytest
-from .testutils import TestSetup
-from dataclasses import fields
+import dataclasses
+import sys
+from dataclasses import dataclass
 
-from dataclasses import dataclass, field
+import pytest
+from simple_parsing import field
+
 from .testutils import TestSetup
 
 
@@ -30,9 +30,6 @@ class Bar(TestSetup):
     some_list: list[float] = field(default_factory=[1.0, 2.0].copy)
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 7), reason="Needs access to annotations from __future__"
-)
 def test_future_annotations():
     foo = Foo.setup()
     assert foo == Foo()
@@ -41,9 +38,6 @@ def test_future_annotations():
     assert foo == Foo(a=2, b="heyo", c=(1, 7.89))
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 7), reason="Needs access to annotations from __future__"
-)
 def test_future_annotations_nested():
     bar = Bar.setup()
     assert bar == Bar()
@@ -58,14 +52,79 @@ class ClassWithNewUnionSyntax(TestSetup):
     v: int | float = 123
 
 
-def test_new_union_syntax():
+@dataclass
+class OtherClassWithNewUnionSyntax(ClassWithNewUnionSyntax):
+    """Create a child class without annotations, just to check taht they are picked up from the
+    base class.
+    """
+
+    pass
+
+
+@pytest.mark.parametrize(
+    "ClassWithNewUnionSyntax", [ClassWithNewUnionSyntax, OtherClassWithNewUnionSyntax]
+)
+def test_new_union_syntax(ClassWithNewUnionSyntax: type[ClassWithNewUnionSyntax]):
     assert ClassWithNewUnionSyntax.setup() == ClassWithNewUnionSyntax()
     assert ClassWithNewUnionSyntax.setup("--v 456") == ClassWithNewUnionSyntax(v=456)
     assert ClassWithNewUnionSyntax.setup("--v 4.56") == ClassWithNewUnionSyntax(v=4.56)
+
+    field_annotations = {f.name: f.type for f in dataclasses.fields(ClassWithNewUnionSyntax)}
     from simple_parsing.utils import is_union
 
-    type_annotation = dataclasses.fields(ClassWithNewUnionSyntax)[0].type
-    assert is_union(type_annotation)
+    assert is_union(field_annotations["v"])
 
     # with pytest.raises(Exception):
     #     assert ClassWithNewUnionSyntax.setup("--v bob")
+
+@dataclass
+class MoreComplex(TestSetup):
+    vals_list: list[int | float] = field(default_factory=list)
+    vals_tuple: tuple[int | float, bool] = field(default=(1, False))
+
+
+def test_more_complicated_unions():
+    """ Test that simple-parsing can properly convert the 'new-style' type annotations.
+    
+    These are converted to the 'old-style' annotations using the `typing` module, e.g.
+    A | B -> Union[A, B]
+    tuple[A, B, C] -> Tuple[A,B,C]
+    
+    These values are then used to modify the `type` attribute of the `dataclasses.Field` objects
+    on the class, *in-place*, so that simple-parsing can work just like before.
+    """
+    from simple_parsing.utils import is_list, is_tuple, get_field_type_from_annotations
+
+    assert (
+        get_field_type_from_annotations(MoreComplex, "vals_list")
+        == typing.List[typing.Union[int, float]]
+    )
+    assert MoreComplex.__annotations__["vals_list"] == "list[int | float]"
+    assert MoreComplex.__annotations__["vals_tuple"] == "tuple[int | float, bool]"
+    assert (
+        get_field_type_from_annotations(MoreComplex, "vals_tuple")
+        == typing.Tuple[typing.Union[int, float], bool]
+    )
+    # NOTE: Before we do anything related to simple-parsing, the value in Field.type should still be
+    # equivalent to their annotations. 
+    field_annotations = {f.name: f.type for f in dataclasses.fields(MoreComplex)}
+    assert field_annotations["vals_list"] == "list[int | float]"
+
+    # Now, once we add arguments for it, we expect these fields here to have a different `type`,
+    # if python < 3.9
+    from simple_parsing import ArgumentParser
+    ArgumentParser().add_arguments(MoreComplex, dest="unused")
+    field_annotations = {f.name: f.type for f in dataclasses.fields(MoreComplex)}
+    assert field_annotations["vals_list"] == typing.List[typing.Union[int, float]]
+    assert field_annotations["vals_tuple"] == typing.Tuple[typing.Union[int, float], bool]
+
+    assert is_list(field_annotations["vals_list"])
+    assert is_tuple(field_annotations["vals_tuple"])
+
+
+@pytest.mark.xfail(reason="TODO: Properly support containers of union types.")
+def test_parsing_containers_of_unions():
+    assert MoreComplex.setup("--vals_list 456 123") == MoreComplex(vals_list=[456, 123])
+    assert MoreComplex.setup("--vals_list 4.56 1.23") == MoreComplex(vals_list=[4.56, 1.23])
+    assert MoreComplex.setup("--vals_tuple 456 False") == MoreComplex(vals_tuple=(456, False))
+    assert MoreComplex.setup("--vals_tuple 4.56 True") == MoreComplex(vals_tuple=(4.56, True))
