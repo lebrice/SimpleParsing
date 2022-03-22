@@ -80,8 +80,12 @@ class DataclassWrapper(Wrapper[Dataclass]):
             elif utils.contains_dataclass_type_arg(field.type):
                 dataclass = utils.get_dataclass_type_arg(field.type)
                 name = field.name
+
                 child_wrapper = DataclassWrapper(
-                    dataclass, name, parent=self, _field=field, default=None
+                    dataclass, name, parent=self, _field=field,
+                    # Fields from default values should propagate
+                    # down to children classes, if they are provided
+                    default=getattr(default, name) if hasattr(default, name) else None
                 )
                 child_wrapper.required = False
                 child_wrapper.optional = True

@@ -99,7 +99,8 @@ class ArgumentParser(argparse.ArgumentParser):
         pass
 
     @overload
-    def add_arguments(self,
+    def add_arguments(
+        self,
         dataclass: Dataclass,
         dest: str,
         prefix: str = "",
