@@ -1,4 +1,5 @@
 import argparse
+from pyexpat import version_info
 import shlex
 from dataclasses import dataclass
 from typing import Any
@@ -6,7 +7,7 @@ from typing import Any
 import pytest
 from simple_parsing import ArgumentParser, field, DashVariant
 from simple_parsing.wrappers.field_wrapper import FieldWrapper
-
+import textwrap
 from .testutils import *
 from typing import List
 
@@ -160,11 +161,13 @@ def test_store_false_action():
     args = parser.parse_args("".split())
     foo: Foo = args.foo
     assert foo.no_cache == True
- 
+
+
 def test_only_dashes():
     @dataclass
     class SomeClass(TestSetup):
         """lol"""
+
         my_var: int
 
     assert_help_output_equals(
@@ -179,10 +182,25 @@ def test_only_dashes():
     lol
 
       --my-var int
-    """,
+    """
+        if sys.version_info < (3, 9)
+        else textwrap.dedent(
+            """\
+            usage: pytest [-h] --my_var int
+            
+            options:
+            -h, --help    show this help message and exit
+            
+            test_only_dashes.<locals>.SomeClass ['some_class']:
+            lol
+            
+            --my_var int
+            """
+        ),
     )
-    sc = SomeClass.setup('--my-var 2', add_option_string_dash_variants=DashVariant.DASH)
+    sc = SomeClass.setup("--my-var 2", add_option_string_dash_variants=DashVariant.DASH)
     assert sc.my_var == 2
+
 
 def test_list_of_choices():
     @dataclass

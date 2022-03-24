@@ -7,9 +7,11 @@ from typing import *
 
 import pytest
 
+pytest.register_assert_rewrite("test.testutils")
+
 from simple_parsing import choice
 from simple_parsing.helpers import Serializable
-from .testutils import TestSetup
+
 
 collect_ignore = []
 if sys.version_info < (3, 7):
@@ -59,7 +61,9 @@ def assert_equals_stdout(capsys):
     def strip(string):
         return "".join(string.split())
 
-    def should_equal(expected: str, file_path: str = None):
+    def should_equal(expected: str, file_path: Optional[str] = None):
+        if "optional arguments" in expected and sys.version_info >= (3, 10):
+            expected = expected.replace("optional arguments", "options")
         out = capsys.readouterr().out
         assert strip(out) == strip(expected), file_path
 
@@ -127,6 +131,7 @@ def TaskHyperParameters():
     """Test fixture that gives a good example use-case from a real datascience
     project.
     """
+    from .testutils import TestSetup
 
     @dataclass
     class TaskHyperParameters(TestSetup, Serializable):
@@ -161,6 +166,8 @@ def TaskHyperParameters():
 
 @pytest.fixture
 def HyperParameters(TaskHyperParameters):
+    from .testutils import TestSetup
+
     @dataclass
     class HyperParameters(TestSetup, Serializable):
         """Hyperparameters of a multi-headed model."""

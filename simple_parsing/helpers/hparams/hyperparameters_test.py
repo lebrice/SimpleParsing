@@ -233,6 +233,7 @@ def test_priors_with_shape():
     assert len(foo.z) == 5
 
 
+@pytest.mark.xfail(reason=f"Need to update this since spaces give Trials, not points.")
 @pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
 @pytest.mark.skipif(not orion_installed, reason="Test requires Orion.")
 def test_contains():
