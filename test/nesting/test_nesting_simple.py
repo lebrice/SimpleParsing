@@ -6,6 +6,8 @@ from typing import *
 
 import pytest
 
+import simple_parsing
+
 from . import TestSetup, xfail
 from simple_parsing import ArgumentParser, field, ConflictResolution
 
@@ -147,3 +149,41 @@ def test_train_config_example_with_explicit_args():
     assert config.valid.hparams.batch_size == 456
 
     print(TrainConfig.get_help_text())
+
+
+def test_nesting_defaults():
+    @dataclass
+    class A(TestSetup):
+        p: int
+        q: float
+
+    @dataclass
+    class B(TestSetup):
+        x: int
+        y: A
+
+    parser = simple_parsing.ArgumentParser()
+    default = B(x=3, y=A(p=4, q=0.1))
+    parser.add_arguments(B, dest="b", default=default)
+    assert parser.parse_args("").b == default
+
+
+def test_nesting_defaults_with_optional():
+    @dataclass
+    class A(TestSetup):
+        p: int
+        q: float
+
+    @dataclass
+    class B(TestSetup):
+        x: int
+        y: Optional[A] = None  # NOTE: The Optional annotation is causing trouble here.
+
+    # This is because of the code that we hvae to check for optional parameter groups. If we don't
+    # detect any arguments from the group of the type `A`, then we just use None, because the field
+    # is marked as Optional. However, we should instead use the default value that is provided as an
+    # argument to `add_arguments`.
+    parser = simple_parsing.ArgumentParser()
+    default = B(x=3, y=A(p=4, q=0.1))
+    parser.add_arguments(B, dest="b", default=default)
+    assert parser.parse_args("").b == default

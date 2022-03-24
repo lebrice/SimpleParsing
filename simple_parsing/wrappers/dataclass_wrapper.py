@@ -10,6 +10,7 @@ from .. import docstring, utils
 from ..utils import Dataclass
 from .field_wrapper import FieldWrapper
 from .wrapper import Wrapper
+
 logger = getLogger(__name__)
 
 
@@ -20,9 +21,9 @@ class DataclassWrapper(Wrapper[Dataclass]):
         name: str,
         default: Union[Dataclass, Dict] = None,
         prefix: str = "",
-        parent: "DataclassWrapper" = None,
-        _field: dataclasses.Field = None,
-        field_wrapper_class: Type[FieldWrapper] = FieldWrapper
+        parent: Optional["DataclassWrapper"] = None,
+        _field: Optional[dataclasses.Field] = None,
+        field_wrapper_class: Type[FieldWrapper] = FieldWrapper,
     ):
         # super().__init__(dataclass, name)
         self.dataclass = dataclass
@@ -45,17 +46,18 @@ class DataclassWrapper(Wrapper[Dataclass]):
 
         if default:
             self.defaults = [default]
-
         self.optional: bool = False
 
         for field in dataclasses.fields(self.dataclass):
             if not field.init or field.metadata.get("cmd", True) is False:
                 continue
-
+            field_default = getattr(default, field.name, None)
             if isinstance(field.type, str):
                 # NOTE: Here we'd like to convert the fields type to an actual type, in case the
                 # `from __future__ import annotations` feature is used.
-                field_type = utils.get_field_type_from_annotations(self.dataclass, field.name)
+                field_type = utils.get_field_type_from_annotations(
+                    self.dataclass, field.name
+                )
                 # Modify the `type` of the Field object, in-place.
                 field.type = field_type
 
@@ -73,19 +75,18 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 # handle a nested dataclass attribute
                 dataclass, name = field.type, field.name
                 child_wrapper = DataclassWrapper(
-                    dataclass, name, parent=self, _field=field
+                    dataclass, name, parent=self, _field=field, default=field_default,
                 )
                 self._children.append(child_wrapper)
 
             elif utils.contains_dataclass_type_arg(field.type):
-                dataclass = utils.get_dataclass_type_arg(field.type)
-                name = field.name
-
+                field_dataclass = utils.get_dataclass_type_arg(field.type)
                 child_wrapper = DataclassWrapper(
-                    dataclass, name, parent=self, _field=field,
-                    # Fields from default values should propagate
-                    # down to children classes, if they are provided
-                    default=getattr(default, name) if hasattr(default, name) else None
+                    field_dataclass,
+                    name=field.name,
+                    parent=self,
+                    _field=field,
+                    default=field_default,
                 )
                 child_wrapper.required = False
                 child_wrapper.optional = True
@@ -93,7 +94,9 @@ class DataclassWrapper(Wrapper[Dataclass]):
 
             else:
                 # a normal attribute
-                field_wrapper = field_wrapper_class(field, parent=self, prefix=self.prefix)
+                field_wrapper = field_wrapper_class(
+                    field, parent=self, prefix=self.prefix
+                )
                 logger.debug(
                     f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.default}"
                 )
@@ -126,7 +129,6 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 logger.debug(
                     f"Arg options for field '{wrapped_field.name}': {wrapped_field.arg_options}"
                 )
-                # TODO: CustomAction isn't very easy to debug, and is not working. Maybe look into that. Simulating it for now.
                 group.add_argument(
                     *wrapped_field.option_strings, **wrapped_field.arg_options
                 )
