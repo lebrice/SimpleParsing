@@ -43,7 +43,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         - add_option_string_dash_variants : DashVariant, optional
 
-            Wether or not to add option_string variants where the underscores in
+            Whether or not to add option_string variants where the underscores in
             attribute names are replaced with dashes.
             For example, when set to DashVariant.UNDERSCORE_AND_DASH,
             "--no-cache" and "--no_cache" can both be used to point to the same
@@ -51,7 +51,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         - add_dest_to_option_strings: bool, optional
 
-            Wether or not to add the `dest` of each field to the list of option
+            Whether or not to add the `dest` of each field to the list of option
             strings for the argument.
             When True (default), each field can be referenced using either the
             auto-generated option string or the full 'destination' of the field
@@ -120,7 +120,7 @@ class ArgumentParser(argparse.ArgumentParser):
         Parameters
         ----------
         dataclass : Union[Dataclass, Type[Dataclass]]
-            The dataclass whose fields are to be parsed from the commnad-line.
+            The dataclass whose fields are to be parsed from the command-line.
             If an instance of a dataclass is given, it is used as the default
             value if none is provided.
         dest : str

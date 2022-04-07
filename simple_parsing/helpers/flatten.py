@@ -33,7 +33,7 @@ class FlattenedAccess:
             A dataclass type or instance.
         - recursive : bool, optional, by default True
 
-            Wether or not to recurse and yield all the elements of the children
+            Whether or not to recurse and yield all the elements of the children
             dataclass attributes.
         - prefix : str, optional, by default ""
 

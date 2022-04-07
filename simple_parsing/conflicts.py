@@ -17,7 +17,7 @@ class ConflictResolution(enum.Enum):
 
 
     - NONE:
-        Dissallow using the same dataclass in two different destinations without
+        Disallow using the same dataclass in two different destinations without
         explicitly setting a distinct prefix for at least one of them.
 
     - EXPLICIT:
@@ -69,7 +69,7 @@ class ConflictResolver:
 
         conflict = self.get_conflict(self._wrappers)
 
-        # current and maximum number of attemps. When reached, raises an error.
+        # current and maximum number of attempts. When reached, raises an error.
         cur_attempts, max_attempts = 0, 50
         while conflict:
             message: str = (

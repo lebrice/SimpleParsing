@@ -305,7 +305,7 @@ class Parameters:
             "--alt_opt_zn_start",
             type=int,
             default=100000,
-            help="Alternating optimization start interation. [-1: starts immediately,"
+            help="Alternating optimization start interaction. [-1: starts immediately,"
             "100: starts alternating after the first 100 iterations.",
         )
         self.parser.add_argument(

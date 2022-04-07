@@ -224,7 +224,7 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
 def decode_union(*types: Type[T]) -> Callable[[Any], Union[T, Any]]:
     types = list(types)
     optional = type(None) in types
-    # Partion the Union into None and non-None types.
+    # Partition the Union into None and non-None types.
     while type(None) in types:
         types.remove(type(None))
 

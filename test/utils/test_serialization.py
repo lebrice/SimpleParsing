@@ -317,7 +317,7 @@ def test_forward_ref_correct_one_chosen_if_two_types_have_same_name(frozen: bool
 
     # Get another class with name of "Loss" in our scope.
     _ = foo()
-    # Check taht the forward ref gets parsed to the right type.
+    # Check that the forward ref gets parsed to the right type.
     recon = Loss(name="recon", total=1.2)
     kl = Loss(name="kl", total=3.4)
     test = Loss(

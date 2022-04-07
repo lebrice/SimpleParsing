@@ -130,7 +130,7 @@ def test_custom_nargs_question_mark():
 @dataclass
 class Foo:
     flag: bool = field(alias=["-f", "-flag"], action="store_true")
-    # wether or not to store some value.
+    # whether or not to store some value.
     no_cache: bool = field(action="store_false")
 
 
