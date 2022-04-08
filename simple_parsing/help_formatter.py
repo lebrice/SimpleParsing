@@ -1,9 +1,7 @@
-from __future__ import annotations
-
 import argparse
 from argparse import ONE_OR_MORE, OPTIONAL, PARSER, REMAINDER, ZERO_OR_MORE
 from logging import getLogger
-from typing import Type, Callable
+from typing import Type, Callable, Optional
 from argparse import Action
 
 from .utils import (
@@ -90,7 +88,7 @@ class SimpleHelpFormatter(
     def _get_metavar_for_type(self, t: Type) -> str:
         return get_metavar(t) or str(t)
 
-    def _get_help_string(self, action: Action) -> str | None:
+    def _get_help_string(self, action: Action) -> Optional[str]:
         help = super()._get_help_string(action=action)
         if help is not None:
             help = help.replace(TEMPORARY_TOKEN, "")
