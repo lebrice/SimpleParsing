@@ -15,6 +15,7 @@ from typing import (
     TypeVar,
     cast,
 )
+import collections
 
 import pytest
 
@@ -84,16 +85,22 @@ def raises_unrecognized_args(*args: str):
         yield
 
 
-def assert_help_output_equals(actual: str, expected: str) -> bool:
+def assert_help_output_equals(actual: str, expected: str) -> None:
     # Replace the start with `prog`, since the test runner might not always be
     # `pytest`, could also be __main__ when debugging with VSCode
     prog = sys.argv[0].split("/")[-1]
     if prog != "pytest":
         expected = expected.replace("usage: pytest", f"usage: {prog}")
     remove = string.punctuation + string.whitespace
+
+    if "optional arguments" in expected and sys.version_info[:2] >= (3, 10):
+        expected = expected.replace("optional arguments", "options")
+
+    # assert actual == expected
     actual_str = "".join(actual.split())
-    expected_str = "".join(expected.split())
-    assert actual_str == expected_str, f"{actual_str} != {expected_str}"
+    actual_str = actual.translate(str.maketrans("", "", remove))
+    expected_str = expected.translate(str.maketrans("", "", remove))
+    assert actual_str == expected_str, "\n" + "\n".join([actual_str, expected_str])
 
 
 T = TypeVar("T")
@@ -203,7 +210,7 @@ class TestSetup:
         cls,
         multiple=False,
         conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
-        add_option_string_dash_variants = DashVariant.AUTO,
+        add_option_string_dash_variants=DashVariant.AUTO,
     ) -> str:
         import contextlib
         from io import StringIO

@@ -5,6 +5,8 @@ from io import StringIO
 import textwrap
 import pytest
 
+from test.testutils import assert_help_output_equals
+
 
 @dataclass
 class Options:
@@ -29,17 +31,17 @@ def test_reproduce_issue64():
 
     assert s.read() == textwrap.dedent(
         """\
-    usage: issue64 [-h] [--foo str] [--bar str]
+        usage: issue64 [-h] [--foo str] [--bar str]
 
-    optional arguments:
-      -h, --help  show this help message and exit
+        optional arguments:
+            -h, --help  show this help message and exit
 
-    Options ['options']:
-      These are the options
+        Options ['options']:
+            These are the options
 
-      --foo str   Description (default: aaa)
-      --bar str
-    """
+            --foo str   Description (default: aaa)
+            --bar str
+        """
     )
 
 
@@ -69,20 +71,23 @@ def test_vanilla_argparse_issue64():
     s = StringIO()
     parser.print_help(file=s)
     s.seek(0)
+    output = str(s.read())
+    assert_help_output_equals(
+        actual=output,
+        expected=textwrap.dedent(
+            """\
+            usage: issue64 [-h] [--foo str] [--bar str]
 
-    assert s.read() == textwrap.dedent(
-        """\
-    usage: issue64 [-h] [--foo str] [--bar str]
+            optional arguments:
+                -h, --help  show this help message and exit
 
-    optional arguments:
-      -h, --help  show this help message and exit
+            Options ['options']:
+                These are the options
 
-    Options ['options']:
-      These are the options
-
-      --foo str   Description (default: aaa)
-      --bar str
-    """
+                --foo str   Description (default: aaa)
+                --bar str
+            """
+        ),
     )
 
 
@@ -97,18 +102,21 @@ def test_solved_issue64():
     s = StringIO()
     parser.print_help(file=s)
     s.seek(0)
+    output = str(s.read())
+    assert_help_output_equals(
+        actual=output,
+        expected=textwrap.dedent(
+            """\
+            usage: issue64 [-h] [--foo str] [--bar str]
 
-    assert s.read() == textwrap.dedent(
-        """\
-    usage: issue64 [-h] [--foo str] [--bar str]
+            optional arguments:
+                -h, --help  show this help message and exit
 
-    optional arguments:
-      -h, --help  show this help message and exit
+            Options ['options']:
+                These are the options
 
-    Options ['options']:
-      These are the options
-
-      --foo str   Description (default: aaa)
-      --bar str   (default: bbb)
-    """
+                --foo str   Description (default: aaa)
+                --bar str   (default: bbb)
+            """
+        ),
     )

@@ -1,6 +1,7 @@
 """Utility functions used in various parts of the simple_parsing package."""
 import argparse
 import builtins
+import collections
 import copy
 import inspect
 import enum
@@ -914,17 +915,76 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
             some_class, localns=local_ns, globalns=global_ns
         )
         field_type = class_type_hints[field_name]
+
+        if sys.version_info >= (3, 10):
+            # In python >= 3.10, int | float is allowed. Therefore, just to be consistent, we want
+            # to convert those into the corresponding typing.Union type.
+            args = typing.get_args(field_type)
+            new_args = []
+
+            import types
+
+            def _replace_UnionTypes_with_typing_Union(annotation):
+                if isinstance(annotation, types.UnionType):
+                    union_args = typing.get_args(annotation)
+                    new_union_args = tuple(
+                        _replace_UnionTypes_with_typing_Union(arg) for arg in union_args
+                    )
+                    return typing.Union[new_union_args]
+                if is_list(annotation):
+                    item_annotation = typing.get_args(annotation)[0]
+                    new_item_annotation = _replace_UnionTypes_with_typing_Union(
+                        item_annotation
+                    )
+                    return typing.List[new_item_annotation]
+                if is_tuple(annotation):
+                    item_annotations = typing.get_args(annotation)
+                    new_item_annotations = tuple(
+                        _replace_UnionTypes_with_typing_Union(arg)
+                        for arg in item_annotations
+                    )
+                    return typing.Tuple[new_item_annotations]
+                if is_dict(annotation):
+                    annotations = typing.get_args(annotation)
+                    if not annotations:
+                        return typing.Dict
+                    assert len(annotations) == 2
+                    key_annotation = annotations[0]
+                    value_annotation = annotations[1]
+                    new_key_annotation = _replace_UnionTypes_with_typing_Union(
+                        key_annotation
+                    )
+                    new_value_annotation = _replace_UnionTypes_with_typing_Union(
+                        value_annotation
+                    )
+                    return typing.Dict[new_key_annotation, new_value_annotation]
+                if annotation in builtin_types:
+                    return annotation
+                if inspect.isclass(annotation):
+                    return annotation
+                raise NotImplementedError(annotation)
+
+            new_field_type = _replace_UnionTypes_with_typing_Union(field_type)
+            field_type = new_field_type
+
     except TypeError as err:
         annotations_dict = some_class.__annotations__.copy()
-        if any(isinstance(annotation, str) and "|" in annotation for annotation in annotations_dict.values()):
+        if any(
+            isinstance(annotation, str) and "|" in annotation
+            for annotation in annotations_dict.values()
+        ):
             # Pretty hacky: Modify the type annotations of the class (preferably a copy of the class
             # if possible, to avoid modifying things in-place), and replace  the `a | b`-type
             # expressions with `Union[a, b]`, so that `get_type_hints` doesn't raise an error.
             try:
                 before = some_class.__annotations__.copy()
-                after = _replace_new_union_syntax_with_old_union_syntax(before, local_ns=local_ns, global_ns=global_ns)
+                after = _replace_new_union_syntax_with_old_union_syntax(
+                    before, local_ns=local_ns, global_ns=global_ns
+                )
+
                 class _Temp:
                     pass
+
                 _Temp.__annotations__ = after
                 class_type_hints = get_type_hints(
                     _Temp, localns=local_ns, globalns=global_ns
@@ -960,7 +1020,9 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     return field_type
 
 
-def _replace_new_union_syntax_with_old_union_syntax(annotations_dict: Dict[str, str], local_ns: dict, global_ns: dict) -> Dict[str, Any]:
+def _replace_new_union_syntax_with_old_union_syntax(
+    annotations_dict: Dict[str, str], local_ns: dict, global_ns: dict
+) -> Dict[str, Any]:
     # Pretty hacky: Modify the type annotations of the class (preferably a copy of the class
     # if possible, to avoid modifying things in-place), and replace  the `a | b`-type
     # expressions with `Union[a, b]`, so that `get_type_hints` doesn't raise an error.
@@ -968,12 +1030,18 @@ def _replace_new_union_syntax_with_old_union_syntax(annotations_dict: Dict[str, 
 
     import builtins
 
-    def _get_type(ann: str) -> Union[type, str]: 
+    def _get_type(ann: str) -> Union[type, str]:
         # Try locals, then globals, then builtins. Otherwise, use the annotation itself.
-        return forward_refs_to_types.get(ann, local_ns.get(ann, global_ns.get(ann, getattr(builtins, ann, ann))))
-    
+        maps = collections.ChainMap(
+            forward_refs_to_types, local_ns, global_ns, builtins.__dict__
+        )
+        return maps.get(ann, ann)
+        # return forward_refs_to_types.get(ann, local_ns.get(ann, global_ns.get(ann, getattr(builtins, ann, ann))))
+
     def _not_supported() -> typing.NoReturn:
-        raise NotImplementedError(f"Don't yet support annotations like these: {annotations_dict}")
+        raise NotImplementedError(
+            f"Don't yet support annotations like these: {annotations_dict}"
+        )
 
     def _get_old_style_annotation(annotation: str) -> str:
         # TODO: Add proper support for things like `list[int | float]`, which isn't currently
@@ -981,24 +1049,26 @@ def _replace_new_union_syntax_with_old_union_syntax(annotations_dict: Dict[str, 
         if "|" not in annotation:
             return annotation
 
-        annotation = annotation.strip()        
+        annotation = annotation.strip()
         if "[" not in annotation:
             assert "]" not in annotation
             return "Union[" + ", ".join(v.strip() for v in annotation.split("|")) + "]"
-        
+
         before, lsep, rest = annotation.partition("[")
         middle, rsep, after = rest.rpartition("]")
-        assert not after.strip(), "can't have text at HERE in <something>[<something>]<HERE>!"
+        assert (
+            not after.strip()
+        ), "can't have text at HERE in <something>[<something>]<HERE>!"
 
         if "|" in before or "|" in after:
             _not_supported()
         assert "|" in middle
-        
+
         if "," in middle:
             parts = [v.strip() for v in middle.split(",")]
             parts = [_get_old_style_annotation(part) for part in parts]
             middle = ", ".join(parts)
-        
+
         new_middle = _get_old_style_annotation(annotation=middle)
         new_annotation = str(_get_type(before)) + lsep + new_middle + rsep + after
         return new_annotation
@@ -1009,6 +1079,7 @@ def _replace_new_union_syntax_with_old_union_syntax(annotations_dict: Dict[str, 
         new_annotations[field] = updated_annotation
 
     return new_annotations
+
 
 if __name__ == "__main__":
     import doctest
