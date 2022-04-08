@@ -960,6 +960,8 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
                     return typing.Dict[new_key_annotation, new_value_annotation]
                 if annotation in builtin_types:
                     return annotation
+                if inspect.isclass(annotation):
+                    return annotation
                 raise NotImplementedError(annotation)
 
             new_field_type = _replace_UnionTypes_with_typing_Union(field_type)
