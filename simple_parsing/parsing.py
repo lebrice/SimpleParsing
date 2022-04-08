@@ -13,6 +13,7 @@ from .conflicts import ConflictResolution, ConflictResolver
 from .help_formatter import SimpleHelpFormatter
 from .utils import Dataclass
 from .wrappers import DataclassWrapper, FieldWrapper, DashVariant
+from .wrappers.field_wrapper import FullPathMode
 
 logger = getLogger(__name__)
 
@@ -28,6 +29,7 @@ class ArgumentParser(argparse.ArgumentParser):
         conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
         add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
         add_dest_to_option_strings: bool = False,
+        force_full_path: FullPathMode = FullPathMode.DISABLED,
         formatter_class: Type[HelpFormatter] = SimpleHelpFormatter,
         **kwargs,
     ):
@@ -64,6 +66,14 @@ class ArgumentParser(argparse.ArgumentParser):
             `conflict_resolution` and each field ends up with a unique option
             string.
 
+        - force_full_path: FullPathMode, optional
+
+            Whether or not to force the full path to be used for the option string.
+            When set to FullPathMode.DISABLED (default), the option string is as
+            flatten as possible. When set to FullPathMode.FULL, the option string
+            is the full path to the field. Sometimes is desired to ignore the
+            first level. Use FullPathMode.FULL_WITHOUT_ROOT in such cases.
+
         - formatter_class : Type[HelpFormatter], optional
 
             The formatter class to use. By default, uses
@@ -86,6 +96,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing_done: bool = False
         FieldWrapper.add_dash_variants = add_option_string_dash_variants
         FieldWrapper.add_dest_to_option_strings = add_dest_to_option_strings
+        FieldWrapper.force_full_path = force_full_path
 
     @overload
     def add_arguments(

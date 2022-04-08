@@ -2,7 +2,7 @@ import argparse
 import typing
 import dataclasses
 import inspect
-from enum import Enum
+from enum import Enum, auto
 from logging import getLogger
 from typing import cast, ClassVar, Any, Optional, List, Type, Dict, Set, Union, Tuple
 
@@ -17,6 +17,19 @@ if typing.TYPE_CHECKING:
     from .dataclass_wrapper import DataclassWrapper
 
 logger = getLogger(__name__)
+
+
+class FullPathMode(Enum):
+    """
+    Whether or not to force the full path to be used for the option string.
+    When set to FullPathMode.DISABLED (default), the option string is as
+    flatten as possible. When set to FullPathMode.FULL, the option string
+    is the full path to the field. Sometimes is desired to ignore the
+    first level. Use FullPathMode.FULL_WITHOUT_ROOT in such cases.
+    """
+    DISABLED = auto()
+    FULL = auto()
+    FULL_WITHOUT_ROOT = auto()
 
 
 class DashVariant(Enum):
@@ -65,6 +78,9 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
     # Whether to add the `dest` to the list of option strings.
     add_dest_to_option_strings: ClassVar[bool] = True
+
+    # Whether to force all options to use its full path
+    force_full_path: ClassVar[FullPathMode] = FullPathMode.DISABLED
 
     def __init__(self, field: dataclasses.Field, parent: Any = None, prefix: str = ""):
         super().__init__(wrapped=field, name=field.name)
@@ -528,12 +544,18 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             return [self.dest]
 
         dashes.append(dash)
-        options.append(option)
+        force_full_path = type(self).force_full_path
+        base_option = option
+        if force_full_path == FullPathMode.FULL:
+            base_option = self.dest
+        elif force_full_path == FullPathMode.FULL_WITHOUT_ROOT:
+            base_option = ".".join(self.dest.split(".")[1:])
+        options.append(base_option)
 
         if dash == "-":
             # also add a double-dash option:
             dashes.append("--")
-            options.append(option)
+            options.append(base_option)
 
         # add all the aliases that were passed to the `field` function.
         for alias in self.aliases:
