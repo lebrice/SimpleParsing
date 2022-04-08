@@ -6,6 +6,8 @@ from enum import Enum
 from logging import getLogger
 from typing import cast, ClassVar, Any, Optional, List, Type, Dict, Set, Union, Tuple
 
+from simple_parsing.help_formatter import TEMPORARY_TOKEN
+
 from .. import docstring, utils
 
 # from ..utils import Dataclass, DataclassType
@@ -36,7 +38,7 @@ class DashVariant(Enum):
     AUTO = False
     UNDERSCORE = False
     UNDERSCORE_AND_DASH = True
-    DASH = 'only'
+    DASH = "only"
 
 
 class FieldWrapper(Wrapper[dataclasses.Field]):
@@ -188,9 +190,9 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         if self.help:
             _arg_options["help"] = self.help
         elif self.default is not None:
-            # issue 64: Need to add an empty 'help' string, so that the formatter
-            # automatically adds the (default: '123')
-            _arg_options["help"] = " "
+            # issue 64: Need to add a temporary 'help' string, so that the formatter
+            # automatically adds the (default: '123'). We then remove it.
+            _arg_options["help"] = TEMPORARY_TOKEN
 
         if utils.is_choice(self.field):
             _arg_options["type"] = str
@@ -903,7 +905,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     def equivalent_argparse_code(self):
         arg_options = self.arg_options.copy()
         arg_options_string = f"{{'type': {arg_options.pop('type', str).__qualname__}"
-        arg_options_string += str(arg_options).replace("{", ", ")
+        arg_options_string += str(arg_options).replace("{", ", ").replace(TEMPORARY_TOKEN, " ")
         return f"group.add_argument(*{self.option_strings}, **{arg_options_string})"
 
 
