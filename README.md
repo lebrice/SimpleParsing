@@ -64,7 +64,7 @@ Options ['options']:
 
     As developers, we want to make it easy for people coming into our projects to understand how to run them. However, a user-friendly `--help` message is often hard to write and to maintain, especially as the number of arguments increases.
 
-    With `simple-parsing`, your arguments and their decriptions are defined in the same place, making your code easier to read, write, and maintain.
+    With `simple-parsing`, your arguments and their descriptions are defined in the same place, making your code easier to read, write, and maintain.
 
 - ### Modular, Reusable, Cleanly Grouped Arguments
     
@@ -97,7 +97,7 @@ Options ['options']:
 
 - ### [**Inheritance**!](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance/README.md)
     
-    You can easily customize an existing argument class by extending it and adding your own attributes, which helps promote code reuse accross projects. For more info, take a look at the [inheritance example](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance_example.py)
+    You can easily customize an existing argument class by extending it and adding your own attributes, which helps promote code reuse across projects. For more info, take a look at the [inheritance example](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance_example.py)
 
 - ### [**Nesting**!](https://github.com/lebrice/SimpleParsing/tree/master/examples/nesting/README.md):
     

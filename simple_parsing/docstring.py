@@ -86,7 +86,7 @@ def get_attribute_docstring(
 
 
 def _contains_attribute_definition(line_str: str) -> bool:
-    """Returns wether or not a line contains a an dataclass field definition.
+    """Returns whether or not a line contains a an dataclass field definition.
 
     Arguments:
         line_str {str} -- the line content

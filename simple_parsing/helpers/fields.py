@@ -82,13 +82,13 @@ def field(
         will be prefixed with "-" if the string is one character and by "--"
         otherwise.
     cmd: bool, optional
-        Wether to add command-line arguments for this field or not. Defaults to
+        Whether to add command-line arguments for this field or not. Defaults to
         True.
 
     ## Serialization-related Keyword Arguments:
 
     to_dict : bool
-        Wether to include this field in the dictionary when calling `to_dict()`.
+        Whether to include this field in the dictionary when calling `to_dict()`.
         Defaults to True.
         Only has an effect when the dataclass containing this field is
         `Serializable`.
@@ -328,7 +328,7 @@ def mutable_field(
     metadata: Dict[str, Any] = None,
     **kwargs,
 ) -> T:
-    # TODO: Check wether some of the keyword arguments are destined for the `field` function, or for the partial?
+    # TODO: Check whether some of the keyword arguments are destined for the `field` function, or for the partial?
     default_factory = kwargs.pop("default_factory", functools.partial(_type, *args))
     return field(
         default_factory=default_factory,

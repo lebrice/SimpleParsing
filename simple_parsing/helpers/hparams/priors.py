@@ -116,7 +116,7 @@ class UniformPrior(Prior):
                 self.default = [self.default for _ in range(self.shape)]
 
     def sample(self) -> Union[float, int]:
-        # TODO: add suport for enums?
+        # TODO: add support for enums?
         if self.shape:
             assert isinstance(self.shape, int), "only support int shape for now."
             if numpy_installed:
