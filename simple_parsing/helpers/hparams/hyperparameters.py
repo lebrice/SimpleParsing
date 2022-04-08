@@ -50,7 +50,7 @@ class BoundInfo(Serializable):
     """Object used to provide the bounds as required by `GPyOpt`."""
 
     name: str
-    # One of 'continuous', 'discrete' or 'bandit' (unsuported).
+    # One of 'continuous', 'discrete' or 'bandit' (unsupported).
     type: str = "continuous"
     domain: Tuple[float, float] = (-math.inf, math.inf)
 

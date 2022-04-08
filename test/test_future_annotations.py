@@ -54,7 +54,7 @@ class ClassWithNewUnionSyntax(TestSetup):
 
 @dataclass
 class OtherClassWithNewUnionSyntax(ClassWithNewUnionSyntax):
-    """Create a child class without annotations, just to check taht they are picked up from the
+    """Create a child class without annotations, just to check that they are picked up from the
     base class.
     """
 

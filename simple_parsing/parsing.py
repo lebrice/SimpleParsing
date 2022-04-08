@@ -43,7 +43,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         - add_option_string_dash_variants : DashVariant, optional
 
-            Wether or not to add option_string variants where the underscores in
+            Whether or not to add option_string variants where the underscores in
             attribute names are replaced with dashes.
             For example, when set to DashVariant.UNDERSCORE_AND_DASH,
             "--no-cache" and "--no_cache" can both be used to point to the same
@@ -51,7 +51,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         - add_dest_to_option_strings: bool, optional
 
-            Wether or not to add the `dest` of each field to the list of option
+            Whether or not to add the `dest` of each field to the list of option
             strings for the argument.
             When True (default), each field can be referenced using either the
             auto-generated option string or the full 'destination' of the field
@@ -99,7 +99,8 @@ class ArgumentParser(argparse.ArgumentParser):
         pass
 
     @overload
-    def add_arguments(self,
+    def add_arguments(
+        self,
         dataclass: Dataclass,
         dest: str,
         prefix: str = "",
@@ -120,7 +121,7 @@ class ArgumentParser(argparse.ArgumentParser):
         Parameters
         ----------
         dataclass : Union[Dataclass, Type[Dataclass]]
-            The dataclass whose fields are to be parsed from the commnad-line.
+            The dataclass whose fields are to be parsed from the command-line.
             If an instance of a dataclass is given, it is used as the default
             value if none is provided.
         dest : str
@@ -147,7 +148,9 @@ class ArgumentParser(argparse.ArgumentParser):
             default = dataclass if default is None else default
             dataclass = type(dataclass)
 
-        new_wrapper = dataclass_wrapper_class(dataclass, dest, prefix=prefix, default=default)
+        new_wrapper = dataclass_wrapper_class(
+            dataclass, dest, prefix=prefix, default=default
+        )
         self._wrappers.append(new_wrapper)
 
     def parse_known_args(
@@ -302,7 +305,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 # constructor args are None, then the instance is None.
                 # TODO: How to discern the case where all values ARE none, and
                 # the case where the instance is to be None?
-                if wrapper.optional:
+                if wrapper.optional and wrapper.default is None:
                     all_default_or_none = True
                     for field_wrapper in wrapper.fields:
                         arg_value = constructor_args[field_wrapper.name]
