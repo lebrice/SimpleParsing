@@ -9,6 +9,7 @@ import pytest
 
 pytest.register_assert_rewrite("test.testutils")
 
+
 from simple_parsing import choice
 from simple_parsing.helpers import Serializable
 

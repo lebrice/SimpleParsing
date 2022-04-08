@@ -93,9 +93,11 @@ def assert_help_output_equals(actual: str, expected: str) -> None:
         expected = expected.replace("usage: pytest", f"usage: {prog}")
     remove = string.punctuation + string.whitespace
 
-    if "optional arguments" in expected and sys.version_info >= (3, 10):
+    if "optional arguments" in expected and sys.version_info[:2] >= (3, 10):
         expected = expected.replace("optional arguments", "options")
-    # actual_str = "".join(actual.split())
+
+    # assert actual == expected
+    actual_str = "".join(actual.split())
     actual_str = actual.translate(str.maketrans("", "", remove))
     expected_str = expected.translate(str.maketrans("", "", remove))
     assert actual_str == expected_str, "\n" + "\n".join([actual_str, expected_str])

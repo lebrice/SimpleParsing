@@ -172,29 +172,17 @@ def test_only_dashes():
 
     assert_help_output_equals(
         SomeClass.get_help_text(add_option_string_dash_variants=DashVariant.DASH),
-        """
-    usage: pytest [-h] --my-var int
-
-    optional arguments:
-    -h, --help            show this help message and exit
-
-    test_only_dashes.<locals>.SomeClass ['some_class']:
-    lol
-
-      --my-var int
-    """
-        if sys.version_info < (3, 9)
-        else textwrap.dedent(
+        textwrap.dedent(
             """\
-            usage: pytest [-h] --my_var int
-            
-            options:
-            -h, --help    show this help message and exit
-            
+            usage: pytest [-h] --my-var int
+
+            optional arguments:
+            -h, --help            show this help message and exit
+
             test_only_dashes.<locals>.SomeClass ['some_class']:
             lol
-            
-            --my_var int
+
+            --my-var int
             """
         ),
     )
