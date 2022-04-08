@@ -89,7 +89,7 @@ class Start:
 class Stop:
     """Stop command"""
 
-    value: str = "stop commmand value"
+    value: str = "stop command value"
 
     def execute(self, verbose=False):
         print(f"Stop (verbose: {verbose})")

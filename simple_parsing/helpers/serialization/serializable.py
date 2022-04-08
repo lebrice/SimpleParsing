@@ -202,7 +202,7 @@ class SerializableMixin:
         Args:
             cls (Type[D]): A dataclass type to load.
             path (Union[Path, str, IO[str]]): Path or Path string or open file.
-            drop_extra_fields (bool, optional): Wether to drop extra fields or
+            drop_extra_fields (bool, optional): Whether to drop extra fields or
                 to decode the dictionary into the first subclass with matching
                 fields. Defaults to None, in which case we use the value of
                 `cls.decode_into_subclasses`.
@@ -496,7 +496,7 @@ def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool =
         cls (Type[Dataclass]): A `dataclass` type.
         d (Dict[str, Any]): A dictionary of `raw` values, obtained for example
             when deserializing a json file into an instance of class `cls`.
-        drop_extra_fields (bool, optional): Wether or not to drop extra
+        drop_extra_fields (bool, optional): Whether or not to drop extra
             dictionary keys (dataclass fields) when encountered. There are three
             options:
             - True:
@@ -631,7 +631,7 @@ def get_first_non_None_type(optional_type: Union[Type, Tuple[Type, ...]]) -> Opt
 
 
 def is_dataclass_or_optional_dataclass_type(t: Type) -> bool:
-    """Returns wether `t` is a dataclass type or an Optional[<dataclass type>]."""
+    """Returns whether `t` is a dataclass type or an Optional[<dataclass type>]."""
     return is_dataclass(t) or (
         is_optional(t) and is_dataclass(get_args(t)[0])
     )

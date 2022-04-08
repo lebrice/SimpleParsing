@@ -78,9 +78,9 @@ def uniform(
         Maximum value.
 
     discrete : bool, optional
-        Wether this value is sampled discretely (an integer) or not. By default None, in
+        Whether this value is sampled discretely (an integer) or not. By default None, in
         which case the types of the `min`, `max` and `default` arguments
-        will be used to infer wether the field should be discrete or not.
+        will be used to infer whether the field should be discrete or not.
 
     default : Union[int, float], optional
         The default value to use. Not setting a value here makes this field a required
@@ -88,7 +88,7 @@ def uniform(
         version control feature of Orion. By default None.
 
     strict : bool, optional
-        Wether the bounds should be strictly enforced. When set to True, attempting to
+        Whether the bounds should be strictly enforced. When set to True, attempting to
         create an object with this field, and passing a value outside the bounds will
         raise a ValueError.
 
@@ -96,7 +96,7 @@ def uniform(
     -------
     Union[int, float]
         A `dataclasses.Field` object, with the prior stored in its metadata. The return
-        type annotation is intentionally "wrong", so that the type checker doesnt raise
+        type annotation is intentionally "wrong", so that the type checker doesn't raise
         errors when declaring fields on a dataclass, since their type annotations
         wouldn't match with the return type of this function.
     """
@@ -221,7 +221,7 @@ def categorical(
     This wraps the `choice` function from `simple_parsing`, making it possible to choose
     the value from the command-line.
 
-    The probabilites for each value should be passed through this `probabilities`
+    The probabilities for each value should be passed through this `probabilities`
     argument.
 
     Returns:
@@ -242,7 +242,7 @@ def categorical(
         choice_dict = choices[0]
         if probabilities and not isinstance(probabilities, dict):
             raise RuntimeError(
-                "Need to pass a dict of probabilites when passing a dict of choices."
+                "Need to pass a dict of probabilities when passing a dict of choices."
             )
         # TODO: If we use keys here, then we have to add a step in __post_init__ of the
         # dataclass holding this field, so that it gets the corresponding value from the

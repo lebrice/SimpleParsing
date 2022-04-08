@@ -119,7 +119,7 @@ class OptimizerParams:
     - 20: every 20 iterations, etc.
     """
     alt_opt_zn_start: int = 100000
-    """Alternating optimization start interation.
+    """Alternating optimization start interaction.
     - -1: starts immediately,
     - '100: starts alternating after the first 100 iterations.
     """

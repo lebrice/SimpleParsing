@@ -78,21 +78,21 @@ class TaskHyperParameters(TestSetup):
     num_units: int = 8
     # activation function
     activation: str = "tanh"
-    # wether or not to use batch normalization after each dense layer
+    # whether or not to use batch normalization after each dense layer
     use_batchnorm: bool = False
-    # wether or not to use dropout after each dense layer
+    # whether or not to use dropout after each dense layer
     use_dropout: bool = True
     # the dropout rate
     dropout_rate: float = 0.1
-    # wether or not image features should be used as input
+    # whether or not image features should be used as input
     use_image_features: bool = True
-    # wether or not 'likes' features should be used as input
+    # whether or not 'likes' features should be used as input
     use_likes: bool = True
     # L1 regularization coefficient
     l1_reg: float = 0.005
     # L2 regularization coefficient
     l2_reg: float = 0.005
-    # Wether or not a task-specific Embedding layer should be used on the 'likes' features.
+    # Whether or not a task-specific Embedding layer should be used on the 'likes' features.
     # When set to 'True', it is expected that there no shared embedding is used.
     embed_likes: bool = False
 
@@ -123,7 +123,7 @@ class HyperParameters(TestSetup):
 
     shared_likes_embedding: bool = True
 
-    # Wether or not to use Rémi's better kept like pages
+    # Whether or not to use Rémi's better kept like pages
     use_custom_likes: bool = True
 
     # Gender model settings:

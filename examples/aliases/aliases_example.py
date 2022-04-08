@@ -6,9 +6,9 @@ from simple_parsing import ArgumentParser, field
 class RunSettings:
     """Parameters for a run."""
 
-    # wether or not to execute in debug mode.
+    # whether or not to execute in debug mode.
     debug: bool = field(alias=["-d"], default=False)
-    # wether or not to add a lot of logging information.
+    # whether or not to add a lot of logging information.
     verbose: bool = field(alias=["-v"], action="store_true")
 
 

@@ -253,7 +253,7 @@ def get_argparse_type_for_container(
 
 def _mro(t: Type) -> List[Type]:
     # TODO: This is mostly used in 'is_tuple' and such, and should be replaced with
-    # either the build-in 'get_origin' from typing, or from typing-inspect.
+    # either the built-in 'get_origin' from typing, or from typing-inspect.
     if t is None:
         return []
     if hasattr(t, "__mro__"):
@@ -399,13 +399,13 @@ def is_set(t: Type) -> bool:
 
 
 def is_dataclass_type(t: Type) -> bool:
-    """Returns wether t is a dataclass type or a TypeVar of a dataclass type.
+    """Returns whether t is a dataclass type or a TypeVar of a dataclass type.
 
     Args:
         t (Type): Some type.
 
     Returns:
-        bool: Wether its a dataclass type.
+        bool: Whether its a dataclass type.
     """
     return dataclasses.is_dataclass(t) or (
         is_typevar(t) and dataclasses.is_dataclass(get_bound(t))
@@ -427,13 +427,13 @@ def is_tuple_or_list(t: Type) -> bool:
 
 
 def is_union(t: Type) -> bool:
-    """Returns wether or not the given Type annotation is a variant (or subclass) of typing.Union
+    """Returns whether or not the given Type annotation is a variant (or subclass) of typing.Union
 
     Args:
         t (Type): some type annotation
 
     Returns:
-        bool: Wether this type represents a Union type.
+        bool: Whether this type represents a Union type.
 
     >>> from typing import *
     >>> is_union(Union[int, str])
@@ -447,7 +447,7 @@ def is_union(t: Type) -> bool:
 
 
 def is_homogeneous_tuple_type(t: Type[Tuple]) -> bool:
-    """Returns wether the given Tuple type is homogeneous: if all items types are the
+    """Returns whether the given Tuple type is homogeneous: if all items types are the
     same.
 
     This also includes Tuple[<some_type>, ...]
@@ -502,7 +502,7 @@ def is_optional(t: Type) -> bool:
     Returns
     -------
     bool
-        Wether or not this is an Optional.
+        Whether or not this is an Optional.
 
     >>> from typing import Union, Optional, List
     >>> is_optional(str)
@@ -649,7 +649,7 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
             logger.debug(
                 f"Exception while trying to parse '{value}' as a literal: {type(e)}: {e}"
             )
-            # if it doesnt work, fall back to the parse_fn.
+            # if it doesn't work, fall back to the parse_fn.
             values = _fallback_parse(value)
 
         # we do the default 'argparse' action, which is to add the values to a bigger list of values.
