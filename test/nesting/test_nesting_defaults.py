@@ -36,7 +36,7 @@ class TrainConfig(Serializable):
     dp_config: Optional[DPTraining] = None
     adv_config: Optional[AdvTraining] = None
     ...
-    cpu: Optional[bool] = False
+    cpu: bool = False
 
 
 import shlex
