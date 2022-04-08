@@ -15,6 +15,9 @@ def set_seed(seed: int) -> None:
     except ImportError:
         pass
     else:
-        torch.manual_seed(seed)
-        if torch.cuda.is_available():
-            torch.cuda.manual_seed_all(seed)
+        try:
+            torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(seed)
+        except AttributeError:
+            pass

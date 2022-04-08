@@ -44,6 +44,8 @@ def assert_equals_stdout(capsys):
     import difflib
 
     def should_equal(expected: str, file_path: str):
+        if "optional arguments" in expected and sys.version_info >= (3, 10):
+            expected = expected.replace("optional arguments", "options")
         out = capsys.readouterr().out
         # assert strip(out) == strip(expected), file_path
         # assert out == expected, file_path
