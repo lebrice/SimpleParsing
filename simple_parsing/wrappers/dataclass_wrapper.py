@@ -126,10 +126,14 @@ class DataclassWrapper(Wrapper[Dataclass]):
             # wrapped_field.add_subparsers(parser)
 
             elif wrapped_field.arg_options:
+                options = wrapped_field.arg_options
+                if argparse.SUPPRESS in self.defaults:
+                    options['default'] = argparse.SUPPRESS
+
                 logger.debug(
-                    f"Arg options for field '{wrapped_field.name}': {wrapped_field.arg_options}"
+                    f"Arg options for field '{wrapped_field.name}': {options}"
                 )
-                group.add_argument(*wrapped_field.option_strings, **wrapped_field.arg_options)
+                group.add_argument(*wrapped_field.option_strings, **options)
 
     def equivalent_argparse_code(self, leading="group") -> str:
         code = ""
@@ -184,6 +188,8 @@ class DataclassWrapper(Wrapper[Dataclass]):
             for default in self.parent.defaults:
                 if default is None:
                     default = None
+                elif default == argparse.SUPPRESS:
+                    default = argparse.SUPPRESS
                 else:
                     default = getattr(default, self.name)
                 self._defaults.append(default)
