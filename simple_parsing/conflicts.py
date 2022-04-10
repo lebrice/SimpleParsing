@@ -1,11 +1,7 @@
-import argparse
 import enum
-from abc import ABC, abstractmethod
 from collections import defaultdict
 from logging import getLogger
 from typing import *
-from . import utils
-from .utils import Dataclass
 from .wrappers import DataclassWrapper, FieldWrapper
 
 
@@ -58,16 +54,15 @@ class Conflict(NamedTuple):
 
 class ConflictResolver:
     def __init__(self, conflict_resolution=ConflictResolution.AUTO):
-        self._wrappers: List[DataclassWrapper] = []
         self.conflict_resolution = conflict_resolution
 
     def resolve(self, wrappers: List[DataclassWrapper]) -> List[DataclassWrapper]:
-        assert not self._wrappers
+        wrappers_flat = []
         for wrapper in wrappers:
-            self._wrappers.append(wrapper)
-            self._wrappers.extend(wrapper.descendants)
+            wrappers_flat.append(wrapper)
+            wrappers_flat.extend(wrapper.descendants)
 
-        conflict = self.get_conflict(self._wrappers)
+        conflict = self.get_conflict(wrappers_flat)
 
         # current and maximum number of attempts. When reached, raises an error.
         cur_attempts, max_attempts = 0, 50
@@ -87,12 +82,12 @@ class ConflictResolver:
                 self._fix_conflict_explicit(conflict)
 
             elif self.conflict_resolution == ConflictResolution.ALWAYS_MERGE:
-                self._fix_conflict_merge(conflict)
+                wrappers_flat = self._fix_conflict_merge(conflict, wrappers_flat)
 
             elif self.conflict_resolution == ConflictResolution.AUTO:
                 self._fix_conflict_auto(conflict)
 
-            conflict = self.get_conflict(self._wrappers)
+            conflict = self.get_conflict(wrappers_flat)
             cur_attempts += 1
             if cur_attempts == max_attempts:
                 raise ConflictResolutionError(
@@ -111,8 +106,8 @@ class ConflictResolver:
                     "&title=BUG: ConflictResolutionError"
                 )
 
-        assert not self._conflict_exists(self._wrappers)
-        return self._wrappers
+        assert not self._conflict_exists(wrappers_flat)
+        return wrappers_flat
 
     def get_conflict(
         self, wrappers: Union[List[FieldWrapper], List[DataclassWrapper]]
@@ -136,26 +131,35 @@ class ConflictResolver:
                 return Conflict(option_string, wrappers)
         return None
 
-    def _register(
-        self, wrapper: Union[DataclassWrapper, FieldWrapper]
+    def _add(
+        self,
+        wrapper: Union[DataclassWrapper, FieldWrapper],
+        wrappers: List[DataclassWrapper]
     ) -> DataclassWrapper:
         if isinstance(wrapper, FieldWrapper):
             wrapper = wrapper.parent
         assert isinstance(wrapper, DataclassWrapper)
-        logger.debug(f"Registering new DataclassWrapper: {wrapper}")
-        self._wrappers.append(wrapper)
-        self._wrappers.extend(wrapper.descendants)
-        return wrapper
+        logger.debug(f"Adding new DataclassWrapper: {wrapper}")
+        wrappers.append(wrapper)
+        wrappers.extend(wrapper.descendants)
 
-    def _unregister(self, wrapper: Union[DataclassWrapper, FieldWrapper]):
+        return wrappers
+
+    def _remove(
+        self,
+        wrapper: Union[DataclassWrapper, FieldWrapper],
+        wrappers: List[DataclassWrapper]
+    ):
         if isinstance(wrapper, FieldWrapper):
             wrapper = wrapper.parent
         assert isinstance(wrapper, DataclassWrapper)
-        logger.debug(f"Unregistering DataclassWrapper {wrapper}")
-        self._wrappers.remove(wrapper)
+        logger.debug(f"Removing DataclassWrapper {wrapper}")
+        wrappers.remove(wrapper)
         for child in wrapper.descendants:
-            logger.debug(f"\tAlso Unregistering Child DataclassWrapper {child}")
-            self._wrappers.remove(child)
+            logger.debug(f"\tAlso Removing Child DataclassWrapper {child}")
+            wrappers.remove(child)
+
+        return wrappers
 
     def _fix_conflict_explicit(self, conflict: Conflict):
         """Fixes conflicts between arguments following the "Explicit" approach.
@@ -291,7 +295,7 @@ class ConflictResolver:
             field_wrapper.prefix = word_to_add + "." + current_prefix
             logger.debug(f"New prefix: {field_wrapper.prefix}")
 
-    def _fix_conflict_merge(self, conflict: Conflict):
+    def _fix_conflict_merge(self, conflict: Conflict, wrappers_flat: List[DataclassWrapper]):
         """Fix conflicts using the merging approach.
 
         The first wrapper is kept, and the rest of the wrappers are absorbed
@@ -313,14 +317,16 @@ class ConflictResolver:
 
         assert len(conflict.wrappers) > 1
         first_wrapper: FieldWrapper = fields[0]
-        self._unregister(first_wrapper.parent)
+        wrappers_flat = self._remove(first_wrapper.parent, wrappers_flat)
 
         for wrapper in conflict.wrappers[1:]:
-            self._unregister(wrapper.parent)
+            wrappers_flat = self._remove(wrapper.parent, wrappers_flat)
             first_wrapper.parent.merge(wrapper.parent)
 
         assert first_wrapper.parent.multiple
-        self._register(first_wrapper.parent)
+        wrappers_flat = self._add(first_wrapper.parent, wrappers_flat)
+
+        return wrappers_flat
 
     def _get_conflicting_group(
         self, all_wrappers: List[DataclassWrapper]
