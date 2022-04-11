@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from simple_parsing import ArgumentParser, choice, field
+from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode
 
 
 @dataclass
@@ -42,7 +43,7 @@ HParams ['hparams']:
 """
 
 # Now if we wanted to also be able to set the arguments using their full paths:
-parser = ArgumentParser(add_dest_to_option_strings=True)
+parser = ArgumentParser(argument_generation_mode=ArgumentGenerationMode.BOTH)
 parser.add_arguments(HParams, dest="hparams")
 parser.print_help()
 expected += """

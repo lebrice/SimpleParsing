@@ -29,6 +29,7 @@ from simple_parsing import (
 )
 from simple_parsing.utils import camel_case
 from simple_parsing.wrappers import DataclassWrapper
+from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
 xfail = pytest.mark.xfail
 parametrize = pytest.mark.parametrize
@@ -135,6 +136,10 @@ class TestSetup:
         add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
         parse_known_args: bool = False,
         attempt_to_reorder: bool = False,
+        *,
+        argument_generation_mode: ArgumentGenerationMode = ArgumentGenerationMode.FLAT,
+        nested_mode: NestedMode = NestedMode.DEFAULT,
+
     ) -> Dataclass:
         """Basic setup for a test.
 
@@ -148,6 +153,8 @@ class TestSetup:
         parser = simple_parsing.ArgumentParser(
             conflict_resolution=conflict_resolution_mode,
             add_option_string_dash_variants=add_option_string_dash_variants,
+            argument_generation_mode=argument_generation_mode,
+            nested_mode=nested_mode,
         )
         if dest is None:
             dest = camel_case(cls.__name__)

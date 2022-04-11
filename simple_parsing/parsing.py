@@ -13,7 +13,7 @@ from .conflicts import ConflictResolution, ConflictResolver
 from .help_formatter import SimpleHelpFormatter
 from .utils import Dataclass
 from .wrappers import DataclassWrapper, FieldWrapper, DashVariant
-from .wrappers.field_wrapper import FullPathMode
+from .wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
 logger = getLogger(__name__)
 
@@ -28,8 +28,8 @@ class ArgumentParser(argparse.ArgumentParser):
         *args,
         conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
         add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
-        add_dest_to_option_strings: bool = False,
-        force_full_path: FullPathMode = FullPathMode.DISABLED,
+        argument_generation_mode = ArgumentGenerationMode.FLAT,
+        nested_mode: NestedMode = NestedMode.DEFAULT,
         formatter_class: Type[HelpFormatter] = SimpleHelpFormatter,
         **kwargs,
     ):
@@ -51,28 +51,33 @@ class ArgumentParser(argparse.ArgumentParser):
             "--no-cache" and "--no_cache" can both be used to point to the same
             attribute `no_cache` on some dataclass.
 
-        - add_dest_to_option_strings: bool, optional
+        - argument_generation_mode : ArgumentGenerationMode, optional
 
-            Whether or not to add the `dest` of each field to the list of option
-            strings for the argument.
-            When True (default), each field can be referenced using either the
-            auto-generated option string or the full 'destination' of the field
-            in the resulting namespace.
-            When False, only uses the auto-generated option strings.
+            How to generate the arguments. In the ArgumentGenerationMode.FLAT mode,
+            the default one, the arguments are flat when possible, ignoring
+            their nested structure and including it only on the presence of a
+            conflict.
 
-            The auto-generated option strings are usually just the field names,
-            except when there are multiple arguments with the same name. In this
-            case, the conflicts are resolved as determined by the value of
-            `conflict_resolution` and each field ends up with a unique option
-            string.
+            In the ArgumentGenerationMode.NESTED mode, the arguments are always
+            composed reflecting their nested structure.
 
-        - force_full_path: FullPathMode, optional
+            In the ArgumentGenerationMode.BOTH mode, both kind of arguments
+            are generated.
 
-            Whether or not to force the full path to be used for the option string.
-            When set to FullPathMode.DISABLED (default), the option string is as
-            flatten as possible. When set to FullPathMode.FULL, the option string
-            is the full path to the field. Sometimes is desired to ignore the
-            first level. Use FullPathMode.FULL_WITHOUT_ROOT in such cases.
+        - nested_mode : NestedMode, optional
+
+            How to handle argument generation in for nested arguments
+            in the modes ArgumentGenerationMode.NESTED and ArgumentGenerationMode.BOTH.
+            In the NestedMode.DEFAULT mode, the nested arguments are generated
+            reflecting their full 'destination' path from the returning namespace.
+
+            In the NestedMode.WITHOUT_ROOT, the first level is removed. This is useful
+            because sometimes the first level is uninformative. For example,
+            'args'  is redundant and worthless for the arguments
+            '--args.input.path --args.output.path'.
+            We would prefer to remove the root level in such a case
+             so that the arguments get generated as
+            '--input.path --output.path'.
 
         - formatter_class : Type[HelpFormatter], optional
 
@@ -95,8 +100,8 @@ class ArgumentParser(argparse.ArgumentParser):
 
         self._preprocessing_done: bool = False
         FieldWrapper.add_dash_variants = add_option_string_dash_variants
-        FieldWrapper.add_dest_to_option_strings = add_dest_to_option_strings
-        FieldWrapper.force_full_path = force_full_path
+        FieldWrapper.argument_generation_mode = argument_generation_mode
+        FieldWrapper.nested_mode = nested_mode
 
     @overload
     def add_arguments(
