@@ -44,17 +44,21 @@ def assert_equals_stdout(capsys):
     import difflib
 
     def should_equal(expected: str, file_path: str):
+        if "optional arguments" in expected and sys.version_info >= (3, 10):
+            expected = expected.replace("optional arguments", "options")
         out = capsys.readouterr().out
         # assert strip(out) == strip(expected), file_path
         # assert out == expected, file_path
         out_lines = out.splitlines(keepends=False)
         out_lines = [line.strip() for line in out_lines if line and not line.isspace()]
         expected_lines = expected.splitlines(keepends=False)
-        expected_lines = [
-            line.strip() for line in expected_lines if line and not line.isspace()
-        ]
+        expected_lines = [line.strip() for line in expected_lines if line and not line.isspace()]
         if sys.version_info[:2] >= (3, 9):
-            assert Counter("".join(out_lines)) == Counter("".join(expected_lines))
+            # Ordering of values in a `Namespace` object are different!
+            assert Counter("".join(out_lines)) == Counter("".join(expected_lines)), (
+                out_lines,
+                expected_lines,
+            )
         else:
             assert out_lines == expected_lines, file_path
 

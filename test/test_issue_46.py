@@ -1,9 +1,11 @@
+from io import StringIO
 from dataclasses import dataclass
 import simple_parsing
+from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode
 import textwrap
 import pytest
 
-from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode
+from test.testutils import assert_help_output_equals
 
 
 @dataclass
@@ -18,27 +20,52 @@ def test_issue_46(assert_equals_stdout):
     parser.add_argument("--run_id", type=str)
     parser.add_arguments(JBuildRelease, dest="jbuild", prefix="jbuild")
 
-    parser.print_help()
-
-    assert_equals_stdout(
-        textwrap.dedent(
+    s = StringIO()
+    parser.print_help
+    parser.print_help(s)
+    s.seek(0)
+    output = str(s.read())
+    
+    assert_help_output_equals(
+        actual=output,
+        expected=textwrap.dedent(
             """\
         usage: pytest [-h] [--run_id str] --jbuildid int --jbuildurl str
-                      --jbuilddocker_image str
+                    --jbuilddocker_image str
         
         optional arguments:
-          -h, --help            show this help message and exit
-          --run_id str
+        -h, --help            show this help message and exit
+        --run_id str
         
         JBuildRelease ['jbuild']:
-          JBuildRelease(id:int, url:str, docker_image:str)
+        JBuildRelease(id:int, url:str, docker_image:str)
         
-          --jbuildid int
-          --jbuildurl str
-          --jbuilddocker_image str
+        --jbuildid int
+        --jbuildurl str
+        --jbuilddocker_image str
         """
-        )
+        ),
     )
+
+    # assert_equals_stdout(
+    #     textwrap.dedent(
+    #         """\
+    #         usage: pytest [-h] [--run_id str] --jbuildid int --jbuildurl str
+    #                     --jbuilddocker_image str
+
+    #         optional arguments:
+    #         -h, --help            show this help message and exit
+    #         --run_id str
+
+    #         JBuildRelease ['jbuild']:
+    #         JBuildRelease(id:int, url:str, docker_image:str)
+
+    #         --jbuildid int
+    #         --jbuildurl str
+    #         --jbuilddocker_image str
+    #         """
+    #     )
+    # )
     from .testutils import raises_missing_required_arg
 
     with raises_missing_required_arg():
@@ -52,26 +79,29 @@ def test_issue_46_solution2(assert_equals_stdout):
     parser = simple_parsing.ArgumentParser(argument_generation_mode=ArgumentGenerationMode.BOTH)
     parser.add_argument("--run_id", type=str)
     parser.add_arguments(JBuildRelease, dest="jbuild", prefix="jbuild.")
-
-    parser.print_help()
-    assert_equals_stdout(
-        textwrap.dedent(
+    s = StringIO()
+    parser.print_help(s)
+    s.seek(0)
+    output = str(s.read())
+    assert_help_output_equals(
+        actual=output,
+        expected=textwrap.dedent(
             """\
-        usage: pytest [-h] [--run_id str] --jbuild.id int --jbuild.url str
-                      --jbuild.docker_image str
+            usage: pytest [-h] [--run_id str] --jbuild.id int --jbuild.url str
+                        --jbuild.docker_image str
 
-        optional arguments:
-          -h, --help            show this help message and exit
-          --run_id str
+            optional arguments:
+            -h, --help            show this help message and exit
+            --run_id str
 
-        JBuildRelease ['jbuild']:
-          JBuildRelease(id:int, url:str, docker_image:str)
+            JBuildRelease ['jbuild']:
+            JBuildRelease(id:int, url:str, docker_image:str)
 
-          --jbuild.id int
-          --jbuild.url str
-          --jbuild.docker_image str
-        """
-        )
+            --jbuild.id int
+            --jbuild.url str
+            --jbuild.docker_image str
+            """
+        ),
     )
 
 

@@ -115,7 +115,8 @@ class ArgumentParser(argparse.ArgumentParser):
         pass
 
     @overload
-    def add_arguments(self,
+    def add_arguments(
+        self,
         dataclass: Dataclass,
         dest: str,
         prefix: str = "",
@@ -163,7 +164,9 @@ class ArgumentParser(argparse.ArgumentParser):
             default = dataclass if default is None else default
             dataclass = type(dataclass)
 
-        new_wrapper = dataclass_wrapper_class(dataclass, dest, prefix=prefix, default=default)
+        new_wrapper = dataclass_wrapper_class(
+            dataclass, dest, prefix=prefix, default=default
+        )
         self._wrappers.append(new_wrapper)
 
     def parse_known_args(
@@ -318,7 +321,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 # constructor args are None, then the instance is None.
                 # TODO: How to discern the case where all values ARE none, and
                 # the case where the instance is to be None?
-                if wrapper.optional:
+                if wrapper.optional and wrapper.default is None:
                     all_default_or_none = True
                     for field_wrapper in wrapper.fields:
                         arg_value = constructor_args[field_wrapper.name]
