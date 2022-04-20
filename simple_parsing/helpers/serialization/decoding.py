@@ -1,11 +1,13 @@
 """ Functions for decoding dataclass fields from "raw" values (e.g. from json).
 """
+import inspect
 import warnings
 from collections import OrderedDict
 from dataclasses import Field, fields
 from functools import lru_cache, partial
 from logging import getLogger
 from typing import TypeVar, Any, Dict, Type, Callable, Optional, Union, List, Tuple, Set
+
 
 from simple_parsing.utils import (
     get_type_arguments,
@@ -94,6 +96,35 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
     # cache_info = get_decoding_fn.cache_info()
     # logger.debug(f"called for type {t}! Cache info: {cache_info}")
 
+    if isinstance(t, str):
+        # Type annotation is a string.
+        # This can happen when the `from __future__ import annotations` feature is used.
+        potential_keys: List[Type] = []
+        for key in _decoding_fns:
+            if inspect.isclass(key):
+                if key.__qualname__ == t:
+                    # Qualname is more specific, there can't possibly be another match, so break.
+                    potential_keys.append(key)
+                    break
+                if key.__qualname__ == t:
+                    # For just __name__, there could be more than one match.
+                    potential_keys.append(key)
+
+        if not potential_keys:
+            raise ValueError(
+                f"Couldn't find a decoding function for the string annotation '{t}'.\n"
+                f"This is probably a bug. If it is, please make an issue on GitHub so we can get "
+                f"to work on fixing it."
+            )
+        if len(potential_keys) == 1:
+            t = potential_keys[0]
+        else:
+            raise ValueError(
+                f"Multiple decoding functions registered for a type {t}: {potential_keys} \n"
+                f"This could be a bug, but try to use different names for each type, or add the "
+                f"modules they come from as a prefix, perhaps?"
+            )
+
     if t in _decoding_fns:
         # The type has a dedicated decoding function.
         return _decoding_fns[t]
@@ -175,8 +206,9 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
     # Unknown type.
     warnings.warn(
         UserWarning(
-            f"Unable to find a decoding function for type {t}. "
-            f"Will try to use the type as a constructor."
+            f"Unable to find a decoding function for the annotation {t} (of type {type(t)}). "
+            f"Will try to use the type as a constructor. Consider registering a decoding function "
+            f"using `register_decoding_fn`, or posting an issue on GitHub. "
         )
     )
     return try_constructor(t)
