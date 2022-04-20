@@ -206,8 +206,9 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
     # Unknown type.
     warnings.warn(
         UserWarning(
-            f"Unable to find a decoding function for type {t}. "
-            f"Will try to use the type as a constructor."
+            f"Unable to find a decoding function for the annotation {t} (of type {type(t)}). "
+            f"Will try to use the type as a constructor. Consider registering a decoding function "
+            f"using `register_decoding_fn`, or posting an issue on GitHub. "
         )
     )
     return try_constructor(t)
