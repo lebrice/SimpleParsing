@@ -71,11 +71,12 @@ class ArgumentParser(argparse.ArgumentParser):
             In the NestedMode.DEFAULT mode, the nested arguments are generated
             reflecting their full 'destination' path from the returning namespace.
 
-            In the NestedMode.WITHOUT_ROOT, the first level is removed. This is useful
-            because sometimes the first level is uninformative. For example,
-            'args'  is redundant and worthless for the arguments
+            In the NestedMode.WITHOUT_ROOT, the first level is removed. This is useful when
+            parser.add_arguments is only called once, and where the same prefix would be shared
+            by all arguments. For example, if you have a single dataclass MyArguments and
+            you call parser.add_arguments(MyArguments, "args"), the arguments could look like this:
             '--args.input.path --args.output.path'.
-            We would prefer to remove the root level in such a case
+            We could prefer to remove the root level in such a case
              so that the arguments get generated as
             '--input.path --output.path'.
 
