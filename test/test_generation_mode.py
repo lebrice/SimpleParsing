@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from pathlib import Path
 
 import pytest
 
@@ -20,19 +19,14 @@ class ServerOptions(TestSetup):
   model: ModelOptions
 
 
-def assert_as_expected(options: ServerOptions):
-    assert isinstance(options, ServerOptions)
-    assert options.host == "myserver"
-    assert options.port == 80
-    assert options.model.path == "a_path"
-    assert options.model.device == "cpu"
+expected = ServerOptions(host="myserver", port=80, model=ModelOptions(path="a_path", device="cpu"))
 
 
 def test_flat():
       options = ServerOptions.setup(
           "--host myserver " "--port 80 " "--path a_path " "--device cpu",
       )
-      assert_as_expected(options)
+      assert options == expected
 
       with pytest.raises(SystemExit):
           ServerOptions.setup(
@@ -48,7 +42,7 @@ def test_both(without_root):
         dest="opts",
         argument_generation_mode=ArgumentGenerationMode.BOTH
     )
-    assert_as_expected(options)
+    assert options == expected
 
     args = "--opts.host myserver " "--opts.port 80 " "--opts.model.path a_path " "--opts.model.device cpu"
     if without_root:
@@ -59,7 +53,7 @@ def test_both(without_root):
         argument_generation_mode=ArgumentGenerationMode.BOTH,
         nested_mode=NestedMode.WITHOUT_ROOT if without_root else NestedMode.DEFAULT,
     )
-    assert_as_expected(options)
+    assert options == expected
 
 
 @pytest.mark.parametrize("without_root", [True, False])
@@ -80,4 +74,4 @@ def test_nested(without_root):
         argument_generation_mode=ArgumentGenerationMode.NESTED,
         nested_mode=NestedMode.WITHOUT_ROOT if without_root else NestedMode.DEFAULT,
     )
-    assert_as_expected(options)
+    assert options == expected
