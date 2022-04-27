@@ -2,7 +2,7 @@ import argparse
 import typing
 import dataclasses
 import inspect
-from enum import Enum
+from enum import Enum, auto
 from logging import getLogger
 from typing import cast, ClassVar, Any, Optional, List, Type, Dict, Set, Union, Tuple
 
@@ -19,6 +19,29 @@ if typing.TYPE_CHECKING:
     from .dataclass_wrapper import DataclassWrapper
 
 logger = getLogger(__name__)
+
+
+class ArgumentGenerationMode(Enum):
+    """
+    Enum for argument generation modes.
+    """
+    # Tries to generate flat arguments, removing the argument destination path when possible.
+    FLAT = auto()
+    # Generates arguments with their full destination path.
+    NESTED = auto()
+    # Generates both the flat and nested arguments.
+    BOTH = auto()
+
+
+class NestedMode(Enum):
+    """
+    Controls how nested arguments are generated.
+    """
+    # By default, the full destination path is used.
+    DEFAULT = auto()
+    # The full destination path is used, but the first level is removed.
+    # Useful because sometimes the first level is uninformative (i.e. 'args').
+    WITHOUT_ROOT = auto()
 
 
 class DashVariant(Enum):
@@ -65,8 +88,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     # TODO: This can often make "--help" messages a bit crowded
     add_dash_variants: ClassVar[DashVariant] = DashVariant.AUTO
 
-    # Whether to add the `dest` to the list of option strings.
-    add_dest_to_option_strings: ClassVar[bool] = True
+    # Whether to follow a flat or nested argument structure.
+    argument_generation_mode: ClassVar[ArgumentGenerationMode] = ArgumentGenerationMode.FLAT
+
+    # Controls how nested arguments are generated.
+    nested_mode: ClassVar[NestedMode] = NestedMode.DEFAULT
 
     def __init__(self, field: dataclasses.Field, parent: Any = None, prefix: str = ""):
         super().__init__(wrapped=field, name=field.name)
@@ -517,11 +543,20 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         dashes: List[str] = []  # contains the leading dashes.
         options: List[str] = []  # contains the name following the dashes.
 
+        def add_args(dash:str, candidates: List[str]) -> None:
+            for candidate in candidates:
+                options.append(candidate)
+                dashes.append(dash)
+
         # Handle user passing us "True" or "only" directly.
         add_dash_variants = DashVariant(FieldWrapper.add_dash_variants)
 
+        gen_mode = type(self).argument_generation_mode
+        nested_mode = type(self).nested_mode
+
         dash = "-" if len(self.name) == 1 else "--"
         option = f"{self.prefix}{self.name}"
+        nested_option = self.dest if nested_mode == NestedMode.DEFAULT else ".".join(self.dest.split(".")[1:])
         if add_dash_variants == DashVariant.DASH:
             option = option.replace("_", "-")
 
@@ -529,13 +564,18 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             # Can't be positional AND have flags at same time. Also, need dest to be be this and not just option.
             return [self.dest]
 
-        dashes.append(dash)
-        options.append(option)
+        if gen_mode == ArgumentGenerationMode.FLAT:
+            candidates = [option]
+        elif gen_mode == ArgumentGenerationMode.NESTED:
+            candidates = [nested_option]
+        else:
+            candidates = [option, nested_option]
+
+        add_args(dash, candidates)
 
         if dash == "-":
             # also add a double-dash option:
-            dashes.append("--")
-            options.append(option)
+            add_args("--", candidates)
 
         # add all the aliases that were passed to the `field` function.
         for alias in self.aliases:
@@ -566,10 +606,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             ]
             options.extend(additional_options)
             dashes.extend(additional_dashes)
-
-        if type(self).add_dest_to_option_strings:
-            dashes.append("-" if len(self.dest) == 1 else "--")
-            options.append(self.dest)
 
         # remove duplicates by creating a set.
         option_strings = set(f"{dash}{option}" for dash, option in zip(dashes, options))

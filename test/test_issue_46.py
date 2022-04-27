@@ -1,6 +1,7 @@
 from io import StringIO
 from dataclasses import dataclass
 import simple_parsing
+from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode
 import textwrap
 import pytest
 
@@ -75,7 +76,7 @@ def test_issue_46(assert_equals_stdout):
 
 def test_issue_46_solution2(assert_equals_stdout):
     # This (now) works:
-    parser = simple_parsing.ArgumentParser(add_dest_to_option_strings=True)
+    parser = simple_parsing.ArgumentParser(argument_generation_mode=ArgumentGenerationMode.BOTH)
     parser.add_argument("--run_id", type=str)
     parser.add_arguments(JBuildRelease, dest="jbuild", prefix="jbuild.")
     s = StringIO()
