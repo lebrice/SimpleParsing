@@ -194,12 +194,39 @@ def test_parsing_containers_of_unions():
         vals_tuple: tuple[int | float, bool] = field(default=(1, False))
 
     assert MoreComplex.setup("--vals_list 456 123") == MoreComplex(vals_list=[456, 123])
-    assert MoreComplex.setup("--vals_list 4.56 1.23") == MoreComplex(
-        vals_list=[4.56, 1.23]
-    )
-    assert MoreComplex.setup("--vals_tuple 456 False") == MoreComplex(
-        vals_tuple=(456, False)
-    )
-    assert MoreComplex.setup("--vals_tuple 4.56 True") == MoreComplex(
-        vals_tuple=(4.56, True)
-    )
+    assert MoreComplex.setup("--vals_list 4.56 1.23") == MoreComplex(vals_list=[4.56, 1.23])
+    assert MoreComplex.setup("--vals_tuple 456 False") == MoreComplex(vals_tuple=(456, False))
+    assert MoreComplex.setup("--vals_tuple 4.56 True") == MoreComplex(vals_tuple=(4.56, True))
+
+
+from dataclasses import dataclass
+from simple_parsing.helpers import Serializable
+
+
+@dataclass
+class Opts1(Serializable):
+    a: int = 64
+    b: float = 1.0
+
+
+@dataclass
+class Opts2(Serializable):
+    a: int = 32
+    b: float = 0.0
+
+
+@dataclass
+class Wrapper(Serializable):
+    opts1: Opts1 = Opts1()
+    opts2: Opts2 = Opts2()
+
+
+def test_serialization_deserialization():
+    # Show that it's not possible to deserialize nested dataclasses
+    opts = Wrapper()
+    assert Wrapper in Serializable.subclasses
+    assert Opts1 in Serializable.subclasses
+    assert Opts2 in Serializable.subclasses
+    assert Wrapper.from_dict(opts.to_dict()) == opts
+    assert Wrapper.loads_json(opts.dumps_json()) == opts
+    assert Wrapper.loads_yaml(opts.dumps_yaml()) == opts
