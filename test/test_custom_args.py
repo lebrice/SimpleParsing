@@ -165,29 +165,55 @@ def test_store_false_action():
 
 def test_only_dashes():
     @dataclass
+    class AClass(TestSetup):
+        """foo"""
+
+        a_var: int
+
+
+    @dataclass
     class SomeClass(TestSetup):
         """lol"""
 
         my_var: int
+        a: AClass
 
     assert_help_output_equals(
         SomeClass.get_help_text(add_option_string_dash_variants=DashVariant.DASH),
         textwrap.dedent(
             """\
-            usage: pytest [-h] --my-var int
+            usage: pytest [-h] --my-var int --a-var int
 
             optional arguments:
-            -h, --help            show this help message and exit
-
+              -h, --help    show this help message and exit
+            
             test_only_dashes.<locals>.SomeClass ['some_class']:
-            lol
-
-            --my-var int
+              lol
+            
+              --my-var int
+            
+            test_only_dashes.<locals>.AClass ['some_class.a']:
+              foo
+            
+              --a-var int
             """
         ),
     )
-    sc = SomeClass.setup("--my-var 2", add_option_string_dash_variants=DashVariant.DASH)
+    sc = SomeClass.setup("--my-var 2 --a-var 3", add_option_string_dash_variants=DashVariant.DASH)
     assert sc.my_var == 2
+    assert sc.a.a_var == 3
+    sc = SomeClass.setup("--some-class.my-var 2 --some-class.a.a-var 3",
+                         add_option_string_dash_variants=DashVariant.DASH,
+                         argument_generation_mode=ArgumentGenerationMode.NESTED)
+    assert sc.my_var == 2
+    assert sc.a.a_var == 3
+    sc = SomeClass.setup("--my-var 2 --a.a-var 3",
+                         add_option_string_dash_variants=DashVariant.DASH,
+                         argument_generation_mode=ArgumentGenerationMode.NESTED,
+                         nested_mode=NestedMode.WITHOUT_ROOT)
+    assert sc.my_var == 2
+    assert sc.a.a_var == 3
+
 
 
 def test_list_of_choices():
