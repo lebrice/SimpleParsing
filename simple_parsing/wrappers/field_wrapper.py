@@ -559,6 +559,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         nested_option = self.dest if nested_mode == NestedMode.DEFAULT else ".".join(self.dest.split(".")[1:])
         if add_dash_variants == DashVariant.DASH:
             option = option.replace("_", "-")
+            nested_option = nested_option.replace("_", "-")
 
         if self.field.metadata.get("positional"):
             # Can't be positional AND have flags at same time. Also, need dest to be be this and not just option.
