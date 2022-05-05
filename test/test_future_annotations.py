@@ -1,12 +1,13 @@
 """ Tests for compatibility with the postponed evaluation of annotations. """
 from __future__ import annotations
-import typing
-import pytest
+
 import dataclasses
-import sys
+import typing
 from dataclasses import dataclass
 from typing import Any, Callable, Generic, TypeVar
+
 import pytest
+
 from simple_parsing import field
 
 from .testutils import TestSetup
@@ -25,7 +26,7 @@ class Foo(TestSetup):
 @dataclass
 class Bar(TestSetup):
     barry: Foo = field(default_factory=Foo)
-    joe: "Foo" = field(default_factory=lambda: Foo(b="rrrrr"))
+    joe: Foo = field(default_factory=lambda: Foo(b="rrrrr"))
     z: float = 123.456
     some_list: list[float] = field(default_factory=[1.0, 2.0].copy)
 
@@ -58,8 +59,6 @@ class OtherClassWithNewUnionSyntax(ClassWithNewUnionSyntax):
     base class.
     """
 
-    pass
-
 
 @pytest.mark.parametrize(
     "ClassWithNewUnionSyntax", [ClassWithNewUnionSyntax, OtherClassWithNewUnionSyntax]
@@ -69,9 +68,7 @@ def test_new_union_syntax(ClassWithNewUnionSyntax: type[ClassWithNewUnionSyntax]
     assert ClassWithNewUnionSyntax.setup("--v 456") == ClassWithNewUnionSyntax(v=456)
     assert ClassWithNewUnionSyntax.setup("--v 4.56") == ClassWithNewUnionSyntax(v=4.56)
 
-    field_annotations = {
-        f.name: f.type for f in dataclasses.fields(ClassWithNewUnionSyntax)
-    }
+    field_annotations = {f.name: f.type for f in dataclasses.fields(ClassWithNewUnionSyntax)}
     from simple_parsing.utils import is_union
 
     assert is_union(field_annotations["v"])
@@ -90,7 +87,7 @@ def test_more_complicated_unions():
     These values are then used to modify the `type` attribute of the `dataclasses.Field` objects
     on the class, *in-place*, so that simple-parsing can work just like before.
     """
-    from simple_parsing.utils import is_list, is_tuple, get_field_type_from_annotations
+    from simple_parsing.utils import get_field_type_from_annotations, is_list, is_tuple
 
     # T = TypeVarTuple("T")  # TODO: Use this eventually (when it becomes possible).
     T = TypeVar("T")
@@ -129,7 +126,7 @@ def test_more_complicated_unions():
 
         def none_worked(self, exceptions: list[Exception]) -> typing.NoReturn:
             raise RuntimeError(
-                f"None of the functions worked!\n"
+                "None of the functions worked!\n"
                 + "\n".join(
                     "- Function {func} raised: {exc}\n"
                     for func, exc in zip(self.functions, exceptions)
@@ -165,25 +162,17 @@ def test_more_complicated_unions():
     ArgumentParser().add_arguments(MoreComplex, dest="unused")
     field_annotations = {f.name: f.type for f in dataclasses.fields(MoreComplex)}
     assert field_annotations["vals_list"] == typing.List[typing.Union[int, float]]
-    assert (
-        field_annotations["vals_tuple"] == typing.Tuple[typing.Union[int, float], bool]
-    )
+    assert field_annotations["vals_tuple"] == typing.Tuple[typing.Union[int, float], bool]
 
     assert is_list(field_annotations["vals_list"])
     assert is_tuple(field_annotations["vals_tuple"])
 
     assert MoreComplex.setup("--vals_list 456 123") == MoreComplex(vals_list=[456, 123])
-    assert MoreComplex.setup("--vals_list 4.56 1.23") == MoreComplex(
-        vals_list=[4.56, 1.23]
-    )
+    assert MoreComplex.setup("--vals_list 4.56 1.23") == MoreComplex(vals_list=[4.56, 1.23])
     # NOTE: Something funky is happening: Seems like the `float` type here is being registered as
     # the handler also in the second case, for the tuple!
-    assert MoreComplex.setup("--vals_tuple 456 False") == MoreComplex(
-        vals_tuple=(456, False)
-    )
-    assert MoreComplex.setup("--vals_tuple 4.56 True") == MoreComplex(
-        vals_tuple=(4.56, True)
-    )
+    assert MoreComplex.setup("--vals_tuple 456 False") == MoreComplex(vals_tuple=(456, False))
+    assert MoreComplex.setup("--vals_tuple 4.56 True") == MoreComplex(vals_tuple=(4.56, True))
 
 
 @pytest.mark.xfail(reason="TODO: Properly support containers of union types.")
@@ -200,6 +189,7 @@ def test_parsing_containers_of_unions():
 
 
 from dataclasses import dataclass
+
 from simple_parsing.helpers import Serializable
 
 
@@ -230,3 +220,23 @@ def test_serialization_deserialization():
     assert Wrapper.from_dict(opts.to_dict()) == opts
     assert Wrapper.loads_json(opts.dumps_json()) == opts
     assert Wrapper.loads_yaml(opts.dumps_yaml()) == opts
+
+
+@dataclass
+class OptimizerConfig(TestSetup):
+    lr_scheduler: str = "cosine"
+    """ LR scheduler to use. """
+
+
+@dataclass
+class SubclassOfOptimizerConfig(OptimizerConfig):
+    bar: int | float = 123
+    """ some dummy arg bar. """
+
+
+def test_missing_annotation_on_subclass():
+    """Test that the annotation are correctly fetched from the base class."""
+
+    assert SubclassOfOptimizerConfig.setup("--lr_scheduler cosine") == SubclassOfOptimizerConfig(
+        lr_scheduler="cosine"
+    )

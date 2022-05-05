@@ -1,11 +1,10 @@
-import typing
-from typing import Dict, Any, Mapping, Union, get_type_hints
-import sys
 import collections
+import sys
+import typing
 from logging import getLogger as get_logger
+from typing import Any, Dict, get_type_hints
 
 logger = get_logger(__name__)
-import builtins
 
 # NOTE: This dict is used to enable forward compatibility with things such as `tuple[int, str]`,
 # `list[float]`, etc. when using `from __future__ import annotations`.
@@ -16,12 +15,12 @@ forward_refs_to_types = {
     "list": typing.List,
     "type": typing.Type,
 }
-import types
 import inspect
+import types
 
 
 def _replace_UnionType_with_typing_Union(annotation):
-    from simple_parsing.utils import is_list, is_tuple, is_dict, builtin_types
+    from simple_parsing.utils import builtin_types, is_dict, is_list, is_tuple
 
     if sys.version_info[:2] < (3, 10):
         # This is only useful for python 3.10+ (where UnionTypes exist).
@@ -58,8 +57,6 @@ def _replace_UnionType_with_typing_Union(annotation):
         return annotation
     raise NotImplementedError(annotation)
 
-    import builtins
-
 
 #     # return forward_refs_to_types.get(ann, local_ns.get(ann, global_ns.get(ann, getattr(builtins, ann, ann))))
 
@@ -85,7 +82,7 @@ def _get_old_style_annotation(annotation: str) -> str:
     assert not after.strip(), "can't have text at HERE in <something>[<something>]<HERE>!"
 
     if "|" in before or "|" in after:
-        _not_supported()
+        _not_supported(annotation)
     assert "|" in middle
 
     if "," in middle:
@@ -111,7 +108,9 @@ def _replace_new_union_syntax_with_old_union_syntax(
 
 
 def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
-    """
+    """Get the annotation for the given field, in the 'old-style' format with types from
+    typing.List, typing.Union, etc.
+
     If the script uses `from __future__ import annotations`, and we are in python<3.9,
     Then we need to actually first make this forward-compatibility 'patch' so that we
     don't run into a "`type` object is not subscriptable" error.
@@ -128,8 +127,7 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     # The type of the field might be a string when using `from __future__ import annotations`.
     # Get the local and global namespaces to pass to the `get_type_hints` function.
     local_ns: Dict[str, Any] = {"typing": typing, **vars(typing)}
-    if sys.version_info < (3, 9):
-        local_ns.update(forward_refs_to_types)
+    local_ns.update(forward_refs_to_types)
     # Get the globals in the module where the class was defined.
     global_ns = sys.modules[some_class.__module__].__dict__
 
@@ -137,7 +135,7 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
         annotations_dict = get_type_hints(some_class, localns=local_ns, globalns=global_ns)
     except TypeError as err:
         annotations_dict = collections.ChainMap(
-            *[getattr(cls, "__annotations__", {}).copy() for cls in some_class.mro()]
+            *[getattr(cls, "__annotations__", {}) for cls in some_class.mro()]
         )
 
     if field_name not in annotations_dict:
@@ -151,35 +149,33 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
         forward_arg = field_type.__forward_arg__
         field_type = forward_arg
 
-    if isinstance(field_type, str):
-        if "|" in field_type:
-            field_type = _get_old_style_annotation(field_type)
-
-        # Pretty hacky:
-        # In order to use `get_type_hints`, we need to pass it a class. We can't just ask it to
-        # evaluate a single annotation. Therefore, we create a temporary class and set it's
-        # __annotation__ attribute, which is introspected by `get_type_hints`.
-
-        try:
-
-            class Temp_:
-                pass
-
-            Temp_.__annotations__ = {field_name: field_type}
-            annotations_dict = get_type_hints(Temp_, globalns=global_ns, localns=local_ns)
-            field_type = annotations_dict[field_name]
-        except:
-            logger.warning(
-                f"Unable to evaluate forward reference {field_type} for field '{field_name}'.\n"
-                f"Leaving it as-is."
-            )
-            field_type = field_type
-
     if sys.version_info >= (3, 10) and isinstance(field_type, types.UnionType):
         # In python >= 3.10, int | float is allowed. Therefore, just to be consistent, we want
         # to convert those into the corresponding typing.Union type.
         # This is necessary for the rest of the code to work, since it's all based on typing.Union.
         field_type = _replace_UnionType_with_typing_Union(field_type)
 
+    if isinstance(field_type, str) and "|" in field_type:
+        field_type = _get_old_style_annotation(field_type)
+
+        # Pretty hacky:
+        # In order to use `get_type_hints`, we need to pass it a class. We can't just ask it to
+        # evaluate a single annotation. Therefore, we create a temporary class and set it's
+        # __annotation__ attribute, which is introspected by `get_type_hints`.
+
+    try:
+
+        class Temp_:
+            pass
+
+        Temp_.__annotations__ = {field_name: field_type}
+        annotations_dict = get_type_hints(Temp_, globalns=global_ns, localns=local_ns)
+        field_type = annotations_dict[field_name]
+    except:
+        logger.warning(
+            f"Unable to evaluate forward reference {field_type} for field '{field_name}'.\n"
+            f"Leaving it as-is."
+        )
+        field_type = field_type
+
     return field_type
-    
