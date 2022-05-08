@@ -6,7 +6,7 @@ import sys
 from argparse import HelpFormatter, Namespace
 from collections import defaultdict
 from logging import getLogger
-from typing import Any, Dict, List, Sequence, Text, Type, Union, overload
+from typing import Any, Dict, Iterable, List, Sequence, Text, Type, Union, overload, Optional
 
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
@@ -26,9 +26,11 @@ class ArgumentParser(argparse.ArgumentParser):
     def __init__(
         self,
         *args,
+        parents: Sequence["ArgumentParser"] = (),
+        add_help: bool = True,
         conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
         add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
-        argument_generation_mode = ArgumentGenerationMode.FLAT,
+        argument_generation_mode=ArgumentGenerationMode.FLAT,
         nested_mode: NestedMode = NestedMode.DEFAULT,
         formatter_class: Type[HelpFormatter] = SimpleHelpFormatter,
         **kwargs,
@@ -89,7 +91,7 @@ class ArgumentParser(argparse.ArgumentParser):
             `argparse.RawDescriptionHelpFormatter` classes.
         """
         kwargs["formatter_class"] = formatter_class
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, parents=parents, add_help=add_help, **kwargs)
 
         self.conflict_resolution = conflict_resolution
         # constructor arguments for the dataclass instances.
@@ -100,9 +102,24 @@ class ArgumentParser(argparse.ArgumentParser):
         self._wrappers: List[DataclassWrapper] = []
 
         self._preprocessing_done: bool = False
+        self.add_option_string_dash_variants = add_option_string_dash_variants
+        self.argument_generation_mode = argument_generation_mode
+        self.nested_mode = nested_mode
+
         FieldWrapper.add_dash_variants = add_option_string_dash_variants
         FieldWrapper.argument_generation_mode = argument_generation_mode
         FieldWrapper.nested_mode = nested_mode
+        self._parents = tuple(parents)
+
+        # # add parent arguments and defaults
+        # for parent in parents:
+        #     self._add_container_actions(parent)
+        #     try:
+        #         defaults = parent._defaults
+        #     except AttributeError:
+        #         pass
+        #     else:
+        #         self._defaults.update(defaults)
 
     @overload
     def add_arguments(
@@ -165,9 +182,7 @@ class ArgumentParser(argparse.ArgumentParser):
             default = dataclass if default is None else default
             dataclass = type(dataclass)
 
-        new_wrapper = dataclass_wrapper_class(
-            dataclass, dest, prefix=prefix, default=default
-        )
+        new_wrapper = dataclass_wrapper_class(dataclass, dest, prefix=prefix, default=default)
         self._wrappers.append(new_wrapper)
 
     def parse_known_args(
@@ -185,9 +200,68 @@ class ArgumentParser(argparse.ArgumentParser):
         else:
             # make sure that args are mutable
             args = list(args)
+
+        self.subgroups: Dict[str, Dict[str, Type]] = {}
         self._preprocessing()
 
+        for wrapper in self._wrappers:
+            for field_wrapper in wrapper.fields:
+                if not field_wrapper.is_subgroup:
+                    continue
+                dest = field_wrapper.dest
+                subgroups = field_wrapper.field.metadata["subgroups"]
+                self.subgroups[dest] = subgroups
+
+        self._had_help = self.add_help
+        if self.subgroups and self.add_help:
+            self.add_help = False
+            # TODO: Need to remove the '--help' action.
+            from argparse import _HelpAction
+
+            help_actions = [action for action in self._actions if isinstance(action, _HelpAction)]
+            assert help_actions
+            help_action = help_actions[0]
+
+            def __fake_call__(*args, **kwargs):
+                print("HEYO!?!")
+
+            help_action.__call__ = __fake_call__
+
+            self._remove_action(help_action)
+            # TODO: The --help action seems to still be working below, even though it was removed..
+            # assert False, [group._actions for group in self._action_groups]
+
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
+
+        if self.subgroups:
+            parser = type(self)(
+                parents=[self],
+                add_help=self._had_help,  # only add help in the child if the parent also had help.
+                add_option_string_dash_variants=self.add_option_string_dash_variants,
+                argument_generation_mode=self.argument_generation_mode,
+                nested_mode=self.nested_mode,
+            )
+            for dest, subgroup_dict in self.subgroups.items():
+                value = getattr(parsed_args, dest)
+                logger.debug(f"Chosen value for subgroup {dest}: {value}")
+                # The prefix should be 'thing' instead of 'bob.thing'.
+                # TODO: This needs to be tested more, in particular with argument conflicts.
+                _, _, parent_dest = dest.rpartition(".")
+                prefix = parent_dest + "."
+                if isinstance(value, str):
+                    chosen_class = subgroup_dict[value]
+                    parser.add_arguments(
+                        chosen_class, dest=dest, prefix=prefix,
+                    )
+                else:
+                    default = value
+                    chosen_class = type(value)
+                    # prefix = f"{dest}."
+                    parser.add_arguments(
+                        chosen_class, dest=dest, prefix=prefix, default=default,
+                    )
+
+            parsed_args, unparsed_args = parser.parse_known_args(args, namespace)
 
         if unparsed_args and self._subparsers and attempt_to_reorder:
             logger.warning(
@@ -277,9 +351,7 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args = self._set_instances_in_namespace(parsed_args)
         return parsed_args
 
-    def _set_instances_in_namespace(
-        self, parsed_args: argparse.Namespace
-    ) -> argparse.Namespace:
+    def _set_instances_in_namespace(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
         """Create the instances set them at their destination in the namespace.
 
         We now have all the constructor arguments for each instance.
@@ -333,9 +405,7 @@ class ArgumentParser(argparse.ArgumentParser):
                         if arg_value != default_value:
                             all_default_or_none = False
                             break
-                    logger.debug(
-                        f"All fields were either default or None: {all_default_or_none}"
-                    )
+                    logger.debug(f"All fields were either default or None: {all_default_or_none}")
 
                     if all_default_or_none:
                         instance = None
@@ -359,10 +429,22 @@ class ArgumentParser(argparse.ArgumentParser):
                     #     f"setting attribute '{destination}' on the Namespace "
                     #     f"to a value of {instance}"
                     # )
-                    assert not hasattr(parsed_args, destination), (
-                        f"Namespace should not already have a '{destination}' "
-                        f"attribute! (namespace: {parsed_args}) "
-                    )
+                    # TODO: Do we want to overwrite the value if it's a subgroup choice?
+                    if hasattr(parsed_args, destination):
+                        # Have to check if there is a field in the parent that is a subgroup choice
+                        # and maps to this one.
+                        if (
+                            wrapper.dest == destination
+                            and self._parents is not None
+                            and (wrapper for wrapper in self._parents[0]._wrappers)
+                        ):
+                            pass
+                            # assert False, (wrapper.dest, instance)
+                        else:
+                            raise RuntimeError(
+                                f"Namespace should not already have a '{destination}' "
+                                f"attribute! (namespace: {parsed_args}) "
+                            )
                     setattr(parsed_args, destination, instance)
 
                 # TODO: not needed, but might be a good thing to do?
@@ -372,9 +454,7 @@ class ArgumentParser(argparse.ArgumentParser):
         assert not self.constructor_arguments
         return parsed_args
 
-    def _consume_constructor_arguments(
-        self, parsed_args: argparse.Namespace
-    ) -> argparse.Namespace:
+    def _consume_constructor_arguments(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
         """Create the constructor arguments for each instance.
 
         Creates the arguments by consuming all the attributes from
