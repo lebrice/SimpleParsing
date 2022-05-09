@@ -12,9 +12,10 @@ from .helpers import (
     flag,
     list_field,
     mutable_field,
+    subgroups,
     subparsers,
 )
-from .parsing import ArgumentParser, ParsingError, DashVariant
+from .parsing import ArgumentParser, DashVariant, ParsingError
 from .utils import InconsistentArgumentError
 
 __all__ = [
@@ -22,8 +23,7 @@ __all__ = [
     "utils",
     "wrappers",
     "ConflictResolution",
-    "DashVariant"
-    "MutableField",
+    "DashVariant" "MutableField",
     "Serializable",
     "SimpleHelpFormatter",
     "choice",
@@ -32,6 +32,7 @@ __all__ = [
     "list_field",
     "mutable_field",
     "subparsers",
+    "subgroups",
     "ArgumentParser",
     "InconsistentArgumentError",
 ]

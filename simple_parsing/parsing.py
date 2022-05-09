@@ -309,6 +309,51 @@ class ArgumentParser(argparse.ArgumentParser):
 
     def print_help(self, file=None):
         self._preprocessing()
+        # TODO: Need to also add the args for the chosen subgroups here. Is that possible?
+
+        if self.subgroups:
+            parser = type(self)(
+                parents=[self],
+                add_help=self._had_help,  # only add help in the child if the parent also had help.
+                add_option_string_dash_variants=self.add_option_string_dash_variants,
+                argument_generation_mode=self.argument_generation_mode,
+                nested_mode=self.nested_mode,
+            )
+
+            for dest, subgroup_dict in self.subgroups.items():
+                # Get the default value for that field?
+                field_for_that_subgroup: FieldWrapper = [
+                    field
+                    for wrapper in self._wrappers
+                    for field in wrapper.fields
+                    if field.dest == dest
+                ][0]
+
+                value = field_for_that_subgroup.default
+
+                logger.debug(f"Chosen value for subgroup {dest}: {value}")
+                # The prefix should be 'thing' instead of 'bob.thing'.
+                # TODO: This needs to be tested more, in particular with argument conflicts.
+                _, _, parent_dest = dest.rpartition(".")
+                prefix = parent_dest + "."
+                if isinstance(value, str):
+                    chosen_class = subgroup_dict[value]
+                    parser.add_arguments(
+                        chosen_class,
+                        dest=dest,
+                        prefix=prefix,
+                    )
+                else:
+                    default = value
+                    chosen_class = type(value)
+                    # prefix = f"{dest}."
+                    parser.add_arguments(
+                        chosen_class,
+                        dest=dest,
+                        prefix=prefix,
+                        default=default,
+                    )
+            return parser.print_help(file)
         return super().print_help(file)
 
     def equivalent_argparse_code(self) -> str:

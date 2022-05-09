@@ -1,13 +1,13 @@
 import contextlib
 from dataclasses import dataclass, is_dataclass
 from io import StringIO
-from typing import Dict, Optional, Type, TypeVar, Union
+from typing import Union
 
 import pytest
 
-from simple_parsing import ArgumentParser, choice
+from simple_parsing import ArgumentParser, subgroups
 
-from .testutils import TestSetup, raises_missing_required_arg
+from .testutils import TestSetup, raises_missing_required_arg, raises_unrecognized_args
 
 
 @dataclass
@@ -32,19 +32,6 @@ class Baz:
 class Blop:
     g: str = "arwg"
     h: float = 1.2
-
-
-T = TypeVar("T")
-
-
-def subgroups(subgroups: Dict[str, Type[T]], *args, default: Optional[T] = None, **kwargs) -> T:
-    metadata = kwargs.setdefault("metadata", {})
-    metadata["subgroups"] = subgroups
-    choices = subgroups.keys()
-    kwargs["type"] = str
-    # if default not in choices:
-    #     raise RuntimeError(f"Default value needs to be one of the choices ({choices})")
-    return choice(*choices, *args, default=default, **kwargs)
 
 
 @dataclass
@@ -168,3 +155,13 @@ def test_two_subgroups_with_conflict():
     assert Bob.setup("--first foo --first.a 123 --second foo --second.a 456") == Bob(
         first=Foo(a=123), second=Foo(a=456)
     )
+
+
+def test_unrelated_arg_raises_error():
+    @dataclass
+    class Bob(TestSetup):
+        first: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar}, default=Bar(d=3))
+        second: Union[Foo, Blop] = subgroups({"foo": Foo, "blop": Blop}, default=Blop())
+
+    with raises_unrecognized_args("--bblarga"):
+        Bob.setup("--first foo --first.a 123 --second foo --second.a 456 --bblarga")

@@ -2,15 +2,13 @@
 (Could be seen as a kind of integration test.)
 
 """
-from collections import Counter
-import contextlib
 import glob
-import importlib
 import shlex
 import sys
-from io import StringIO
-from typing import Callable, Optional
+from collections import Counter
 from pathlib import Path
+from typing import Callable, Optional
+
 import pytest
 
 expected = ""
@@ -33,15 +31,10 @@ def set_prog_name():
     sys.argv = argv
 
 
-import textwrap
-
-
 @pytest.fixture
 def assert_equals_stdout(capsys):
     def strip(string):
         return "".join(string.split())
-
-    import difflib
 
     def should_equal(expected: str, file_path: str):
         if "optional arguments" in expected and sys.version_info >= (3, 10):
@@ -55,7 +48,11 @@ def assert_equals_stdout(capsys):
         expected_lines = [line.strip() for line in expected_lines if line and not line.isspace()]
         if sys.version_info[:2] >= (3, 9):
             # Ordering of values in a `Namespace` object are different!
-            assert Counter("".join(out_lines)) == Counter("".join(expected_lines)), (
+            expected = Counter("".join(expected_lines))
+            actual = Counter("".join(out_lines))
+            actual[" "] = 0
+            expected[" "] = 0
+            assert actual == expected, (
                 out_lines,
                 expected_lines,
             )
@@ -122,6 +119,4 @@ def test_running_example_outputs_expected_without_arg(
     set_prog_name: Callable[[str, Optional[str]], None],
     assert_equals_stdout: Callable[[str, str], None],
 ):
-    return test_running_example_outputs_expected(
-        file_path, "", set_prog_name, assert_equals_stdout
-    )
+    return test_running_example_outputs_expected(file_path, "", set_prog_name, assert_equals_stdout)

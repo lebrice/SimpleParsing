@@ -5,6 +5,8 @@
 
 - [ML-related Examples](ML/README.md) 
 
+- **NEW**: [Subgroups Example](subgroups/README.md)
+
 - [Serialization to `json`/`yaml`](serialization/README.md)
 
 - [Attribute Docstrings Example](docstrings/README.md)

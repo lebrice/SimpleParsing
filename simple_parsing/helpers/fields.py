@@ -1,15 +1,13 @@
-""" Utility functions that simplify defining field of dataclasses. 
+""" Utility functions that simplify defining field of dataclasses.
 """
-import argparse
 import dataclasses
-import enum
 import functools
 import inspect
-import json
 import warnings
 from collections import OrderedDict
 from dataclasses import _MISSING_TYPE, MISSING
 from enum import Enum
+from logging import getLogger
 from typing import (
     Any,
     Callable,
@@ -25,17 +23,7 @@ from typing import (
     overload,
 )
 
-from simple_parsing.utils import (
-    Dataclass,
-    SimpleValueType,
-    get_type_arguments,
-    is_optional,
-    is_tuple,
-    is_union,
-    str2bool,
-)
-
-from logging import getLogger
+from simple_parsing.utils import Dataclass, str2bool
 
 logger = getLogger(__name__)
 
@@ -342,6 +330,40 @@ def mutable_field(
 
 
 MutableField = mutable_field
+
+T = TypeVar("T")
+
+
+def subgroups(
+    subgroups: Dict[str, Type[T]], *args, default: Union[T, Type[T], None] = None, **kwargs
+) -> T:
+    """Creates a field that will be a choice between different subgroups of arguments.
+
+    This is different than adding a subparser action. There can only be one subparser action, while
+    there can be arbitrarily many subgroups.
+
+    Parameters
+    ----------
+    subgroups : Dict[str, Type[T]]
+        Dictionary mapping from the subgroup name to the subgroup type.
+    default : Optional[T], optional
+        The default subgroup to use, by default None, in which case a subgroup has to be selected.
+        Can either be the type of subgroup, or an instance of the config class for the subgroup.
+
+    Returns
+    -------
+    a field whose type is the Union of the different possible subgroups.
+    """
+    metadata = kwargs.setdefault("metadata", {})
+    metadata["subgroups"] = subgroups
+    choices = subgroups.keys()
+    kwargs["type"] = str
+    if default and inspect.isclass(default):
+        matching_keys = [k for k, v in subgroups.items() if v is default]
+        if len(matching_keys) != 1:
+            raise ValueError(f"Default subgroup {default} is not in the subgroups dict")
+        default = matching_keys[0]
+    return choice(*choices, *args, default=default, **kwargs)  # type: ignore
 
 
 def subparsers(
