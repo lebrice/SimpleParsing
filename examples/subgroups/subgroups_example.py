@@ -20,7 +20,7 @@ class DatasetConfig:
 class ModelAConfig(ModelConfig):
     lr: float = 3e-4
     optimizer: str = "Adam"
-    betas: tuple[float, float] = 0.9, 0.999
+    betas: tuple[float, float] = (0.9, 0.999)
 
 
 @dataclass
