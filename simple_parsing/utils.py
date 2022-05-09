@@ -1,26 +1,20 @@
 """Utility functions used in various parts of the simple_parsing package."""
 import argparse
 import builtins
-import collections
-import copy
-import inspect
-import enum
-import sys
 import dataclasses
-import functools
-import json
-import re
-import warnings
-import itertools
+import enum
 import hashlib
-from abc import ABC
+import inspect
+import itertools
+import re
+import sys
+import types
+import typing
 from collections import OrderedDict
 from collections import abc as c_abc
 from collections import defaultdict
-from dataclasses import _MISSING_TYPE, MISSING, Field, dataclass
+from dataclasses import _MISSING_TYPE, Field
 from enum import Enum
-from functools import partial
-from inspect import isclass
 from logging import getLogger
 from typing import (
     Any,
@@ -38,8 +32,6 @@ from typing import (
     TypeVar,
     Union,
 )
-import typing
-from typing import get_type_hints
 
 # from typing_inspect import get_origin, is_typevar, get_bound, is_forward_ref, get_forward_arg
 NEW_TYPING = sys.version_info[:3] >= (3, 7, 0)  # PEP 560
@@ -47,11 +39,11 @@ NEW_TYPING = sys.version_info[:3] >= (3, 7, 0)  # PEP 560
 if sys.version_info < (3, 9):
     # TODO: Add 3.9 compatibility, remove typing_inspect dependency.
     from typing_inspect import (
-        get_origin,
-        is_typevar,
         get_bound,
         get_forward_arg,
+        get_origin,
         is_forward_ref,
+        is_typevar,
     )
 else:
     from typing import get_origin
@@ -86,18 +78,10 @@ except ImportError:
         return getattr(some_type, "__args__", ())
 
 
-try:
-    from typing import get_origin
-except ImportError:
-    from typing_inspect import get_origin
-
-
 logger = getLogger(__name__)
 
 builtin_types = [
-    getattr(builtins, d)
-    for d in dir(builtins)
-    if isinstance(getattr(builtins, d), type)
+    getattr(builtins, d) for d in dir(builtins) if isinstance(getattr(builtins, d), type)
 ]
 
 K = TypeVar("K")
@@ -110,9 +94,7 @@ Dataclass = TypeVar("Dataclass")
 DataclassType = Type[Dataclass]
 
 SimpleValueType = Union[bool, int, float, str]
-SimpleIterable = Union[
-    List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]
-]
+SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]]
 
 
 def is_subparser_field(field: Field) -> bool:
@@ -408,9 +390,7 @@ def is_dataclass_type(t: Type) -> bool:
     Returns:
         bool: Whether its a dataclass type.
     """
-    return dataclasses.is_dataclass(t) or (
-        is_typevar(t) and dataclasses.is_dataclass(get_bound(t))
-    )
+    return dataclasses.is_dataclass(t) or (is_typevar(t) and dataclasses.is_dataclass(get_bound(t)))
 
 
 def is_enum(t: Type) -> bool:
@@ -444,6 +424,8 @@ def is_union(t: Type) -> bool:
     >>> is_union(Tuple[int, str])
     False
     """
+    if sys.version_info[:2] >= (3, 10) and isinstance(t, types.UnionType):
+        return True
     return getattr(t, "__origin__", "") == Union
 
 
@@ -541,9 +523,7 @@ def get_dataclass_type_arg(t: Type) -> Optional[Type]:
         return t
     elif is_tuple_or_list(t) or is_union(t):
         return next(
-            filter(
-                None, (get_dataclass_type_arg(arg) for arg in get_type_arguments(t))
-            ),
+            filter(None, (get_dataclass_type_arg(arg) for arg in get_type_arguments(t))),
             None,
         )
     return None
@@ -608,9 +588,7 @@ def get_container_nargs(container_type: Type) -> Union[int, str]:
 
     if is_list(container_type):
         return "*"
-    raise NotImplementedError(
-        f"Not sure what 'nargs' should be for type {container_type}"
-    )
+    raise NotImplementedError(f"Not sure what 'nargs' should be for type {container_type}")
 
 
 def _parse_multiple_containers(
@@ -622,6 +600,7 @@ def _parse_multiple_containers(
     result = factory()
 
     def parse_fn(value: str):
+        nonlocal result
         logger.debug(f"parsing multiple {container_type} of {T}s, value is: '{value}'")
         values = _parse_container(container_type)(value)
         logger.debug(f"parsing result is '{values}'")
@@ -647,9 +626,7 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
         try:
             values = _parse_literal(value)
         except Exception as e:
-            logger.debug(
-                f"Exception while trying to parse '{value}' as a literal: {type(e)}: {e}"
-            )
+            logger.debug(f"Exception while trying to parse '{value}' as a literal: {type(e)}: {e}")
             # if it doesn't work, fall back to the parse_fn.
             values = _fallback_parse(value)
 
@@ -834,9 +811,7 @@ def zip_dicts(*dicts: Dict[K, V]) -> Iterable[Tuple[K, Tuple[Optional[V], ...]]]
         yield (key, tuple(d.get(key) for d in dicts))
 
 
-def dict_union(
-    *dicts: Dict[K, V], recurse: bool = True, dict_factory=dict
-) -> Dict[K, V]:
+def dict_union(*dicts: Dict[K, V], recurse: bool = True, dict_factory=dict) -> Dict[K, V]:
     """Simple dict union until we use python 3.9
 
     If `recurse` is True, also does the union of nested dictionaries.
@@ -882,13 +857,6 @@ def dict_union(
 
         result[k] = new_value
     return result
-
-
-from .annotation_utils.get_field_annotations import (
-    get_field_type_from_annotations,
-    forward_refs_to_types,
-    _replace_new_union_syntax_with_old_union_syntax,
-)
 
 
 if __name__ == "__main__":

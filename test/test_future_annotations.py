@@ -9,6 +9,10 @@ from typing import Any, Callable, Generic, TypeVar
 import pytest
 
 from simple_parsing import field
+from simple_parsing.annotation_utils.get_field_annotations import (
+    get_field_type_from_annotations,
+)
+from simple_parsing.utils import is_list, is_tuple
 
 from .testutils import TestSetup
 
@@ -87,7 +91,6 @@ def test_more_complicated_unions():
     These values are then used to modify the `type` attribute of the `dataclasses.Field` objects
     on the class, *in-place*, so that simple-parsing can work just like before.
     """
-    from simple_parsing.utils import get_field_type_from_annotations, is_list, is_tuple
 
     # T = TypeVarTuple("T")  # TODO: Use this eventually (when it becomes possible).
     T = TypeVar("T")
