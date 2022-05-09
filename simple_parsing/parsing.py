@@ -144,7 +144,7 @@ class ArgumentParser(argparse.ArgumentParser):
             # and we don't want to save this call in the replay list, since it will be called
             # anyway when creating the child parser based on `add_help`.
             self._add_argument_replay.append(
-                partial(type(self).add_argument, *name_or_flags, **kwargs)
+                lambda parser: parser.add_argument(*name_or_flags, **kwargs)
             )
         return super().add_argument(
             *name_or_flags,
