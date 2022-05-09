@@ -1,7 +1,8 @@
 from dataclasses import dataclass, is_dataclass
-
-from simple_parsing import ArgumentParser, field, choice
 from typing import Dict, Optional, Type, TypeVar, Union
+
+from simple_parsing import ArgumentParser, choice
+
 from .testutils import TestSetup, raises_missing_required_arg
 
 
@@ -35,8 +36,8 @@ T = TypeVar("T")
 def subgroups(subgroups: Dict[str, Type[T]], *args, default: Optional[T] = None, **kwargs) -> T:
     metadata = kwargs.setdefault("metadata", {})
     metadata["subgroups"] = subgroups
-
     choices = subgroups.keys()
+    kwargs["type"] = str
     # if default not in choices:
     #     raise RuntimeError(f"Default value needs to be one of the choices ({choices})")
     return choice(*choices, *args, default=default, **kwargs)
@@ -49,11 +50,8 @@ class Bob(TestSetup):
 
 class TestSubgroup:
     def test_subgroup(self):
-
-        # BUG: Can't have `add_help` on the top-level parser...
-        parser = ArgumentParser(add_help=True)
+        parser = ArgumentParser()
         parser.add_arguments(Bob, dest="bob")
-
         args = parser.parse_args("--thing foo_thing --thing.a 123".split())
         bob = args.bob
         thing = bob.thing
@@ -61,14 +59,20 @@ class TestSubgroup:
         assert thing == Foo(a=123)
 
     def test_help_string(self):
-        """ """
-        # parser = ArgumentParser()
-        # parser.add_arguments(self.Bob, dest="bob")
-        assert "--a" in Bob.get_help_text()
+        """Test that the arguments for the chosen subgroup are shown in the help string."""
+        parser = ArgumentParser()
+        parser.add_arguments(Bob, dest="bob")
+        from io import StringIO
+
+        f = StringIO()
+        parser.print_help(f)
+        help_text = f.getvalue()
+        print(help_text)
+        assert "--a" in help_text
 
 
 def test_required_subgroup():
-    """ Test when a subgroup doesn't have a default value, and is required. """
+    """Test when a subgroup doesn't have a default value, and is required."""
 
     @dataclass
     class Bob(TestSetup):
@@ -87,7 +91,7 @@ class WithRequiredArg:
 
 
 def test_subgroup_with_required_argument():
-    """ Test where a subgroup has a required argument. """
+    """Test where a subgroup has a required argument."""
 
     @dataclass
     class Bob(TestSetup):

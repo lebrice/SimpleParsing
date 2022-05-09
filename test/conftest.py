@@ -1,9 +1,7 @@
 import logging
-from pathlib import Path
-import shlex
 import sys
-from dataclasses import dataclass, field
-from typing import *
+from dataclasses import dataclass
+from typing import Any, ClassVar, List, Optional, Tuple, Type
 
 import pytest
 
@@ -12,7 +10,6 @@ pytest.register_assert_rewrite("test.testutils")
 
 from simple_parsing import choice
 from simple_parsing.helpers import Serializable
-
 
 collect_ignore = []
 if sys.version_info < (3, 7):
@@ -71,6 +68,30 @@ def assert_equals_stdout(capsys):
     return should_equal
 
 
+from logging import getLogger as get_logger
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_logging():
+    project_logger = get_logger("simple_parsing")
+    project_logger.setLevel(
+        logging.DEBUG
+        if "-vv" in sys.argv
+        else logging.INFO
+        if "-v" in sys.argv
+        else logging.WARNING
+    )
+    ch = logging.StreamHandler(stream=sys.stdout)
+    ch.setFormatter(
+        logging.Formatter(
+            "[%(asctime)s] p%(process)s {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
+            "%m-%d %H:%M:%S"
+            # "%(asctime)-15s::%(levelname)s::%(pathname)s::%(lineno)d::%(message)s"
+        )
+    )
+    project_logger.addHandler(ch)
+
+
 @pytest.fixture(scope="module")
 def parser():
     from .testutils import TestParser
@@ -99,13 +120,9 @@ def no_stdout(capsys, caplog):
 def no_warnings(caplog):
     yield
     for when in ("setup", "call"):
-        messages = [
-            x.message for x in caplog.get_records(when) if x.levelno == logging.WARNING
-        ]
+        messages = [x.message for x in caplog.get_records(when) if x.levelno == logging.WARNING]
         if messages:
-            pytest.fail(
-                "warning messages encountered during testing: {}".format(messages)
-            )
+            pytest.fail(f"warning messages encountered during testing: {messages}")
 
 
 @pytest.fixture
@@ -114,15 +131,12 @@ def silent(no_stdout, no_warnings):
     Test fixture that will make a test fail if it prints anything to stdout or
     logs warnings
     """
-    pass
 
 
 @pytest.fixture
 def logs_warning(caplog):
     yield
-    messages = [
-        x.message for x in caplog.get_records("call") if x.levelno == logging.WARNING
-    ]
+    messages = [x.message for x in caplog.get_records("call") if x.levelno == logging.WARNING]
     if not messages:
         pytest.fail(f"No warning messages were logged: {messages}")
 
@@ -143,17 +157,13 @@ def TaskHyperParameters():
         name: str  # name of the task
         num_layers: int = 1  # number of dense layers
         num_units: int = 8  # units per layer
-        activation: str = choice(
-            "tanh", "relu", "linear", default="tanh"
-        )  # activation function
+        activation: str = choice("tanh", "relu", "linear", default="tanh")  # activation function
         use_batchnorm: bool = (
             False  # whether or not to use batch normalization after each dense layer
         )
         use_dropout: bool = True  # whether or not to use dropout after each dense layer
         dropout_rate: float = 0.1  # the dropout rate
-        use_image_features: bool = (
-            True  # whether or not image features should be used as input
-        )
+        use_image_features: bool = True  # whether or not image features should be used as input
         use_likes: bool = True  # whether or not 'likes' features should be used as input
         l1_reg: float = 0.005  # L1 regularization coefficient
         l2_reg: float = 0.005  # L2 regularization coefficient

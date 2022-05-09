@@ -79,7 +79,10 @@ def _get_old_style_annotation(annotation: str) -> str:
 
     before, lsep, rest = annotation.partition("[")
     middle, rsep, after = rest.rpartition("]")
-    assert not after.strip(), "can't have text at HERE in <something>[<something>]<HERE>!"
+    # BUG: Need to handle things like bob[int] | None
+    assert (
+        not after.strip()
+    ), f"can't have text at HERE in <something>[<something>]<HERE>!: {annotation}"
 
     if "|" in before or "|" in after:
         _not_supported(annotation)
