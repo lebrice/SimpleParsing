@@ -3,7 +3,7 @@
 """
 import argparse
 import sys
-from argparse import Action, HelpFormatter, Namespace
+from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _, _HelpAction
 from collections import defaultdict
 from functools import partial
 from logging import getLogger
@@ -94,7 +94,7 @@ class ArgumentParser(argparse.ArgumentParser):
         kwargs["formatter_class"] = formatter_class
         # Pass parents=[] since we override this mechanism below.
         # NOTE: We end up with the same parents.
-        super().__init__(*args, parents=[], add_help=add_help, **kwargs)
+        super().__init__(*args, parents=[], add_help=False, **kwargs)
         self.conflict_resolution = conflict_resolution
         # constructor arguments for the dataclass instances.
         # (a Dict[dest, [attribute, value]])
@@ -113,6 +113,8 @@ class ArgumentParser(argparse.ArgumentParser):
         FieldWrapper.nested_mode = nested_mode
         self._parents = tuple(parents)
         self._add_argument_replay: List[Callable[["ArgumentParser"], Any]] = []
+
+        self.add_help = add_help
 
         # Add parent arguments and defaults.
         # THis is a little bit different than in Argparse: We replay all the `add_argument` and
@@ -264,23 +266,15 @@ class ArgumentParser(argparse.ArgumentParser):
                 self.subgroups[dest] = subgroups
 
         self._had_help = self.add_help
-        if self.subgroups and self.add_help:
+        if self.subgroups:
+            logger.debug("Removing the help action from the parser because it has subgroups.")
             self.add_help = False
-            # TODO: Need to remove the '--help' action.
-            from argparse import _HelpAction
 
-            help_actions = [action for action in self._actions if isinstance(action, _HelpAction)]
-            assert help_actions
-            help_action = help_actions[0]
+        logger.info(f"Parser {id(self)} is parsing args: {args}, namespace: {namespace}")
 
-            def __fake_call__(*args, **kwargs):
-                print("HEYO!?!")
-
-            help_action.__call__ = __fake_call__
-
-            self._remove_action(help_action)
-            # TODO: The --help action seems to still be working below, even though it was removed..
-            # assert False, [group._actions for group in self._action_groups]
+        if self.add_help:
+            logger.info("Adding a --help action.")
+            self._add_help_action()
 
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
 
@@ -338,6 +332,18 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing()
         return super().print_help(file)
 
+    def _remove_help_action(self) -> None:
+        # TODO: Need to remove the '--help' action.
+        self.add_help = False
+        help_actions = [action for action in self._actions if isinstance(action, _HelpAction)]
+        if not help_actions:
+            return
+
+        help_action = help_actions[0]
+        self._remove_action(help_action)
+
+        # optionals_help_actions = [action for action in self._optionals._actions]
+
     def equivalent_argparse_code(self) -> str:
         """Returns the argparse code equivalent to that of `simple_parsing`.
 
@@ -377,6 +383,18 @@ class ArgumentParser(argparse.ArgumentParser):
             )
             wrapper.add_arguments(parser=self)
         self._preprocessing_done = True
+
+    def _add_help_action(self):
+        # TODO: This is acting weird.
+        prefix_chars = self.prefix_chars
+        default_prefix = "-" if "-" in prefix_chars else prefix_chars[0]
+        self._help_action = self.add_argument(
+            default_prefix + "h",
+            default_prefix * 2 + "help",
+            action="help",
+            default=SUPPRESS,
+            help=_("show this help message and exit"),
+        )
 
     def _postprocessing(self, parsed_args: Namespace) -> Namespace:
         """Process the namespace by extract the fields and creating the objects.

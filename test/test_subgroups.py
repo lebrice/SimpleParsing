@@ -1,3 +1,4 @@
+import contextlib
 from dataclasses import dataclass, is_dataclass
 from typing import Dict, Optional, Type, TypeVar, Union
 
@@ -48,6 +49,21 @@ class Bob(TestSetup):
     thing: Union[Foo, Bar] = subgroups({"foo_thing": Foo, "bar_thing": Bar}, default=Bar(d=3))
 
 
+def test_remove_help_action():
+    # Test that it's possible to remove the '--help' action from a parser that had add_help=True
+
+    parser = ArgumentParser(add_help=True)
+    parser.add_arguments(Foo, "foo")
+    parser.add_arguments(Bar, "bar")
+    parser._remove_help_action()
+    import shlex
+
+    args, unused = parser.parse_known_args(shlex.split("--a 123 --c 456 --help"))
+    assert unused == ["--help"]
+    assert args.foo == Foo(a=123)
+    assert args.bar == Bar(c=456)
+
+
 class TestSubgroup:
     def test_subgroup(self):
         parser = ArgumentParser()
@@ -64,11 +80,18 @@ class TestSubgroup:
         parser.add_arguments(Bob, dest="bob")
         from io import StringIO
 
-        f = StringIO()
-        parser.print_help(f)
-        help_text = f.getvalue()
-        print(help_text)
+        with StringIO() as f:
+            with contextlib.suppress(SystemExit), contextlib.redirect_stdout(f):
+                parser.parse_args(["--help"])
+            help_text = f.getvalue()
+        print("\n" + help_text)
         assert "--a" in help_text
+
+        with StringIO() as f:
+            parser.print_help(f)
+            help_text = f.getvalue()
+            print(help_text)
+            assert "--a" in help_text
 
 
 def test_required_subgroup():
