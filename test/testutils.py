@@ -77,7 +77,6 @@ def assert_help_output_equals(actual: str, expected: str) -> None:
     if "optional arguments" in expected and sys.version_info[:2] >= (3, 10):
         expected = expected.replace("optional arguments", "options")
 
-    # assert actual == expected
     actual_str = "".join(actual.split())
     actual_str = actual.translate(str.maketrans("", "", remove))
     expected_str = expected.translate(str.maketrans("", "", remove))

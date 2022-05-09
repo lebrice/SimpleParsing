@@ -151,10 +151,20 @@ def test_two_subgroups():
         first: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar}, default=Bar(d=3))
         second: Union[Baz, Blop] = subgroups({"baz": Baz, "blop": Blop}, default=Blop())
 
-    # BUG: Can't have `add_help` on the top-level parser...
-    # parser = ArgumentParser(add_help=True)
-    # parser.add_arguments(Bob, dest="bob")
-    # args = parser.parse_args(["--help"])
-
     bob = Bob.setup("--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2")
     assert bob == Bob(first=Foo(a=123), second=Blop(g="arwg", h=1.2))
+
+
+def test_two_subgroups_with_conflict():
+    @dataclass
+    class Bob(TestSetup):
+        first: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar}, default=Bar(d=3))
+        second: Union[Foo, Blop] = subgroups({"foo": Foo, "blop": Blop}, default=Blop())
+
+    assert Bob.setup(
+        "--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2"
+    ) == Bob(first=Foo(a=123), second=Blop(g="arwg", h=1.2))
+
+    assert Bob.setup("--first foo --first.a 123 --second foo --second.a 456") == Bob(
+        first=Foo(a=123), second=Foo(a=456)
+    )

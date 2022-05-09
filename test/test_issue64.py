@@ -1,11 +1,11 @@
-from dataclasses import dataclass
-
-from simple_parsing import ArgumentParser
-from io import StringIO
 import textwrap
+from dataclasses import dataclass
+from io import StringIO
+from test.testutils import assert_help_output_equals
+
 import pytest
 
-from test.testutils import assert_help_output_equals
+from simple_parsing import ArgumentParser
 
 
 @dataclass
@@ -54,16 +54,10 @@ def test_vanilla_argparse_issue64():
     """
     import argparse
 
-    parser = ArgumentParser(
-        "issue64", formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    parser = ArgumentParser("issue64", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    group = parser.add_argument_group(
-        "Options ['options']", description="These are the options"
-    )
-    group.add_argument(
-        "--foo", type=str, metavar="str", default="aaa", help="Description"
-    )
+    group = parser.add_argument_group("Options ['options']", description="These are the options")
+    group.add_argument("--foo", type=str, metavar="str", default="aaa", help="Description")
     group.add_argument("--bar", type=str, metavar="str", default="bbb")
 
     from io import StringIO
