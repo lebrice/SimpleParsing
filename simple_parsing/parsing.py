@@ -241,41 +241,9 @@ class ArgumentParser(argparse.ArgumentParser):
             # make sure that args are mutable
             args = list(args)
 
-        self.subgroups: Dict[str, Dict[str, Type]] = {}
         self._preprocessing()
 
-        for wrapper in self._wrappers:
-            for field_wrapper in wrapper.fields:
-                if not field_wrapper.is_subgroup:
-                    continue
-                # NOTE: Need to prevent some weird recursion here.
-                # A field is only supposed to be considered a subgroup if it hasn't already been
-                # resolved by a parent!
-                # IF we are a child, and encounter a subgroup field, then we should check if a
-                # parent already had this field as a subgroup, and in this case, we just parse the
-                # required type.
-                if any(field_wrapper.dest in parent.subgroups for parent in self._parents):
-                    logger.debug(
-                        f"The field {field_wrapper.dest} is a subgroup that has already been "
-                        f"resolved by a parent."
-                    )
-                    continue
-
-                dest = field_wrapper.dest
-                subgroups = field_wrapper.field.metadata["subgroups"]
-                self.subgroups[dest] = subgroups
-
-        self._had_help = self.add_help
-        if self.subgroups:
-            logger.debug("Removing the help action from the parser because it has subgroups.")
-            self.add_help = False
-
         logger.info(f"Parser {id(self)} is parsing args: {args}, namespace: {namespace}")
-
-        if self.add_help:
-            logger.info("Adding a --help action.")
-            self._add_help_action()
-
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
 
         if self.subgroups:
@@ -382,6 +350,38 @@ class ArgumentParser(argparse.ArgumentParser):
                 f"at destinations {wrapper.destinations}"
             )
             wrapper.add_arguments(parser=self)
+
+        self.subgroups: Dict[str, Dict[str, Type]] = {}
+        for wrapper in self._wrappers:
+            for field_wrapper in wrapper.fields:
+                if not field_wrapper.is_subgroup:
+                    continue
+                # NOTE: Need to prevent some weird recursion here.
+                # A field is only supposed to be considered a subgroup if it hasn't already been
+                # resolved by a parent!
+                # IF we are a child, and encounter a subgroup field, then we should check if a
+                # parent already had this field as a subgroup, and in this case, we just parse the
+                # required type.
+                if any(field_wrapper.dest in parent.subgroups for parent in self._parents):
+                    logger.debug(
+                        f"The field {field_wrapper.dest} is a subgroup that has already been "
+                        f"resolved by a parent."
+                    )
+                    continue
+
+                dest = field_wrapper.dest
+                subgroups = field_wrapper.field.metadata["subgroups"]
+                self.subgroups[dest] = subgroups
+
+        self._had_help = self.add_help
+        if self.subgroups:
+            logger.debug("Removing the help action from the parser because it has subgroups.")
+            self.add_help = False
+
+        if self.add_help:
+            logger.info("Adding a --help action.")
+            self._add_help_action()
+
         self._preprocessing_done = True
 
     def _add_help_action(self):

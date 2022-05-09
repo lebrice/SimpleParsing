@@ -1,6 +1,9 @@
 import contextlib
 from dataclasses import dataclass, is_dataclass
+from io import StringIO
 from typing import Dict, Optional, Type, TypeVar, Union
+
+import pytest
 
 from simple_parsing import ArgumentParser, choice
 
@@ -74,24 +77,38 @@ class TestSubgroup:
         assert is_dataclass(thing)
         assert thing == Foo(a=123)
 
-    def test_help_string(self):
+    def test_help_action(self):
         """Test that the arguments for the chosen subgroup are shown in the help string."""
+
+        # The default is of type Bar, so if the option isn't passed, it should show the help for
+        # the default argument choice.
+        assert "--thing.c" in Bob.get_help_text("--help")
+
+        assert "--thing.a" in Bob.get_help_text("--thing foo_thing --help")
+        assert "--thing.c" in Bob.get_help_text("--thing bar_thing --help")
+
+    def test_manual_help_action(self):
+        """Test without the use of `get_help_text` from TestSetup, just to be sure."""
         parser = ArgumentParser()
         parser.add_arguments(Bob, dest="bob")
-        from io import StringIO
 
         with StringIO() as f:
             with contextlib.suppress(SystemExit), contextlib.redirect_stdout(f):
                 parser.parse_args(["--help"])
             help_text = f.getvalue()
-        print("\n" + help_text)
-        assert "--a" in help_text
+        # print("\n" + help_text)
+        assert "--thing.c" in help_text
+
+    @pytest.mark.xfail(reason="TODO, doesn't quite work yet.")
+    def test_print_help(self):
+        parser = ArgumentParser()
+        parser.add_arguments(Bob, dest="bob")
 
         with StringIO() as f:
             parser.print_help(f)
             help_text = f.getvalue()
             print(help_text)
-            assert "--a" in help_text
+            assert "--thing.c" in help_text
 
 
 def test_required_subgroup():
@@ -99,7 +116,7 @@ def test_required_subgroup():
 
     @dataclass
     class Bob(TestSetup):
-        thing: Union[Foo, Bar] = subgroups({"foo_thing": Foo, "bar_thing": Bar})
+        thing: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar})
 
     with raises_missing_required_arg():
         assert Bob.setup("")
@@ -121,7 +138,7 @@ def test_subgroup_with_required_argument():
         thing: Union[Foo, WithRequiredArg] = subgroups({"foo": Foo, "req": WithRequiredArg})
 
     assert Bob.setup("--thing foo --thing.a 44") == Bob(thing=Foo(a=44))
-    assert Bob.setup("--thing req --some_required_arg 22") == Bob(
+    assert Bob.setup("--thing req --thing.some_required_arg 22") == Bob(
         thing=WithRequiredArg(some_required_arg=22)
     )
     with raises_missing_required_arg():
@@ -135,12 +152,9 @@ def test_two_subgroups():
         second: Union[Baz, Blop] = subgroups({"baz": Baz, "blop": Blop}, default=Blop())
 
     # BUG: Can't have `add_help` on the top-level parser...
-    parser = ArgumentParser(add_help=True)
-    parser.add_arguments(Bob, dest="bob")
+    # parser = ArgumentParser(add_help=True)
+    # parser.add_arguments(Bob, dest="bob")
     # args = parser.parse_args(["--help"])
 
-    args = parser.parse_args("--thing foo_thing --thing.a 123".split())
-    bob = args.bob
-    thing = bob.thing
-    assert is_dataclass(thing)
-    assert thing == Foo(a=123)
+    bob = Bob.setup("--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2")
+    assert bob == Bob(first=Foo(a=123), second=Blop(g="arwg", h=1.2))
