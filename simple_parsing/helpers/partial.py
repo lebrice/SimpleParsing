@@ -1,20 +1,22 @@
 """ A Partial helper that can be used to add arguments for an arbitrary class or callable. """
-from __future__ import annotations
-
 import dataclasses
 import inspect
 import typing
 from dataclasses import make_dataclass
-from functools import cache, lru_cache, singledispatch, wraps
+from functools import lru_cache, singledispatch, wraps
 from logging import getLogger as get_logger
 from typing import (
     Any,
     Callable,
+    Dict,
     Generic,
     Hashable,
     Sequence,
+    Type,
     TypeVar,
+    Union,
     _ProtocolMeta,
+    cast,
     get_type_hints,
     overload,
 )
@@ -26,7 +28,7 @@ import simple_parsing
 __all__ = ["Partial", "config_dataclass_for", "infer_type_annotation_from_default"]
 
 C = TypeVar("C", bound=Callable)
-P = ParamSpec("P", covariant=True)
+P = ParamSpec("P")
 T = TypeVar("T", bound="Any")
 _C = TypeVar("_C", bound=Callable[..., Any])
 
@@ -34,7 +36,7 @@ logger = get_logger(__name__)
 
 
 @singledispatch
-def infer_type_annotation_from_default(default: Any) -> Any | type:
+def infer_type_annotation_from_default(default: Any) -> Union[Any, type]:
     if isinstance(default, (int, str, float, bool)):
         return type(default)
     if isinstance(default, tuple):
@@ -64,7 +66,7 @@ def adjust_default(default: Any) -> Any:
 
 
 @overload
-def cache_when_possible(fn: _C, /) -> _C:
+def cache_when_possible(fn: _C) -> _C:
     ...
 
 
@@ -74,13 +76,16 @@ def cache_when_possible(*, cache_fn=lru_cache) -> Callable[[_C], _C]:
 
 
 @overload
-def cache_when_possible(fn: _C, /, *, cache_fn: Callable = lru_cache) -> _C:
+def cache_when_possible(fn: _C, *, cache_fn: Callable = lru_cache) -> _C:
     ...
 
 
+default_cache_fn = lambda fn: lru_cache(maxsize=None)(fn)
+
+
 def cache_when_possible(
-    fn: _C | None = None, /, *, cache_fn: Callable = lru_cache
-) -> _C | Callable[[_C], _C]:
+    fn: Union[_C, None] = None, *, cache_fn: Callable = default_cache_fn
+) -> Union[_C, Callable[[_C], _C]]:
 
     if fn is None:
 
@@ -103,13 +108,13 @@ def cache_when_possible(
     return _switch
 
 
-@cache_when_possible(cache_fn=cache)
+@cache_when_possible()
 def config_dataclass_for(
     cls: Callable[P, T],
-    ignore_args: str | Sequence[str] = (),
+    ignore_args: Union[str, Sequence[str]] = (),
     *_: P.args,
     **defaults: P.kwargs,
-) -> type[Partial[T]]:
+) -> Type["Partial[T]"]:
     """Create a dataclass that contains the arguments for the constructor of `cls`.
 
     Example:
@@ -202,7 +207,7 @@ def config_dataclass_for(
     return config_class
 
 
-def _parse_args_from_docstring(docstring: str) -> dict[str, str]:
+def _parse_args_from_docstring(docstring: str) -> Dict[str, str]:
     """Taken from `pytorch_lightning.utilities.argparse`."""
     arg_block_indent = None
     current_arg = ""
@@ -237,13 +242,11 @@ try:
 except ImportError:
     pass
 
-from typing import cast
 
-
-class _Partial(_ProtocolMeta, Generic[_C]):
+class _Partial(_ProtocolMeta):
     _target_: _C
 
-    def __getitem__(cls, target: Callable[P, T]) -> type[Callable[P, T]]:
+    def __getitem__(cls, target: Callable[P, T]) -> Type[Callable[P, T]]:
         # return cls(target=target)
         return config_dataclass_for(target)
 
@@ -251,7 +254,7 @@ class _Partial(_ProtocolMeta, Generic[_C]):
 class Partial(Generic[T], metaclass=_Partial):
     # _target_: Callable[P, T]
 
-    def __call__(self: Partial[T] | Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> T:
+    def __call__(self: Union["Partial[T]", Callable[P, T]], *args: P.args, **kwargs: P.kwargs) -> T:
         constructor_kwargs = dataclasses.asdict(self)
         constructor_kwargs.update(**kwargs)
         self = cast(Partial, self)
