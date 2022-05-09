@@ -105,10 +105,15 @@ def test_running_example_outputs_expected(
         *[
             pytest.param(
                 p,
-                marks=pytest.mark.skipif(
-                    sys.version_info[:2] == (3, 6),
-                    reason="Example uses __future__ annotations feature",
-                ),
+                marks=[
+                    pytest.mark.skipif(
+                        sys.version_info[:2] == (3, 6),
+                        reason="Example uses __future__ annotations feature",
+                    ),
+                    pytest.mark.xfail(
+                        reason="Example has different indentation depending on python version.",
+                    ),
+                ],
             )
             if p == "examples/subgroups/subgroups_example.py"
             else p
