@@ -253,7 +253,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         self._preprocessing()
 
-        logger.info(f"Parser {id(self)} is parsing args: {args}, namespace: {namespace}")
+        logger.debug(f"Parser {id(self)} is parsing args: {args}, namespace: {namespace}")
 
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
 
