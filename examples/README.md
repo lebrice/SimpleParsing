@@ -7,6 +7,8 @@
 
 - **NEW**: [Subgroups Example](subgroups/README.md)
 
+<!-- - **NEW**: [Partials Example](partials/README.md) -->
+
 - [Serialization to `json`/`yaml`](serialization/README.md)
 
 - [Attribute Docstrings Example](docstrings/README.md)
