@@ -115,6 +115,16 @@ class ArgumentParser(argparse.ArgumentParser):
         self._add_argument_replay: List[Callable[["ArgumentParser"], Any]] = []
 
         self.add_help = add_help
+        if self.add_help:
+            prefix_chars = self.prefix_chars
+            default_prefix = "-" if "-" in prefix_chars else prefix_chars[0]
+            self._help_action = super().add_argument(
+                default_prefix + "h",
+                default_prefix * 2 + "help",
+                action="help",
+                default=SUPPRESS,
+                help=_("show this help message and exit"),
+            )
 
         # Add parent arguments and defaults.
         # THis is a little bit different than in Argparse: We replay all the `add_argument` and
@@ -244,6 +254,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing()
 
         logger.info(f"Parser {id(self)} is parsing args: {args}, namespace: {namespace}")
+
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
 
         if self.subgroups:
@@ -299,18 +310,6 @@ class ArgumentParser(argparse.ArgumentParser):
     def print_help(self, file=None):
         self._preprocessing()
         return super().print_help(file)
-
-    def _remove_help_action(self) -> None:
-        # TODO: Need to remove the '--help' action.
-        self.add_help = False
-        help_actions = [action for action in self._actions if isinstance(action, _HelpAction)]
-        if not help_actions:
-            return
-
-        help_action = help_actions[0]
-        self._remove_action(help_action)
-
-        # optionals_help_actions = [action for action in self._optionals._actions]
 
     def equivalent_argparse_code(self) -> str:
         """Returns the argparse code equivalent to that of `simple_parsing`.
@@ -374,27 +373,26 @@ class ArgumentParser(argparse.ArgumentParser):
                 self.subgroups[dest] = subgroups
 
         self._had_help = self.add_help
-        if self.subgroups:
+        if self.subgroups and self.add_help:
             logger.debug("Removing the help action from the parser because it has subgroups.")
             self.add_help = False
-
-        if self.add_help:
-            logger.info("Adding a --help action.")
-            self._add_help_action()
+            self._remove_help_action()
 
         self._preprocessing_done = True
 
-    def _add_help_action(self):
-        # TODO: This is acting weird.
-        prefix_chars = self.prefix_chars
-        default_prefix = "-" if "-" in prefix_chars else prefix_chars[0]
-        self._help_action = self.add_argument(
-            default_prefix + "h",
-            default_prefix * 2 + "help",
-            action="help",
-            default=SUPPRESS,
-            help=_("show this help message and exit"),
-        )
+    def _remove_help_action(self) -> None:
+        self.add_help = False
+        help_actions = [action for action in self._actions if isinstance(action, _HelpAction)]
+        if not help_actions:
+            return
+
+        help_action = help_actions[0]
+        self._remove_action(help_action)
+
+        for option_string in self._help_action.option_strings:
+            self._option_string_actions.pop(option_string)
+        # assert False, self._option_string_actions
+        # optionals_help_actions = [action for action in self._optionals._actions]
 
     def _postprocessing(self, parsed_args: Namespace) -> Namespace:
         """Process the namespace by extract the fields and creating the objects.
