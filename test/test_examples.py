@@ -103,7 +103,15 @@ def test_running_example_outputs_expected(
     "file_path",
     [
         *[
-            p
+            pytest.param(
+                p,
+                marks=pytest.mark.skipif(
+                    sys.version_info[:2] == (3, 6),
+                    reason="Example uses __future__ annotations feature",
+                ),
+            )
+            if p == "examples/subgroups/subgroups_example.py"
+            else p
             for p in glob.glob("examples/**/*.py")
             if p
             not in {
