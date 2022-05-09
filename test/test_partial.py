@@ -39,7 +39,7 @@ def test_partial_function_attribute():
         some_fn: Partial[some_function]
 
     bob = Bob.setup("--v2 781")
-    assert str(bob.some_fn) == "some_function_config(v1=123, v2=781)"
+    assert str(bob.some_fn) == "some_functionConfig(v1=123, v2=781)"
     assert bob.some_fn() == some_function(v2=781)
     assert bob.some_fn(v1=3, v2=7) == some_function(3, 7)
 
