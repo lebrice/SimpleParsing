@@ -1,23 +1,28 @@
 import argparse
-from pyexpat import version_info
-import shlex
-from dataclasses import dataclass
-from typing import Any
-
-import pytest
-from simple_parsing import ArgumentParser, field, DashVariant
-from simple_parsing.wrappers.field_wrapper import FieldWrapper
 import textwrap
-from .testutils import *
+from dataclasses import dataclass
 from typing import List
+
+from simple_parsing import ArgumentParser, DashVariant, field
+
+from .testutils import (
+    ArgumentGenerationMode,
+    NestedMode,
+    TestParser,
+    TestSetup,
+    assert_help_output_equals,
+    exits_and_writes_to_stderr,
+    raises,
+    raises_expected_n_args,
+    raises_missing_required_arg,
+    raises_unrecognized_args,
+)
 
 
 def test_custom_args():
     @dataclass
     class Foo(TestSetup):
-        output_dir: str = field(
-            default="/out", alias=["-o", "--out"], choices=["/out", "/bob"]
-        )
+        output_dir: str = field(default="/out", alias=["-o", "--out"], choices=["/out", "/bob"])
 
     foo = Foo.setup("--output_dir /bob")
     assert foo.output_dir == "/bob"
@@ -98,7 +103,7 @@ def test_custom_nargs_star():
         some_int: int = field(type=int, nargs="*")
 
     foo = Foo.setup("")
-    assert foo.some_int == None
+    assert foo.some_int is None
 
     foo = Foo.setup("--some_int")
     assert foo.some_int == []
@@ -119,7 +124,7 @@ def test_custom_nargs_question_mark():
     assert foo.some_int == -1
 
     foo = Foo.setup("--some_int")
-    assert foo.some_int == None
+    assert foo.some_int is None
 
     foo = Foo.setup("--some_int 123")
     assert foo.some_int == 123
@@ -170,7 +175,6 @@ def test_only_dashes():
 
         a_var: int
 
-
     @dataclass
     class SomeClass(TestSetup):
         """lol"""
@@ -196,24 +200,27 @@ def test_only_dashes():
               foo
             
               --a-var int
-            """
+            """  # noqa: W293
         ),
     )
     sc = SomeClass.setup("--my-var 2 --a-var 3", add_option_string_dash_variants=DashVariant.DASH)
     assert sc.my_var == 2
     assert sc.a.a_var == 3
-    sc = SomeClass.setup("--some-class.my-var 2 --some-class.a.a-var 3",
-                         add_option_string_dash_variants=DashVariant.DASH,
-                         argument_generation_mode=ArgumentGenerationMode.NESTED)
+    sc = SomeClass.setup(
+        "--some-class.my-var 2 --some-class.a.a-var 3",
+        add_option_string_dash_variants=DashVariant.DASH,
+        argument_generation_mode=ArgumentGenerationMode.NESTED,
+    )
     assert sc.my_var == 2
     assert sc.a.a_var == 3
-    sc = SomeClass.setup("--my-var 2 --a.a-var 3",
-                         add_option_string_dash_variants=DashVariant.DASH,
-                         argument_generation_mode=ArgumentGenerationMode.NESTED,
-                         nested_mode=NestedMode.WITHOUT_ROOT)
+    sc = SomeClass.setup(
+        "--my-var 2 --a.a-var 3",
+        add_option_string_dash_variants=DashVariant.DASH,
+        argument_generation_mode=ArgumentGenerationMode.NESTED,
+        nested_mode=NestedMode.WITHOUT_ROOT,
+    )
     assert sc.my_var == 2
     assert sc.a.a_var == 3
-
 
 
 def test_list_of_choices():
