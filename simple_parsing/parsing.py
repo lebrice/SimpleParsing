@@ -565,22 +565,46 @@ class ArgumentParser(argparse.ArgumentParser):
                     )
 
                     setattr(parsed_args, destination, instance)
-                else:
+                elif not self.subgroups:
                     existing = getattr(parsed_args, destination)
-                    if not self.subgroups:
-                        raise RuntimeError(
-                            f"Namespace should not already have a '{destination}' "
-                            f"attribute!\n"
-                            f"The value would be overwritten:\n"
-                            f"- existing value: {existing}\n"
-                            f"- new value:      {instance}"
+                    raise RuntimeError(
+                        f"Namespace should not already have a '{destination}' "
+                        f"attribute!\n"
+                        f"The value would be overwritten:\n"
+                        f"- existing value: {existing}\n"
+                        f"- new value:      {instance}"
+                    )
+                elif not any(wrapper.dest in subgroup_dest for subgroup_dest in self.subgroups):
+                    # the current dataclass wrapper doesn't have anything to do with the subgroups.
+                    existing = getattr(parsed_args, destination)
+                    # This dataclass wrapper doesn't have anything to do with subgroups.
+                    # BUG: The value in the args should be always the same, no?
+
+                    if existing != instance:
+                        logger.warning(
+                            f"Ignoring new parsed value of {instance} for {destination}. \n"
+                            f"Keeping the value that is already in the args: {existing}"
                         )
+                        # raise RuntimeError(
+                        #     "Why is there already an attribute, if this doesn't have anything to do with subgroups?\n"
+                        #     f"Namespace should not already have a '{destination}' "
+                        #     f"attribute!\n"
+                        #     f"The value would be overwritten:\n"
+                        #     f"- existing value: {existing}\n"
+                        #     f"- new value:      {instance}"
+                        # )
+                else:
+                    # The dataclass wrapper isn't directly for the subgroup: It's for a parent of
+                    # the subgroup choice.
+
+                    existing = getattr(parsed_args, destination)
                     # It's ok to overwrite the value of a subgroup choice.
                     # For instance, say its --optimizer_type "adam", then we overwrite the value
                     # at the 'optimizer' key with the value the dataclass config.
-                    # TODO: Issue #139: Save the chosen value for the subgroup somewhere on
-                    # the args.
-                    # NOTE: This is happening here with the parent of a subgroup field, e.g.
+
+                    # TODO: Detect if this wrapper isn't related (e.g. doesn't have any subgroups.)
+
+                    # NOTE: This is also happening here when the parent of a subgroup field, e.g.
                     # `Bob(thing="foo")`` is to be overwritten with `Bob(thing=Foo(a=123, b=2))`
 
                     # Should we just overwrite (set) the attribute on the existing instance?
@@ -588,9 +612,15 @@ class ArgumentParser(argparse.ArgumentParser):
                     for subgroup_dest, subgroup_choices in self.subgroups.items():
                         # NOTE: These two cases are simpler, but don't occur here: They are
                         # handled in the FieldWrapper.
-                        if subgroup_dest.startswith(destination + "."):
+                        subgroup_parent, _, attribute = subgroup_dest.rpartition(".")
+
+                        if wrapper.dest not in subgroup_dest:
+                            # current dataclass wrapper doesn't have anything to do with this
+                            # subgroup. Go to the next subgroup.
+                            continue
+
+                        elif subgroup_parent == destination:
                             # Replace the attribute that changed on the dataclass instance.
-                            attribute = subgroup_dest.split(".")[-1]
                             current_value = getattr(existing, attribute)
                             new_value = getattr(instance, attribute)
 
@@ -606,6 +636,40 @@ class ArgumentParser(argparse.ArgumentParser):
                                 )
                                 existing = dataclasses.replace(existing, **{attribute: new_value})
                                 setattr(parsed_args, destination, existing)
+                        elif subgroup_dest.startswith(wrapper.dest + "."):
+                            # subgroup overwrites an attribute in the child of the existing
+                            # dataclass.
+                            path_from_parent_to_child = subgroup_dest[len(wrapper.dest + ".") :]
+                            parts = path_from_parent_to_child.split(".")
+
+                            from simple_parsing.utils import (
+                                getattr_recursive,
+                                setattr_recursive,
+                            )
+
+                            existing_config = getattr_recursive(existing, path_from_parent_to_child)
+                            new_config = getattr_recursive(instance, path_from_parent_to_child)
+                            if existing_config == new_config:
+                                continue
+
+                            if (
+                                isinstance(existing_config, str)
+                                and existing_config in subgroup_choices
+                                and not isinstance(new_config, str)
+                            ):
+                                attribute = parts[-1]
+                                # TODO: This won't work if the dataclasses are frozen! We need some
+                                # kind of recursive replace function.
+                                logger.debug(
+                                    f"Overwriting attribute {attribute} on {existing} to {new_config}."
+                                )
+                                setattr_recursive(existing, path_from_parent_to_child, new_config)
+
+                        else:
+                            raise RuntimeError(
+                                "Something went wrong while trying to update the value of a \n"
+                                "subgroup in the args! Please report this bug by opening an issue!"
+                            )
 
                 # TODO: not needed, but might be a good thing to do?
                 # remove the 'args dict' for this child class.

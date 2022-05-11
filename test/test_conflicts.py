@@ -1,9 +1,11 @@
 """Tests for weird conflicts.
 """
+import argparse
 from dataclasses import dataclass
+
 from simple_parsing import ArgumentParser
 
-from .testutils import *
+from .testutils import TestSetup, raises
 
 
 def test_arg_and_dataclass_with_same_name(silent):

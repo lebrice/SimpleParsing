@@ -7,6 +7,7 @@ from typing import Union
 import pytest
 
 from simple_parsing import ArgumentParser, subgroups
+from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
 from .testutils import TestSetup, raises_missing_required_arg, raises_unrecognized_args
 
@@ -231,3 +232,32 @@ def test_issue_139():
     args = parser.parse_args([])
     assert args.config == Config(person=Daniel())
     assert args.subgroups == {"config.person": "daniel"}
+
+
+def test_deeper_nesting_prefixing():
+    """Test that the prefixing mechanism works for deeper nesting of subgroups."""
+
+    @dataclass
+    class Config:
+        """Configuration dataclass."""
+
+        person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
+
+    @dataclass
+    class HigherConfig(TestSetup):
+        """Higher-level config."""
+
+        a: Config = Config(person=Daniel())
+        b: Config = Config(person=Alice())
+
+    HigherConfig.get_help_text(
+        "--help",
+        nested_mode=NestedMode.WITHOUT_ROOT,
+        argument_generation_mode=ArgumentGenerationMode.NESTED,
+    )
+
+    assert HigherConfig.setup("") == HigherConfig()
+    assert HigherConfig.setup("--a.person alice") == HigherConfig(a=Config(person=Alice()))
+    assert HigherConfig.setup("--b.person daniel --b.person.age 54") == HigherConfig(
+        b=Config(person=Daniel(age=54))
+    )

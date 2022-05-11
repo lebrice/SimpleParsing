@@ -1,8 +1,9 @@
+import argparse
 from dataclasses import dataclass
 
 from simple_parsing import ArgumentParser
 
-from .testutils import argparse, raises_missing_required_arg, shlex
+from .testutils import raises_missing_required_arg, shlex
 
 
 def test_no_default_argument(simple_attribute, silent):

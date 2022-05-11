@@ -198,6 +198,7 @@ class TestSetup:
         multiple=False,
         conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
         add_option_string_dash_variants=DashVariant.AUTO,
+        **parser_kwargs,
     ) -> str:
         import contextlib
         from io import StringIO
@@ -214,6 +215,7 @@ class TestSetup:
                 argv,
                 conflict_resolution_mode=conflict_resolution_mode,
                 add_option_string_dash_variants=add_option_string_dash_variants,
+                **parser_kwargs,
             )
         s = f.getvalue()
         return s
