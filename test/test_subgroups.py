@@ -190,12 +190,28 @@ class Alice(Person):
     popular: bool = True
 
 
-def test_mixing_subgroup_with_regular_dataclass():
+@dataclass
+class Config:
+    """Configuration dataclass."""
+
+    person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
+
     @dataclass
     class Config:
         """Configuration dataclass."""
 
-        person: Person = subgroups({"bob": Daniel, "alice": Alice}, default=Daniel)
+        person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
+
+
+@dataclass
+class HigherConfig(TestSetup):
+    """Higher-level config."""
+
+    a: Config = Config(person=Daniel())
+    b: Config = Config(person=Alice())
+
+
+def test_mixing_subgroup_with_regular_dataclass():
 
     parser = ArgumentParser()
     parser.add_arguments(Config, dest="config")
@@ -220,12 +236,6 @@ def test_issue_139():
     Need to save the chosen subgroup name somewhere on the args.
     """
 
-    @dataclass
-    class Config:
-        """Configuration dataclass."""
-
-        person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
-
     parser = ArgumentParser()
     parser.add_arguments(Config, dest="config")
 
@@ -237,21 +247,14 @@ def test_issue_139():
 def test_deeper_nesting_prefixing():
     """Test that the prefixing mechanism works for deeper nesting of subgroups."""
 
-    @dataclass
-    class Config:
-        """Configuration dataclass."""
-
-        person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
-
-    @dataclass
-    class HigherConfig(TestSetup):
-        """Higher-level config."""
-
-        a: Config = Config(person=Daniel())
-        b: Config = Config(person=Alice())
-
-    HigherConfig.get_help_text(
+    assert "--a.person.cool" in HigherConfig.get_help_text(
         "--help",
+        nested_mode=NestedMode.WITHOUT_ROOT,
+        argument_generation_mode=ArgumentGenerationMode.NESTED,
+    )
+
+    assert "--a.person.popular" in HigherConfig.get_help_text(
+        "--a.person alice --help",
         nested_mode=NestedMode.WITHOUT_ROOT,
         argument_generation_mode=ArgumentGenerationMode.NESTED,
     )
@@ -261,3 +264,15 @@ def test_deeper_nesting_prefixing():
     assert HigherConfig.setup("--b.person daniel --b.person.age 54") == HigherConfig(
         b=Config(person=Daniel(age=54))
     )
+
+
+def test_subgroups_dict_in_args():
+    parser = ArgumentParser()
+    parser.add_arguments(HigherConfig, "config")
+
+    args = parser.parse_args([])
+    assert args.config == HigherConfig()
+    assert args.subgroups == {"config.a.person": "daniel", "config.b.person": "alice"}
+
+    args = parser.parse_args(shlex.split("--a.person alice --b.person daniel --b.person.age 54"))
+    assert args.subgroups == {"config.a.person": "alice", "config.b.person": "daniel"}

@@ -263,6 +263,10 @@ class ArgumentParser(argparse.ArgumentParser):
             # make sure that args are mutable
             args = list(args)
 
+        # default Namespace built from parser defaults
+        if namespace is None:
+            namespace = Namespace()
+
         self._preprocessing()
 
         logger.debug(f"Parser {id(self)} is parsing args: {args}, namespace: {namespace}")
@@ -277,33 +281,62 @@ class ArgumentParser(argparse.ArgumentParser):
                 argument_generation_mode=self.argument_generation_mode,
                 nested_mode=self.nested_mode,
             )
+            if not hasattr(namespace, "subgroups"):
+                namespace.subgroups = {}
+            if not hasattr(parsed_args, "subgroups"):
+                parsed_args.subgroups = {}
 
             for dest, subgroup_dict in self.subgroups.items():
                 value = getattr(parsed_args, dest)
+
+                def _get_wrapper_for_dest(dest: str) -> FieldWrapper:
+                    """Retrieve the FieldWrapper from self._wrappers that has the given dest."""
+                    for wrapper in self._wrappers:
+                        for field_wrapper in wrapper.fields:
+                            if field_wrapper.dest == dest:
+                                return field_wrapper
+                    raise ValueError(f"No FieldWrapper found for dest {dest}")
+
+                field_wrapper = _get_wrapper_for_dest(dest)
+
                 logger.debug(f"Chosen value for subgroup {dest}: {value}")
                 # The prefix should be 'thing' instead of 'bob.thing'.
                 # TODO: This needs to be tested more, in particular with argument conflicts.
                 _, _, parent_dest = dest.rpartition(".")
                 prefix = parent_dest + "."
+                default = None
+                chosen_subgroup: str
                 if isinstance(value, str):
-                    chosen_class = subgroup_dict[value]
-                    parser.add_arguments(
-                        chosen_class,
-                        dest=dest,
-                        prefix=prefix,
-                    )
+                    chosen_subgroup = value
+                    chosen_class = subgroup_dict[chosen_subgroup]
                 else:
-                    default = value
+                    # The value is not the subgroup name.
                     chosen_class = type(value)
-                    # prefix = f"{dest}."
-                    parser.add_arguments(
-                        chosen_class,
-                        dest=dest,
-                        prefix=prefix,
-                        default=default,
-                    )
+                    default = value
+                    if chosen_class in subgroup_dict.values():
+                        chosen_subgroup = [
+                            k for k, v in subgroup_dict.items() if v == chosen_class
+                        ].pop()
+                    else:
+                        # A dynamic kind of default value?
+                        raise RuntimeError(
+                            f"Don't yet know how to detect which subgroup in {subgroup_dict} was "
+                            f"chosen, if the default value is {value} and the field default is "
+                            f"{field_wrapper.field.default}"
+                        )
+                # prefix = f"{dest}."
+                parsed_args.subgroups[dest] = chosen_subgroup
+                namespace.subgroups[dest] = chosen_subgroup
 
-            parsed_args, unparsed_args = parser.parse_known_args(args, namespace)
+                parser.add_arguments(
+                    chosen_class,
+                    dest=dest,
+                    prefix=prefix,
+                    default=default,
+                )
+            # NOTE: Passing the `parsed_args` as the namespace to the child, so that it treats its
+            # values as the defaults.
+            parsed_args, unparsed_args = parser.parse_known_args(args, namespace=parsed_args)
 
         if unparsed_args and self._subparsers and attempt_to_reorder:
             logger.warning(
