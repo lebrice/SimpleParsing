@@ -1,4 +1,3 @@
-import argparse
 import shlex
 import string
 import sys
@@ -162,7 +161,13 @@ class TestSetup:
         assert hasattr(args, dest), f"attribute '{dest}' not found in args {args}"
         instance: Dataclass = getattr(args, dest)  # type: ignore
         delattr(args, dest)
-        assert args == argparse.Namespace(), f"Namespace has leftover garbage values: {args}"
+
+        # If there are subgroups, we can allow an extra "subgroups" attribute, otherwise we don't
+        # expect any other arguments.
+        args_dict = vars(args).copy()
+        args_dict.pop("subgroups", None)
+
+        assert not args_dict, f"Namespace has leftover garbage values (besides subgroups): {args}"
 
         instance = cast(Dataclass, instance)
         return instance

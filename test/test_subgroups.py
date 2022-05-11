@@ -1,4 +1,5 @@
 import contextlib
+import shlex
 from dataclasses import dataclass, is_dataclass
 from io import StringIO
 from typing import Union
@@ -58,7 +59,7 @@ class TestSubgroup:
     def test_subgroup(self):
         parser = ArgumentParser()
         parser.add_arguments(Bob, dest="bob")
-        args = parser.parse_args("--thing foo_thing --thing.a 123".split())
+        args = parser.parse_args(shlex.split("--thing foo_thing --thing.a 123"))
         bob = args.bob
         thing = bob.thing
         assert is_dataclass(thing)
@@ -165,3 +166,68 @@ def test_unrelated_arg_raises_error():
 
     with raises_unrecognized_args("--bblarga"):
         Bob.setup("--first foo --first.a 123 --second foo --second.a 456 --bblarga")
+
+
+@dataclass
+class Person:
+    age: int
+
+
+@dataclass
+class Daniel(Person):
+    """Person named Bob."""
+
+    age: int = 32
+    cool: bool = True
+
+
+@dataclass
+class Alice(Person):
+    """Person named Alice."""
+
+    age: int = 13
+    popular: bool = True
+
+
+def test_mixing_subgroup_with_regular_dataclass():
+    @dataclass
+    class Config:
+        """Configuration dataclass."""
+
+        person: Person = subgroups({"bob": Daniel, "alice": Alice}, default=Daniel)
+
+    parser = ArgumentParser()
+    parser.add_arguments(Config, dest="config")
+    parser.add_arguments(Foo, dest="foo")
+
+    args = parser.parse_args([])
+    assert args.config == Config(person=Daniel())
+    assert args.foo == Foo()
+
+    # NOTE: Not sure if the parser can safely be reused twice.
+    parser = ArgumentParser()
+    parser.add_arguments(Config, dest="config")
+    parser.add_arguments(Foo, dest="foo")
+    args = parser.parse_args(shlex.split("--person alice --person.age=33 --a 123"))
+    assert args.config == Config(person=Alice(age=33))
+    assert args.foo == Foo(a=123)
+
+
+def test_issue_139():
+    """test for https://github.com/lebrice/SimpleParsing/issues/139
+
+    Need to save the chosen subgroup name somewhere on the args.
+    """
+
+    @dataclass
+    class Config:
+        """Configuration dataclass."""
+
+        person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
+
+    parser = ArgumentParser()
+    parser.add_arguments(Config, dest="config")
+
+    args = parser.parse_args([])
+    assert args.config == Config(person=Daniel())
+    assert args.subgroups == {"config.person": "daniel"}

@@ -2,12 +2,24 @@
 @author: Fabrice Normandin
 """
 import argparse
+import dataclasses
 import sys
 from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _, _HelpAction
 from collections import defaultdict
 from functools import partial
 from logging import getLogger
-from typing import Any, Callable, Dict, List, Sequence, Type, Union, overload
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Type,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
@@ -497,6 +509,33 @@ class ArgumentParser(argparse.ArgumentParser):
         sorted_wrappers: List[DataclassWrapper] = sorted(
             self._wrappers, key=lambda w: w.nesting_level, reverse=True
         )
+        D = TypeVar("D")
+
+        def _create_dataclass_instance(
+            wrapper: DataclassWrapper[D],
+            constructor: Callable[..., D],
+            constructor_args: Dict[str, Dict],
+        ) -> Optional[D]:
+
+            # Check if the dataclass annotation is marked as Optional.
+            # In this case, if no arguments were passed, and the default value is None, then return
+            # None.
+            if wrapper.optional and wrapper.default is None:
+                for field_wrapper in wrapper.fields:
+                    arg_value = constructor_args[field_wrapper.name]
+                    default_value = field_wrapper.default
+                    logger.debug(
+                        f"field {field_wrapper.name}, arg value: {arg_value}, "
+                        f"default value: {default_value}"
+                    )
+                    if arg_value != default_value:
+                        # Value is not the default value, so an argument must have been passed.
+                        # Break, and return the instance.
+                        break
+                else:
+                    logger.debug(f"All fields for {wrapper.dest} were either default or None.")
+                    return None
+            return constructor(**constructor_args)
 
         for wrapper in sorted_wrappers:
             for destination in wrapper.destinations:
@@ -507,30 +546,9 @@ class ArgumentParser(argparse.ArgumentParser):
                 # the constructor. Might be fine though.
                 constructor = wrapper.dataclass
                 constructor_args = self.constructor_arguments[destination]
-
                 # If the dataclass wrapper is marked as 'optional' and all the
                 # constructor args are None, then the instance is None.
-                # TODO: How to discern the case where all values ARE none, and
-                # the case where the instance is to be None?
-                if wrapper.optional and wrapper.default is None:
-                    all_default_or_none = True
-                    for field_wrapper in wrapper.fields:
-                        arg_value = constructor_args[field_wrapper.name]
-                        default_value = field_wrapper.default
-                        logger.debug(
-                            f"field {field_wrapper.name}, arg value: {arg_value}, default value: {default_value}"
-                        )
-                        if arg_value != default_value:
-                            all_default_or_none = False
-                            break
-                    logger.debug(f"All fields were either default or None: {all_default_or_none}")
-
-                    if all_default_or_none:
-                        instance = None
-                    else:
-                        instance = constructor(**constructor_args)
-                else:
-                    instance = constructor(**constructor_args)
+                instance = _create_dataclass_instance(wrapper, constructor, constructor_args)
 
                 if wrapper.parent is not None:
                     parent_key, attr = utils.split_dest(destination)
@@ -540,30 +558,54 @@ class ArgumentParser(argparse.ArgumentParser):
                     )
                     self.constructor_arguments[parent_key][attr] = instance
 
-                else:
-                    # logger.debug(
-                    #     f"setting attribute '{destination}' on the Namespace "
-                    #     f"to a value of {instance}"
-                    # )
-                    # TODO: Do we want to overwrite the value if it's a subgroup choice?
-                    if hasattr(parsed_args, destination):
-                        # It's ok to overwrite the value of a subgroup choice.
-                        # For instance, say its --optimizer_type = "adam", then we don't save this
-                        # value in the namespace. We overwrite it with the value of the config.
-                        # TODO: I guess we could save the value in the namespace, but where?
-                        # NOTE: This is happening here with the parent of a subgroup field, e.g.
-                        # `Bob(thing="foo")`` is to be overwritten with `Bob(thing=Foo(a=123, b=2))`
-                        if any(
-                            field_wrapper.is_subgroup and field_wrapper.dest.startswith(destination)
-                            for field_wrapper in wrapper.fields
-                        ):
-                            pass
-                        else:
-                            raise RuntimeError(
-                                f"Namespace should not already have a '{destination}' "
-                                f"attribute! (namespace: {parsed_args}) "
-                            )
+                elif not hasattr(parsed_args, destination):
+                    logger.debug(
+                        f"setting attribute '{destination}' on the Namespace "
+                        f"to a value of {instance}"
+                    )
+
                     setattr(parsed_args, destination, instance)
+                else:
+                    existing = getattr(parsed_args, destination)
+                    if not self.subgroups:
+                        raise RuntimeError(
+                            f"Namespace should not already have a '{destination}' "
+                            f"attribute!\n"
+                            f"The value would be overwritten:\n"
+                            f"- existing value: {existing}\n"
+                            f"- new value:      {instance}"
+                        )
+                    # It's ok to overwrite the value of a subgroup choice.
+                    # For instance, say its --optimizer_type "adam", then we overwrite the value
+                    # at the 'optimizer' key with the value the dataclass config.
+                    # TODO: Issue #139: Save the chosen value for the subgroup somewhere on
+                    # the args.
+                    # NOTE: This is happening here with the parent of a subgroup field, e.g.
+                    # `Bob(thing="foo")`` is to be overwritten with `Bob(thing=Foo(a=123, b=2))`
+
+                    # Should we just overwrite (set) the attribute on the existing instance?
+                    # or just replace the instance entirely?
+                    for subgroup_dest, subgroup_choices in self.subgroups.items():
+                        # NOTE: These two cases are simpler, but don't occur here: They are
+                        # handled in the FieldWrapper.
+                        if subgroup_dest.startswith(destination + "."):
+                            # Replace the attribute that changed on the dataclass instance.
+                            attribute = subgroup_dest.split(".")[-1]
+                            current_value = getattr(existing, attribute)
+                            new_value = getattr(instance, attribute)
+
+                            if (
+                                isinstance(current_value, str)
+                                and current_value in subgroup_choices
+                                and not isinstance(new_value, str)
+                            ):
+                                # Replacing the subgroup name with the dataclass instance.
+                                logger.debug(
+                                    f"Overwriting attribute {attribute} on {existing} from "
+                                    f"{current_value} -> {new_value}."
+                                )
+                                existing = dataclasses.replace(existing, **{attribute: new_value})
+                                setattr(parsed_args, destination, existing)
 
                 # TODO: not needed, but might be a good thing to do?
                 # remove the 'args dict' for this child class.
