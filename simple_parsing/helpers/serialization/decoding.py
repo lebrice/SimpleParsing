@@ -6,8 +6,8 @@ from collections import OrderedDict
 from dataclasses import Field, fields
 from functools import lru_cache, partial
 from logging import getLogger
-from typing import TypeVar, Any, Dict, Type, Callable, Optional, Union, List, Tuple, Set
-
+from typing import TypeVar, Any, Dict, Type, Callable, Optional, Union, List, Tuple, Set, Mapping, \
+    Iterable
 
 from simple_parsing.utils import (
     get_type_arguments,
@@ -382,4 +382,10 @@ def try_constructor(t: Type[T]) -> Callable[[Any], Union[T, Any]]:
     Returns:
         Callable[[Any], Union[T, Any]]: A decoding function that might return nothing.
     """
-    return try_functions(lambda val: t(**val))
+    def constructor(val):
+        if isinstance(val, Mapping):
+            return t(**val)
+        else:
+            return t(val)
+
+    return try_functions(constructor)

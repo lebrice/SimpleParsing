@@ -11,6 +11,7 @@ def encode_ndarray(obj: np.ndarray) -> str:
 import copy
 import json
 from dataclasses import fields, is_dataclass
+from enum import Enum
 from functools import singledispatch
 from logging import getLogger
 from os import PathLike
@@ -134,3 +135,8 @@ def encode_path(obj: PathLike) -> str:
 @encode.register(Namespace)
 def encode_namespace(obj: Namespace) -> Any:
     return encode(vars(obj))
+
+
+@encode.register(Enum)
+def encode_enum(obj: Enum) -> str:
+    return obj.value

@@ -2,6 +2,7 @@
 """
 from collections import OrderedDict
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from simple_parsing.helpers.serialization.serializable import SerializableMixin
 from test.testutils import raises, TestSetup
@@ -539,3 +540,53 @@ def test_choice_dict_with_nonserializable_values(frozen: bool):
     assert b.func(10) == 20
     assert b.to_dict() == {"func": "double"}
     assert Bob.from_dict(b.to_dict()) == b
+
+
+def test_enum(frozen: bool):
+    class AnimalType(Enum):
+        CAT = "cat"
+        DOG = "dog"
+
+    @dataclass(frozen=frozen)
+    class Animal(FrozenSerializable if frozen else Serializable):
+        animal_type: AnimalType
+        name: str
+
+    animal = Animal(AnimalType.CAT, "Fluffy")
+    assert animal.loads(animal.dumps()) == animal
+
+    d = animal.to_dict()
+    assert d["animal_type"] == "cat"
+    assert animal.from_dict(d) == animal
+
+
+def test_enum_with_ints(frozen: bool):
+    class AnimalType(Enum):
+        CAT = 1
+        DOG = 2
+
+    @dataclass(frozen=frozen)
+    class Animal(FrozenSerializable if frozen else Serializable):
+        animal_type: AnimalType
+        name: str
+
+    animal = Animal(AnimalType.CAT, "Fluffy")
+    assert animal.loads(animal.dumps()) == animal
+
+    d = animal.to_dict()
+    assert d["animal_type"] == 1
+    assert animal.from_dict(d) == animal
+
+
+def test_path(frozen: bool):
+    @dataclass(frozen=frozen)
+    class Foo(FrozenSerializable if frozen else Serializable):
+        path: Path
+
+    foo = Foo(Path("/tmp/foo"))
+    assert foo.loads(foo.dumps()) == foo
+
+    d = foo.to_dict()
+    assert isinstance(d["path"], str)
+    assert foo.from_dict(d) == foo
+    assert isinstance(foo.from_dict(d).path, Path)
