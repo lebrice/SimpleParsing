@@ -29,12 +29,14 @@ class ArgumentGenerationMode(Enum):
     Enum for argument generation modes.
     """
 
-    # Tries to generate flat arguments, removing the argument destination path when possible.
     FLAT = auto()
-    # Generates arguments with their full destination path.
+    """ Tries to generate flat arguments, removing the argument destination path when possible. """
+
     NESTED = auto()
-    # Generates both the flat and nested arguments.
+    """ Generates arguments with their full destination path. """
+
     BOTH = auto()
+    """ Generates both the flat and nested arguments. """
 
 
 class NestedMode(Enum):
@@ -42,11 +44,14 @@ class NestedMode(Enum):
     Controls how nested arguments are generated.
     """
 
-    # By default, the full destination path is used.
     DEFAULT = auto()
-    # The full destination path is used, but the first level is removed.
-    # Useful because sometimes the first level is uninformative (i.e. 'args').
+    """ By default, the full destination path is used. """
+
     WITHOUT_ROOT = auto()
+    """
+    The full destination path is used, but the first level is removed.
+    Useful because sometimes the first level is uninformative (i.e. 'args').
+    """
 
 
 class DashVariant(Enum):
