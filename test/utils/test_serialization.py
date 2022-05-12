@@ -556,7 +556,7 @@ def test_enum(frozen: bool):
     assert Animal.loads(animal.dumps()) == animal
 
     d = animal.to_dict()
-    assert d["animal_type"] == "cat"
+    assert d["animal_type"] == "CAT"
     assert Animal.from_dict(d) == animal
 
 
@@ -574,7 +574,7 @@ def test_enum_with_ints(frozen: bool):
     assert Animal.loads(animal.dumps()) == animal
 
     d = animal.to_dict()
-    assert d["animal_type"] == 1
+    assert d["animal_type"] == "CAT"
     assert Animal.from_dict(d) == animal
 
 
