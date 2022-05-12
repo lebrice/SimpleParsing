@@ -1,4 +1,5 @@
 import contextlib
+import shlex
 from dataclasses import dataclass, is_dataclass
 from io import StringIO
 from typing import Union
@@ -6,6 +7,7 @@ from typing import Union
 import pytest
 
 from simple_parsing import ArgumentParser, subgroups
+from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
 from .testutils import TestSetup, raises_missing_required_arg, raises_unrecognized_args
 
@@ -58,7 +60,7 @@ class TestSubgroup:
     def test_subgroup(self):
         parser = ArgumentParser()
         parser.add_arguments(Bob, dest="bob")
-        args = parser.parse_args("--thing foo_thing --thing.a 123".split())
+        args = parser.parse_args(shlex.split("--thing foo_thing --thing.a 123"))
         bob = args.bob
         thing = bob.thing
         assert is_dataclass(thing)
@@ -165,3 +167,112 @@ def test_unrelated_arg_raises_error():
 
     with raises_unrecognized_args("--bblarga"):
         Bob.setup("--first foo --first.a 123 --second foo --second.a 456 --bblarga")
+
+
+@dataclass
+class Person:
+    age: int
+
+
+@dataclass
+class Daniel(Person):
+    """Person named Bob."""
+
+    age: int = 32
+    cool: bool = True
+
+
+@dataclass
+class Alice(Person):
+    """Person named Alice."""
+
+    age: int = 13
+    popular: bool = True
+
+
+@dataclass
+class Config:
+    """Configuration dataclass."""
+
+    person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
+
+    @dataclass
+    class Config:
+        """Configuration dataclass."""
+
+        person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
+
+
+@dataclass
+class HigherConfig(TestSetup):
+    """Higher-level config."""
+
+    a: Config = Config(person=Daniel())
+    b: Config = Config(person=Alice())
+
+
+def test_mixing_subgroup_with_regular_dataclass():
+
+    parser = ArgumentParser()
+    parser.add_arguments(Config, dest="config")
+    parser.add_arguments(Foo, dest="foo")
+
+    args = parser.parse_args([])
+    assert args.config == Config(person=Daniel())
+    assert args.foo == Foo()
+
+    # NOTE: Not sure if the parser can safely be reused twice.
+    parser = ArgumentParser()
+    parser.add_arguments(Config, dest="config")
+    parser.add_arguments(Foo, dest="foo")
+    args = parser.parse_args(shlex.split("--person alice --person.age=33 --a 123"))
+    assert args.config == Config(person=Alice(age=33))
+    assert args.foo == Foo(a=123)
+
+
+def test_issue_139():
+    """test for https://github.com/lebrice/SimpleParsing/issues/139
+
+    Need to save the chosen subgroup name somewhere on the args.
+    """
+
+    parser = ArgumentParser()
+    parser.add_arguments(Config, dest="config")
+
+    args = parser.parse_args([])
+    assert args.config == Config(person=Daniel())
+    assert args.subgroups == {"config.person": "daniel"}
+
+
+def test_deeper_nesting_prefixing():
+    """Test that the prefixing mechanism works for deeper nesting of subgroups."""
+
+    assert "--a.person.cool" in HigherConfig.get_help_text(
+        "--help",
+        nested_mode=NestedMode.WITHOUT_ROOT,
+        argument_generation_mode=ArgumentGenerationMode.NESTED,
+    )
+
+    assert "--a.person.popular" in HigherConfig.get_help_text(
+        "--a.person alice --help",
+        nested_mode=NestedMode.WITHOUT_ROOT,
+        argument_generation_mode=ArgumentGenerationMode.NESTED,
+    )
+
+    assert HigherConfig.setup("") == HigherConfig()
+    assert HigherConfig.setup("--a.person alice") == HigherConfig(a=Config(person=Alice()))
+    assert HigherConfig.setup("--b.person daniel --b.person.age 54") == HigherConfig(
+        b=Config(person=Daniel(age=54))
+    )
+
+
+def test_subgroups_dict_in_args():
+    parser = ArgumentParser()
+    parser.add_arguments(HigherConfig, "config")
+
+    args = parser.parse_args([])
+    assert args.config == HigherConfig()
+    assert args.subgroups == {"config.a.person": "daniel", "config.b.person": "alice"}
+
+    args = parser.parse_args(shlex.split("--a.person alice --b.person daniel --b.person.age 54"))
+    assert args.subgroups == {"config.a.person": "alice", "config.b.person": "daniel"}

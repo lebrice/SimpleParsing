@@ -678,10 +678,17 @@ def setattr_recursive(obj: object, attribute_name: str, value: Any):
         setattr_recursive(child_object, ".".join(parts[1:]), value)
 
 
+def getattr_recursive(obj: object, attribute_name: str):
+    if "." not in attribute_name:
+        return getattr(obj, attribute_name)
+    else:
+        child_attr, _, rest_of_attribute_name = attribute_name.partition(".")
+        child_object = getattr(obj, child_attr)
+        return getattr_recursive(child_object, rest_of_attribute_name)
+
+
 def split_dest(destination: str) -> Tuple[str, str]:
-    splits = destination.split(".")
-    parent = ".".join(splits[:-1])
-    attribute_in_parent = splits[-1]
+    parent, _, attribute_in_parent = destination.rpartition(".")
     return parent, attribute_in_parent
 
 

@@ -74,13 +74,13 @@ from logging import getLogger as get_logger
 @pytest.fixture(scope="session", autouse=True)
 def setup_logging():
     project_logger = get_logger("simple_parsing")
-    project_logger.setLevel(
-        logging.DEBUG
-        if "-vv" in sys.argv
-        else logging.INFO
-        if "-v" in sys.argv
-        else logging.WARNING
-    )
+    # project_logger.setLevel(
+    #     logging.DEBUG
+    #     if "-vv" in sys.argv
+    #     else logging.INFO
+    #     if "-v" in sys.argv
+    #     else logging.WARNING
+    # )
     ch = logging.StreamHandler(stream=sys.stdout)
     ch.setFormatter(
         logging.Formatter(
