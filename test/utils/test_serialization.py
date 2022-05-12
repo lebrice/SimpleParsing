@@ -553,11 +553,11 @@ def test_enum(frozen: bool):
         name: str
 
     animal = Animal(AnimalType.CAT, "Fluffy")
-    assert animal.loads(animal.dumps()) == animal
+    assert Animal.loads(animal.dumps()) == animal
 
     d = animal.to_dict()
     assert d["animal_type"] == "cat"
-    assert animal.from_dict(d) == animal
+    assert Animal.from_dict(d) == animal
 
 
 def test_enum_with_ints(frozen: bool):
@@ -571,11 +571,11 @@ def test_enum_with_ints(frozen: bool):
         name: str
 
     animal = Animal(AnimalType.CAT, "Fluffy")
-    assert animal.loads(animal.dumps()) == animal
+    assert Animal.loads(animal.dumps()) == animal
 
     d = animal.to_dict()
     assert d["animal_type"] == 1
-    assert animal.from_dict(d) == animal
+    assert Animal.from_dict(d) == animal
 
 
 def test_path(frozen: bool):
@@ -584,9 +584,9 @@ def test_path(frozen: bool):
         path: Path
 
     foo = Foo(Path("/tmp/foo"))
-    assert foo.loads(foo.dumps()) == foo
+    assert Foo.loads(foo.dumps()) == foo
 
     d = foo.to_dict()
     assert isinstance(d["path"], str)
-    assert foo.from_dict(d) == foo
-    assert isinstance(foo.from_dict(d).path, Path)
+    assert Foo.from_dict(d) == foo
+    assert isinstance(Foo.from_dict(d).path, Path)
