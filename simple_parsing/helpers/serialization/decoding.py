@@ -3,11 +3,11 @@
 import inspect
 import warnings
 from collections import OrderedDict
+from collections.abc import Mapping
 from dataclasses import Field, fields
 from functools import lru_cache, partial
 from logging import getLogger
-from typing import TypeVar, Any, Dict, Type, Callable, Optional, Union, List, Tuple, Set, Mapping, \
-    Iterable
+from typing import TypeVar, Any, Dict, Type, Callable, Optional, Union, List, Tuple, Set
 
 from simple_parsing.utils import (
     get_type_arguments,
