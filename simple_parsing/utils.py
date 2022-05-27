@@ -1,26 +1,20 @@
 """Utility functions used in various parts of the simple_parsing package."""
 import argparse
 import builtins
-import collections
-import copy
-import inspect
-import enum
-import sys
 import dataclasses
-import functools
-import json
-import re
-import warnings
-import itertools
+import enum
 import hashlib
-from abc import ABC
+import inspect
+import itertools
+import re
+import sys
+import types
+import typing
 from collections import OrderedDict
 from collections import abc as c_abc
 from collections import defaultdict
-from dataclasses import _MISSING_TYPE, MISSING, Field, dataclass
+from dataclasses import _MISSING_TYPE, Field
 from enum import Enum
-from functools import partial
-from inspect import isclass
 from logging import getLogger
 from typing import (
     Any,
@@ -38,8 +32,6 @@ from typing import (
     TypeVar,
     Union,
 )
-import typing
-from typing import get_type_hints
 
 # from typing_inspect import get_origin, is_typevar, get_bound, is_forward_ref, get_forward_arg
 NEW_TYPING = sys.version_info[:3] >= (3, 7, 0)  # PEP 560
@@ -47,11 +39,11 @@ NEW_TYPING = sys.version_info[:3] >= (3, 7, 0)  # PEP 560
 if sys.version_info < (3, 9):
     # TODO: Add 3.9 compatibility, remove typing_inspect dependency.
     from typing_inspect import (
-        get_origin,
-        is_typevar,
         get_bound,
         get_forward_arg,
+        get_origin,
         is_forward_ref,
+        is_typevar,
     )
 else:
     from typing import get_origin
@@ -86,18 +78,10 @@ except ImportError:
         return getattr(some_type, "__args__", ())
 
 
-try:
-    from typing import get_origin
-except ImportError:
-    from typing_inspect import get_origin
-
-
 logger = getLogger(__name__)
 
 builtin_types = [
-    getattr(builtins, d)
-    for d in dir(builtins)
-    if isinstance(getattr(builtins, d), type)
+    getattr(builtins, d) for d in dir(builtins) if isinstance(getattr(builtins, d), type)
 ]
 
 K = TypeVar("K")
@@ -110,9 +94,7 @@ Dataclass = TypeVar("Dataclass")
 DataclassType = Type[Dataclass]
 
 SimpleValueType = Union[bool, int, float, str]
-SimpleIterable = Union[
-    List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]
-]
+SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]]
 
 
 def is_subparser_field(field: Field) -> bool:
@@ -408,9 +390,7 @@ def is_dataclass_type(t: Type) -> bool:
     Returns:
         bool: Whether its a dataclass type.
     """
-    return dataclasses.is_dataclass(t) or (
-        is_typevar(t) and dataclasses.is_dataclass(get_bound(t))
-    )
+    return dataclasses.is_dataclass(t) or (is_typevar(t) and dataclasses.is_dataclass(get_bound(t)))
 
 
 def is_enum(t: Type) -> bool:
@@ -444,6 +424,8 @@ def is_union(t: Type) -> bool:
     >>> is_union(Tuple[int, str])
     False
     """
+    if sys.version_info[:2] >= (3, 10) and isinstance(t, types.UnionType):
+        return True
     return getattr(t, "__origin__", "") == Union
 
 
@@ -541,9 +523,7 @@ def get_dataclass_type_arg(t: Type) -> Optional[Type]:
         return t
     elif is_tuple_or_list(t) or is_union(t):
         return next(
-            filter(
-                None, (get_dataclass_type_arg(arg) for arg in get_type_arguments(t))
-            ),
+            filter(None, (get_dataclass_type_arg(arg) for arg in get_type_arguments(t))),
             None,
         )
     return None
@@ -608,9 +588,7 @@ def get_container_nargs(container_type: Type) -> Union[int, str]:
 
     if is_list(container_type):
         return "*"
-    raise NotImplementedError(
-        f"Not sure what 'nargs' should be for type {container_type}"
-    )
+    raise NotImplementedError(f"Not sure what 'nargs' should be for type {container_type}")
 
 
 def _parse_multiple_containers(
@@ -622,6 +600,7 @@ def _parse_multiple_containers(
     result = factory()
 
     def parse_fn(value: str):
+        nonlocal result
         logger.debug(f"parsing multiple {container_type} of {T}s, value is: '{value}'")
         values = _parse_container(container_type)(value)
         logger.debug(f"parsing result is '{values}'")
@@ -647,9 +626,7 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
         try:
             values = _parse_literal(value)
         except Exception as e:
-            logger.debug(
-                f"Exception while trying to parse '{value}' as a literal: {type(e)}: {e}"
-            )
+            logger.debug(f"Exception while trying to parse '{value}' as a literal: {type(e)}: {e}")
             # if it doesn't work, fall back to the parse_fn.
             values = _fallback_parse(value)
 
@@ -701,10 +678,17 @@ def setattr_recursive(obj: object, attribute_name: str, value: Any):
         setattr_recursive(child_object, ".".join(parts[1:]), value)
 
 
+def getattr_recursive(obj: object, attribute_name: str):
+    if "." not in attribute_name:
+        return getattr(obj, attribute_name)
+    else:
+        child_attr, _, rest_of_attribute_name = attribute_name.partition(".")
+        child_object = getattr(obj, child_attr)
+        return getattr_recursive(child_object, rest_of_attribute_name)
+
+
 def split_dest(destination: str) -> Tuple[str, str]:
-    splits = destination.split(".")
-    parent = ".".join(splits[:-1])
-    attribute_in_parent = splits[-1]
+    parent, _, attribute_in_parent = destination.rpartition(".")
     return parent, attribute_in_parent
 
 
@@ -834,9 +818,7 @@ def zip_dicts(*dicts: Dict[K, V]) -> Iterable[Tuple[K, Tuple[Optional[V], ...]]]
         yield (key, tuple(d.get(key) for d in dicts))
 
 
-def dict_union(
-    *dicts: Dict[K, V], recurse: bool = True, dict_factory=dict
-) -> Dict[K, V]:
+def dict_union(*dicts: Dict[K, V], recurse: bool = True, dict_factory=dict) -> Dict[K, V]:
     """Simple dict union until we use python 3.9
 
     If `recurse` is True, also does the union of nested dictionaries.
@@ -882,203 +864,6 @@ def dict_union(
 
         result[k] = new_value
     return result
-
-
-# NOTE: This dict is used to enable forward compatibility with things such as `tuple[int, str]`,
-# `list[float]`, etc. when using `from __future__ import annotations`.
-forward_refs_to_types = {
-    "tuple": typing.Tuple,
-    "set": typing.Set,
-    "dict": typing.Dict,
-    "list": typing.List,
-    "type": Type,
-}
-
-
-def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
-    """
-    If the script uses `from __future__ import annotations`, and we are in python<3.9,
-    Then we need to actually first make this forward-compatibility 'patch' so that we
-    don't run into a "`type` object is not subscriptable" error.
-
-    NOTE: If you get errors of this kind from the function below, then you might want to add an
-    entry to the `forward_refs_to_types` dict above.
-    """
-    # The type of the field might be a string when using `from __future__ import annotations`.
-    # Get the local and global namespaces to pass to the `get_type_hints` function.
-    local_ns: Dict[str, Any] = {"typing": typing, **vars(typing)}
-    if sys.version_info < (3, 9):
-        local_ns.update(forward_refs_to_types)
-    global_ns = sys.modules[some_class.__module__].__dict__
-    try:
-        class_type_hints = get_type_hints(
-            some_class, localns=local_ns, globalns=global_ns
-        )
-        field_type = class_type_hints[field_name]
-
-        if sys.version_info >= (3, 10):
-            # In python >= 3.10, int | float is allowed. Therefore, just to be consistent, we want
-            # to convert those into the corresponding typing.Union type.
-            args = typing.get_args(field_type)
-            new_args = []
-
-            import types
-
-            def _replace_UnionTypes_with_typing_Union(annotation):
-                if isinstance(annotation, types.UnionType):
-                    union_args = typing.get_args(annotation)
-                    new_union_args = tuple(
-                        _replace_UnionTypes_with_typing_Union(arg) for arg in union_args
-                    )
-                    return typing.Union[new_union_args]
-                if is_list(annotation):
-                    item_annotation = typing.get_args(annotation)[0]
-                    new_item_annotation = _replace_UnionTypes_with_typing_Union(
-                        item_annotation
-                    )
-                    return typing.List[new_item_annotation]
-                if is_tuple(annotation):
-                    item_annotations = typing.get_args(annotation)
-                    new_item_annotations = tuple(
-                        _replace_UnionTypes_with_typing_Union(arg)
-                        for arg in item_annotations
-                    )
-                    return typing.Tuple[new_item_annotations]
-                if is_dict(annotation):
-                    annotations = typing.get_args(annotation)
-                    if not annotations:
-                        return typing.Dict
-                    assert len(annotations) == 2
-                    key_annotation = annotations[0]
-                    value_annotation = annotations[1]
-                    new_key_annotation = _replace_UnionTypes_with_typing_Union(
-                        key_annotation
-                    )
-                    new_value_annotation = _replace_UnionTypes_with_typing_Union(
-                        value_annotation
-                    )
-                    return typing.Dict[new_key_annotation, new_value_annotation]
-                if annotation in builtin_types:
-                    return annotation
-                if inspect.isclass(annotation):
-                    return annotation
-                raise NotImplementedError(annotation)
-
-            new_field_type = _replace_UnionTypes_with_typing_Union(field_type)
-            field_type = new_field_type
-
-    except TypeError as err:
-        annotations_dict = some_class.__annotations__.copy()
-        if any(
-            isinstance(annotation, str) and "|" in annotation
-            for annotation in annotations_dict.values()
-        ):
-            # Pretty hacky: Modify the type annotations of the class (preferably a copy of the class
-            # if possible, to avoid modifying things in-place), and replace  the `a | b`-type
-            # expressions with `Union[a, b]`, so that `get_type_hints` doesn't raise an error.
-            try:
-                before = some_class.__annotations__.copy()
-                after = _replace_new_union_syntax_with_old_union_syntax(
-                    before, local_ns=local_ns, global_ns=global_ns
-                )
-
-                class _Temp:
-                    pass
-
-                _Temp.__annotations__ = after
-                class_type_hints = get_type_hints(
-                    _Temp, localns=local_ns, globalns=global_ns
-                )
-                field_type = class_type_hints[field_name]
-                return field_type
-            except (TypeError, NotImplementedError) as exc:
-                print(err)
-                err = exc
-                pass
-        annotation = annotations_dict[field_name]
-        logger.error(
-            f"Error when parsing type annotations of class {some_class}: {err}\n"
-            f"Using a 'str' type for the field instead of the original type: {annotation}).\n"
-            f"Please make an issue at https://www.github.com/lebrice/SimpleParsing/issues "
-            f"if you believe this annotation should be supported explicitly."
-        )
-        return str
-    if sys.version_info[:2] >= (3, 7):
-        # Weird bug happens when mixing postponed evaluation of type annotations + forward
-        # references: The ForwardRefs are left as-is, and not evaluated!
-        from typing import ForwardRef
-
-        if isinstance(field_type, ForwardRef):
-            forward_arg = field_type.__forward_arg__
-            if forward_arg in global_ns:
-                field_type = global_ns[forward_arg]
-            else:
-                logger.warning(
-                    f"Unable to evaluate forward reference {field_type} for field '{field_name}'.\n"
-                    f"Leaving it as-is."
-                )
-    return field_type
-
-
-def _replace_new_union_syntax_with_old_union_syntax(
-    annotations_dict: Dict[str, str], local_ns: dict, global_ns: dict
-) -> Dict[str, Any]:
-    # Pretty hacky: Modify the type annotations of the class (preferably a copy of the class
-    # if possible, to avoid modifying things in-place), and replace  the `a | b`-type
-    # expressions with `Union[a, b]`, so that `get_type_hints` doesn't raise an error.
-    # The type of the field might be a string when using `from __future__ import annotations`.
-
-    import builtins
-
-    def _get_type(ann: str) -> Union[type, str]:
-        # Try locals, then globals, then builtins. Otherwise, use the annotation itself.
-        maps = collections.ChainMap(
-            forward_refs_to_types, local_ns, global_ns, builtins.__dict__
-        )
-        return maps.get(ann, ann)
-        # return forward_refs_to_types.get(ann, local_ns.get(ann, global_ns.get(ann, getattr(builtins, ann, ann))))
-
-    def _not_supported() -> typing.NoReturn:
-        raise NotImplementedError(
-            f"Don't yet support annotations like these: {annotations_dict}"
-        )
-
-    def _get_old_style_annotation(annotation: str) -> str:
-        # TODO: Add proper support for things like `list[int | float]`, which isn't currently
-        # working, even without the new-style union.
-        if "|" not in annotation:
-            return annotation
-
-        annotation = annotation.strip()
-        if "[" not in annotation:
-            assert "]" not in annotation
-            return "Union[" + ", ".join(v.strip() for v in annotation.split("|")) + "]"
-
-        before, lsep, rest = annotation.partition("[")
-        middle, rsep, after = rest.rpartition("]")
-        assert (
-            not after.strip()
-        ), "can't have text at HERE in <something>[<something>]<HERE>!"
-
-        if "|" in before or "|" in after:
-            _not_supported()
-        assert "|" in middle
-
-        if "," in middle:
-            parts = [v.strip() for v in middle.split(",")]
-            parts = [_get_old_style_annotation(part) for part in parts]
-            middle = ", ".join(parts)
-
-        new_middle = _get_old_style_annotation(annotation=middle)
-        new_annotation = str(_get_type(before)) + lsep + new_middle + rsep + after
-        return new_annotation
-
-    new_annotations = annotations_dict.copy()
-    for field, annotation_str in annotations_dict.items():
-        updated_annotation = _get_old_style_annotation(annotation_str)
-        new_annotations[field] = updated_annotation
-
-    return new_annotations
 
 
 if __name__ == "__main__":

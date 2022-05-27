@@ -91,6 +91,11 @@ Options ['options']:
         
     These prefixes can also be set explicitly, or not be used at all. For more info, take a look at the [Prefixing Guide](https://github.com/lebrice/SimpleParsing/tree/master/examples/prefixing/README.md)
 
+- ### [Argument subgroups](https://github.com/lebrice/SimpleParsing/tree/master/examples/subgroups/README.md)
+
+    It's easy to choose between different argument groups of arguments, with the `subgroups`
+    function!
+
 - ### [**Easy serialization**](https://github.com/lebrice/SimpleParsing/tree/master/examples/serialization/README.md):
     
     Easily save/load configs to `json` or `yaml`!. 

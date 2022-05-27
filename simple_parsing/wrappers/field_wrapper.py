@@ -1,21 +1,24 @@
 import argparse
-import typing
 import dataclasses
 import inspect
+import sys
+import typing
 from enum import Enum, auto
 from logging import getLogger
-from typing import cast, ClassVar, Any, Optional, List, Type, Dict, Set, Union, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, Union, cast
 
 from simple_parsing.help_formatter import TEMPORARY_TOKEN
 
 from .. import docstring, utils
+from .field_metavar import get_metavar
 
 # from ..utils import Dataclass, DataclassType
 from .field_parsing import get_parsing_fn
-from .field_metavar import get_metavar
 from .wrapper import Wrapper
 
 if typing.TYPE_CHECKING:
+    from simple_parsing import ArgumentParser
+
     from .dataclass_wrapper import DataclassWrapper
 
 logger = getLogger(__name__)
@@ -25,23 +28,30 @@ class ArgumentGenerationMode(Enum):
     """
     Enum for argument generation modes.
     """
-    # Tries to generate flat arguments, removing the argument destination path when possible.
+
     FLAT = auto()
-    # Generates arguments with their full destination path.
+    """ Tries to generate flat arguments, removing the argument destination path when possible. """
+
     NESTED = auto()
-    # Generates both the flat and nested arguments.
+    """ Generates arguments with their full destination path. """
+
     BOTH = auto()
+    """ Generates both the flat and nested arguments. """
 
 
 class NestedMode(Enum):
     """
     Controls how nested arguments are generated.
     """
-    # By default, the full destination path is used.
+
     DEFAULT = auto()
-    # The full destination path is used, but the first level is removed.
-    # Useful because sometimes the first level is uninformative (i.e. 'args').
+    """ By default, the full destination path is used. """
+
     WITHOUT_ROOT = auto()
+    """
+    The full destination path is used, but the first level is removed.
+    Useful because sometimes the first level is uninformative (i.e. 'args').
+    """
 
 
 class DashVariant(Enum):
@@ -189,6 +199,17 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 f"of parent at key '{parent_dest}' and attribute "
                 f"'{attribute}'"
             )
+            if self.is_subgroup:
+                if not hasattr(namespace, "subgroups"):
+                    namespace.subgroups = {}
+
+                if isinstance(value, str) and value in self.subgroup_choices.keys():
+                    # We've just parsed the name of the chosen subgroup.
+                    # NOTE: There can't be any ambiguity here, since the keys of the dictionary are
+                    # string, and the values are always dataclass types. We don't need to worry
+                    # about having to deal with {"bob": "alice", "alice": "foo"}-type weirdness.
+                    namespace.subgroups[self.dest] = value
+                    logger.info(f"Chosen subgroup for '{self.dest}':  '{value}'")
 
     def get_arg_options(self) -> Dict[str, Any]:
         """Create the `parser.add_arguments` kwargs for this field."""
@@ -235,7 +256,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             # NOTE: Optional[<something>] is always translated to
             # Union[<something>, NoneType]
             assert type_arguments
-            non_none_types = [t for t in type_arguments if t is not type(None)]
+            non_none_types = [t for t in type_arguments if t is not type(None)]  # noqa: E721
             assert non_none_types
 
             if len(non_none_types) == 1:
@@ -263,9 +284,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["nargs"] = utils.get_container_nargs(wrapped_type)
 
             elif utils.is_list(wrapped_type):
-                _arg_options["type"] = utils.get_argparse_type_for_container(
-                    wrapped_type
-                )
+                _arg_options["type"] = utils.get_argparse_type_for_container(wrapped_type)
                 _arg_options["nargs"] = "*"
                 # NOTE: Can't set 'const', since we'd get:
                 # ValueError: nargs must be '?' to supply const
@@ -294,9 +313,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                     return e.name if isinstance(e, Enum) else e
 
                 if self.is_reused:
-                    _arg_options["default"] = [
-                        enum_to_str(default) for default in self.default
-                    ]
+                    _arg_options["default"] = [enum_to_str(default) for default in self.default]
                 else:
                     _arg_options["default"] = enum_to_str(self.default)
 
@@ -314,9 +331,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["type"] = utils.get_argparse_type_for_container(self.type)
 
         elif utils.is_tuple(self.type):
-            logger.debug(
-                f"Adding a Tuple attribute '{self.name}' with type {self.type}"
-            )
+            logger.debug(f"Adding a Tuple attribute '{self.name}' with type {self.type}")
             _arg_options["nargs"] = utils.get_container_nargs(self.type)
             _arg_options["type"] = get_parsing_fn(self.type)
 
@@ -339,9 +354,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             else:
                 # Remove the 'metavar' that we auto-generated above.
                 _arg_options.pop("metavar", None)
-            _arg_options["type"] = self.custom_arg_options.get(
-                "type", get_parsing_fn(self.type)
-            )
+            _arg_options["type"] = self.custom_arg_options.get("type", get_parsing_fn(self.type))
 
         if self.is_reused:
             if self.required:
@@ -516,9 +529,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
     @property
     def destinations(self) -> List[str]:
-        return [
-            f"{parent_dest}.{self.name}" for parent_dest in self.parent.destinations
-        ]
+        return [f"{parent_dest}.{self.name}" for parent_dest in self.parent.destinations]
 
     @property
     def option_strings(self) -> List[str]:
@@ -543,7 +554,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         dashes: List[str] = []  # contains the leading dashes.
         options: List[str] = []  # contains the name following the dashes.
 
-        def add_args(dash:str, candidates: List[str]) -> None:
+        def add_args(dash: str, candidates: List[str]) -> None:
             for candidate in candidates:
                 options.append(candidate)
                 dashes.append(dash)
@@ -556,7 +567,9 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
         dash = "-" if len(self.name) == 1 else "--"
         option = f"{self.prefix}{self.name}"
-        nested_option = self.dest if nested_mode == NestedMode.DEFAULT else ".".join(self.dest.split(".")[1:])
+        nested_option = (
+            self.dest if nested_mode == NestedMode.DEFAULT else ".".join(self.dest.split(".")[1:])
+        )
         if add_dash_variants == DashVariant.DASH:
             option = option.replace("_", "-")
             nested_option = nested_option.replace("_", "-")
@@ -599,17 +612,13 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         # even if an alias isn't explicitly created.
 
         if add_dash_variants == DashVariant.UNDERSCORE_AND_DASH:
-            additional_options = [
-                option.replace("_", "-") for option in options if "_" in option
-            ]
-            additional_dashes = [
-                "-" if len(option) == 1 else "--" for option in additional_options
-            ]
+            additional_options = [option.replace("_", "-") for option in options if "_" in option]
+            additional_dashes = ["-" if len(option) == 1 else "--" for option in additional_options]
             options.extend(additional_options)
             dashes.extend(additional_dashes)
 
         # remove duplicates by creating a set.
-        option_strings = set(f"{dash}{option}" for dash, option in zip(dashes, options))
+        option_strings = {f"{dash}{option}" for dash, option in zip(dashes, options)}
         # TODO: possibly sort the option strings, if argparse doesn't do it
         # already.
         return list(sorted(option_strings, key=len))
@@ -772,7 +781,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 # NOTE: Here we'd like to convert the fields type to an actual type, in case the
                 # `from __future__ import annotations` feature is used.
                 # This should also resolve most forward references.
-                field_type = utils.get_field_type_from_annotations(self.parent.dataclass, self.field.name)
+                from simple_parsing.annotation_utils.get_field_annotations import (
+                    get_field_type_from_annotations,
+                )
+
+                field_type = get_field_type_from_annotations(self.parent.dataclass, self.field.name)
                 self._type = field_type
 
             if self.is_choice and self.choice_dict:
@@ -815,9 +828,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 self.parent.dataclass, self.field.name
             )
         except (SystemExit, Exception) as e:
-            logger.debug(
-                f"Couldn't find attribute docstring for field {self.name}, {e}"
-            )
+            logger.debug(f"Couldn't find attribute docstring for field {self.name}, {e}")
             self._docstring = docstring.AttributeDocString()
 
         if self._docstring.docstring_below:
@@ -876,7 +887,17 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
     @property
     def is_subparser(self) -> bool:
-        return utils.is_subparser_field(self.field)
+        return utils.is_subparser_field(self.field) and "subgroups" not in self.field.metadata
+
+    @property
+    def is_subgroup(self) -> bool:
+        return "subgroups" in self.field.metadata
+
+    @property
+    def subgroup_choices(self) -> Dict[str, Type]:
+        if not self.is_subgroup:
+            raise RuntimeError(f"Field {self.field} doesn't have subgroups! ")
+        return self.field.metadata["subgroups"]
 
     @property
     def type_arguments(self) -> Optional[Tuple[Type, ...]]:
@@ -902,9 +923,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                     for dataclass_type in type_arguments
                 }
 
-    def add_subparsers(self, parser: argparse.ArgumentParser):
+    def add_subparsers(self, parser: "ArgumentParser"):
         assert self.is_subparser
-        from simple_parsing import ArgumentParser  # Just for typing.
 
         # add subparsers for each dataclass type in the field.
         default_value = self.field.default
@@ -916,10 +936,9 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             title=self.name,
             description=self.help,
             dest=self.dest,
-            parser_class=ArgumentParser,
+            parser_class=type(parser),
             required=(default_value is dataclasses.MISSING),
         )
-        import sys
 
         if sys.version_info[:2] == (3, 6):
             required = add_subparser_kwargs.pop("required")
@@ -936,7 +955,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             subparser = subparsers.add_parser(subcommand)
             # Just for typing correctness, as we didn't explicitly change
             # the return type of subparsers.add_parser method.)
-            subparser = cast(ArgumentParser, subparser)
+            subparser = cast("ArgumentParser", subparser)
             subparser.add_arguments(dataclass_type, dest=self.dest)
 
     def equivalent_argparse_code(self):
@@ -946,9 +965,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return f"group.add_argument(*{self.option_strings}, **{arg_options_string})"
 
 
-def only_keep_action_args(
-    options: Dict[str, Any], action: Union[str, Any]
-) -> Dict[str, Any]:
+def only_keep_action_args(options: Dict[str, Any], action: Union[str, Any]) -> Dict[str, Any]:
     """Remove all the arguments in `options` that aren't required by the Action.
 
     Parameters

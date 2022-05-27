@@ -1,6 +1,9 @@
+import argparse
 from dataclasses import dataclass
 
-from .testutils import *
+from simple_parsing import ArgumentParser
+
+from .testutils import raises_missing_required_arg, shlex
 
 
 def test_no_default_argument(simple_attribute, silent):
@@ -28,9 +31,7 @@ def test_default_dataclass_argument(simple_attribute, silent):
         a: some_type
 
     parser = ArgumentParser()
-    parser.add_arguments(
-        SomeClass, dest="some_class", default=SomeClass(a=expected_value)
-    )
+    parser.add_arguments(SomeClass, dest="some_class", default=SomeClass(a=expected_value))
 
     args = parser.parse_args("")
     assert args == argparse.Namespace(some_class=SomeClass(a=expected_value))

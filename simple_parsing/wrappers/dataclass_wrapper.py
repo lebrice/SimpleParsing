@@ -1,10 +1,8 @@
 import argparse
-import sys
 import dataclasses
 from dataclasses import _MISSING_TYPE
 from logging import getLogger
-from typing import Dict, List, Optional, Type, Union, cast, get_type_hints
-import typing
+from typing import Dict, List, Optional, Type, Union, cast
 
 from .. import docstring, utils
 from ..utils import Dataclass
@@ -55,9 +53,11 @@ class DataclassWrapper(Wrapper[Dataclass]):
             if isinstance(field.type, str):
                 # NOTE: Here we'd like to convert the fields type to an actual type, in case the
                 # `from __future__ import annotations` feature is used.
-                field_type = utils.get_field_type_from_annotations(
-                    self.dataclass, field.name
+                from simple_parsing.annotation_utils.get_field_annotations import (
+                    get_field_type_from_annotations,
                 )
+
+                field_type = get_field_type_from_annotations(self.dataclass, field.name)
                 # Modify the `type` of the Field object, in-place.
                 field.type = field_type
 
@@ -75,7 +75,11 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 # handle a nested dataclass attribute
                 dataclass, name = field.type, field.name
                 child_wrapper = DataclassWrapper(
-                    dataclass, name, parent=self, _field=field, default=field_default,
+                    dataclass,
+                    name,
+                    parent=self,
+                    _field=field,
+                    default=field_default,
                 )
                 self._children.append(child_wrapper)
 
@@ -94,44 +98,38 @@ class DataclassWrapper(Wrapper[Dataclass]):
 
             else:
                 # a normal attribute
-                field_wrapper = field_wrapper_class(
-                    field, parent=self, prefix=self.prefix
-                )
+                field_wrapper = field_wrapper_class(field, parent=self, prefix=self.prefix)
                 logger.debug(
                     f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.default}"
                 )
                 self.fields.append(field_wrapper)
 
-        logger.debug(
-            f"The dataclass at attribute {self.dest} has default values: {self.defaults}"
-        )
+        logger.debug(f"The dataclass at attribute {self.dest} has default values: {self.defaults}")
 
     def add_arguments(self, parser: argparse.ArgumentParser):
         from ..parsing import ArgumentParser
 
         parser = cast(ArgumentParser, parser)
 
-        group = parser.add_argument_group(
-            title=self.title, description=self.description
-        )
+        group = parser.add_argument_group(title=self.title, description=self.description)
 
         for wrapped_field in self.fields:
             if not wrapped_field.field.metadata.get("cmd", True):
-                logger.debug(
-                    f"Skipping field {wrapped_field.name} because it has cmd=False."
-                )
+                logger.debug(f"Skipping field {wrapped_field.name} because it has cmd=False.")
                 continue
 
             if wrapped_field.is_subparser:
                 wrapped_field.add_subparsers(parser)
 
+            # if wrapped_field.is_subgroup:
+            #     pass  # What to do in that case? Just add it like a regular `choice` argument?
+            # wrapped_field.add_subparsers(parser)
+
             elif wrapped_field.arg_options:
                 logger.debug(
                     f"Arg options for field '{wrapped_field.name}': {wrapped_field.arg_options}"
                 )
-                group.add_argument(
-                    *wrapped_field.option_strings, **wrapped_field.arg_options
-                )
+                group.add_argument(*wrapped_field.option_strings, **wrapped_field.arg_options)
 
     def equivalent_argparse_code(self, leading="group") -> str:
         code = ""
@@ -210,9 +208,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
     @property
     def description(self) -> str:
         if self.parent and self._field:
-            doc = docstring.get_attribute_docstring(
-                self.parent.dataclass, self._field.name
-            )
+            doc = docstring.get_attribute_docstring(self.parent.dataclass, self._field.name)
             if doc is not None:
                 if doc.docstring_below:
                     return doc.docstring_below
@@ -271,9 +267,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
     def destinations(self) -> List[str]:
         if not self._destinations:
             if self.parent:
-                self._destinations = [
-                    f"{d}.{self.name}" for d in self.parent.destinations
-                ]
+                self._destinations = [f"{d}.{self.name}" for d in self.parent.destinations]
             else:
                 self._destinations = [self.name]
         return self._destinations
