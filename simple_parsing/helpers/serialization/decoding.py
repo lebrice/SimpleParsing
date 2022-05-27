@@ -3,11 +3,12 @@
 import inspect
 import warnings
 from collections import OrderedDict
+from collections.abc import Mapping
 from dataclasses import Field, fields
+from enum import Enum
 from functools import lru_cache, partial
 from logging import getLogger
 from typing import TypeVar, Any, Dict, Type, Callable, Optional, Union, List, Tuple, Set
-
 
 from simple_parsing.utils import (
     get_type_arguments,
@@ -19,7 +20,7 @@ from simple_parsing.utils import (
     is_union,
     is_forward_ref,
     is_typevar,
-    get_bound,
+    get_bound, is_enum,
 )
 
 logger = getLogger(__name__)
@@ -166,6 +167,10 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
         logger.debug(f"Decoding a Union field: {t}")
         args = get_type_arguments(t)
         return decode_union(*args)
+
+    if is_enum(t):
+        logger.debug(f"Decoding an Enum field: {t}")
+        return decode_enum(t)
 
     from .serializable import (
         get_dataclass_types_from_forward_ref,
@@ -361,6 +366,21 @@ def decode_dict(
     return _decode_dict
 
 
+def decode_enum(item_type: Type[Enum]) -> Callable[[str], Enum]:
+    """
+    Creates a decoding function for an enum type.
+
+    Args:
+        item_type (Type[Enum]): the type of the items in the set.
+
+    Returns:
+        Callable[[str], Enum]: A function that returns the enum member for the given name.
+    """
+    def _decode_enum(val: str) -> Enum:
+        return item_type[val]
+    return _decode_enum
+
+
 def no_op(v: T) -> T:
     """Decoding function that gives back the value as-is.
 
@@ -382,4 +402,10 @@ def try_constructor(t: Type[T]) -> Callable[[Any], Union[T, Any]]:
     Returns:
         Callable[[Any], Union[T, Any]]: A decoding function that might return nothing.
     """
-    return try_functions(lambda val: t(**val))
+    def constructor(val):
+        if isinstance(val, Mapping):
+            return t(**val)
+        else:
+            return t(val)
+
+    return try_functions(constructor)
