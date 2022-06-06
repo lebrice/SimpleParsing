@@ -24,6 +24,7 @@ from simple_parsing.utils import (
     is_tuple,
     is_typevar,
     is_union,
+    str2bool,
 )
 
 logger = getLogger(__name__)
@@ -36,8 +37,17 @@ V = TypeVar("V")
 _decoding_fns: Dict[Type[T], Callable[[Any], T]] = {
     # the 'primitive' types are decoded using the type fn as a constructor.
     t: t
-    for t in [str, float, int, bool, bytes]
+    for t in [str, float, int, bytes]
 }
+
+
+def decode_bool(v: Any) -> bool:
+    if isinstance(v, str):
+        return str2bool(v)
+    return bool(v)
+
+
+_decoding_fns[bool] = decode_bool
 
 
 def decode_field(field: Field, raw_value: Any) -> Any:
