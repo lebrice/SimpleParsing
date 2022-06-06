@@ -11,9 +11,10 @@ pytest.register_assert_rewrite("test.testutils")
 from simple_parsing import choice
 from simple_parsing.helpers import Serializable
 
-collect_ignore = []
+collect_ignore: List[str] = []
 if sys.version_info < (3, 7):
     collect_ignore.append("test_future_annotations.py")
+    collect_ignore.append("test_issue_144.py")
 
 
 # List of simple attributes to use in test:
