@@ -19,6 +19,29 @@ import inspect
 import types
 
 
+def evaluate_string_annotation(annotation: str) -> type:
+    """Attempts to evaluate the given annotation string, to get a 'live' type annotation back.
+
+    Any exceptions that are raised when evaluating are raised directly as-is.
+
+    NOTE: This is probably not 100% safe. I mean, if the user code puts urls and stuff in their
+    type annotations, and then uses simple-parsing, then sure, that code might get executed. But
+    I don't think it's my job to prevent them from shooting themselves in the foot, you know what I
+    mean?
+    """
+    # The type of the field might be a string when using `from __future__ import annotations`.
+    # Get the local and global namespaces to pass to the `get_type_hints` function.
+    local_ns: Dict[str, Any] = {"typing": typing, **vars(typing)}
+    local_ns.update(forward_refs_to_types)
+    # Get the globals in the module where the class was defined.
+    # global_ns = sys.modules[some_class.__module__].__dict__
+    # from typing import get_type_hints
+    if "|" in annotation:
+        annotation = _get_old_style_annotation(annotation)
+    evaluated_t: type = eval(annotation, local_ns, {})
+    return evaluated_t
+
+
 def _replace_UnionType_with_typing_Union(annotation):
     from simple_parsing.utils import builtin_types, is_dict, is_list, is_tuple
 
