@@ -4,23 +4,27 @@ import inspect
 import warnings
 from collections import OrderedDict
 from collections.abc import Mapping
-from dataclasses import Field, fields
+from dataclasses import Field
 from enum import Enum
 from functools import lru_cache, partial
 from logging import getLogger
-from typing import TypeVar, Any, Dict, Type, Callable, Optional, Union, List, Tuple, Set
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
 
+from simple_parsing.annotation_utils.get_field_annotations import (
+    evaluate_string_annotation,
+)
 from simple_parsing.utils import (
+    get_bound,
     get_type_arguments,
-    is_dataclass_type,
     is_dict,
+    is_enum,
+    is_forward_ref,
     is_list,
     is_set,
     is_tuple,
-    is_union,
-    is_forward_ref,
     is_typevar,
-    get_bound, is_enum,
+    is_union,
+    str2bool,
 )
 
 logger = getLogger(__name__)
@@ -33,8 +37,17 @@ V = TypeVar("V")
 _decoding_fns: Dict[Type[T], Callable[[Any], T]] = {
     # the 'primitive' types are decoded using the type fn as a constructor.
     t: t
-    for t in [str, float, int, bool, bytes]
+    for t in [str, float, int, bytes]
 }
+
+
+def decode_bool(v: Any) -> bool:
+    if isinstance(v, str):
+        return str2bool(v)
+    return bool(v)
+
+
+_decoding_fns[bool] = decode_bool
 
 
 def decode_field(field: Field, raw_value: Any) -> Any:
@@ -97,25 +110,50 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
     # cache_info = get_decoding_fn.cache_info()
     # logger.debug(f"called for type {t}! Cache info: {cache_info}")
 
-    if isinstance(t, str):
+    def _get_potential_keys(annotation: str) -> List[str]:
         # Type annotation is a string.
         # This can happen when the `from __future__ import annotations` feature is used.
         potential_keys: List[Type] = []
         for key in _decoding_fns:
             if inspect.isclass(key):
-                if key.__qualname__ == t:
+                if key.__qualname__ == annotation:
                     # Qualname is more specific, there can't possibly be another match, so break.
                     potential_keys.append(key)
                     break
-                if key.__qualname__ == t:
+                if key.__qualname__ == annotation:
                     # For just __name__, there could be more than one match.
                     potential_keys.append(key)
+        return potential_keys
+
+    if isinstance(t, str):
+        if t in _decoding_fns:
+            return _decoding_fns[t]
+
+        potential_keys = _get_potential_keys(t)
 
         if not potential_keys:
+            # Try to replace the new-style annotation str with the old style syntax, and see if we
+            # find a match.
+            # try:
+            try:
+                evaluated_t = evaluate_string_annotation(t)
+                # NOTE: We now have a 'live'/runtime type annotation object from the typing module.
+            except (ValueError, TypeError) as err:
+                logger.error(f"Unable to evaluate the type annotation string {t}: {err}.")
+            else:
+                if evaluated_t in _decoding_fns:
+                    return _decoding_fns[evaluated_t]
+                # If we still don't have this annotation stored in our dict of known functions, we
+                # recurse, to try to deconstruct this annotation into its parts, and construct the
+                # decoding function for the annotation. If this doesn't work, we just raise the
+                # errors.
+                return get_decoding_fn(evaluated_t)
+
             raise ValueError(
                 f"Couldn't find a decoding function for the string annotation '{t}'.\n"
                 f"This is probably a bug. If it is, please make an issue on GitHub so we can get "
-                f"to work on fixing it."
+                f"to work on fixing it.\n"
+                f"Types with a known decoding function: {list(_decoding_fns.keys())}"
             )
         if len(potential_keys) == 1:
             t = potential_keys[0]
@@ -172,12 +210,7 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
         logger.debug(f"Decoding an Enum field: {t}")
         return decode_enum(t)
 
-    from .serializable import (
-        get_dataclass_types_from_forward_ref,
-        Serializable,
-        SerializableMixin,
-        FrozenSerializable,
-    )
+    from .serializable import SerializableMixin, get_dataclass_types_from_forward_ref
 
     if is_forward_ref(t):
         dcs = get_dataclass_types_from_forward_ref(t)
@@ -250,9 +283,7 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
             except Exception as ex:
                 e = ex
         else:
-            logger.debug(
-                f"Couldn't parse value {val}, returning it as-is. (exception: {e})"
-            )
+            logger.debug(f"Couldn't parse value {val}, returning it as-is. (exception: {e})")
         return val
 
     return _try_functions
@@ -330,9 +361,7 @@ def decode_set(item_type: Type[T]) -> Callable[[List[T]], Set[T]]:
     return _decode_set
 
 
-def decode_dict(
-    K_: Type[K], V_: Type[V]
-) -> Callable[[List[Tuple[Any, Any]]], Dict[K, V]]:
+def decode_dict(K_: Type[K], V_: Type[V]) -> Callable[[List[Tuple[Any, Any]]], Dict[K, V]]:
     """Creates a decoding function for a dict type. Works with OrderedDict too.
 
     Args:
@@ -376,8 +405,10 @@ def decode_enum(item_type: Type[Enum]) -> Callable[[str], Enum]:
     Returns:
         Callable[[str], Enum]: A function that returns the enum member for the given name.
     """
+
     def _decode_enum(val: str) -> Enum:
         return item_type[val]
+
     return _decode_enum
 
 
@@ -402,6 +433,7 @@ def try_constructor(t: Type[T]) -> Callable[[Any], Union[T, Any]]:
     Returns:
         Callable[[Any], Union[T, Any]]: A decoding function that might return nothing.
     """
+
     def constructor(val):
         if isinstance(val, Mapping):
             return t(**val)

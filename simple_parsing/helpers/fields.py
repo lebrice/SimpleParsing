@@ -180,6 +180,7 @@ def choice(*choices: T, default: T, **kwargs) -> T:
     pass
 
 
+# TODO: Fix the signature for this.
 def choice(*choices: T, default: Union[T, _MISSING_TYPE] = MISSING, **kwargs: Any) -> T:
     """Makes a field which can be chosen from the set of choices from the
     command-line.
