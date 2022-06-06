@@ -568,6 +568,12 @@ class ArgumentParser(argparse.ArgumentParser):
                 else:
                     logger.debug(f"All fields for {wrapper.dest} were either default or None.")
                     return None
+            elif argparse.SUPPRESS in wrapper.defaults:
+                if len(constructor_args) == 0:
+                    return None
+                else:
+                    return constructor_args
+                    
             return constructor(**constructor_args)
 
         for wrapper in sorted_wrappers:
@@ -583,7 +589,12 @@ class ArgumentParser(argparse.ArgumentParser):
                 # constructor args are None, then the instance is None.
                 instance = _create_dataclass_instance(wrapper, constructor, constructor_args)
 
-                if wrapper.parent is not None:
+                if argparse.SUPPRESS in wrapper.defaults and instance is None:
+                    logger.debug(
+                        f"Supressing entire destination {destination} because none of its"
+                        f"subattributes were specified on the command line."
+                    )
+                elif wrapper.parent is not None:
                     parent_key, attr = utils.split_dest(destination)
                     logger.debug(
                         f"Setting a value of {instance} at attribute {attr} in "
@@ -732,6 +743,9 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_arg_values = vars(parsed_args)
         for wrapper in self._wrappers:
             for field in wrapper.fields:
+                if argparse.SUPPRESS in wrapper.defaults and field.dest not in parsed_args:
+                    continue
+
                 if not field.field.init:
                     # The field isn't an argument of the dataclass constructor.
                     continue

@@ -711,7 +711,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
             defaults = []
             for default_dataclass_instance in self.parent.defaults:
-                if default_dataclass_instance is None:
+                if default_dataclass_instance is None or default_dataclass_instance == argparse.SUPPRESS:
                     default_value = default
                 elif isinstance(default_dataclass_instance, dict):
                     default_value = default_dataclass_instance.get(self.name, default)
@@ -757,7 +757,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         elif self.nargs == "+":
             self._required = True
 
-        elif self.default is None:
+        elif self.default is None and argparse.SUPPRESS not in self.parent.defaults:
             self._required = True
         elif self.is_reused:
             # if we're reusing this argument, the default value might be a list
