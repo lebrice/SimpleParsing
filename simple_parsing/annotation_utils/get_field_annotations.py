@@ -2,7 +2,7 @@ import collections
 import sys
 import typing
 from logging import getLogger as get_logger
-from typing import Any, Dict, get_type_hints
+from typing import Any, Dict, Optional, get_type_hints
 
 logger = get_logger(__name__)
 
@@ -19,7 +19,7 @@ import inspect
 import types
 
 
-def evaluate_string_annotation(annotation: str) -> type:
+def evaluate_string_annotation(annotation: str, containing_class: Optional[type] = None) -> type:
     """Attempts to evaluate the given annotation string, to get a 'live' type annotation back.
 
     Any exceptions that are raised when evaluating are raised directly as-is.
@@ -33,12 +33,14 @@ def evaluate_string_annotation(annotation: str) -> type:
     # Get the local and global namespaces to pass to the `get_type_hints` function.
     local_ns: Dict[str, Any] = {"typing": typing, **vars(typing)}
     local_ns.update(forward_refs_to_types)
-    # Get the globals in the module where the class was defined.
-    # global_ns = sys.modules[some_class.__module__].__dict__
-    # from typing import get_type_hints
+    global_ns = {}
+    if containing_class:
+        # Get the globals in the module where the class was defined.
+        global_ns = sys.modules[containing_class.__module__].__dict__
+
     if "|" in annotation:
         annotation = _get_old_style_annotation(annotation)
-    evaluated_t: type = eval(annotation, local_ns, {})
+    evaluated_t: type = eval(annotation, local_ns, global_ns)
     return evaluated_t
 
 
