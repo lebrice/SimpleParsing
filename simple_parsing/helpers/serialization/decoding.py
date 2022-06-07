@@ -50,7 +50,7 @@ def decode_bool(v: Any) -> bool:
 _decoding_fns[bool] = decode_bool
 
 
-def decode_field(field: Field, raw_value: Any) -> Any:
+def decode_field(field: Field, raw_value: Any, containing_dataclass: Optional[type] = None) -> Any:
     """Converts a "raw" value (e.g. from json file) to the type of the `field`.
 
     When serializing a dataclass to json, all objects are converted to dicts.
@@ -75,6 +75,9 @@ def decode_field(field: Field, raw_value: Any) -> Any:
     custom_decoding_fn = field.metadata.get("decoding_fn")
     if custom_decoding_fn is not None:
         return custom_decoding_fn(raw_value)
+
+    if isinstance(field_type, str) and containing_dataclass:
+        field_type = evaluate_string_annotation(field_type, containing_dataclass)
 
     return get_decoding_fn(field_type)(raw_value)
 
