@@ -1,7 +1,7 @@
 import logging
 import sys
 from dataclasses import dataclass
-from typing import Any, ClassVar, List, Optional, Tuple, Type
+from typing import Any, ClassVar, List, NamedTuple, Optional, Tuple, Type
 
 import pytest
 
@@ -45,6 +45,12 @@ simple_arguments: List[Tuple[Type, Any, Any]] = [
 ]
 
 
+class SimpleAttributeTuple(NamedTuple):
+    field_type: Type
+    passed_value: str
+    expected_value: Any
+
+
 @pytest.fixture(params=simple_arguments)
 def simple_attribute(request):
     """Test fixture that produces an tuple of (type, passed value, expected value)"""
@@ -52,7 +58,9 @@ def simple_attribute(request):
     logging.debug(
         f"Attribute type: {some_type}, passed value: '{passed_value}', expected: '{expected_value}'"
     )
-    return request.param
+    return SimpleAttributeTuple(
+        field_type=some_type, passed_value=passed_value, expected_value=expected_value
+    )
 
 
 @pytest.fixture
