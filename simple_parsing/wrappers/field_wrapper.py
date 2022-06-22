@@ -744,28 +744,24 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             return self._required
         if self.action_str.startswith("store_"):
             # all the store_* actions do not require a value.
-            self._required = False
-        elif self.is_optional:
-            self._required = False
-        elif self.parent.required:
+            return False
+        if self.is_optional:
+            return False
+        if self.parent.required:
             # if the parent dataclass is required, then this attribute is too.
             # TODO: does that make sense though?
-            self._required = True
-
-        elif self.nargs in {"?", "*"}:
-            self._required = False
-        elif self.nargs == "+":
-            self._required = True
-
-        elif self.default is None and argparse.SUPPRESS not in self.parent.defaults:
-            self._required = True
-        elif self.is_reused:
+            return True
+        if self.nargs in {"?", "*"}:
+            return False
+        if self.nargs == "+":
+            return True
+        if self.default is None and argparse.SUPPRESS not in self.parent.defaults:
+            return True
+        if self.is_reused:
             # if we're reusing this argument, the default value might be a list
             # of `MISSING` values.
-            self._required = any(v == dataclasses.MISSING for v in self.default)
-        else:
-            self._required = False
-        return self._required
+            return any(v == dataclasses.MISSING for v in self.default)
+        return False
 
     @required.setter
     def required(self, value: bool):
