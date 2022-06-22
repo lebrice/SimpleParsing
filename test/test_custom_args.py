@@ -100,10 +100,10 @@ def test_custom_nargs_plus():
 def test_custom_nargs_star():
     @dataclass
     class Foo(TestSetup):
-        some_int: int = field(type=int, nargs="*")
+        some_int: list[int] = field(default_factory=list, type=int, nargs="*")
 
     foo = Foo.setup("")
-    assert foo.some_int is None
+    assert foo.some_int == []
 
     foo = Foo.setup("--some_int")
     assert foo.some_int == []
