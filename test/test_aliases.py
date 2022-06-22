@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from test.testutils import TestSetup
 
-from simple_parsing import ArgumentParser, field
+from simple_parsing import field
 
 
 def test_aliases_with_given_dashes():

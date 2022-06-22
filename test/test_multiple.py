@@ -1,13 +1,10 @@
 from typing import Container
 import argparse
-import dataclasses
-import shlex
 from dataclasses import dataclass, field
 from typing import *
 
-import pytest
 
-from simple_parsing import InconsistentArgumentError, ArgumentParser
+from simple_parsing import ArgumentParser
 
 from .testutils import *
 

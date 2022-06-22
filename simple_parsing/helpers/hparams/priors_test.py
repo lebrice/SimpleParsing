@@ -126,7 +126,6 @@ def test_categorical_prior():
     assert 700 <= counter["c"] <= 900
 
 
-from .hparam import log_uniform
 
 
 def test_log_uniform_with_shape():

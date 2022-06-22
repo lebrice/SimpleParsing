@@ -7,16 +7,13 @@ from pathlib import Path
 from simple_parsing.helpers.serialization.serializable import SerializableMixin
 from test.testutils import raises, TestSetup
 from typing import (
-    ClassVar,
     Dict,
     List,
-    Mapping,
     MutableMapping,
     Optional,
     Set,
     Tuple,
     Callable,
-    Type,
 )
 
 
@@ -24,7 +21,6 @@ from simple_parsing import field, mutable_field
 from simple_parsing.helpers import (
     JsonSerializable,
     Serializable,
-    YamlSerializable,
     FrozenSerializable,
 )
 import pytest

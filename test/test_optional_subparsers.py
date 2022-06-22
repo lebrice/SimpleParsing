@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from .testutils import TestSetup
 import functools
 
-from simple_parsing import ArgumentParser
 
 
 @dataclass

@@ -1,8 +1,6 @@
-import argparse
-import textwrap
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 
-from .testutils import *
+from .testutils import TestSetup, assert_help_output_equals, raises_unrecognized_args, xfail_param
 
 
 def test_tuple_any_becomes_string():

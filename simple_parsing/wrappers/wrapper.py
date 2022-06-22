@@ -1,8 +1,7 @@
 """Abstract Wrapper base-class for the FieldWrapper and DataclassWrapper."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from typing import Generic, Optional, List, Type
+from typing import Generic, List, Optional
 
 from ..utils import T
 

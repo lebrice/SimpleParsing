@@ -1,8 +1,6 @@
-import argparse
-import textwrap
-from dataclasses import dataclass, fields
-from simple_parsing import field, flag
-from .testutils import *
+from dataclasses import dataclass
+from simple_parsing import flag
+from .testutils import TestSetup, xfail
 
 
 @xfail(reason="TODO: @lebrice Add something to make it easier to have 'flags'.")

@@ -1,11 +1,8 @@
-import shlex
 from dataclasses import dataclass
 
-import pytest
 
-from simple_parsing import ArgumentParser
 from simple_parsing.helpers import Serializable, list_field, choice
-from .testutils import *
+from .testutils import ConflictResolution, List, TestSetup, xfail
 
 
 @dataclass

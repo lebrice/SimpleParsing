@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 from typing import Callable, Type
 from test.testutils import T, TestSetup
-from simple_parsing import ArgumentParser, mutable_field, ConflictResolution
-import pytest
-import logging
+from simple_parsing import ConflictResolution
 
 
 def simple_tree_structure(some_type: Type[T], default_value_function: Callable[[str], T]):

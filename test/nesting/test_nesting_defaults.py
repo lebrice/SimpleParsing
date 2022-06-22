@@ -1,6 +1,6 @@
 from simple_parsing import ArgumentParser
 from simple_parsing.helpers.serialization.serializable import Serializable
-from simple_parsing.helpers import choice, field
+from simple_parsing.helpers import field
 from dataclasses import dataclass
 from typing import Optional
 from pathlib import Path

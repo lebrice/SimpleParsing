@@ -1,7 +1,7 @@
 import enum
 from collections import defaultdict
 from logging import getLogger
-from typing import *
+from typing import Dict, List, NamedTuple, Optional, Set, Union
 from .wrappers import DataclassWrapper, FieldWrapper
 
 

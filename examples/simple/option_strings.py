@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from simple_parsing import ArgumentParser, choice, field
+from simple_parsing import ArgumentParser, field
 from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode
 
 

@@ -1,6 +1,5 @@
 from typing import Union
 from simple_parsing.helpers.fields import subparsers
-from simple_parsing.helpers.hparams.hyperparameters import HyperParameters
 from dataclasses import dataclass
 
 from simple_parsing import ArgumentParser

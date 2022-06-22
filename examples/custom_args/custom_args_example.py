@@ -4,8 +4,7 @@
 from dataclasses import dataclass
 from simple_parsing import ArgumentParser, field
 from simple_parsing.helpers import list_field
-from typing import List, TypeVar, Type
-import pytest
+from typing import List
 
 
 def parse(cls, args: str = ""):

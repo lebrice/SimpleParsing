@@ -2,10 +2,8 @@
 @author: Fabrice Normandin
 """
 import inspect
-import typing
-from argparse import ArgumentTypeError
 from dataclasses import dataclass
-from typing import *
+from typing import List, Optional, Type
 from logging import getLogger
 
 

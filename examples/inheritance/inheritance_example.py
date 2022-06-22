@@ -3,7 +3,6 @@ from simple_parsing.helpers import Serializable
 
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass

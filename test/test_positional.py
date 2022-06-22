@@ -1,9 +1,8 @@
-import pytest
 from dataclasses import dataclass
 
-from simple_parsing import ArgumentParser, field
+from simple_parsing import field
 
-from .testutils import *
+from .testutils import TestSetup
 from typing import List
 
 

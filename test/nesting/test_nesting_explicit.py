@@ -1,12 +1,6 @@
-import argparse
-import dataclasses
-from dataclasses import dataclass, field
-from typing import *
 
-import pytest
 
-from . import TestSetup
-from simple_parsing import InconsistentArgumentError, ArgumentParser, ConflictResolution
+from simple_parsing import ConflictResolution
 
 
 def test_real_use_case(silent, HyperParameters, TaskHyperParameters):

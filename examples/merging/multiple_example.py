@@ -4,10 +4,8 @@
 # For this example, something like:
 >>> python examples/multiple_instances_example.py --num_instances 2 --foo 1 2 --list_of_ints "3 5 7" "4 6 10"
 """
-import argparse
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from simple_parsing import ArgumentParser, ConflictResolution
-from typing import List
 
 parser = ArgumentParser(conflict_resolution=ConflictResolution.ALWAYS_MERGE)
 

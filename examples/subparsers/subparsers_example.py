@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Union
 from pathlib import Path
-from simple_parsing import ArgumentParser, subparsers
+from simple_parsing import ArgumentParser
 
 
 @dataclass

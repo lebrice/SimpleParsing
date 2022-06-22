@@ -1,15 +1,12 @@
-import argparse
-import dataclasses
-import shlex
 from dataclasses import dataclass
-from typing import *
+from typing import List, Optional
 
 import pytest
 
 import simple_parsing
 
-from . import TestSetup, xfail
-from simple_parsing import ArgumentParser, field, ConflictResolution
+from . import TestSetup
+from simple_parsing import ConflictResolution, field
 
 from .example_use_cases import TrainConfig, RunConfig, HParams
 

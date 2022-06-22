@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 
-import pytest
 
-import simple_parsing
 from simple_parsing.docstring import get_attribute_docstring
 from simple_parsing import field
 from typing import List

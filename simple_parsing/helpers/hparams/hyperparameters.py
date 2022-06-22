@@ -28,7 +28,7 @@ from simple_parsing.utils import (
     get_type_arguments,
 )
 
-from .hparam import ValueOutsidePriorException, hparam, uniform, log_uniform
+from .hparam import ValueOutsidePriorException
 from .priors import Prior
 
 

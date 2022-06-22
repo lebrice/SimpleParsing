@@ -1,16 +1,10 @@
 import argparse
-import contextlib
 import dataclasses
-import inspect
-import test
-import textwrap
 from argparse import Namespace
-from dataclasses import dataclass, fields
-from enum import Enum
+from dataclasses import dataclass
 from pathlib import Path
-from typing import *
+from typing import Union
 
-import pytest
 
 import simple_parsing
 from simple_parsing import ArgumentParser, choice

@@ -1,7 +1,5 @@
 """Parameters module."""
 import argparse
-import os
-import random
 import getpass
 
 # import torch

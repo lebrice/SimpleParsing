@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-import pytest
 
 from .testutils import TestSetup
 

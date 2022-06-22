@@ -123,7 +123,7 @@ def test_conflict_with_regular_argparse_arg():
 
 @pytest.mark.xfail(reason="TODO: Issue #49")
 def test_workaround():
-    from simple_parsing import mutable_field, ConflictResolution
+    pass
 
     # This also doesn't work, since the prefix is only added to the 'offending'
     # argument, rather than to all the args in that group.
