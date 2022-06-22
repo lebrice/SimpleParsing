@@ -100,7 +100,7 @@ def test_custom_nargs_plus():
 def test_custom_nargs_star():
     @dataclass
     class Foo(TestSetup):
-        some_int: list[int] = field(default_factory=list, type=int, nargs="*")
+        some_int: List[int] = field(default_factory=list, type=int, nargs="*")
 
     foo = Foo.setup("")
     assert foo.some_int == []
