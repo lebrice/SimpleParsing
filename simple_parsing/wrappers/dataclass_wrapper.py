@@ -48,6 +48,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
 
         for field in dataclasses.fields(self.dataclass):
             if not field.init or field.metadata.get("cmd", True) is False:
+                # Don't add arguments for these fields.
                 continue
             field_default = getattr(default, field.name, None)
             if isinstance(field.type, str):
@@ -128,11 +129,9 @@ class DataclassWrapper(Wrapper[Dataclass]):
             elif wrapped_field.arg_options:
                 options = wrapped_field.arg_options
                 if argparse.SUPPRESS in self.defaults:
-                    options['default'] = argparse.SUPPRESS
+                    options["default"] = argparse.SUPPRESS
 
-                logger.debug(
-                    f"Arg options for field '{wrapped_field.name}': {options}"
-                )
+                logger.debug(f"Arg options for field '{wrapped_field.name}': {options}")
                 group.add_argument(*wrapped_field.option_strings, **options)
 
     def equivalent_argparse_code(self, leading="group") -> str:

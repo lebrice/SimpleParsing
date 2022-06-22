@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 
-from test.testutils import TestSetup
-
-from simple_parsing import ArgumentParser, field, ConflictResolution
+from simple_parsing import ArgumentParser, ConflictResolution, field
 
 
 def test_cmd_false_doesnt_create_conflicts():
@@ -29,11 +27,10 @@ def test_cmd_false_doesnt_create_conflicts():
     assert b == B(batch_size=32)
 
 
-from typing import Type, Dict, Tuple, List, Optional
-from simple_parsing.wrappers.field_wrapper import get_argparse_options_for_annotation
-import pytest
-
 from enum import Enum
+from typing import Dict, List, Optional, Tuple, Type
+
+import pytest
 
 
 class Color(Enum):
@@ -43,11 +40,13 @@ class Color(Enum):
     orange: str = "ORANGE"
 
 
-from simple_parsing.wrappers.field_parsing import get_parsing_fn
-
 from simple_parsing.utils import str2bool
 from simple_parsing.wrappers.field_parsing import parse_enum
 
+
+@pytest.mark.xfail(
+    reason="Removed this function. TODO: see https://github.com/lebrice/SimpleParsing/issues/150."
+)
 @pytest.mark.parametrize(
     "annotation, expected_options",
     [
@@ -62,6 +61,23 @@ from simple_parsing.wrappers.field_parsing import parse_enum
     ],
 )
 def test_generated_options_from_annotation(annotation: Type, expected_options: Dict):
-    actual_options = get_argparse_options_for_annotation(annotation)
-    for option, expected_value in expected_options.items():
-        assert actual_options[option] == expected_value
+    raise NotImplementedError(
+        """
+        TODO: Would be a good idea to refactor the FieldWrapper class a bit. The args_dict (a dict
+        of all the argparse arguments for a given field, that get passed to parser.add_arguments
+        in the FieldWrapper) is currently created using a mix of three things (with increasing
+        priority):
+        - The type annotation
+        - The dataclass context (e.g. when adding an Optional[Dataclass] field on another
+          dataclass, or when using the `default` or `prefix` arguments to `parser.add_arguments`.
+        - The manual overrides (arguments of `parser.add_argument` passed to the `field` function)
+
+        These three are currently a bit mixed together in the `FieldWrapper` class. It would be
+        preferable to design a way for them to be cleanly separated.
+        """
+    )
+    # from simple_parsing.wrappers.field_wrapper import get_argparse_options_for_annotation
+
+    # actual_options = get_argparse_options_for_annotation(annotation)
+    # for option, expected_value in expected_options.items():
+    #     assert actual_options[option] == expected_value
