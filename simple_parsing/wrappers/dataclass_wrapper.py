@@ -1,6 +1,6 @@
 import argparse
 import dataclasses
-from dataclasses import _MISSING_TYPE
+from dataclasses import MISSING
 from logging import getLogger
 from typing import Dict, List, Optional, Type, Union, cast
 
@@ -48,6 +48,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
 
         for field in dataclasses.fields(self.dataclass):
             if not field.init or field.metadata.get("cmd", True) is False:
+                # Don't add arguments for these fields.
                 continue
             field_default = getattr(default, field.name, None)
             if isinstance(field.type, str):
@@ -71,7 +72,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
                     f"supported yet. (container of a dataclass type)"
                 )
 
-            elif dataclasses.is_dataclass(field.type):
+            elif dataclasses.is_dataclass(field.type) and field.default is not None:
                 # handle a nested dataclass attribute
                 dataclass, name = field.type, field.name
                 child_wrapper = DataclassWrapper(
@@ -128,11 +129,9 @@ class DataclassWrapper(Wrapper[Dataclass]):
             elif wrapped_field.arg_options:
                 options = wrapped_field.arg_options
                 if argparse.SUPPRESS in self.defaults:
-                    options['default'] = argparse.SUPPRESS
+                    options["default"] = argparse.SUPPRESS
 
-                logger.debug(
-                    f"Arg options for field '{wrapped_field.name}': {options}"
-                )
+                logger.debug(f"Arg options for field '{wrapped_field.name}': {options}")
                 group.add_argument(*wrapped_field.option_strings, **options)
 
     def equivalent_argparse_code(self, leading="group") -> str:
@@ -186,16 +185,12 @@ class DataclassWrapper(Wrapper[Dataclass]):
         if self.parent.defaults:
             self._defaults = []
             for default in self.parent.defaults:
-                if default is None:
-                    default = None
-                elif default == argparse.SUPPRESS:
-                    default = argparse.SUPPRESS
-                else:
+                if default not in (None, argparse.SUPPRESS):
                     default = getattr(default, self.name)
                 self._defaults.append(default)
         else:
             default_field_value = utils.default_value(self._field)
-            if isinstance(default_field_value, _MISSING_TYPE):
+            if default_field_value is MISSING:
                 self._defaults = []
             else:
                 self._defaults = [default_field_value]
