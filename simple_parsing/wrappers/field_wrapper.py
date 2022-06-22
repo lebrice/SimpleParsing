@@ -210,11 +210,13 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                     logger.info(f"Chosen subgroup for '{self.dest}':  '{value}'")
 
     def get_arg_options(self) -> Dict[str, Any]:
-        """Create the `parser.add_arguments` kwargs for this field."""
+        """Create the `parser.add_arguments` kwargs for this field.
+
+        TODO: Refactor this, following https://github.com/lebrice/SimpleParsing/issues/150
+        """
         if not self.field.init:
             # Don't add command-line arguments for fields that have `init=False`.
             return {}
-        # TODO: Refactor this, following https://github.com/lebrice/SimpleParsing/issues/150
         _arg_options: Dict[str, Any] = {}
 
         # Not sure why, but argparse doesn't allow using a different dest for a positional arg.
