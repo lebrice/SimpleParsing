@@ -250,6 +250,7 @@ def test_issue62():
     import enum
     from simple_parsing.helpers import list_field
     from typing import List
+
     parser = ArgumentParser()
 
     class Color(enum.Enum):

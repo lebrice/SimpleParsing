@@ -90,9 +90,7 @@ class TrainConfig:
     weight_decay: float = 0.00001
     implicit_lr_decay: bool = False
     optimizer_g: ObjectConfig = ObjectConfig(type="Adam", lr=0.0003)
-    lr_scheduler_g: ObjectConfig = ObjectConfig(
-        type="MultiStepLR", milestones=[1], gamma=0.003
-    )
+    lr_scheduler_g: ObjectConfig = ObjectConfig(type="MultiStepLR", milestones=[1], gamma=0.003)
     clip_grad: ObjectConfig = ObjectConfig(type="value", clip_value=0.5)
 
 

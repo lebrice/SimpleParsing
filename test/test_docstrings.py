@@ -75,10 +75,7 @@ def test_docstring_parsing_works_on_extended():
     assert docstring.docstring_below == "Multi\nLine\nDocstring for 'c'\n"
 
     docstring = get_attribute_docstring(Extended, "d")
-    assert (
-        docstring.comment_above
-        == "# Comment above d)\nits multiline, does it still work?"
-    )
+    assert docstring.comment_above == "# Comment above d)\nits multiline, does it still work?"
     assert docstring.comment_inline == ""
     assert docstring.docstring_below == "docstring for 'd' in Extended."
 

@@ -22,9 +22,7 @@ p2 = Point(x=1.0, y=3.0)
 assert p1 == p2
 
 for field in fields(p1):
-    print(
-        f"Field {field.name} has type {field.type} and a default value if {field.default}."
-    )
+    print(f"Field {field.name} has type {field.type} and a default value if {field.default}.")
 
 expected = """
 Field x has type <class 'float'> and a default value if 0.0.

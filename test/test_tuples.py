@@ -62,7 +62,7 @@ def test_tuple_with_ellipsis_help_format():
 def test_each_type_is_used_correctly():
     @dataclass
     class Container(TestSetup):
-        """ A container with mixed items in a tuple. """
+        """A container with mixed items in a tuple."""
 
         mixed: Tuple[int, str, bool, float] = (1, "bob", False, 1.23)
 
@@ -174,9 +174,7 @@ class TestIssue47:
             (List[str], dict(type=str, nargs="*", required=True)),
         ],
     )
-    def test_arg_options_created(
-        self, field_type: Type, expected_options: Dict[str, Any]
-    ):
+    def test_arg_options_created(self, field_type: Type, expected_options: Dict[str, Any]):
         """Check the 'arg_options' that get created for different types of tuple
         fields.
         """

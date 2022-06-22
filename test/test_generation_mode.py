@@ -8,31 +8,34 @@ from . import TestSetup
 
 @dataclass
 class ModelOptions:
-  path: str
-  device: str
+    path: str
+    device: str
 
 
 @dataclass
 class ServerOptions(TestSetup):
-  host: str
-  port: int
-  model: ModelOptions
+    host: str
+    port: int
+    model: ModelOptions
 
 
 expected = ServerOptions(host="myserver", port=80, model=ModelOptions(path="a_path", device="cpu"))
 
 
 def test_flat():
-      options = ServerOptions.setup(
-          "--host myserver " "--port 80 " "--path a_path " "--device cpu",
-      )
-      assert options == expected
+    options = ServerOptions.setup(
+        "--host myserver " "--port 80 " "--path a_path " "--device cpu",
+    )
+    assert options == expected
 
-      with pytest.raises(SystemExit):
-          ServerOptions.setup(
-              "--opts.host myserver " "--opts.port 80 " "--opts.model.path a_path " "--opts.model.device cpu",
-              dest="opts"
-          )
+    with pytest.raises(SystemExit):
+        ServerOptions.setup(
+            "--opts.host myserver "
+            "--opts.port 80 "
+            "--opts.model.path a_path "
+            "--opts.model.device cpu",
+            dest="opts",
+        )
 
 
 @pytest.mark.parametrize("without_root", [True, False])
@@ -40,11 +43,16 @@ def test_both(without_root):
     options = ServerOptions.setup(
         "--host myserver " "--port 80 " "--path a_path " "--device cpu",
         dest="opts",
-        argument_generation_mode=ArgumentGenerationMode.BOTH
+        argument_generation_mode=ArgumentGenerationMode.BOTH,
     )
     assert options == expected
 
-    args = "--opts.host myserver " "--opts.port 80 " "--opts.model.path a_path " "--opts.model.device cpu"
+    args = (
+        "--opts.host myserver "
+        "--opts.port 80 "
+        "--opts.model.path a_path "
+        "--opts.model.device cpu"
+    )
     if without_root:
         args = args.replace("opts.", "")
     options = ServerOptions.setup(
@@ -62,10 +70,15 @@ def test_nested(without_root):
         options = ServerOptions.setup(
             "--host myserver " "--port 80 " "--path a_path " "--device cpu",
             dest="opts",
-            argument_generation_mode=ArgumentGenerationMode.NESTED
+            argument_generation_mode=ArgumentGenerationMode.NESTED,
         )
 
-    args = "--opts.host myserver " "--opts.port 80 " "--opts.model.path a_path " "--opts.model.device cpu"
+    args = (
+        "--opts.host myserver "
+        "--opts.port 80 "
+        "--opts.model.path a_path "
+        "--opts.model.device cpu"
+    )
     if without_root:
         args = args.replace("opts.", "")
     options = ServerOptions.setup(

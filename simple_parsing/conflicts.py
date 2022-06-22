@@ -132,9 +132,7 @@ class ConflictResolver:
         return None
 
     def _add(
-        self,
-        wrapper: Union[DataclassWrapper, FieldWrapper],
-        wrappers: List[DataclassWrapper]
+        self, wrapper: Union[DataclassWrapper, FieldWrapper], wrappers: List[DataclassWrapper]
     ) -> DataclassWrapper:
         if isinstance(wrapper, FieldWrapper):
             wrapper = wrapper.parent
@@ -146,9 +144,7 @@ class ConflictResolver:
         return wrappers
 
     def _remove(
-        self,
-        wrapper: Union[DataclassWrapper, FieldWrapper],
-        wrappers: List[DataclassWrapper]
+        self, wrapper: Union[DataclassWrapper, FieldWrapper], wrappers: List[DataclassWrapper]
     ):
         if isinstance(wrapper, FieldWrapper):
             wrapper = wrapper.parent
@@ -196,10 +192,7 @@ class ConflictResolver:
             field_wrapper.prefix = explicit_prefix
 
         another_conflict = self.get_conflict(conflict.wrappers)
-        if (
-            another_conflict
-            and another_conflict.option_string == conflict.option_string
-        ):
+        if another_conflict and another_conflict.option_string == conflict.option_string:
             raise ConflictResolutionError(
                 f"There is a conflict over the '{conflict.option_string}' "
                 "option string, even after adding an explicit prefix to all "
@@ -237,9 +230,7 @@ class ConflictResolver:
         field_wrappers = sorted(conflict.wrappers, key=lambda w: w.nesting_level)
         logger.debug(f"Conflict with options string '{conflict.option_string}':")
         for field in field_wrappers:
-            logger.debug(
-                f"Field wrapper: {field} nesting level: {field.nesting_level}."
-            )
+            logger.debug(f"Field wrapper: {field} nesting level: {field.nesting_level}.")
 
         assert (
             len(set(field_wrappers)) >= 2
@@ -259,9 +250,7 @@ class ConflictResolver:
             current_prefix = field_wrapper.prefix
             explicit_prefix = field_wrapper.parent.dest + "."
 
-            logger.debug(
-                f"current prefix: {current_prefix}, explicit prefix: {explicit_prefix}"
-            )
+            logger.debug(f"current prefix: {current_prefix}, explicit prefix: {explicit_prefix}")
             if current_prefix == explicit_prefix:
                 # We can't add any more words to the prefix of this FieldWrapper,
                 # as it has already a prefix equivalent to its full destination...
@@ -284,9 +273,7 @@ class ConflictResolver:
             assert len(available_words) > len(
                 used_words
             ), "There should at least one word we haven't used yet!"
-            logger.debug(
-                f"Available words: {available_words}, used_words: {used_words}"
-            )
+            logger.debug(f"Available words: {available_words}, used_words: {used_words}")
 
             n_available_words = len(available_words)
             n_used_words = len(used_words)
@@ -311,9 +298,7 @@ class ConflictResolver:
         fields = sorted(conflict.wrappers, key=lambda w: w.nesting_level)
         logger.debug(f"Conflict with options string '{conflict.option_string}':")
         for field in fields:
-            logger.debug(
-                f"Field wrapper: {field} nesting level: {field.nesting_level}."
-            )
+            logger.debug(f"Field wrapper: {field} nesting level: {field.nesting_level}.")
 
         assert len(conflict.wrappers) > 1
         first_wrapper: FieldWrapper = fields[0]
@@ -328,9 +313,7 @@ class ConflictResolver:
 
         return wrappers_flat
 
-    def _get_conflicting_group(
-        self, all_wrappers: List[DataclassWrapper]
-    ) -> Optional[Conflict]:
+    def _get_conflicting_group(self, all_wrappers: List[DataclassWrapper]) -> Optional[Conflict]:
         """Return the conflicting DataclassWrappers which share argument names.
 
         TODO: maybe return the list of fields, rather than the dataclasses?

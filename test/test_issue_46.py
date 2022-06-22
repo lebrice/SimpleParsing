@@ -25,7 +25,7 @@ def test_issue_46(assert_equals_stdout):
     parser.print_help(s)
     s.seek(0)
     output = str(s.read())
-    
+
     assert_help_output_equals(
         actual=output,
         expected=textwrap.dedent(

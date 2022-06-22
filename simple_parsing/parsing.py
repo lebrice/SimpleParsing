@@ -573,7 +573,7 @@ class ArgumentParser(argparse.ArgumentParser):
                     return None
                 else:
                     return constructor_args
-                    
+
             return constructor(**constructor_args)
 
         for wrapper in sorted_wrappers:

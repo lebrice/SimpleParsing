@@ -136,9 +136,7 @@ def uniform(
     # fields
     default_v = None if default is dataclasses.MISSING else default
 
-    prior = UniformPrior(
-        min=min, max=max, discrete=discrete, default=default_v, shape=shape
-    )
+    prior = UniformPrior(min=min, max=max, discrete=discrete, default=default_v, shape=shape)
 
     # if default is None:
     #     default = dataclasses.MISSING
@@ -187,9 +185,7 @@ def log_uniform(
     default_v = default
     if default is dataclasses.MISSING:
         default_v = None
-    prior = LogUniformPrior(
-        min=min, max=max, discrete=discrete, default=default_v, shape=shape
-    )
+    prior = LogUniformPrior(min=min, max=max, discrete=discrete, default=default_v, shape=shape)
 
     # TODO: Do we really want to set the default value when not passed?
     # if default in {None, dataclasses.MISSING}:

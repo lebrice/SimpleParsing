@@ -21,9 +21,7 @@ class AttributeDocString:
     docstring_below: str = ""
 
 
-def get_attribute_docstring(
-    some_dataclass: Type, field_name: str
-) -> AttributeDocString:
+def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeDocString:
     """Returns the docstrings of a dataclass field.
     NOTE: a docstring can either be:
     - An inline comment, starting with <#>
@@ -65,17 +63,14 @@ def get_attribute_docstring(
             comment_above = _get_comment_ending_at_line(code_lines, i - 1)
             comment_inline = _get_inline_comment_at_line(code_lines, i)
             docstring_below = _get_docstring_starting_at_line(code_lines, i + 1)
-            complete_docstring = AttributeDocString(
-                comment_above, comment_inline, docstring_below
-            )
+            complete_docstring = AttributeDocString(comment_above, comment_inline, docstring_below)
             return complete_docstring
 
     # we didn't find the attribute.
     mro = inspect.getmro(some_dataclass)
     if len(mro) == 1:
         raise RuntimeWarning(
-            f"Couldn't find the given attribute name {field_name}' within the "
-            "given class."
+            f"Couldn't find the given attribute name {field_name}' within the " "given class."
         )
     base_class = mro[1]
     try:
@@ -238,9 +233,7 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
                 #     print(f"line {i}: <{line}>")
                 # print(f"token: <{token}>")
                 # print(line_str)
-                logger.debug(
-                    f"Warning: Unable to parse attribute docstring: {line_str}"
-                )
+                logger.debug(f"Warning: Unable to parse attribute docstring: {line_str}")
                 return ""
 
             # get the string portion of the line (after a token or possibly

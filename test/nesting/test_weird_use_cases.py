@@ -6,9 +6,7 @@ import pytest
 import logging
 
 
-def simple_tree_structure(
-    some_type: Type[T], default_value_function: Callable[[str], T]
-):
+def simple_tree_structure(some_type: Type[T], default_value_function: Callable[[str], T]):
     @dataclass
     class A:
         a: some_type = default_value_function("a")  # type: ignore
@@ -60,18 +58,14 @@ def test_beautiful_tree_structure_auto():
 
 def test_beautiful_tree_structure_merge():
     ABCD = simple_tree_structure(str, str)
-    abcd: ABCD = ABCD.setup(
-        "", conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE
-    )
+    abcd: ABCD = ABCD.setup("", conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE)
     assert abcd.child_ab.child_a.a == "ABCD_AB_a"
     assert abcd.child_ab.child_b.b == "ABCD_AB_b"
     assert abcd.child_cd.child_c.c == "ABCD_CD_c"
     assert abcd.child_cd.child_d.d == "ABCD_CD_d"
 
 
-def tree_structure_with_repetitions(
-    some_type: Type[T], default_value_function: Callable[[str], T]
-):
+def tree_structure_with_repetitions(some_type: Type[T], default_value_function: Callable[[str], T]):
     @dataclass
     class A:
         a: some_type = default_value_function("a")  # type: ignore
@@ -120,23 +114,15 @@ def tree_structure_with_repetitions(
     class AABB:
         """Weird AABB Class"""
 
-        aa: AA = AA(
-            A(default_value_function("aa_a_1")), A(default_value_function("aa_a_2"))
-        )
-        bb: BB = BB(
-            B(default_value_function("bb_b_1")), B(default_value_function("bb_b_2"))
-        )
+        aa: AA = AA(A(default_value_function("aa_a_1")), A(default_value_function("aa_a_2")))
+        bb: BB = BB(B(default_value_function("bb_b_1")), B(default_value_function("bb_b_2")))
 
     @dataclass
     class CCDD:
         """Weird CCDD Class"""
 
-        cc: CC = CC(
-            C(default_value_function("cc_c_1")), C(default_value_function("cc_c_2"))
-        )
-        dd: DD = DD(
-            D(default_value_function("dd_d_1")), D(default_value_function("dd_d_2"))
-        )
+        cc: CC = CC(C(default_value_function("cc_c_1")), C(default_value_function("cc_c_2")))
+        dd: DD = DD(D(default_value_function("dd_d_1")), D(default_value_function("dd_d_2")))
 
     @dataclass
     class AABBCCDD(TestSetup):
