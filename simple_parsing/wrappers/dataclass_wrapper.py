@@ -1,6 +1,6 @@
 import argparse
 import dataclasses
-from dataclasses import _MISSING_TYPE
+from dataclasses import MISSING
 from logging import getLogger
 from typing import Dict, List, Optional, Type, Union, cast
 
@@ -185,16 +185,12 @@ class DataclassWrapper(Wrapper[Dataclass]):
         if self.parent.defaults:
             self._defaults = []
             for default in self.parent.defaults:
-                if default is None:
-                    default = None
-                elif default == argparse.SUPPRESS:
-                    default = argparse.SUPPRESS
-                else:
+                if default not in (None, argparse.SUPPRESS):
                     default = getattr(default, self.name)
                 self._defaults.append(default)
         else:
             default_field_value = utils.default_value(self._field)
-            if isinstance(default_field_value, _MISSING_TYPE):
+            if default_field_value is MISSING:
                 self._defaults = []
             else:
                 self._defaults = [default_field_value]
