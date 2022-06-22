@@ -72,7 +72,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
                     f"supported yet. (container of a dataclass type)"
                 )
 
-            elif dataclasses.is_dataclass(field.type):
+            elif dataclasses.is_dataclass(field.type) and field.default is not None:
                 # handle a nested dataclass attribute
                 dataclass, name = field.type, field.name
                 child_wrapper = DataclassWrapper(
