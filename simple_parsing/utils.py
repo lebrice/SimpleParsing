@@ -32,6 +32,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from typing_extensions import Literal, get_args
 
 # from typing_inspect import get_origin, is_typevar, get_bound, is_forward_ref, get_forward_arg
 NEW_TYPING = sys.version_info[:3] >= (3, 7, 0)  # PEP 560
@@ -63,19 +64,6 @@ else:
 
     def get_forward_arg(fr):
         return getattr(fr, "__forward_arg__", None)
-
-
-try:
-    from typing import get_args
-except ImportError:
-    # try:
-    #     # TODO: Not sure we should depend on typing_inspect, results appear to vary
-    #     # greatly
-    #     # between python versions.
-    #     from typing_inspect import get_args
-    # except ImportError:
-    def get_args(some_type: Type) -> Tuple[Type, ...]:
-        return getattr(some_type, "__args__", ())
 
 
 logger = getLogger(__name__)
@@ -246,6 +234,27 @@ def _mro(t: Type) -> List[Type]:
     elif hasattr(t, "mro") and callable(t.mro):
         return t.mro()
     return []
+
+
+def is_literal(t: type) -> bool:
+    """Returns True with `t` is a Literal type.
+
+    >>> from typing_extensions import Literal
+    >>> from typing import *
+    >>> is_literal(list)
+    False
+    >>> is_literal("foo")
+    False
+    >>> is_literal(Literal[True, False])
+    True
+    >>> is_literal(Literal[1,2,3])
+    True
+    >>> is_literal(Literal["foo", "bar"])
+    True
+    >>> is_literal(Optional[Literal[1,2]])
+    False
+    """
+    return get_origin(t) is Literal
 
 
 def is_list(t: Type) -> bool:
