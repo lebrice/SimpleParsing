@@ -2,7 +2,7 @@ import shlex
 import string
 import sys
 from contextlib import contextmanager
-from typing import Any, Callable, Generic, List, Optional, Tuple, Type, TypeVar, cast
+from typing import Any, Callable, Generic, List, Optional, Tuple, Type, TypeVar, cast, Union
 
 import pytest
 
@@ -54,7 +54,13 @@ def raises_missing_required_arg():
 
 
 @contextmanager
-def raises_expected_n_args(n: int):
+def raises_invalid_choice():
+    with exits_and_writes_to_stderr("invalid choice:"):
+        yield
+
+
+@contextmanager
+def raises_expected_n_args(n: Union[int, str]):
     with exits_and_writes_to_stderr(f"expected {n} arguments"):
         yield
 
