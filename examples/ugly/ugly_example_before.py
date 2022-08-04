@@ -1,6 +1,6 @@
 """Parameters module."""
 import argparse
-import getpass
+import textwrap
 
 # import torch
 # import torch.nn.parallel
@@ -19,7 +19,6 @@ class Parameters:
     def initialize(self):
         """Initialize."""
         # Define training set depending on the user name
-        username = getpass.getuser()
         default_root = "default"
         default_out = "out"
         # Dataset parameters
@@ -545,7 +544,6 @@ class Parameters:
 
 param = Parameters()
 args = param.parse()
-import textwrap
 
 print("\n".join(textwrap.wrap(str(args), width=80)))
 # print(args)

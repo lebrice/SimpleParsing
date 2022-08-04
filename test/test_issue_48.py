@@ -1,4 +1,6 @@
+import textwrap
 from dataclasses import dataclass
+from io import StringIO
 from test.testutils import assert_help_output_equals
 
 from simple_parsing import ArgumentParser, field
@@ -13,10 +15,6 @@ class InputArgs:
     # End date for collecting base users. Input in iso format (YYYY-MM-DD). The date is included in the data.
     # Should not be before `start_date`
     end_date: str = field(alias="e")
-
-
-import textwrap
-from io import StringIO
 
 
 def test_issue_48():

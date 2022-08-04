@@ -5,6 +5,7 @@ from test.testutils import pytest, raises
 from typing import Any, Dict, Optional, Tuple
 
 from simple_parsing import mutable_field
+from simple_parsing.helpers import FlattenedAccess
 
 
 @dataclass()
@@ -115,9 +116,6 @@ class SummaryConfig:
     sample_grid: Tuple[int, int] = (10, 10)
 
 
-from simple_parsing.helpers import FlattenedAccess
-
-
 @dataclass
 class Config(FlattenedAccess):
     """Overall Configuration."""
@@ -160,7 +158,7 @@ def test_setattr_new(caplog):
 def test_getattr_ambiguous():
     c = Config()
     with raises(AttributeError, match="Ambiguous"):
-        t = c.type
+        _ = c.type
 
 
 def test_setattr_ambiguous():
@@ -205,7 +203,7 @@ def test_setitem_new(caplog):
 def test_getitem_ambiguous():
     c = Config()
     with raises(AttributeError, match="Ambiguous"):
-        t = c["type"]
+        _ = c["type"]
 
 
 def test_setitem_ambiguous():

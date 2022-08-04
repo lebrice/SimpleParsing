@@ -1,21 +1,15 @@
 import logging
 import sys
 from dataclasses import dataclass
+from logging import getLogger as get_logger
 from typing import Any, ClassVar, List, NamedTuple, Optional, Tuple, Type
 
 import pytest
 
-pytest.register_assert_rewrite("test.testutils")
-
-
 from simple_parsing import choice
 from simple_parsing.helpers import Serializable
 
-collect_ignore: List[str] = []
-if sys.version_info < (3, 7):
-    collect_ignore.append("test_future_annotations.py")
-    collect_ignore.append("test_issue_144.py")
-
+pytest.register_assert_rewrite("test.testutils")
 
 # List of simple attributes to use in test:
 simple_arguments: List[Tuple[Type, Any, Any]] = [
@@ -75,9 +69,6 @@ def assert_equals_stdout(capsys):
         assert strip(out) == strip(expected), file_path
 
     return should_equal
-
-
-from logging import getLogger as get_logger
 
 
 @pytest.fixture(scope="session", autouse=True)

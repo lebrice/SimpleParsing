@@ -12,6 +12,7 @@ from simple_parsing import field
 from simple_parsing.annotation_utils.get_field_annotations import (
     get_field_type_from_annotations,
 )
+from simple_parsing.helpers import Serializable
 from simple_parsing.utils import is_list, is_tuple
 
 from .testutils import TestSetup
@@ -97,7 +98,6 @@ def test_more_complicated_unions():
     # T = TypeVarTuple("T")  # TODO: Use this eventually (when it becomes possible).
     T = TypeVar("T")
     U = TypeVar("U")
-    V = TypeVar("V")
 
     class Try(Generic[T, U]):
         """Returns a callable that attempts to use the given functions, and returns the first
@@ -205,11 +205,6 @@ def test_parsing_containers_of_unions():
     assert MoreComplex.setup("--vals_tuple 4.56 True") == MoreComplex(
         vals_tuple=(4.56, True)
     )
-
-
-from dataclasses import dataclass
-
-from simple_parsing.helpers import Serializable
 
 
 @dataclass

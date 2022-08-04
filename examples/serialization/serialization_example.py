@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 
 from simple_parsing.helpers import Serializable
@@ -49,6 +50,5 @@ assert isinstance(_bob, Student), _bob
 assert _bob == bob
 
 # Cleaning up
-import os
 
 os.remove("bob.yaml")

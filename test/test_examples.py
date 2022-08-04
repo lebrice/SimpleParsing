@@ -76,7 +76,6 @@ def test_running_example_outputs_expected(
     set_prog_name: Callable[[str, Optional[str]], None],
     assert_equals_stdout: Callable[[str, str], None],
 ):
-    script = file_path.split("/")[-1]
     # set_prog_name(script, args)
     file_path = Path(file_path).as_posix()
     module_name = file_path.replace("/", ".").replace(".py", "")
@@ -97,7 +96,7 @@ def test_running_example_outputs_expected(
         expected = resulting_globals["expected"]
         assert_equals_stdout(expected, file_path)
 
-    except SystemExit as e:
+    except SystemExit:
         pytest.xfail(f"SystemExit in example {file_path}.")
 
 

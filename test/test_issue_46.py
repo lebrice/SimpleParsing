@@ -70,7 +70,7 @@ def test_issue_46(assert_equals_stdout):
     from .testutils import raises_missing_required_arg
 
     with raises_missing_required_arg():
-        args = parser.parse_args(
+        parser.parse_args(
             "--id 123 --jbuild.id 456 --jbuild.url bob --jbuild.docker_image foo".split()
         )
 

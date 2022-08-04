@@ -158,7 +158,6 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
 
     def _try_functions(val: Any) -> Union[T, Any]:
         logger.debug(f"Debugging the 'raw value' of {val}, will try functions {funcs}")
-        e: Optional[Exception] = None
         exceptions: list[Exception] = []
         for func in funcs:
             try:

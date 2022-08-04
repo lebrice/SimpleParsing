@@ -1,11 +1,12 @@
+import enum
 from dataclasses import dataclass
-from typing import *
+from typing import Dict, List, Set, Tuple, Type
 
 import simple_parsing.utils as utils
 from simple_parsing import mutable_field
 from simple_parsing.helpers import dict_field, list_field, set_field
 
-from .testutils import *
+from .testutils import TestSetup, parametrize
 
 
 @dataclass
@@ -74,9 +75,6 @@ def test_mutable_field():
         b2.shared
     ), f"{b1.shared} should have the same id as {b2.shared}"
     assert id(b1.different) != id(b2.different), f"{b1.different} has the same id."
-
-
-import enum
 
 
 class Color(enum.Enum):

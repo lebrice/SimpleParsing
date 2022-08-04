@@ -1,4 +1,10 @@
+import shlex
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
+
+import pytest
+
+from simple_parsing import ArgumentParser
 
 from .testutils import (
     TestSetup,
@@ -103,13 +109,6 @@ def test_issue_29():
     args = parser.parse_args("--asdf asdf fgfh".split())
     assert args.args == MyCli(asdf=("asdf", "fgfh"))
 
-
-import shlex
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
-
-import pytest
-
-from simple_parsing import ArgumentParser
 
 # 'sentinel' object used when parametrizing tests below to indicate that the option
 # string shouldn't be passed at all, rather than have no passed value: so that

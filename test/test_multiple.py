@@ -1,11 +1,10 @@
 import argparse
 from dataclasses import dataclass, field
-from typing import *
-from typing import Container
+from typing import Any, Container, List, Tuple, Type, Union
 
 from simple_parsing import ArgumentParser
 
-from .testutils import *
+from .testutils import TestSetup, exits_and_writes_to_stderr, parametrize, raises, xfail
 
 
 def test_multiple_at_same_dest_throws_error():
@@ -111,7 +110,7 @@ def test_parse_multiple_without_required_arguments(some_type: Type):
         """some docstring for attribute 'a'"""
 
     with exits_and_writes_to_stderr():
-        some_class = SomeClass.setup_multiple(2, "")
+        SomeClass.setup_multiple(2, "")
 
 
 @parametrize("container_type", [List, Tuple])

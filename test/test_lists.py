@@ -1,11 +1,25 @@
 from dataclasses import dataclass, field
-from typing import *
+from typing import Any, List, Tuple, Type
 
 import pytest
+from pytest import parametrize
 
 from simple_parsing.helpers import list_field
 
-from .testutils import *
+from .testutils import (
+    ListFormattingFunction,
+    ListOfListsFormattingFunction,
+    TestSetup,
+    format_list_using_brackets,
+    format_list_using_double_quotes,
+    format_list_using_single_quotes,
+    format_list_using_spaces,
+    format_lists_using_brackets,
+    format_lists_using_double_quotes,
+    format_lists_using_single_quotes,
+    raises_missing_required_arg,
+    xfail_param,
+)
 
 
 def test_list_one_element(simple_attribute):

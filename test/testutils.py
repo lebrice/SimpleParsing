@@ -1,7 +1,8 @@
 import shlex
 import string
 import sys
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stderr
+from io import StringIO
 from typing import (
     Any,
     Callable,
@@ -36,13 +37,11 @@ Dataclass = TypeVar("Dataclass")
 
 
 @contextmanager
-def raises(exception=ParsingError, match=None, code: int = None):
+def raises(
+    exception: type[Exception] = ParsingError, match=None, code: Optional[int] = None
+):
     with pytest.raises(exception, match=match):
         yield
-
-
-from io import StringIO
-from contextlib import redirect_stderr
 
 
 @contextmanager

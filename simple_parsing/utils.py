@@ -391,7 +391,6 @@ def is_set(t: Type) -> bool:
     >>> is_set(foo)
     True
     """
-    mro = _mro(t)
     return set in _mro(t)
 
 
@@ -638,8 +637,6 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
     T = get_argparse_type_for_container(container_type)
     factory = tuple if is_tuple(container_type) else list
     import ast
-
-    result: List[Any] = []
 
     def _parse(value: str) -> List[Any]:
         logger.debug(f"Parsing a {container_type} of {T}s, value is: '{value}'")

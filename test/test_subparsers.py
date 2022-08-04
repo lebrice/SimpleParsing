@@ -173,13 +173,13 @@ def test_experiments():
     experiment = args.config.experiment
     assert isinstance(experiment, Mnist)
     assert experiment.dataset == "mnist"
-    assert experiment.iid == True
+    assert experiment.iid is True
 
     args = parser.parse_args("mnist_continual".split())
     experiment = args.config.experiment
     assert isinstance(experiment, MnistContinual)
     assert experiment.dataset == "mnist"
-    assert experiment.iid == False
+    assert experiment.iid is False
 
 
 def test_subparser_rest_of_args_go_to_parent():

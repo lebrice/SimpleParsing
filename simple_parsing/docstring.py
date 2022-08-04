@@ -150,7 +150,6 @@ def _get_inline_comment_at_line(code_lines: List[str], line: int) -> str:
 
 
 def _get_comment_ending_at_line(code_lines: List[str], line: int) -> str:
-    result = ""
     start_line = line
     end_line = line
     # print(f"Get comment ending at line {line}")
@@ -180,9 +179,7 @@ def _get_comment_ending_at_line(code_lines: List[str], line: int) -> str:
 
 
 def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
-    first_line = line
     i = line
-    end_line: int
     token: Optional[str] = None
     triple_single = "'''"
     triple_double = '"""'

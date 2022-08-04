@@ -1,3 +1,4 @@
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -38,9 +39,6 @@ class TrainConfig(Serializable):
     adv_config: Optional[AdvTraining] = None
     ...
     cpu: bool = False
-
-
-import shlex
 
 
 def test_comment_pull115(tmp_path):

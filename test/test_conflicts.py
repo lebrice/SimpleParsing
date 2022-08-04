@@ -17,7 +17,7 @@ def test_arg_and_dataclass_with_same_name(silent):
     parser.add_argument("--a", default=123)
     with raises(argparse.ArgumentError):
         parser.add_arguments(SomeClass, dest="some_class")
-        args = parser.parse_args("")
+        parser.parse_args("")
 
 
 def test_arg_and_dataclass_with_same_name_after_prefixing(silent):
@@ -34,7 +34,7 @@ def test_arg_and_dataclass_with_same_name_after_prefixing(silent):
     parser.add_argument("--pre.a", default=123, type=int)
     with raises(argparse.ArgumentError):
         parser.add_arguments(Parent, dest="some_class")
-        args = parser.parse_args("--pre.a 123 --pre.a 456".split())
+        parser.parse_args("--pre.a 123 --pre.a 456".split())
 
 
 def test_weird_hierarchy():

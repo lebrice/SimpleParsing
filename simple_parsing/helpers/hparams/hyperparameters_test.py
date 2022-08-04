@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import Union
+from typing import Sequence, Union
 
 import pytest
 
-from .hparam import log_uniform, uniform
+from .hparam import categorical, log_uniform, uniform
 from .hyperparameters import HyperParameters
 
 numpy_installed = False
@@ -130,9 +130,6 @@ def test_nesting():
     assert isinstance(parent.child_a, Child)
 
 
-from .hparam import categorical
-
-
 def test_choice_field():
     @dataclass
     class Child(HyperParameters):
@@ -201,8 +198,6 @@ def test_replace_int_or_float_preserves_type():
     b = a.replace(limit_train_batches=0.5)
     assert isinstance(b.limit_test_batches, float)
 
-
-from typing import Sequence
 
 try:
     from orion.core.io.space_builder import SpaceBuilder

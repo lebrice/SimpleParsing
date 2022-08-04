@@ -44,11 +44,11 @@ def test_typevar_decoding(simple_attribute):
     class DiscountedItem(Item):
         discount_factor: float = 0.5
 
-    I = TypeVar("I", bound=Item)
+    ItemT = TypeVar("ItemT", bound=Item)
 
     @dataclass
-    class Container(Serializable, Generic[I]):
-        items: List[I] = list_field()
+    class Container(Serializable, Generic[ItemT]):
+        items: List[ItemT] = list_field()
 
     chair = Item()
     cheap_chair = DiscountedItem(name="Cheap chair")

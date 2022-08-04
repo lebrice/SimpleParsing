@@ -1,7 +1,10 @@
 import collections
 import functools
+import random
 from dataclasses import dataclass
 from typing import Union
+
+import pytest
 
 from simple_parsing.helpers.fields import field, subparsers
 from simple_parsing.helpers.hparams import uniform
@@ -121,11 +124,6 @@ class ModelB(HyperParameters):
 @dataclass
 class Options(HyperParameters):
     model: Union[ModelA, ModelB] = field(default_factory=ModelA)
-
-
-import random
-
-import pytest
 
 
 @pytest.mark.parametrize("seed", [123, 456, 789])

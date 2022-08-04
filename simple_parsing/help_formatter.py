@@ -57,7 +57,7 @@ class SimpleHelpFormatter(
     def _get_default_metavar_for_optional(self, action: argparse.Action):
         try:
             return super()._get_default_metavar_for_optional(action)
-        except BaseException as e:
+        except BaseException:
             logger.debug(f"Getting metavar for action with dest {action.dest}.")
             metavar = self._get_metavar_for_action(action)
             logger.debug(f"Result metavar: {metavar}")
@@ -66,7 +66,7 @@ class SimpleHelpFormatter(
     def _get_default_metavar_for_positional(self, action: argparse.Action):
         try:
             return super()._get_default_metavar_for_positional(action)
-        except BaseException as e:
+        except BaseException:
             logger.debug(f"Getting metavar for action with dest {action.dest}.")
             metavar = self._get_metavar_for_action(action)
             logger.debug(f"Result metavar: {metavar}")
