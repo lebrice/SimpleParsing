@@ -45,7 +45,9 @@ def assert_equals_stdout(capsys):
         out_lines = out.splitlines(keepends=False)
         out_lines = [line.strip() for line in out_lines if line and not line.isspace()]
         expected_lines = expected.splitlines(keepends=False)
-        expected_lines = [line.strip() for line in expected_lines if line and not line.isspace()]
+        expected_lines = [
+            line.strip() for line in expected_lines if line and not line.isspace()
+        ]
         if sys.version_info[:2] >= (3, 9):
             # Ordering of values in a `Namespace` object are different!
             expected = Counter("".join(expected_lines))
@@ -132,4 +134,6 @@ def test_running_example_outputs_expected_without_arg(
     set_prog_name: Callable[[str, Optional[str]], None],
     assert_equals_stdout: Callable[[str, str], None],
 ):
-    return test_running_example_outputs_expected(file_path, "", set_prog_name, assert_equals_stdout)
+    return test_running_example_outputs_expected(
+        file_path, "", set_prog_name, assert_equals_stdout
+    )

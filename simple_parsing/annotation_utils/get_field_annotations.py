@@ -19,7 +19,9 @@ import inspect
 import types
 
 
-def evaluate_string_annotation(annotation: str, containing_class: Optional[type] = None) -> type:
+def evaluate_string_annotation(
+    annotation: str, containing_class: Optional[type] = None
+) -> type:
     """Attempts to evaluate the given annotation string, to get a 'live' type annotation back.
 
     Any exceptions that are raised when evaluating are raised directly as-is.
@@ -54,7 +56,9 @@ def _replace_UnionType_with_typing_Union(annotation):
 
     if isinstance(annotation, types.UnionType):  # type: ignore
         union_args = typing.get_args(annotation)
-        new_union_args = tuple(_replace_UnionType_with_typing_Union(arg) for arg in union_args)
+        new_union_args = tuple(
+            _replace_UnionType_with_typing_Union(arg) for arg in union_args
+        )
         return typing.Union[new_union_args]  # type: ignore
     if is_list(annotation):
         item_annotation = typing.get_args(annotation)[0]
@@ -160,14 +164,18 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     global_ns = sys.modules[some_class.__module__].__dict__
 
     try:
-        annotations_dict = get_type_hints(some_class, localns=local_ns, globalns=global_ns)
+        annotations_dict = get_type_hints(
+            some_class, localns=local_ns, globalns=global_ns
+        )
     except TypeError as err:
         annotations_dict = collections.ChainMap(
             *[getattr(cls, "__annotations__", {}) for cls in some_class.mro()]
         )
 
     if field_name not in annotations_dict:
-        raise ValueError(f"Field {field_name} not found in annotations of class {some_class}")
+        raise ValueError(
+            f"Field {field_name} not found in annotations of class {some_class}"
+        )
 
     field_type = annotations_dict[field_name]
 

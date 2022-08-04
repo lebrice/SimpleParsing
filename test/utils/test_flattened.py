@@ -1,10 +1,10 @@
 """Adds typed dataclasses for the "config" yaml files.
 """
-from dataclasses import dataclass, field, fields
-from typing import List, Dict, Tuple, Any, Optional
-from simple_parsing import mutable_field
+from dataclasses import dataclass, field
+from test.testutils import pytest, raises
+from typing import Any, Dict, Optional, Tuple
 
-from test.testutils import *
+from simple_parsing import mutable_field
 
 
 @dataclass()

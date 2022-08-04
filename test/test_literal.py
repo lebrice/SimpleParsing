@@ -1,16 +1,16 @@
+import enum
+from dataclasses import dataclass
+from typing import Any, List, NamedTuple, Optional
+
+import pytest
+from typing_extensions import Literal
+
 from .testutils import (
     TestSetup,
-    raises_expected_n_args,
-    raises_missing_required_arg,
     raises_invalid_choice,
+    raises_missing_required_arg,
     xfail_param,
 )
-from dataclasses import dataclass
-from typing_extensions import Literal
-from typing import NamedTuple, Any
-from typing import Any, List, NamedTuple, Type, Optional
-import enum
-import pytest
 
 
 class FieldComponents(NamedTuple):

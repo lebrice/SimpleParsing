@@ -1,13 +1,13 @@
 import collections
-from simple_parsing.helpers.hparams import uniform
-from typing import Union
-from simple_parsing.helpers.fields import field, subparsers
-from simple_parsing.helpers.hparams.hyperparameters import HyperParameters
-from dataclasses import dataclass
-from .testutils import TestSetup
 import functools
+from dataclasses import dataclass
+from typing import Union
 
-from simple_parsing import ArgumentParser
+from simple_parsing.helpers.fields import field, subparsers
+from simple_parsing.helpers.hparams import uniform
+from simple_parsing.helpers.hparams.hyperparameters import HyperParameters
+
+from .testutils import TestSetup
 
 
 @dataclass
@@ -92,9 +92,13 @@ def test_nesting_of_optional_subparsers():
     assert NestedOptions.setup("") == NestedOptions()
     assert NestedOptions.setup("bob") == NestedOptions(friend=Bob())
     assert NestedOptions.setup("bob a") == NestedOptions(friend=Bob(config=A()))
-    assert NestedOptions.setup("bob a --foo 1") == NestedOptions(friend=Bob(config=A(foo=1)))
+    assert NestedOptions.setup("bob a --foo 1") == NestedOptions(
+        friend=Bob(config=A(foo=1))
+    )
     assert NestedOptions.setup("bob b") == NestedOptions(friend=Bob(config=B()))
-    assert NestedOptions.setup("bob b --bar 0.") == NestedOptions(friend=Bob(config=B(bar=0.0)))
+    assert NestedOptions.setup("bob b --bar 0.") == NestedOptions(
+        friend=Bob(config=B(bar=0.0))
+    )
     assert NestedOptions.setup("clarice") == NestedOptions(friend=Clarice())
     assert NestedOptions.setup("clarice a") == NestedOptions(friend=Clarice(config=A()))
     assert NestedOptions.setup("clarice a --foo 1") == NestedOptions(
@@ -119,9 +123,9 @@ class Options(HyperParameters):
     model: Union[ModelA, ModelB] = field(default_factory=ModelA)
 
 
-import pytest
-
 import random
+
+import pytest
 
 
 @pytest.mark.parametrize("seed", [123, 456, 789])

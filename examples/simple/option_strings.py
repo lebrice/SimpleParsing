@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from simple_parsing import ArgumentParser, choice, field
+
+from simple_parsing import ArgumentParser, field
 from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode
 
 
@@ -30,7 +31,7 @@ optional arguments:
   -h, --help            show this help message and exit
 
 HParams ['hparams']:
-   Set of options for the training of a Model. 
+   Set of options for the training of a Model.
 
   -n int, --num_layers int
                         (default: 4)
@@ -53,7 +54,7 @@ optional arguments:
   -h, --help            show this help message and exit
 
 HParams ['hparams']:
-   Set of options for the training of a Model. 
+   Set of options for the training of a Model.
 
   -n int, --num_layers int, --hparams.num_layers int
                         (default: 4)

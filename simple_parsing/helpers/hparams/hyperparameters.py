@@ -1,26 +1,17 @@
 import dataclasses
 import inspect
-import pickle
 import math
+import pickle
 import random
 from collections import OrderedDict
 from dataclasses import Field, dataclass, fields
 from functools import singledispatch, total_ordering
-from pathlib import Path
-from typing import (
-    Any,
-    ClassVar,
-    Dict,
-    List,
-    NamedTuple,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-)
-from simple_parsing import utils
-from simple_parsing.helpers import Serializable
 from logging import getLogger
+from pathlib import Path
+from typing import Any, ClassVar, Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar
+
+from simple_parsing import utils
+from simple_parsing.helpers.serialization.serializable import Serializable
 from simple_parsing.utils import (
     compute_identity,
     dict_union,
@@ -28,9 +19,8 @@ from simple_parsing.utils import (
     get_type_arguments,
 )
 
-from .hparam import ValueOutsidePriorException, hparam, uniform, log_uniform
+from .hparam import ValueOutsidePriorException
 from .priors import Prior
-
 
 logger = getLogger(__name__)
 T = TypeVar("T")

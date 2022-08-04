@@ -1,13 +1,12 @@
 """Example of how to create multiple instances of a class from the command-line.
-# NOTE: If your dataclass has a list attribute, and you wish to parse multiple instances of that class from the command line, 
+# NOTE: If your dataclass has a list attribute, and you wish to parse multiple instances of that class from the command line,
 # simply enclose each list with single or double quotes.
 # For this example, something like:
 >>> python examples/multiple_instances_example.py --num_instances 2 --foo 1 2 --list_of_ints "3 5 7" "4 6 10"
 """
-import argparse
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+
 from simple_parsing import ArgumentParser, ConflictResolution
-from typing import List
 
 parser = ArgumentParser(conflict_resolution=ConflictResolution.ALWAYS_MERGE)
 

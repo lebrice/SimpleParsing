@@ -19,7 +19,7 @@ parser.add_argument("--foo", type=int, default=123, help="foo help")
 @dataclass
 class Options:
     """ Help string for this group of command-line arguments """
-    log_dir: str                # Help string for a required str argument    
+    log_dir: str                # Help string for a required str argument
     learning_rate: float = 1e-4 # Help string for a float argument
 
 parser.add_arguments(Options, dest="options")
@@ -42,7 +42,7 @@ optional arguments:
   --foo int             foo help (default: 123)
 
 Options ['options']:
-   Help string for this group of command-line arguments 
+   Help string for this group of command-line arguments
 
   --log_dir str         Help string for a required str argument (default:
                         None)
@@ -59,7 +59,7 @@ Options ['options']:
 
 ## [API Documentation](https://github.com/lebrice/SimpleParsing/tree/master/docs/README.md) (Under construction)
 
-## Features 
+## Features
 - ### [Automatic "--help" strings](https://github.com/lebrice/SimpleParsing/tree/master/examples/docstrings/README.md)
 
     As developers, we want to make it easy for people coming into our projects to understand how to run them. However, a user-friendly `--help` message is often hard to write and to maintain, especially as the number of arguments increases.
@@ -67,9 +67,9 @@ Options ['options']:
     With `simple-parsing`, your arguments and their descriptions are defined in the same place, making your code easier to read, write, and maintain.
 
 - ### Modular, Reusable, Cleanly Grouped Arguments
-    
+
     *(no more copy-pasting)*
-        
+
     When you need to add a new group of command-line arguments similar to an existing one, instead of copy-pasting a block of `argparse` code and renaming variables, you can reuse your argument class, and let the `ArgumentParser` take care of adding relevant prefixes to the arguments for you:
 
     ```python
@@ -88,7 +88,7 @@ Options ['options']:
     Options(log_dir='training', learning_rate=0.0001)
     Options(log_dir='validation', learning_rate=0.0001)
     ```
-        
+
     These prefixes can also be set explicitly, or not be used at all. For more info, take a look at the [Prefixing Guide](https://github.com/lebrice/SimpleParsing/tree/master/examples/prefixing/README.md)
 
 - ### [Argument subgroups](https://github.com/lebrice/SimpleParsing/tree/master/examples/subgroups/README.md)
@@ -97,15 +97,15 @@ Options ['options']:
     function!
 
 - ### [**Easy serialization**](https://github.com/lebrice/SimpleParsing/tree/master/examples/serialization/README.md):
-    
-    Easily save/load configs to `json` or `yaml`!. 
+
+    Easily save/load configs to `json` or `yaml`!.
 
 - ### [**Inheritance**!](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance/README.md)
-    
+
     You can easily customize an existing argument class by extending it and adding your own attributes, which helps promote code reuse across projects. For more info, take a look at the [inheritance example](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance_example.py)
 
 - ### [**Nesting**!](https://github.com/lebrice/SimpleParsing/tree/master/examples/nesting/README.md):
-    
+
     Dataclasses can be nested within dataclasses, as deep as you need!
 
 - ### [Easier parsing of lists and tuples](https://github.com/lebrice/SimpleParsing/tree/master/examples/container_types/README.md) :

@@ -1,6 +1,7 @@
-from simple_parsing import ArgumentParser
 from dataclasses import dataclass
 from typing import ClassVar
+
+from simple_parsing import ArgumentParser
 
 
 @dataclass

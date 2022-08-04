@@ -4,31 +4,14 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from simple_parsing.helpers.serialization.serializable import SerializableMixin
-from test.testutils import raises, TestSetup
-from typing import (
-    ClassVar,
-    Dict,
-    List,
-    Mapping,
-    MutableMapping,
-    Optional,
-    Set,
-    Tuple,
-    Callable,
-    Type,
-)
+from test.testutils import TestSetup, raises
+from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple
 
-
-from simple_parsing import field, mutable_field
-from simple_parsing.helpers import (
-    JsonSerializable,
-    Serializable,
-    YamlSerializable,
-    FrozenSerializable,
-)
 import pytest
 
+from simple_parsing import field, mutable_field
+from simple_parsing.helpers import FrozenSerializable, JsonSerializable, Serializable
+from simple_parsing.helpers.serialization.serializable import SerializableMixin
 
 # class TestSerializable:
 #     @dataclass
@@ -59,7 +42,10 @@ import pytest
 @pytest.fixture(scope="module", params=[True, False])
 def frozen(request):
     subclasses_before = SerializableMixin.subclasses.copy()
-    from simple_parsing.helpers.serialization.decoding import _decoding_fns, get_decoding_fn
+    from simple_parsing.helpers.serialization.decoding import (
+        _decoding_fns,
+        get_decoding_fn,
+    )
 
     frozen = request.param
     decoding_fns_before = _decoding_fns.copy()
@@ -122,7 +108,9 @@ def ParentWithOptionalChildrenWithFriends(ParentWithOptionalChildren, ChildWithF
     @dataclass(frozen=issubclass(ParentWithOptionalChildren, FrozenSerializable))
     class ParentWithOptionalChildrenWithFriends(ParentWithOptionalChildren):
         name: str = "Consuela"
-        children: MutableMapping[str, Optional[ChildWithFriends]] = mutable_field(OrderedDict)
+        children: MutableMapping[str, Optional[ChildWithFriends]] = mutable_field(
+            OrderedDict
+        )
 
     return ParentWithOptionalChildrenWithFriends
 
@@ -201,7 +189,9 @@ def test_lists(silent, ChildWithFriends, Child, ParentWithOptionalChildrenWithFr
 
     s = nancy.dumps()
     parsed_nancy = ParentWithOptionalChildrenWithFriends.loads(s)
-    assert isinstance(parsed_nancy.children["bob"], ChildWithFriends), parsed_nancy.children["bob"]
+    assert isinstance(
+        parsed_nancy.children["bob"], ChildWithFriends
+    ), parsed_nancy.children["bob"]
 
     assert parsed_nancy == nancy
 
@@ -209,7 +199,9 @@ def test_lists(silent, ChildWithFriends, Child, ParentWithOptionalChildrenWithFr
 @pytest.fixture(scope="module")
 def Base(frozen: bool):
     @dataclass(frozen=frozen)
-    class Base(FrozenSerializable if frozen else Serializable, decode_into_subclasses=True):
+    class Base(
+        FrozenSerializable if frozen else Serializable, decode_into_subclasses=True
+    ):
         name: str = "bob"
 
     return Base
@@ -372,7 +364,10 @@ def test_nested_list_optional(frozen: bool):
         litters: List[List[Optional[Kitten]]] = field(default_factory=list)
 
     kittens: List[List[Optional[Kitten]]] = [
-        [(Kitten(name=f"kitten_{i}") if i % 2 == 0 else None) for i in range(i * 5, i * 5 + 5)]
+        [
+            (Kitten(name=f"kitten_{i}") if i % 2 == 0 else None)
+            for i in range(i * 5, i * 5 + 5)
+        ]
         for i in range(2)
     ]
     mom = Cat("Chloe", age=12, litters=kittens)
@@ -416,7 +411,9 @@ def test_from_dict_raises_error_on_failure(frozen: bool):
 def test_custom_encoding_fn(frozen: bool):
     @dataclass(frozen=frozen)
     class Person(FrozenSerializable if frozen else Serializable):
-        name: str = field(encoding_fn=lambda s: s.upper(), decoding_fn=lambda s: s.lower())
+        name: str = field(
+            encoding_fn=lambda s: s.upper(), decoding_fn=lambda s: s.lower()
+        )
         age: int = 0
 
     bob = Person("Bob")
@@ -447,7 +444,8 @@ def test_set_field(frozen):
     s = g.dumps_json(sort_keys=True)
     assert (
         s == '{"members": [{"age": 10, "name": "Bob"}, {"age": 11, "name": "Peter"}]}'
-        or s == '{"members": [{"age": 11, "name": "Peter"}, {"age": 10, "name": "Bob"}]}'
+        or s
+        == '{"members": [{"age": 11, "name": "Peter"}, {"age": 10, "name": "Bob"}]}'
     )
 
     g_ = Group.loads(s)

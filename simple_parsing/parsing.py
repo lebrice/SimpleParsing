@@ -1,6 +1,8 @@
 """Simple, Elegant Argument parsing.
 @author: Fabrice Normandin
 """
+from __future__ import annotations
+
 import argparse
 import dataclasses
 import sys
@@ -8,18 +10,7 @@ from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _, _HelpAction
 from collections import defaultdict
 from functools import partial
 from logging import getLogger
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Type,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import Any, Callable, Sequence, TypeVar, overload
 
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
@@ -39,7 +30,7 @@ class ArgumentParser(argparse.ArgumentParser):
     def __init__(
         self,
         *args,
-        parents: Sequence["ArgumentParser"] = (),
+        parents: Sequence[ArgumentParser] = (),
         add_help: bool = True,
         conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
         add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
@@ -110,10 +101,10 @@ class ArgumentParser(argparse.ArgumentParser):
         self.conflict_resolution = conflict_resolution
         # constructor arguments for the dataclass instances.
         # (a Dict[dest, [attribute, value]])
-        self.constructor_arguments: Dict[str, Dict] = defaultdict(dict)
+        self.constructor_arguments: dict[str, dict] = defaultdict(dict)
 
         self._conflict_resolver = ConflictResolver(self.conflict_resolution)
-        self._wrappers: List[DataclassWrapper] = []
+        self._wrappers: list[DataclassWrapper] = []
 
         self._preprocessing_done: bool = False
         self.add_option_string_dash_variants = add_option_string_dash_variants
@@ -124,7 +115,7 @@ class ArgumentParser(argparse.ArgumentParser):
         FieldWrapper.argument_generation_mode = argument_generation_mode
         FieldWrapper.nested_mode = nested_mode
         self._parents = tuple(parents)
-        self._add_argument_replay: List[Callable[["ArgumentParser"], Any]] = []
+        self._add_argument_replay: list[Callable[[ArgumentParser], Any]] = []
 
         self.add_help = add_help
         if self.add_help:
@@ -166,31 +157,31 @@ class ArgumentParser(argparse.ArgumentParser):
     @overload
     def add_arguments(
         self,
-        dataclass: Type[Dataclass],
+        dataclass: type[Dataclass],
         dest: str,
         prefix: str = "",
         default: Dataclass = None,
-        dataclass_wrapper_class: Type[DataclassWrapper] = DataclassWrapper,
+        dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
     ):
         pass
 
     @overload
     def add_arguments(
         self,
-        dataclass: Dataclass,
+        dataclass: type,
         dest: str,
         prefix: str = "",
-        dataclass_wrapper_class: Type[DataclassWrapper] = DataclassWrapper,
+        dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
     ):
         pass
 
     def add_arguments(
         self,
-        dataclass: Union[Type[Dataclass], Dataclass],
+        dataclass: type[Dataclass] | Dataclass,
         dest: str,
         prefix: str = "",
-        default: Union[Dataclass, Dict] = None,
-        dataclass_wrapper_class: Type[DataclassWrapper] = DataclassWrapper,
+        default: Dataclass | dict = None,
+        dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
     ):
         """Adds command-line arguments for the fields of `dataclass`.
 
@@ -440,7 +431,7 @@ class ArgumentParser(argparse.ArgumentParser):
             )
             wrapper.add_arguments(parser=self)
 
-        self.subgroups: Dict[str, Dict[str, Type]] = {}
+        self.subgroups: dict[str, dict[str, type]] = {}
         for wrapper in self._wrappers:
             for field_wrapper in wrapper.fields:
                 if not field_wrapper.is_subgroup:
@@ -539,7 +530,7 @@ class ArgumentParser(argparse.ArgumentParser):
             corresponding destinations.
         """
         # sort the wrappers so as to construct the leaf nodes first.
-        sorted_wrappers: List[DataclassWrapper] = sorted(
+        sorted_wrappers: list[DataclassWrapper] = sorted(
             self._wrappers, key=lambda w: w.nesting_level, reverse=True
         )
         D = TypeVar("D")
@@ -547,8 +538,8 @@ class ArgumentParser(argparse.ArgumentParser):
         def _create_dataclass_instance(
             wrapper: DataclassWrapper[D],
             constructor: Callable[..., D],
-            constructor_args: Dict[str, Dict],
-        ) -> Optional[D]:
+            constructor_args: dict[str, dict],
+        ) -> D | None:
 
             # Check if the dataclass annotation is marked as Optional.
             # In this case, if no arguments were passed, and the default value is None, then return
@@ -573,7 +564,7 @@ class ArgumentParser(argparse.ArgumentParser):
                     return None
                 else:
                     return constructor_args
-                    
+
             return constructor(**constructor_args)
 
         for wrapper in sorted_wrappers:
@@ -591,7 +582,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
                 if argparse.SUPPRESS in wrapper.defaults and instance is None:
                     logger.debug(
-                        f"Supressing entire destination {destination} because none of its"
+                        f"Suppressing entire destination {destination} because none of its"
                         f"subattributes were specified on the command line."
                     )
                 elif wrapper.parent is not None:
@@ -757,7 +748,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         # "Clean up" the Namespace by returning a new Namespace without the
         # consumed attributes.
-        deleted_values: Dict[str, Any] = {}
+        deleted_values: dict[str, Any] = {}
         for wrapper in self._wrappers:
             for field in wrapper.fields:
                 value = parsed_arg_values.pop(field.dest, None)

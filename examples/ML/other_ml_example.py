@@ -1,5 +1,6 @@
-import simple_parsing
 from dataclasses import dataclass
+
+import simple_parsing
 
 # create a parser,
 parser = simple_parsing.ArgumentParser()

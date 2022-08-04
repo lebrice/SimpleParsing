@@ -6,17 +6,17 @@ It is also very easy to add support for serializing/deserializing your own custo
 ```python
 >>> from simple_parsing.helpers import Serializable
 >>> from dataclasses import dataclass
->>> 
+>>>
 >>> @dataclass
 ... class Person(Serializable):
 ...     name: str = "Bob"
 ...     age: int = 20
-... 
+...
 >>> @dataclass
 ... class Student(Person):
 ...     domain: str = "Computer Science"
 ...     average_grade: float = 0.80
-... 
+...
 >>> # Serialization:
 ... # We can dump to yaml or json:
 ... charlie = Person(name="Charlie")

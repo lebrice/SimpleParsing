@@ -1,7 +1,7 @@
-from simple_parsing import ArgumentParser, field
 from dataclasses import dataclass
-
 from test.testutils import assert_help_output_equals
+
+from simple_parsing import ArgumentParser, field
 
 
 @dataclass
@@ -15,8 +15,8 @@ class InputArgs:
     end_date: str = field(alias="e")
 
 
-from io import StringIO
 import textwrap
+from io import StringIO
 
 
 def test_issue_48():
@@ -34,10 +34,10 @@ def test_issue_48():
 
             optional arguments:
             -h, --help            show this help message and exit
-            
+
             InputArgs ['args']:
             InputArgs(start_date:str, end_date:str)
-            
+
             -s str, --start_date str
                                     Start date from which to collect data about base
                                     users. Input in iso format (YYYY-MM-DD). The date is

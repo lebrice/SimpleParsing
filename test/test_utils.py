@@ -1,15 +1,11 @@
-import argparse
-import dataclasses
-import shlex
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import *
 
-import pytest
+import simple_parsing.utils as utils
+from simple_parsing import mutable_field
+from simple_parsing.helpers import dict_field, list_field, set_field
 
 from .testutils import *
-from simple_parsing import mutable_field
-import simple_parsing.utils as utils
-from simple_parsing.helpers import dict_field, set_field, list_field
 
 
 @dataclass

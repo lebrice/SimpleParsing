@@ -1,9 +1,11 @@
-import pytest
+import math
 from collections import Counter
 from dataclasses import dataclass
-import math
 
-from .hyperparameters import HyperParameters, hparam
+import pytest
+
+from .hparam import hparam
+from .hyperparameters import HyperParameters
 from .priors import CategoricalPrior, LogUniformPrior, UniformPrior
 from .utils import set_seed
 
@@ -124,9 +126,6 @@ def test_categorical_prior():
     assert 50 <= counter["a"] <= 150
     assert 50 <= counter["b"] <= 150
     assert 700 <= counter["c"] <= 900
-
-
-from .hparam import log_uniform
 
 
 def test_log_uniform_with_shape():

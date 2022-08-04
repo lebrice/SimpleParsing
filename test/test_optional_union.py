@@ -1,7 +1,8 @@
-from .testutils import TestSetup
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Union
+
+from .testutils import TestSetup
 
 
 def test_optional_union():

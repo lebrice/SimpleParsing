@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 import pytest
+
 from simple_parsing import ArgumentParser
 
 from .testutils import TestSetup

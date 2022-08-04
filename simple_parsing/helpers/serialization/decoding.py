@@ -50,7 +50,9 @@ def decode_bool(v: Any) -> bool:
 _decoding_fns[bool] = decode_bool
 
 
-def decode_field(field: Field, raw_value: Any, containing_dataclass: Optional[type] = None) -> Any:
+def decode_field(
+    field: Field, raw_value: Any, containing_dataclass: Optional[type] = None
+) -> Any:
     """Converts a "raw" value (e.g. from json file) to the type of the `field`.
 
     When serializing a dataclass to json, all objects are converted to dicts.
@@ -142,7 +144,9 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
                 evaluated_t = evaluate_string_annotation(t)
                 # NOTE: We now have a 'live'/runtime type annotation object from the typing module.
             except (ValueError, TypeError) as err:
-                logger.error(f"Unable to evaluate the type annotation string {t}: {err}.")
+                logger.error(
+                    f"Unable to evaluate the type annotation string {t}: {err}."
+                )
             else:
                 if evaluated_t in _decoding_fns:
                     return _decoding_fns[evaluated_t]
@@ -228,7 +232,9 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
                     f"first one that works. Potential classes: {dcs}"
                 )
             )
-            return try_functions(*[partial(dc.from_dict, drop_extra_fields=False) for dc in dcs])
+            return try_functions(
+                *[partial(dc.from_dict, drop_extra_fields=False) for dc in dcs]
+            )
         else:
             # No idea what the forward ref refers to!
             logger.warning(
@@ -286,7 +292,9 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
             except Exception as ex:
                 e = ex
         else:
-            logger.debug(f"Couldn't parse value {val}, returning it as-is. (exception: {e})")
+            logger.debug(
+                f"Couldn't parse value {val}, returning it as-is. (exception: {e})"
+            )
         return val
 
     return _try_functions
@@ -364,7 +372,9 @@ def decode_set(item_type: Type[T]) -> Callable[[List[T]], Set[T]]:
     return _decode_set
 
 
-def decode_dict(K_: Type[K], V_: Type[V]) -> Callable[[List[Tuple[Any, Any]]], Dict[K, V]]:
+def decode_dict(
+    K_: Type[K], V_: Type[V]
+) -> Callable[[List[Tuple[Any, Any]]], Dict[K, V]]:
     """Creates a decoding function for a dict type. Works with OrderedDict too.
 
     Args:

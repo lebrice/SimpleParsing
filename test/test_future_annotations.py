@@ -72,7 +72,9 @@ def test_new_union_syntax(ClassWithNewUnionSyntax: type[ClassWithNewUnionSyntax]
     assert ClassWithNewUnionSyntax.setup("--v 456") == ClassWithNewUnionSyntax(v=456)
     assert ClassWithNewUnionSyntax.setup("--v 4.56") == ClassWithNewUnionSyntax(v=4.56)
 
-    field_annotations = {f.name: f.type for f in dataclasses.fields(ClassWithNewUnionSyntax)}
+    field_annotations = {
+        f.name: f.type for f in dataclasses.fields(ClassWithNewUnionSyntax)
+    }
     from simple_parsing.utils import is_union
 
     assert is_union(field_annotations["v"])
@@ -165,17 +167,25 @@ def test_more_complicated_unions():
     ArgumentParser().add_arguments(MoreComplex, dest="unused")
     field_annotations = {f.name: f.type for f in dataclasses.fields(MoreComplex)}
     assert field_annotations["vals_list"] == typing.List[typing.Union[int, float]]
-    assert field_annotations["vals_tuple"] == typing.Tuple[typing.Union[int, float], bool]
+    assert (
+        field_annotations["vals_tuple"] == typing.Tuple[typing.Union[int, float], bool]
+    )
 
     assert is_list(field_annotations["vals_list"])
     assert is_tuple(field_annotations["vals_tuple"])
 
     assert MoreComplex.setup("--vals_list 456 123") == MoreComplex(vals_list=[456, 123])
-    assert MoreComplex.setup("--vals_list 4.56 1.23") == MoreComplex(vals_list=[4.56, 1.23])
+    assert MoreComplex.setup("--vals_list 4.56 1.23") == MoreComplex(
+        vals_list=[4.56, 1.23]
+    )
     # NOTE: Something funky is happening: Seems like the `float` type here is being registered as
     # the handler also in the second case, for the tuple!
-    assert MoreComplex.setup("--vals_tuple 456 False") == MoreComplex(vals_tuple=(456, False))
-    assert MoreComplex.setup("--vals_tuple 4.56 True") == MoreComplex(vals_tuple=(4.56, True))
+    assert MoreComplex.setup("--vals_tuple 456 False") == MoreComplex(
+        vals_tuple=(456, False)
+    )
+    assert MoreComplex.setup("--vals_tuple 4.56 True") == MoreComplex(
+        vals_tuple=(4.56, True)
+    )
 
 
 @pytest.mark.xfail(reason="TODO: Properly support containers of union types.")
@@ -186,9 +196,15 @@ def test_parsing_containers_of_unions():
         vals_tuple: tuple[int | float, bool] = field(default=(1, False))
 
     assert MoreComplex.setup("--vals_list 456 123") == MoreComplex(vals_list=[456, 123])
-    assert MoreComplex.setup("--vals_list 4.56 1.23") == MoreComplex(vals_list=[4.56, 1.23])
-    assert MoreComplex.setup("--vals_tuple 456 False") == MoreComplex(vals_tuple=(456, False))
-    assert MoreComplex.setup("--vals_tuple 4.56 True") == MoreComplex(vals_tuple=(4.56, True))
+    assert MoreComplex.setup("--vals_list 4.56 1.23") == MoreComplex(
+        vals_list=[4.56, 1.23]
+    )
+    assert MoreComplex.setup("--vals_tuple 456 False") == MoreComplex(
+        vals_tuple=(456, False)
+    )
+    assert MoreComplex.setup("--vals_tuple 4.56 True") == MoreComplex(
+        vals_tuple=(4.56, True)
+    )
 
 
 from dataclasses import dataclass
@@ -240,6 +256,6 @@ class SubclassOfOptimizerConfig(OptimizerConfig):
 def test_missing_annotation_on_subclass():
     """Test that the annotation are correctly fetched from the base class."""
 
-    assert SubclassOfOptimizerConfig.setup("--lr_scheduler cosine") == SubclassOfOptimizerConfig(
-        lr_scheduler="cosine"
-    )
+    assert SubclassOfOptimizerConfig.setup(
+        "--lr_scheduler cosine"
+    ) == SubclassOfOptimizerConfig(lr_scheduler="cosine")

@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import List
 
-# import tensorflow as tf
-
 from simple_parsing import ArgumentParser, choice
 from simple_parsing.helpers import Serializable, list_field
+
+# import tensorflow as tf
 
 
 @dataclass

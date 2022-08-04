@@ -99,24 +99,32 @@ class DataclassWrapper(Wrapper[Dataclass]):
 
             else:
                 # a normal attribute
-                field_wrapper = field_wrapper_class(field, parent=self, prefix=self.prefix)
+                field_wrapper = field_wrapper_class(
+                    field, parent=self, prefix=self.prefix
+                )
                 logger.debug(
                     f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.default}"
                 )
                 self.fields.append(field_wrapper)
 
-        logger.debug(f"The dataclass at attribute {self.dest} has default values: {self.defaults}")
+        logger.debug(
+            f"The dataclass at attribute {self.dest} has default values: {self.defaults}"
+        )
 
     def add_arguments(self, parser: argparse.ArgumentParser):
         from ..parsing import ArgumentParser
 
         parser = cast(ArgumentParser, parser)
 
-        group = parser.add_argument_group(title=self.title, description=self.description)
+        group = parser.add_argument_group(
+            title=self.title, description=self.description
+        )
 
         for wrapped_field in self.fields:
             if not wrapped_field.field.metadata.get("cmd", True):
-                logger.debug(f"Skipping field {wrapped_field.name} because it has cmd=False.")
+                logger.debug(
+                    f"Skipping field {wrapped_field.name} because it has cmd=False."
+                )
                 continue
 
             if wrapped_field.is_subparser:
@@ -209,7 +217,9 @@ class DataclassWrapper(Wrapper[Dataclass]):
     @property
     def description(self) -> str:
         if self.parent and self._field:
-            doc = docstring.get_attribute_docstring(self.parent.dataclass, self._field.name)
+            doc = docstring.get_attribute_docstring(
+                self.parent.dataclass, self._field.name
+            )
             if doc is not None:
                 if doc.docstring_below:
                     return doc.docstring_below
@@ -268,7 +278,9 @@ class DataclassWrapper(Wrapper[Dataclass]):
     def destinations(self) -> List[str]:
         if not self._destinations:
             if self.parent:
-                self._destinations = [f"{d}.{self.name}" for d in self.parent.destinations]
+                self._destinations = [
+                    f"{d}.{self.name}" for d in self.parent.destinations
+                ]
             else:
                 self._destinations = [self.name]
         return self._destinations

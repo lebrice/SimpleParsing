@@ -83,4 +83,3 @@ class MyModel():
 m = MyModel(hyperparameters, config)
 
 ```
-

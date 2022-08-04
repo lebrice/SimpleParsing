@@ -1,5 +1,6 @@
 # examples/demo.py
 from dataclasses import dataclass
+
 from simple_parsing import ArgumentParser
 
 parser = ArgumentParser()

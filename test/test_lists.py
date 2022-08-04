@@ -1,13 +1,10 @@
-from contextlib import suppress
-from argparse import ArgumentError
 from dataclasses import dataclass, field
 from typing import *
 
 import pytest
 
-import simple_parsing
-from simple_parsing import ArgumentParser, InconsistentArgumentError
 from simple_parsing.helpers import list_field
+
 from .testutils import *
 
 

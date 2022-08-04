@@ -11,11 +11,11 @@ The `simple_parsing.ArgumentParser` accepts an argument (currently called `add_o
 argument can be passed by using dashes ("-") instead. This also includes
 aliases.
 - If an alias contained leading dashes, either single or double, the
-same number of dashes will be used, even in the case where a prefix is 
+same number of dashes will be used, even in the case where a prefix is
 added.
 For instance, consider the following example.
 Here we have two prefixes: `"train"` and `"valid"`.
-The corresponding option_strings for each argument will be 
+The corresponding option_strings for each argument will be
 `["--train.debug", "-train.d"]` and `["--valid.debug", "-valid.d"]`,
 respectively, as shown here:
 

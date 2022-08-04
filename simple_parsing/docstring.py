@@ -2,12 +2,9 @@
 @author: Fabrice Normandin
 """
 import inspect
-import typing
-from argparse import ArgumentTypeError
 from dataclasses import dataclass
-from typing import *
 from logging import getLogger
-
+from typing import List, Optional, Type
 
 logger = getLogger(__name__)
 

@@ -1,27 +1,12 @@
 import json
-import logging
-import textwrap
-from collections import OrderedDict
-from dataclasses import dataclass, fields
-from pathlib import Path
-from test.conftest import silent
-from test.testutils import *
-from typing import Any, Dict, List, Mapping, Optional, Set, Tuple, Type, Union
+from dataclasses import dataclass
+from test.testutils import Generic, TypeVar
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 import pytest
-import yaml
 
-from simple_parsing import field, mutable_field
-from simple_parsing.helpers import (
-    Serializable,
-    YamlSerializable,
-    dict_field,
-    list_field,
-)
-from simple_parsing.helpers.serialization.decoding import (
-    get_decoding_fn,
-    register_decoding_fn,
-)
+from simple_parsing.helpers import Serializable, dict_field, list_field
+from simple_parsing.helpers.serialization.decoding import get_decoding_fn
 
 
 def test_encode_something(simple_attribute):

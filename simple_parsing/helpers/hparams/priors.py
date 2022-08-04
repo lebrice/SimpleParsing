@@ -1,18 +1,18 @@
 import math
+import random
 from abc import abstractmethod
 from dataclasses import dataclass
 from typing import (
+    Any,
     Generic,
     List,
     Optional,
+    Sequence,
+    Tuple,
     TypeVar,
     Union,
     overload,
-    Any,
-    Tuple,
-    Sequence,
 )
-import random
 
 numpy_installed = False
 try:
@@ -47,7 +47,7 @@ class Prior(Generic[T]):
 
     @abstractmethod
     def get_orion_space_string(self) -> str:
-        """ Gets the 'Orion-formatted space string' for this Prior object. """
+        """Gets the 'Orion-formatted space string' for this Prior object."""
 
     @abstractmethod
     def __contains__(self, v: Union[T, Any]) -> bool:

@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from typing import Union
+
 import pytest
 
-from .hyperparameters import HyperParameters, hparam, log_uniform, uniform
-
+from .hparam import log_uniform, uniform
+from .hyperparameters import HyperParameters
 
 numpy_installed = False
 try:
@@ -128,8 +129,6 @@ def test_nesting():
     assert isinstance(parent, Parent)
     assert isinstance(parent.child_a, Child)
 
-
-from typing import Type
 
 from .hparam import categorical
 

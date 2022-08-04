@@ -22,7 +22,9 @@ from .testutils import (
 def test_custom_args():
     @dataclass
     class Foo(TestSetup):
-        output_dir: str = field(default="/out", alias=["-o", "--out"], choices=["/out", "/bob"])
+        output_dir: str = field(
+            default="/out", alias=["-o", "--out"], choices=["/out", "/bob"]
+        )
 
     foo = Foo.setup("--output_dir /bob")
     assert foo.output_dir == "/bob"
@@ -190,20 +192,22 @@ def test_only_dashes():
 
             optional arguments:
               -h, --help    show this help message and exit
-            
+
             test_only_dashes.<locals>.SomeClass ['some_class']:
               lol
-            
+
               --my-var int
-            
+
             test_only_dashes.<locals>.AClass ['some_class.a']:
               foo
-            
+
               --a-var int
             """  # noqa: W293
         ),
     )
-    sc = SomeClass.setup("--my-var 2 --a-var 3", add_option_string_dash_variants=DashVariant.DASH)
+    sc = SomeClass.setup(
+        "--my-var 2 --a-var 3", add_option_string_dash_variants=DashVariant.DASH
+    )
     assert sc.my_var == 2
     assert sc.a.a_var == 3
     sc = SomeClass.setup(

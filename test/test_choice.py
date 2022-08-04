@@ -1,9 +1,11 @@
+from dataclasses import dataclass
+from typing import Union
+
 import pytest
 
-from dataclasses import dataclass
-from simple_parsing import ArgumentParser, choice
-from typing import Union
-from .testutils import *
+from simple_parsing import choice
+
+from .testutils import List, TestSetup, raises
 
 
 @dataclass

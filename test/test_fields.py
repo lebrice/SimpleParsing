@@ -52,7 +52,10 @@ from simple_parsing.wrappers.field_parsing import parse_enum
     [
         (Tuple[int, int], dict(nargs=2, type=int)),
         (Tuple[Color, Color], dict(nargs=2, type=parse_enum(Color))),
-        (Optional[Tuple[Color, Color]], dict(nargs=2, type=parse_enum(Color), required=False)),
+        (
+            Optional[Tuple[Color, Color]],
+            dict(nargs=2, type=parse_enum(Color), required=False),
+        ),
         (List[str], dict(nargs="*", type=str)),
         (Optional[List[str]], dict(nargs="*", type=str, required=False)),
         (Optional[str], dict(nargs="?", type=str, required=False)),

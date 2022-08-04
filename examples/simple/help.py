@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from simple_parsing import ArgumentParser
 
 
@@ -54,23 +55,23 @@ optional arguments:
 
 HParams ['hparams']:
    Set of options for the training of a ML Model.
-  
+
       Some more detailed description can be placed here, and will show-up in
-      the auto-generated "--help" text. 
-  
+      the auto-generated "--help" text.
+
       Some other **cool** uses for this space:
       - Provide links to previous works: (easy to click on from the command-line)
         - MAML: https://arxiv.org/abs/1703.03400
         - google: https://www.google.com
       - This can also interact nicely with documentation tools like Sphinx!
         For instance, you could add links to other parts of your documentation.
-  
+
       The default HelpFormatter used by `simple_parsing` will keep the formatting
       of this section intact, will add an indicator of the default values, and
       will use the name of the attribute's type as the metavar in the help string.
-      For more info, check out the `SimpleFormatter` class found in 
+      For more info, check out the `SimpleFormatter` class found in
       ./simple_parsing/utils.py
-      
+
 
   --num_layers int      Number of layers in the model. (default: 4)
   --num_units int       Number of units (neurons) per layer. (default: 64)

@@ -1,16 +1,15 @@
 import argparse
-import contextlib
-import dataclasses
-import inspect
-import textwrap
+import shlex
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Type, Any
-from simple_parsing import ArgumentParser
+from typing import Any, Type
+
 import pytest
+
 import simple_parsing
-import shlex
-from .testutils import parametrize, TestSetup, raises_missing_required_arg, raises
+from simple_parsing import ArgumentParser
+
+from .testutils import TestSetup, parametrize, raises, raises_missing_required_arg
 
 
 def test_basic_required_argument(simple_attribute, silent):
@@ -248,8 +247,10 @@ def test_using_a_Type_type():
 
 def test_issue62():
     import enum
-    from simple_parsing.helpers import list_field
     from typing import List
+
+    from simple_parsing.helpers import list_field
+
     parser = ArgumentParser()
 
     class Color(enum.Enum):

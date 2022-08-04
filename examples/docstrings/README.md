@@ -1,8 +1,8 @@
 # Docstrings
-  
-A docstring can either be: 
+
+A docstring can either be:
 - A comment on the same line as the attribute definition
-- A single or multi-line comment on the line(s) preceding the attribute definition 
+- A single or multi-line comment on the line(s) preceding the attribute definition
 - A single or multi-line docstring on the line(s) following the attribute
 definition, starting with either `"""` or `'''` and ending with the same token.
 
@@ -32,7 +32,7 @@ parser = ArgumentParser()
 @dataclass
 class DocStringsExample():
     """NOTE: This block of text is the class docstring, and it will show up under
-    the name of the class in the --help group for this set of parameters.    
+    the name of the class in the --help group for this set of parameters.
     """
 
     attribute1: float = 1.0
@@ -49,7 +49,7 @@ class DocStringsExample():
 
     # comment above (this appears in --help) 46
     attribute5: float = 1.0 # inline comment
-    
+
     attribute6: float = 1.0 # inline comment (this appears in --help)
 
     attribute7: float = 1.0 # inline comment

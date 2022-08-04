@@ -1,7 +1,7 @@
 import dataclasses
 from functools import wraps
 from logging import getLogger
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload
 
 from simple_parsing.helpers.fields import choice as _choice
 from simple_parsing.helpers.fields import field

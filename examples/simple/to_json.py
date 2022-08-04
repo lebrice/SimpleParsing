@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+
 from simple_parsing import ArgumentParser
 from simple_parsing.helpers import Serializable
 

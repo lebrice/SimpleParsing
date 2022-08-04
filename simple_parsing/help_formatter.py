@@ -1,19 +1,9 @@
 import argparse
-from argparse import ONE_OR_MORE, OPTIONAL, PARSER, REMAINDER, ZERO_OR_MORE
+from argparse import ONE_OR_MORE, OPTIONAL, PARSER, REMAINDER, ZERO_OR_MORE, Action
 from logging import getLogger
-from typing import Type, Callable, Optional
-from argparse import Action
+from typing import Optional, Type
 
-from .utils import (
-    get_type_arguments,
-    get_type_name,
-    is_optional,
-    is_tuple,
-    is_tuple_or_list,
-    is_union,
-)
 from .wrappers.field_metavar import get_metavar
-from argparse import SUPPRESS
 
 TEMPORARY_TOKEN = "<__TEMP__>"
 logger = getLogger(__name__)

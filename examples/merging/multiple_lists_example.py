@@ -7,7 +7,7 @@ Here, we want to create a few instances of `CNNStack` from the command line,
 but don't want to have a different prefix for each instance.
 To do this, we pass the `ConflictResolution.ALWAYS_MERGE` option to the argument parser constructor.
 This creates a single argument for each attribute, that will be set as multiple
-(i.e., if the attribute is a `str`, the argument becomes a list of `str`, one for each class instance). 
+(i.e., if the attribute is a `str`, the argument becomes a list of `str`, one for each class instance).
 
 For more info, check out the docstring of the `ConflictResolution` enum.
 """

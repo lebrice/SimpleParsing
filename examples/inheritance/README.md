@@ -48,7 +48,7 @@ args = parser.parse_args()
 
 load_path: str = args.load_path
 if load_path is None:
-    hparams: WGANGPHyperParameters = args.hparams  
+    hparams: WGANGPHyperParameters = args.hparams
 else:
     hparams = WGANGPHyperParameters.load_json(load_path)
 print(hparams)

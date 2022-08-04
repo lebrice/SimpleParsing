@@ -1,9 +1,8 @@
-from typing import Union
-from simple_parsing.helpers.fields import subparsers
-from simple_parsing.helpers.hparams.hyperparameters import HyperParameters
 from dataclasses import dataclass
+from typing import Union
 
 from simple_parsing import ArgumentParser
+from simple_parsing.helpers.fields import subparsers
 
 
 @dataclass
@@ -18,7 +17,9 @@ class BConfig:
 
 @dataclass
 class Options:
-    config: Union[AConfig, BConfig] = subparsers({"a": AConfig, "b": BConfig}, default=AConfig())
+    config: Union[AConfig, BConfig] = subparsers(
+        {"a": AConfig, "b": BConfig}, default=AConfig()
+    )
 
 
 def main():

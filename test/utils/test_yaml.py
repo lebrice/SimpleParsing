@@ -1,14 +1,11 @@
 """ Tests for serialization to/from yaml files. """
-from collections import OrderedDict
-from dataclasses import dataclass, field, fields
-from typing import Any, Dict, List, Optional, Tuple, Mapping, Type
-from pathlib import Path
-import pytest
 import textwrap
-from simple_parsing import mutable_field, list_field
+from dataclasses import dataclass
+from pathlib import Path
+from typing import List
+
+from simple_parsing import list_field
 from simple_parsing.helpers.serialization import YamlSerializable
-from test.conftest import silent
-import yaml
 
 
 @dataclass

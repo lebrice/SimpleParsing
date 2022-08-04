@@ -53,7 +53,8 @@ class Config:
 
     # Which dataset to use
     dataset: DatasetConfig = subgroups(
-        {"dataset_1": Dataset1Config, "dataset_2": Dataset2Config}, default=Dataset2Config()
+        {"dataset_1": Dataset1Config, "dataset_2": Dataset2Config},
+        default=Dataset2Config(),
     )
 
 
