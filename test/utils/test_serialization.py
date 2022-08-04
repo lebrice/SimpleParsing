@@ -251,7 +251,7 @@ def test_forward_ref_dict(silent, frozen: bool):
     class LossWithDict(FrozenSerializable if frozen else Serializable):
         name: str = ""
         total: float = 0.0
-        sublosses: Dict[str, "LossWithDict"] = field(default_factory=dict)
+        sublosses: Dict[str, "LossWithDict"] = field(default_factory=dict)  # noqa
 
     LossWithDict.frozen = frozen
     recon = LossWithDict(name="recon", total=1.2)
@@ -272,7 +272,7 @@ def test_forward_ref_list(silent, frozen: bool):
     class JLossWithList(FrozenSerializable if frozen else Serializable):
         name: str = ""
         total: float = 0.0
-        same_level: List["JLossWithList"] = field(default_factory=list)
+        same_level: List["JLossWithList"] = field(default_factory=list)  # noqa: F821
 
     recon = JLossWithList(name="recon", total=1.2)
     kl = JLossWithList(name="kl", total=3.4)
@@ -285,7 +285,7 @@ def test_forward_ref_attribute(frozen: bool):
     class LossWithAttr(FrozenSerializable if frozen else Serializable):
         name: str = ""
         total: float = 0.0
-        attribute: Optional["LossWithAttr"] = None
+        attribute: Optional["LossWithAttr"] = None  # noqa: F821
 
     recon = LossWithAttr(name="recon", total=1.2)
     kl = LossWithAttr(name="kl", total=3.4)
@@ -298,7 +298,7 @@ def test_forward_ref_correct_one_chosen_if_two_types_have_same_name(frozen: bool
     class Loss(FrozenSerializable if frozen else Serializable):
         name: str = ""
         total: float = 0.0
-        sublosses: Dict[str, "Loss"] = field(default_factory=OrderedDict)
+        sublosses: Dict[str, "Loss"] = field(default_factory=OrderedDict)  # noqa: F821
         fofo: int = 1
 
     def foo():

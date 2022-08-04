@@ -48,7 +48,7 @@ def test_tuple_with_ellipsis_help_format():
 
     assert_help_output_equals(
         Container.get_help_text(),
-        f"""
+        """
         usage: pytest [-h] [--ints int [int, ...]]
 
         optional arguments:
@@ -105,7 +105,6 @@ def test_issue_29():
 
 
 import shlex
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import pytest

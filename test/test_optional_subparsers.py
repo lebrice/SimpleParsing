@@ -61,7 +61,7 @@ class TestWithoutSubparsersField:
         assert self.Options.setup("b --bar 1.23").config == B(bar=1.23)
 
 
-class TestWithoutSubparsersField:
+class TestWithoutSubparsersFieldNoPartial:
     @dataclass
     class Options(TestSetup):
         config: Union[A, B] = field(

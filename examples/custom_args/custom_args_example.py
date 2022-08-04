@@ -16,7 +16,7 @@ def parse(cls, args: str = ""):
     return ns.example  # return the dataclass instance
 
 
-### Example 1: List of Choices:
+# Example 1: List of Choices:
 
 
 @dataclass
@@ -43,7 +43,7 @@ assert parse(Example1, "--pets_to_walk dog dog cat") == Example1(
 #     """
 
 
-### Example 2: Additional Option Strings
+# Example 2: Additional Option Strings
 
 
 @dataclass
@@ -64,7 +64,7 @@ assert parse(Example2, "-i input -o output") == Example2(
 )
 
 
-### Example 3: Using other actions (store_true, store_false, store_const, etc.)
+# Example 3: Using other actions (store_true, store_false, store_const, etc.)
 
 
 @dataclass

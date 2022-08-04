@@ -50,7 +50,7 @@ def get_metavar(t: Type) -> str:
         args = get_type_arguments(t)
         metavars: List[str] = []
         for type_arg in args:
-            if type_arg is type(None):
+            if type_arg is type(None):  # noqa: E721
                 continue
             metavars.append(get_metavar(type_arg))
         metavar = "|".join(map(str, metavars))

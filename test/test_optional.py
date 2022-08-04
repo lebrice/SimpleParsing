@@ -54,10 +54,10 @@ def test_optional_parameter_group():
     """
     parent: Parent = Parent.setup("--breed Shitzu")
     assert parent.dog == Dog(breed="Shitzu")
-    assert parent.child == None
+    assert parent.child is None
 
     parent: Parent = Parent.setup("--name Dylan")
-    assert parent.dog == None
+    assert parent.dog is None
     assert parent.child == Child(name="Dylan")
 
     parent: Parent = Parent.setup("--name Dylan --dog_years 27")
@@ -75,12 +75,12 @@ class GrandParent(TestSetup):
 def test_deeply_nested_optional_parameter_groups():
     """Same as above test, but deeper hierarchy."""
     grandparent: GrandParent = GrandParent.setup()
-    assert grandparent.niece == None
-    assert grandparent.nephew == None
+    assert grandparent.niece is None
+    assert grandparent.nephew is None
 
     grandparent: GrandParent = GrandParent.setup("--niece.child.name Bob")
     assert grandparent.niece == Parent(child=Child(name="Bob"))
-    assert grandparent.nephew == None
+    assert grandparent.nephew is None
 
 
 def test_optional_int():
@@ -105,7 +105,7 @@ def test_optional_str():
     # assert Bob.setup("--a none") == Bob(a="none")
 
 
-@pytest.mark.xfail(reason=f"TODO: Rework the code to parse containers.")
+@pytest.mark.xfail(reason="TODO: Rework the code to parse containers.")
 def test_optional_list_of_ints():
     @dataclass
     class Bob(TestSetup):

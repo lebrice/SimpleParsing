@@ -91,7 +91,7 @@ def test_list_of_literal(literal_field: FieldComponents):
         values: List[field_annotation]  # type: ignore
 
     with raises_missing_required_arg():
-        Foo.setup(f"")
+        Foo.setup("")
 
     assert Foo.setup(f"--values {passed_value} {passed_value}") == Foo(
         values=[parsed_value, parsed_value]

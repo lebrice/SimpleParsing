@@ -259,7 +259,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 # Union[<something>, NoneType]
                 assert type_arguments
                 non_none_types = [
-                    t for t in type_arguments if t is not type(None)
+                    t for t in type_arguments if t is not type(None)  # noqa: E721
                 ]  # noqa: E721
                 assert non_none_types
                 if len(non_none_types) == 1:

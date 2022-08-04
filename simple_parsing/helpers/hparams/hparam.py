@@ -8,7 +8,6 @@ from simple_parsing.helpers.fields import field
 
 from .priors import CategoricalPrior, LogUniformPrior, NormalPrior, Prior, UniformPrior
 
-HP = TypeVar("HP", bound="HyperParameters")
 logger = getLogger(__name__)
 T = TypeVar("T")
 

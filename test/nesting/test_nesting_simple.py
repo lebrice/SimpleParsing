@@ -108,7 +108,9 @@ def test_nesting_multiple_containers_with_args_separator():
 
 
 def test_train_config_example_no_args():
-    config = TrainConfig.setup("", conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE)
+    config = TrainConfig.setup(
+        "", conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE
+    )
     assert isinstance(config.train, RunConfig)
     import os
 

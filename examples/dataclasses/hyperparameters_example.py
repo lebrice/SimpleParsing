@@ -1,4 +1,4 @@
-## - Argument dataclasses can also have methods!
+# - Argument dataclasses can also have methods!
 import json
 from dataclasses import asdict, dataclass
 

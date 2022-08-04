@@ -49,7 +49,7 @@ CNNStack(name='stack', num_layers=3, kernel_sizes=(7, 5, 5), num_filters=[32, 64
 CNNStack(name='stack', num_layers=3, kernel_sizes=(7, 5, 5), num_filters=[32, 64, 64])
 """
 
-## Example of how to pass different lists for each instance:
+# Example of how to pass different lists for each instance:
 
 args = parser.parse_args("--num_filters [1,2,3] [4,5,6] [7,8,9] ".split())
 stack_0 = args.stack_0

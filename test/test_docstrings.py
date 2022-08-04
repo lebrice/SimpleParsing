@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from test.testutils import TestSetup
 from typing import List
 
 from simple_parsing import field
@@ -29,7 +28,7 @@ class Base:
 class Extended(Base):
     """Some extension of base-class `Base`"""
 
-    ## Comment above d)
+    # Comment above d)
     # its multiline, does it still work?
     d: int = 5
     """ docstring for 'd' in Extended. """
