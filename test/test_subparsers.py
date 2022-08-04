@@ -304,9 +304,7 @@ def test_simpleparse_version_giving_extra_args_to_parent():
     args = parser.parse_args("--foo 1 boo --bar 2 --baz 3".split())
     assert args == Namespace(foo=1, bar=2, baz=3)
 
-    args = parser.parse_known_args(
-        "boo --bar 2 --baz 3 --foo 1".split(), attempt_to_reorder=True
-    )
+    args = parser.parse_known_args("boo --bar 2 --baz 3 --foo 1".split(), attempt_to_reorder=True)
     assert args == (Namespace(foo=1, bar=2, baz=3), [])
 
 

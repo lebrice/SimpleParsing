@@ -17,9 +17,7 @@ class TestOptional:
     def test_round_trip(self, d: dict):
         # NOTE: this double round-trip makes the comparison agnostic to any conversion that may
         # happen between the raw dict values and the arguments of the dataclasses.
-        assert self.Foo.from_dict(
-            self.Foo.from_dict(d).to_dict()
-        ) == self.Foo.from_dict(d)
+        assert self.Foo.from_dict(self.Foo.from_dict(d).to_dict()) == self.Foo.from_dict(d)
 
 
 class TestUnion:
@@ -31,9 +29,7 @@ class TestUnion:
     def test_round_trip(self, d: dict):
         # NOTE: this double round-trip makes the comparison agnostic to any conversion that may
         # happen between the raw dict values and the arguments of the dataclasses.
-        assert self.Foo.from_dict(
-            self.Foo.from_dict(d).to_dict()
-        ) == self.Foo.from_dict(d)
+        assert self.Foo.from_dict(self.Foo.from_dict(d).to_dict()) == self.Foo.from_dict(d)
 
 
 class TestList:
@@ -45,9 +41,7 @@ class TestList:
     def test_round_trip(self, d: dict):
         # NOTE: this double round-trip makes the comparison agnostic to any conversion that may
         # happen between the raw dict values and the arguments of the dataclasses.
-        assert self.Foo.from_dict(
-            self.Foo.from_dict(d).to_dict()
-        ) == self.Foo.from_dict(d)
+        assert self.Foo.from_dict(self.Foo.from_dict(d).to_dict()) == self.Foo.from_dict(d)
 
 
 class TestTuple:
@@ -55,15 +49,11 @@ class TestTuple:
     class Foo(Serializable):
         foo: tuple[int, float, bool]
 
-    @pytest.mark.parametrize(
-        "d", [{"foo": (1, 1.2, False)}, {"foo": ("1", "1.2", "True")}]
-    )
+    @pytest.mark.parametrize("d", [{"foo": (1, 1.2, False)}, {"foo": ("1", "1.2", "True")}])
     def test_round_trip(self, d: dict):
         # NOTE: this double round-trip makes the comparison agnostic to any conversion that may
         # happen between the raw dict values and the arguments of the dataclasses.
-        assert self.Foo.from_dict(
-            self.Foo.from_dict(d).to_dict()
-        ) == self.Foo.from_dict(d)
+        assert self.Foo.from_dict(self.Foo.from_dict(d).to_dict()) == self.Foo.from_dict(d)
 
 
 class TestDict:
@@ -75,6 +65,4 @@ class TestDict:
     def test_round_trip(self, d: dict):
         # NOTE: this double round-trip makes the comparison agnostic to any conversion that may
         # happen between the raw dict values and the arguments of the dataclasses.
-        assert self.Foo.from_dict(
-            self.Foo.from_dict(d).to_dict()
-        ) == self.Foo.from_dict(d)
+        assert self.Foo.from_dict(self.Foo.from_dict(d).to_dict()) == self.Foo.from_dict(d)

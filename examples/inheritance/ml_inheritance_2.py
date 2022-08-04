@@ -36,9 +36,7 @@ class GanHParams(Serializable):
     gen: GeneratorHParams
     disc: DiscriminatorHParams
     learning_rate: float = 1e-4
-    n_disc_iters_per_g_iter: int = (
-        1  # Number of Discriminator iterations per Generator iteration.
-    )
+    n_disc_iters_per_g_iter: int = 1  # Number of Discriminator iterations per Generator iteration.
 
 
 class GAN:

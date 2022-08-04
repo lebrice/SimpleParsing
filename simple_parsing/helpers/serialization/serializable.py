@@ -25,9 +25,7 @@ try:
         value = loader.construct_sequence(node, deep=True)
         return OrderedDict(*value)
 
-    def ordered_dict_representer(
-        dumper: yaml.Dumper, instance: OrderedDict
-    ) -> yaml.Node:
+    def ordered_dict_representer(dumper: yaml.Dumper, instance: OrderedDict) -> yaml.Node:
         # NOTE(ycho): nested list for compatibility with PyYAML's representer
         node = dumper.represent_sequence("OrderedDict", [list(instance.items())])
         return node
@@ -69,9 +67,7 @@ class SerializableMixin:
     subclasses: ClassVar[List[Type[D]]] = []
     decode_into_subclasses: ClassVar[bool] = False
 
-    def __init_subclass__(
-        cls, decode_into_subclasses: bool = None, add_variants: bool = True
-    ):
+    def __init_subclass__(cls, decode_into_subclasses: bool = None, add_variants: bool = True):
         logger.debug(f"Registering a new Serializable subclass: {cls}")
         super().__init_subclass__()
         if decode_into_subclasses is None:
@@ -82,10 +78,7 @@ class SerializableMixin:
             logger.debug(f"parents: {parents}")
 
             for parent in parents:
-                if (
-                    parent in SerializableMixin.subclasses
-                    and parent is not SerializableMixin
-                ):
+                if parent in SerializableMixin.subclasses and parent is not SerializableMixin:
                     decode_into_subclasses = parent.decode_into_subclasses
                     logger.debug(
                         f"Parent class {parent} has decode_into_subclasses = {decode_into_subclasses}"
@@ -232,13 +225,9 @@ class SerializableMixin:
 
         if load_fn is None and isinstance(path, Path):
             if path.name.endswith((".yml", ".yaml")):
-                return cls.load_yaml(
-                    path, drop_extra_fields=drop_extra_fields, **kwargs
-                )
+                return cls.load_yaml(path, drop_extra_fields=drop_extra_fields, **kwargs)
             elif path.name.endswith(".json"):
-                return cls.load_json(
-                    path, drop_extra_fields=drop_extra_fields, **kwargs
-                )
+                return cls.load_json(path, drop_extra_fields=drop_extra_fields, **kwargs)
             elif path.name.endswith(".pth"):
                 import torch
 
@@ -268,9 +257,7 @@ class SerializableMixin:
 
         if isinstance(path, Path):
             path = path.open()
-        return cls._load(
-            path, load_fn=load_fn, drop_extra_fields=drop_extra_fields, **kwargs
-        )
+        return cls._load(path, load_fn=load_fn, drop_extra_fields=drop_extra_fields, **kwargs)
 
     @classmethod
     def _load(
@@ -303,9 +290,7 @@ class SerializableMixin:
         Returns:
             D: an instance of the dataclass.
         """
-        return cls.load(
-            path, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs
-        )
+        return cls.load(path, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
     @classmethod
     def load_yaml(
@@ -330,9 +315,7 @@ class SerializableMixin:
 
         if load_fn is None:
             load_fn = yaml.safe_load
-        return cls.load(
-            path, load_fn=load_fn, drop_extra_fields=drop_extra_fields, **kwargs
-        )
+        return cls.load(path, load_fn=load_fn, drop_extra_fields=drop_extra_fields, **kwargs)
 
     def save(self, path: Union[str, Path], dump_fn=None, **kwargs) -> None:
         if not isinstance(path, Path):
@@ -408,9 +391,7 @@ class SerializableMixin:
         load_fn=json.loads,
         **kwargs,
     ) -> D:
-        return cls.loads(
-            s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs
-        )
+        return cls.loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
     @classmethod
     def loads_yaml(
@@ -420,9 +401,7 @@ class SerializableMixin:
 
         if load_fn is None:
             load_fn = yaml.safe_load
-        return cls.loads(
-            s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs
-        )
+        return cls.loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
 
 @dataclass
@@ -494,9 +473,7 @@ def get_dataclass_types_from_forward_ref(
     return potential_classes
 
 
-def from_dict(
-    cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool = None
-) -> Dataclass:
+def from_dict(cls: Type[Dataclass], d: Dict[str, Any], drop_extra_fields: bool = None) -> Dataclass:
     """Parses an instance of the dataclass `cls` from the dict `d`.
 
     Args:
@@ -551,8 +528,7 @@ def from_dict(
                 and field.default_factory is MISSING
             ):
                 logger.warning(
-                    f"Couldn't find the field '{name}' in the dict with keys "
-                    f"{list(d.keys())}"
+                    f"Couldn't find the field '{name}' in the dict with keys " f"{list(d.keys())}"
                 )
             continue
 
@@ -582,9 +558,7 @@ def from_dict(
             for subclass in cls.subclasses:
                 if issubclass(subclass, cls) and subclass is not cls:
                     derived_classes.append(subclass)
-            logger.debug(
-                f"All serializable derived classes of {cls} available: {derived_classes}"
-            )
+            logger.debug(f"All serializable derived classes of {cls} available: {derived_classes}")
 
             # All the arguments that the dataclass should be able to accept in
             # its 'init'.
@@ -595,9 +569,7 @@ def from_dict(
             derived_classes.sort(key=lambda dc: len(get_init_fields(dc)))
 
             for child_class in derived_classes:
-                logger.debug(
-                    f"child class: {child_class.__name__}, mro: {child_class.mro()}"
-                )
+                logger.debug(f"child class: {child_class.__name__}, mro: {child_class.mro()}")
                 child_init_fields: Dict[str, Field] = get_init_fields(child_class)
                 child_init_field_names = set(child_init_fields.keys())
 
@@ -629,9 +601,7 @@ def get_init_fields(dataclass: Type) -> Dict[str, Field]:
     return result
 
 
-def get_first_non_None_type(
-    optional_type: Union[Type, Tuple[Type, ...]]
-) -> Optional[Type]:
+def get_first_non_None_type(optional_type: Union[Type, Tuple[Type, ...]]) -> Optional[Type]:
     if not isinstance(optional_type, tuple):
         optional_type = get_args(optional_type)
     for arg in optional_type:

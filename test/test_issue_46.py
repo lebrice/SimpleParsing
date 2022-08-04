@@ -77,9 +77,7 @@ def test_issue_46(assert_equals_stdout):
 
 def test_issue_46_solution2(assert_equals_stdout):
     # This (now) works:
-    parser = simple_parsing.ArgumentParser(
-        argument_generation_mode=ArgumentGenerationMode.BOTH
-    )
+    parser = simple_parsing.ArgumentParser(argument_generation_mode=ArgumentGenerationMode.BOTH)
     parser.add_argument("--run_id", type=str)
     parser.add_arguments(JBuildRelease, dest="jbuild", prefix="jbuild.")
     s = StringIO()

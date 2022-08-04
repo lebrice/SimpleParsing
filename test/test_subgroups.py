@@ -38,9 +38,7 @@ class Blop:
 
 @dataclass
 class Bob(TestSetup):
-    thing: Union[Foo, Bar] = subgroups(
-        {"foo_thing": Foo, "bar_thing": Bar}, default=Bar(d=3)
-    )
+    thing: Union[Foo, Bar] = subgroups({"foo_thing": Foo, "bar_thing": Bar}, default=Bar(d=3))
 
 
 def test_remove_help_action():
@@ -126,9 +124,7 @@ def test_subgroup_with_required_argument():
 
     @dataclass
     class Bob(TestSetup):
-        thing: Union[Foo, WithRequiredArg] = subgroups(
-            {"foo": Foo, "req": WithRequiredArg}
-        )
+        thing: Union[Foo, WithRequiredArg] = subgroups({"foo": Foo, "req": WithRequiredArg})
 
     assert Bob.setup("--thing foo --thing.a 44") == Bob(thing=Foo(a=44))
     assert Bob.setup("--thing req --thing.some_required_arg 22") == Bob(
@@ -144,9 +140,7 @@ def test_two_subgroups():
         first: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar}, default=Bar(d=3))
         second: Union[Baz, Blop] = subgroups({"baz": Baz, "blop": Blop}, default=Blop())
 
-    bob = Bob.setup(
-        "--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2"
-    )
+    bob = Bob.setup("--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2")
     assert bob == Bob(first=Foo(a=123), second=Blop(g="arwg", h=1.2))
 
 
@@ -266,9 +260,7 @@ def test_deeper_nesting_prefixing():
     )
 
     assert HigherConfig.setup("") == HigherConfig()
-    assert HigherConfig.setup("--a.person alice") == HigherConfig(
-        a=Config(person=Alice())
-    )
+    assert HigherConfig.setup("--a.person alice") == HigherConfig(a=Config(person=Alice()))
     assert HigherConfig.setup("--b.person daniel --b.person.age 54") == HigherConfig(
         b=Config(person=Daniel(age=54))
     )
@@ -282,7 +274,5 @@ def test_subgroups_dict_in_args():
     assert args.config == HigherConfig()
     assert args.subgroups == {"config.a.person": "daniel", "config.b.person": "alice"}
 
-    args = parser.parse_args(
-        shlex.split("--a.person alice --b.person daniel --b.person.age 54")
-    )
+    args = parser.parse_args(shlex.split("--a.person alice --b.person daniel --b.person.age 54"))
     assert args.subgroups == {"config.a.person": "alice", "config.b.person": "daniel"}

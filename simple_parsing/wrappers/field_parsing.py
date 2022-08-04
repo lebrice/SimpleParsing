@@ -147,8 +147,7 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
             return get_parsing_fn(bound)
 
     logger.debug(
-        f"Couldn't find a parsing function for type {t}, will try "
-        f"to use the type directly."
+        f"Couldn't find a parsing function for type {t}, will try " f"to use the type directly."
     )
     return t
 
@@ -175,9 +174,7 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
             f"Couldn't parse value {val}, returning the value as-is. (exceptions: {exceptions})"
         )
 
-    _try_functions.__name__ = (
-        "Try<" + " and ".join(str(func.__name__) for func in funcs) + ">"
-    )
+    _try_functions.__name__ = "Try<" + " and ".join(str(func.__name__) for func in funcs) + ">"
     return _try_functions
 
 
@@ -209,9 +206,7 @@ def parse_optional(t: Type[T]) -> Callable[[Optional[Any]], Optional[T]]:
     return _parse_optional
 
 
-def parse_tuple(
-    tuple_item_types: Tuple[Type[T], ...]
-) -> Callable[[List[T]], Tuple[T, ...]]:
+def parse_tuple(tuple_item_types: Tuple[Type[T], ...]) -> Callable[[List[T]], Tuple[T, ...]]:
     """Makes a parsing function for creating tuples from the command-line args.
 
     Can handle tuples with different item types, for instance:
@@ -230,9 +225,7 @@ def parse_tuple(
 
     def _parse_tuple(val: Any) -> Tuple[T, ...]:
         nonlocal calls_count
-        logger.debug(
-            f"Parsing a Tuple with item types {tuple_item_types}, raw value is {val}."
-        )
+        logger.debug(f"Parsing a Tuple with item types {tuple_item_types}, raw value is {val}.")
         parsing_fn_index = calls_count
 
         if Ellipsis in tuple_item_types:

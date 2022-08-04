@@ -115,9 +115,7 @@ def test_parse_multiple_without_required_arguments(some_type: Type):
 
 @parametrize("container_type", [List, Tuple])
 @parametrize("item_type", [int, float, str, bool])
-def test_parse_multiple_without_required_container_arguments(
-    container_type: Type, item_type: Type
-):
+def test_parse_multiple_without_required_container_arguments(container_type: Type, item_type: Type):
     @dataclass
     class SomeClass(TestSetup):
         a: container_type[item_type]  # type: ignore
@@ -129,9 +127,7 @@ def test_parse_multiple_without_required_container_arguments(
 
 @parametrize("container_type", [List, Tuple])
 @parametrize("item_type", [int, float, str, bool])
-def test_parse_multiple_with_arg_name_without_arg_value(
-    container_type: Type, item_type: Type
-):
+def test_parse_multiple_with_arg_name_without_arg_value(container_type: Type, item_type: Type):
     @dataclass
     class SomeClass(TestSetup):
         a: container_type[item_type]  # type: ignore
@@ -141,9 +137,7 @@ def test_parse_multiple_with_arg_name_without_arg_value(
         _ = SomeClass.setup_multiple(3, "--a")
 
 
-@xfail(
-    reason="BUG: When # of instances to parse is equal to item count in default value."
-)
+@xfail(reason="BUG: When # of instances to parse is equal to item count in default value.")
 @parametrize("num_instances", [1, 2, 3, 5])
 @parametrize(
     "container_type, default_value",

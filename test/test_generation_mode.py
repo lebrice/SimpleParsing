@@ -20,9 +20,7 @@ class ServerOptions(TestSetup):
     model: ModelOptions
 
 
-expected = ServerOptions(
-    host="myserver", port=80, model=ModelOptions(path="a_path", device="cpu")
-)
+expected = ServerOptions(host="myserver", port=80, model=ModelOptions(path="a_path", device="cpu"))
 
 
 def test_flat():

@@ -18,9 +18,7 @@ class FlattenedAccess:
         when reading an attribute whose name is a variable.
     """
 
-    def attributes(
-        self, recursive: bool = True, prefix: str = ""
-    ) -> Iterable[Tuple[str, Any]]:
+    def attributes(self, recursive: bool = True, prefix: str = "") -> Iterable[Tuple[str, Any]]:
         """Returns an Iterator over the attributes of the dataclass.
 
         [extended_summary]

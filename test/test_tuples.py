@@ -176,9 +176,7 @@ class TestIssue47:
             (List[str], dict(type=str, nargs="*", required=True)),
         ],
     )
-    def test_arg_options_created(
-        self, field_type: Type, expected_options: Dict[str, Any]
-    ):
+    def test_arg_options_created(self, field_type: Type, expected_options: Dict[str, Any]):
         """Check the 'arg_options' that get created for different types of tuple
         fields.
         """

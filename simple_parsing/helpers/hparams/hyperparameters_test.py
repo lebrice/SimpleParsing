@@ -147,9 +147,7 @@ def test_choice_field():
 
     bob = Child.sample()
     assert bob.hparam in {1.23, 4.56, 7.89}
-    assert Child.get_orion_space_dict() == {
-        "hparam": "choices(['a', 'b', 'c'], default_value='a')"
-    }
+    assert Child.get_orion_space_dict() == {"hparam": "choices(['a', 'b', 'c'], default_value='a')"}
 
 
 def test_choice_field_with_values_of_a_weird_type():

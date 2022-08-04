@@ -23,9 +23,7 @@ checkpoint_dir = args.checkpoint_dir
 
 
 class MyModel:
-    def __init__(
-        self, data_dir, log_dir, checkpoint_dir, learning_rate, momentum, *args
-    ):
+    def __init__(self, data_dir, log_dir, checkpoint_dir, learning_rate, momentum, *args):
         # config:
         self.data_dir = data_dir
         self.log_dir = log_dir

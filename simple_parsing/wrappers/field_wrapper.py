@@ -97,9 +97,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     add_dash_variants: ClassVar[DashVariant] = DashVariant.AUTO
 
     # Whether to follow a flat or nested argument structure.
-    argument_generation_mode: ClassVar[
-        ArgumentGenerationMode
-    ] = ArgumentGenerationMode.FLAT
+    argument_generation_mode: ClassVar[ArgumentGenerationMode] = ArgumentGenerationMode.FLAT
 
     # Controls how nested arguments are generated.
     nested_mode: ClassVar[NestedMode] = NestedMode.DEFAULT
@@ -295,9 +293,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["nargs"] = utils.get_container_nargs(wrapped_type)
 
             elif utils.is_list(wrapped_type):
-                _arg_options["type"] = utils.get_argparse_type_for_container(
-                    wrapped_type
-                )
+                _arg_options["type"] = utils.get_argparse_type_for_container(wrapped_type)
                 _arg_options["nargs"] = "*"
                 # NOTE: Can't set 'const', since we'd get:
                 # ValueError: nargs must be '?' to supply const
@@ -327,9 +323,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                     return e.name if isinstance(e, Enum) else e
 
                 if self.is_reused:
-                    _arg_options["default"] = [
-                        enum_to_str(default) for default in self.default
-                    ]
+                    _arg_options["default"] = [enum_to_str(default) for default in self.default]
                 else:
                     _arg_options["default"] = enum_to_str(self.default)
 
@@ -347,9 +341,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["type"] = utils.get_argparse_type_for_container(self.type)
 
         elif utils.is_tuple(self.type):
-            logger.debug(
-                f"Adding a Tuple attribute '{self.name}' with type {self.type}"
-            )
+            logger.debug(f"Adding a Tuple attribute '{self.name}' with type {self.type}")
             _arg_options["nargs"] = utils.get_container_nargs(self.type)
             _arg_options["type"] = get_parsing_fn(self.type)
 
@@ -372,9 +364,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             else:
                 # Remove the 'metavar' that we auto-generated above.
                 _arg_options.pop("metavar", None)
-            _arg_options["type"] = self.custom_arg_options.get(
-                "type", get_parsing_fn(self.type)
-            )
+            _arg_options["type"] = self.custom_arg_options.get("type", get_parsing_fn(self.type))
 
         if self.is_reused:
             if self.required:
@@ -549,9 +539,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
     @property
     def destinations(self) -> List[str]:
-        return [
-            f"{parent_dest}.{self.name}" for parent_dest in self.parent.destinations
-        ]
+        return [f"{parent_dest}.{self.name}" for parent_dest in self.parent.destinations]
 
     @property
     def option_strings(self) -> List[str]:
@@ -590,9 +578,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         dash = "-" if len(self.name) == 1 else "--"
         option = f"{self.prefix}{self.name}"
         nested_option = (
-            self.dest
-            if nested_mode == NestedMode.DEFAULT
-            else ".".join(self.dest.split(".")[1:])
+            self.dest if nested_mode == NestedMode.DEFAULT else ".".join(self.dest.split(".")[1:])
         )
         if add_dash_variants == DashVariant.DASH:
             option = option.replace("_", "-")
@@ -636,12 +622,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         # even if an alias isn't explicitly created.
 
         if add_dash_variants == DashVariant.UNDERSCORE_AND_DASH:
-            additional_options = [
-                option.replace("_", "-") for option in options if "_" in option
-            ]
-            additional_dashes = [
-                "-" if len(option) == 1 else "--" for option in additional_options
-            ]
+            additional_options = [option.replace("_", "-") for option in options if "_" in option]
+            additional_dashes = ["-" if len(option) == 1 else "--" for option in additional_options]
             options.extend(additional_options)
             dashes.extend(additional_dashes)
 
@@ -809,9 +791,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                     get_field_type_from_annotations,
                 )
 
-                field_type = get_field_type_from_annotations(
-                    self.parent.dataclass, self.field.name
-                )
+                field_type = get_field_type_from_annotations(self.parent.dataclass, self.field.name)
                 self._type = field_type
         return self._type
 
@@ -846,9 +826,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             assert literal_values, "Literal always has at least one argument."
             # We map from literal values (as strings) to the actual values.
             # e.g. from BLUE -> Color.Blue
-            return {
-                (v.name if isinstance(v, Enum) else str(v)): v for v in literal_values
-            }
+            return {(v.name if isinstance(v, Enum) else str(v)): v for v in literal_values}
         return None
 
     @property
@@ -860,9 +838,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 self.parent.dataclass, self.field.name
             )
         except (SystemExit, Exception) as e:
-            logger.debug(
-                f"Couldn't find attribute docstring for field {self.name}, {e}"
-            )
+            logger.debug(f"Couldn't find attribute docstring for field {self.name}, {e}")
             self._docstring = docstring.AttributeDocString()
 
         if self._docstring.docstring_below:
@@ -921,10 +897,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
     @property
     def is_subparser(self) -> bool:
-        return (
-            utils.is_subparser_field(self.field)
-            and "subgroups" not in self.field.metadata
-        )
+        return utils.is_subparser_field(self.field) and "subgroups" not in self.field.metadata
 
     @property
     def is_subgroup(self) -> bool:
@@ -998,15 +971,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     def equivalent_argparse_code(self):
         arg_options = self.arg_options.copy()
         arg_options_string = f"{{'type': {arg_options.pop('type', str).__qualname__}"
-        arg_options_string += (
-            str(arg_options).replace("{", ", ").replace(TEMPORARY_TOKEN, " ")
-        )
+        arg_options_string += str(arg_options).replace("{", ", ").replace(TEMPORARY_TOKEN, " ")
         return f"group.add_argument(*{self.option_strings}, **{arg_options_string})"
 
 
-def only_keep_action_args(
-    options: Dict[str, Any], action: Union[str, Any]
-) -> Dict[str, Any]:
+def only_keep_action_args(options: Dict[str, Any], action: Union[str, Any]) -> Dict[str, Any]:
     """Remove all the arguments in `options` that aren't required by the Action.
 
     Parameters

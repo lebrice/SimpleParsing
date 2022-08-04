@@ -91,8 +91,7 @@ class NormalPrior(Prior):
 
     def get_orion_space_string(self) -> str:
         raise NotImplementedError(
-            "TODO: Add this for the normal prior, didn't check how its done in "
-            "Orion yet."
+            "TODO: Add this for the normal prior, didn't check how its done in " "Orion yet."
         )
 
     def __contains__(self, v: Union[T, Any]) -> bool:
@@ -198,9 +197,7 @@ class CategoricalPrior(Prior[T]):
         print(choices, n, probabilities)
         if numpy_installed:
             s = self.np_rng.choice(choices, size=n, p=probabilities)
-            samples = [
-                (s_i.item() if isinstance(s_i, np.ndarray) else s_i) for s_i in s
-            ]
+            samples = [(s_i.item() if isinstance(s_i, np.ndarray) else s_i) for s_i in s]
         else:
             samples = self.rng.choices(choices, weights=probabilities, k=n or 1)
 
@@ -253,9 +250,7 @@ class LogUniformPrior(Prior):
         if self.shape:
             assert isinstance(self.shape, int), "only support in shape for now."
             if numpy_installed:
-                log_vals = self.np_rng.uniform(
-                    self.log_min, self.log_max, size=self.shape
-                )
+                log_vals = self.np_rng.uniform(self.log_min, self.log_max, size=self.shape)
                 values = np.power(self.base, log_vals)
                 if self.discrete:
                     values = np.round(values)

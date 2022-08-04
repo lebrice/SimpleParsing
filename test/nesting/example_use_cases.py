@@ -30,9 +30,7 @@ class HParams(TestSetup):
     # number of layers.
     num_layers: int = default_num_layers
     # the number of neurons at each layer
-    neurons_per_layer: List[int] = field(
-        default_factory=lambda: [128] * HParams.default_num_layers
-    )
+    neurons_per_layer: List[int] = field(default_factory=lambda: [128] * HParams.default_num_layers)
 
 
 @dataclass

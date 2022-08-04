@@ -37,9 +37,7 @@ Dataclass = TypeVar("Dataclass")
 
 
 @contextmanager
-def raises(
-    exception: type[Exception] = ParsingError, match=None, code: Optional[int] = None
-):
+def raises(exception: type[Exception] = ParsingError, match=None, code: Optional[int] = None):
     with pytest.raises(exception, match=match):
         yield
 
@@ -183,9 +181,7 @@ class TestSetup:
         args_dict = vars(args).copy()
         args_dict.pop("subgroups", None)
 
-        assert (
-            not args_dict
-        ), f"Namespace has leftover garbage values (besides subgroups): {args}"
+        assert not args_dict, f"Namespace has leftover garbage values (besides subgroups): {args}"
 
         instance = cast(Dataclass, instance)
         return instance
@@ -196,9 +192,7 @@ class TestSetup:
     ) -> Tuple[Dataclass, ...]:
         conflict_resolution_mode: ConflictResolution = ConflictResolution.ALWAYS_MERGE
 
-        parser = simple_parsing.ArgumentParser(
-            conflict_resolution=conflict_resolution_mode
-        )
+        parser = simple_parsing.ArgumentParser(conflict_resolution=conflict_resolution_mode)
         class_name = camel_case(cls.__name__)
         for i in range(num_to_parse):
             parser.add_arguments(cls, f"{class_name}_{i}")
@@ -262,18 +256,12 @@ def format_list_using_double_quotes(value_list: List[Any]) -> str:
 
 
 def format_lists_using_brackets(list_of_lists: List[List[Any]]) -> str:
-    return " ".join(
-        format_list_using_brackets(value_list) for value_list in list_of_lists
-    )
+    return " ".join(format_list_using_brackets(value_list) for value_list in list_of_lists)
 
 
 def format_lists_using_double_quotes(list_of_lists: List[List[Any]]) -> str:
-    return " ".join(
-        format_list_using_double_quotes(value_list) for value_list in list_of_lists
-    )
+    return " ".join(format_list_using_double_quotes(value_list) for value_list in list_of_lists)
 
 
 def format_lists_using_single_quotes(list_of_lists: List[List[Any]]) -> str:
-    return " ".join(
-        format_list_using_single_quotes(value_list) for value_list in list_of_lists
-    )
+    return " ".join(format_list_using_single_quotes(value_list) for value_list in list_of_lists)

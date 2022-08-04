@@ -29,9 +29,7 @@ class Example1:
 assert parse(Example1, "") == Example1(pets_to_walk=["dog"])
 assert parse(Example1, "--pets_to_walk") == Example1(pets_to_walk=[])
 assert parse(Example1, "--pets_to_walk cat") == Example1(pets_to_walk=["cat"])
-assert parse(Example1, "--pets_to_walk dog dog cat") == Example1(
-    pets_to_walk=["dog", "dog", "cat"]
-)
+assert parse(Example1, "--pets_to_walk dog dog cat") == Example1(pets_to_walk=["dog", "dog", "cat"])
 
 
 # # Passing a value not in 'choices' produces an error:
@@ -59,9 +57,7 @@ assert parse(Example2, "-o tmp/data") == Example2(output_dir="tmp/data")
 assert parse(Example2, "--out louise") == Example2(output_dir="louise")
 assert parse(Example2, "--input_dir louise") == Example2(input_dir="louise")
 assert parse(Example2, "--output_dir joe/annie") == Example2(output_dir="joe/annie")
-assert parse(Example2, "-i input -o output") == Example2(
-    input_dir="input", output_dir="output"
-)
+assert parse(Example2, "-i input -o output") == Example2(input_dir="input", output_dir="output")
 
 
 # Example 3: Using other actions (store_true, store_false, store_const, etc.)
