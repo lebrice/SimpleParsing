@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from typing import Any, List, Tuple, Type
 
 import pytest
-from pytest import parametrize
 
 from simple_parsing.helpers import list_field
 
@@ -17,6 +16,7 @@ from .testutils import (
     format_lists_using_brackets,
     format_lists_using_double_quotes,
     format_lists_using_single_quotes,
+    parametrize,
     raises_missing_required_arg,
     xfail_param,
 )
