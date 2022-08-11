@@ -1,6 +1,12 @@
 from dataclasses import dataclass
+from enum import Enum
+from typing import Dict, List, Optional, Tuple, Type
+
+import pytest
 
 from simple_parsing import ArgumentParser, ConflictResolution, field
+from simple_parsing.utils import str2bool
+from simple_parsing.wrappers.field_parsing import parse_enum
 
 
 def test_cmd_false_doesnt_create_conflicts():
@@ -27,21 +33,11 @@ def test_cmd_false_doesnt_create_conflicts():
     assert b == B(batch_size=32)
 
 
-from enum import Enum
-from typing import Dict, List, Optional, Tuple, Type
-
-import pytest
-
-
 class Color(Enum):
     blue: str = "BLUE"
     red: str = "RED"
     green: str = "GREEN"
     orange: str = "ORANGE"
-
-
-from simple_parsing.utils import str2bool
-from simple_parsing.wrappers.field_parsing import parse_enum
 
 
 @pytest.mark.xfail(
@@ -52,7 +48,10 @@ from simple_parsing.wrappers.field_parsing import parse_enum
     [
         (Tuple[int, int], dict(nargs=2, type=int)),
         (Tuple[Color, Color], dict(nargs=2, type=parse_enum(Color))),
-        (Optional[Tuple[Color, Color]], dict(nargs=2, type=parse_enum(Color), required=False)),
+        (
+            Optional[Tuple[Color, Color]],
+            dict(nargs=2, type=parse_enum(Color), required=False),
+        ),
         (List[str], dict(nargs="*", type=str)),
         (Optional[List[str]], dict(nargs="*", type=str, required=False)),
         (Optional[str], dict(nargs="?", type=str, required=False)),

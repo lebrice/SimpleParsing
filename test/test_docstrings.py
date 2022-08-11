@@ -1,12 +1,9 @@
 from dataclasses import dataclass
-
-import pytest
-
-import simple_parsing
-from simple_parsing.docstring import get_attribute_docstring
-from simple_parsing import field
 from typing import List
-from test.testutils import TestSetup
+
+from simple_parsing import field
+from simple_parsing.docstring import get_attribute_docstring
+
 from .testutils import TestSetup
 
 
@@ -31,7 +28,7 @@ class Base:
 class Extended(Base):
     """Some extension of base-class `Base`"""
 
-    ## Comment above d)
+    # Comment above d)
     # its multiline, does it still work?
     d: int = 5
     """ docstring for 'd' in Extended. """
@@ -75,10 +72,7 @@ def test_docstring_parsing_works_on_extended():
     assert docstring.docstring_below == "Multi\nLine\nDocstring for 'c'\n"
 
     docstring = get_attribute_docstring(Extended, "d")
-    assert (
-        docstring.comment_above
-        == "# Comment above d)\nits multiline, does it still work?"
-    )
+    assert docstring.comment_above == "Comment above d)\nits multiline, does it still work?"
     assert docstring.comment_inline == ""
     assert docstring.docstring_below == "docstring for 'd' in Extended."
 

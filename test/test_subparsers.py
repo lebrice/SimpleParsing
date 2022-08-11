@@ -1,16 +1,9 @@
 import argparse
-import contextlib
 import dataclasses
-import inspect
-import test
-import textwrap
 from argparse import Namespace
-from dataclasses import dataclass, fields
-from enum import Enum
+from dataclasses import dataclass
 from pathlib import Path
-from typing import *
-
-import pytest
+from typing import Union
 
 import simple_parsing
 from simple_parsing import ArgumentParser, choice
@@ -180,13 +173,13 @@ def test_experiments():
     experiment = args.config.experiment
     assert isinstance(experiment, Mnist)
     assert experiment.dataset == "mnist"
-    assert experiment.iid == True
+    assert experiment.iid is True
 
     args = parser.parse_args("mnist_continual".split())
     experiment = args.config.experiment
     assert isinstance(experiment, MnistContinual)
     assert experiment.dataset == "mnist"
-    assert experiment.iid == False
+    assert experiment.iid is False
 
 
 def test_subparser_rest_of_args_go_to_parent():
@@ -311,9 +304,7 @@ def test_simpleparse_version_giving_extra_args_to_parent():
     args = parser.parse_args("--foo 1 boo --bar 2 --baz 3".split())
     assert args == Namespace(foo=1, bar=2, baz=3)
 
-    args = parser.parse_known_args(
-        "boo --bar 2 --baz 3 --foo 1".split(), attempt_to_reorder=True
-    )
+    args = parser.parse_known_args("boo --bar 2 --baz 3 --foo 1".split(), attempt_to_reorder=True)
     assert args == (Namespace(foo=1, bar=2, baz=3), [])
 
 

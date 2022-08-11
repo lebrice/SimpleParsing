@@ -7,7 +7,7 @@ Here, we want to create a few instances of `CNNStack` from the command line,
 but don't want to have a different prefix for each instance.
 To do this, we pass the `ConflictResolution.ALWAYS_MERGE` option to the argument parser constructor.
 This creates a single argument for each attribute, that will be set as multiple
-(i.e., if the attribute is a `str`, the argument becomes a list of `str`, one for each class instance). 
+(i.e., if the attribute is a `str`, the argument becomes a list of `str`, one for each class instance).
 
 For more info, check out the docstring of the `ConflictResolution` enum.
 """
@@ -49,7 +49,7 @@ CNNStack(name='stack', num_layers=3, kernel_sizes=(7, 5, 5), num_filters=[32, 64
 CNNStack(name='stack', num_layers=3, kernel_sizes=(7, 5, 5), num_filters=[32, 64, 64])
 """
 
-## Example of how to pass different lists for each instance:
+# Example of how to pass different lists for each instance:
 
 args = parser.parse_args("--num_filters [1,2,3] [4,5,6] [7,8,9] ".split())
 stack_0 = args.stack_0

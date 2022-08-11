@@ -1,27 +1,12 @@
 import json
-import logging
-import textwrap
-from collections import OrderedDict
-from dataclasses import dataclass, fields
-from pathlib import Path
-from test.conftest import silent
-from test.testutils import *
-from typing import Any, Dict, List, Mapping, Optional, Set, Tuple, Type, Union
+from dataclasses import dataclass
+from test.testutils import Generic, TypeVar
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 import pytest
-import yaml
 
-from simple_parsing import field, mutable_field
-from simple_parsing.helpers import (
-    Serializable,
-    YamlSerializable,
-    dict_field,
-    list_field,
-)
-from simple_parsing.helpers.serialization.decoding import (
-    get_decoding_fn,
-    register_decoding_fn,
-)
+from simple_parsing.helpers import Serializable, dict_field, list_field
+from simple_parsing.helpers.serialization.decoding import get_decoding_fn
 
 
 def test_encode_something(simple_attribute):
@@ -59,11 +44,11 @@ def test_typevar_decoding(simple_attribute):
     class DiscountedItem(Item):
         discount_factor: float = 0.5
 
-    I = TypeVar("I", bound=Item)
+    ItemT = TypeVar("ItemT", bound=Item)
 
     @dataclass
-    class Container(Serializable, Generic[I]):
-        items: List[I] = list_field()
+    class Container(Serializable, Generic[ItemT]):
+        items: List[ItemT] = list_field()
 
     chair = Item()
     cheap_chair = DiscountedItem(name="Cheap chair")
@@ -96,9 +81,7 @@ def test_typevar_decoding(simple_attribute):
 def test_super_nesting():
     @dataclass
     class Complicated(Serializable):
-        x: List[
-            List[List[Dict[int, Tuple[int, float, str, List[float]]]]]
-        ] = list_field()
+        x: List[List[List[Dict[int, Tuple[int, float, str, List[float]]]]]] = list_field()
 
     c = Complicated()
     c.x = [[[{0: (2, 1.23, "bob", [1.2, 1.3])}]]]

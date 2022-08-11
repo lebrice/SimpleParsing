@@ -7,7 +7,9 @@ from .conftest import SimpleAttributeTuple
 from .testutils import TestSetup
 
 
-def test_field_with_custom_required_arg_is_optional(simple_attribute: SimpleAttributeTuple):
+def test_field_with_custom_required_arg_is_optional(
+    simple_attribute: SimpleAttributeTuple,
+):
     """Test that the `field` function can be used as a work-around for issue 132.
 
     When passing `required` (or any other of the usual arguments of `parser.add_argument`) to the
@@ -39,7 +41,9 @@ def test_field_with_none_default_is_optional(simple_attribute: SimpleAttributeTu
     assert Foo.setup(f"--a {passed_value}") == Foo(a=expected_value)
 
 
-def test_dataclass_field_with_none_default_is_optional(simple_attribute: SimpleAttributeTuple):
+def test_dataclass_field_with_none_default_is_optional(
+    simple_attribute: SimpleAttributeTuple,
+):
     """Test that when the default value is None, the argument is treated as optional."""
     some_type, passed_value, expected_value = simple_attribute
 

@@ -1,26 +1,17 @@
 import dataclasses
 import inspect
-import pickle
 import math
+import pickle
 import random
 from collections import OrderedDict
 from dataclasses import Field, dataclass, fields
 from functools import singledispatch, total_ordering
-from pathlib import Path
-from typing import (
-    Any,
-    ClassVar,
-    Dict,
-    List,
-    NamedTuple,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-)
-from simple_parsing import utils
-from simple_parsing.helpers import Serializable
 from logging import getLogger
+from pathlib import Path
+from typing import Any, ClassVar, Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar
+
+from simple_parsing import utils
+from simple_parsing.helpers.serialization.serializable import Serializable
 from simple_parsing.utils import (
     compute_identity,
     dict_union,
@@ -28,9 +19,8 @@ from simple_parsing.utils import (
     get_type_arguments,
 )
 
-from .hparam import ValueOutsidePriorException, hparam, uniform, log_uniform
+from .hparam import ValueOutsidePriorException
 from .priors import Prior
-
 
 logger = getLogger(__name__)
 T = TypeVar("T")
@@ -166,9 +156,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
             elif f.type is int:
                 bound = BoundInfo(name=f.name, type="discrete", domain=(min_v, max_v))
             else:
-                raise NotImplementedError(
-                    f"Unsupported type for field {f.name}: {f.type}"
-                )
+                raise NotImplementedError(f"Unsupported type for field {f.name}: {f.type}")
             bounds.append(bound)
         return bounds
 
@@ -230,9 +218,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
                 try:
                     v = float(v)
                 except Exception:
-                    logger.warning(
-                        f"Ignoring field {k} because we can't make a float out of it."
-                    )
+                    logger.warning(f"Ignoring field {k} because we can't make a float out of it.")
                 else:
                     values.append(v)
             return np.array(values, dtype=dtype)
@@ -251,9 +237,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
             assert len(keys) == len(array), "assuming that each field is dim 1 for now."
             d = OrderedDict(zip(keys, array))
             logger.debug(f"Creating an instance of {cls} using args {d}")
-            d = OrderedDict(
-                (k, v.item() if isinstance(v, np.ndarray) else v) for k, v in d.items()
-            )
+            d = OrderedDict((k, v.item() if isinstance(v, np.ndarray) else v) for k, v in d.items())
             return cls.from_dict(d)
 
     def clip_within_bounds(self: HP) -> HP:

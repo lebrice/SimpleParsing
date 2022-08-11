@@ -1,8 +1,7 @@
 from dataclasses import dataclass
-
-from simple_parsing.parsing import ParsingError
-from .testutils import TestSetup, exits_and_writes_to_stderr, raises
 from typing import Union
+
+from .testutils import TestSetup, exits_and_writes_to_stderr
 
 
 def test_union_type():

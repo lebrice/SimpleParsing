@@ -1,13 +1,16 @@
 import collections
-from simple_parsing.helpers.hparams import uniform
-from typing import Union
-from simple_parsing.helpers.fields import field, subparsers
-from simple_parsing.helpers.hparams.hyperparameters import HyperParameters
-from dataclasses import dataclass
-from .testutils import TestSetup
 import functools
+import random
+from dataclasses import dataclass
+from typing import Union
 
-from simple_parsing import ArgumentParser
+import pytest
+
+from simple_parsing.helpers.fields import field, subparsers
+from simple_parsing.helpers.hparams import uniform
+from simple_parsing.helpers.hparams.hyperparameters import HyperParameters
+
+from .testutils import TestSetup
 
 
 @dataclass
@@ -61,7 +64,7 @@ class TestWithoutSubparsersField:
         assert self.Options.setup("b --bar 1.23").config == B(bar=1.23)
 
 
-class TestWithoutSubparsersField:
+class TestWithoutSubparsersFieldNoPartial:
     @dataclass
     class Options(TestSetup):
         config: Union[A, B] = field(
@@ -117,11 +120,6 @@ class ModelB(HyperParameters):
 @dataclass
 class Options(HyperParameters):
     model: Union[ModelA, ModelB] = field(default_factory=ModelA)
-
-
-import pytest
-
-import random
 
 
 @pytest.mark.parametrize("seed", [123, 456, 789])

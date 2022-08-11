@@ -1,8 +1,6 @@
 """Parameters module."""
 import argparse
-import os
-import random
-import getpass
+import textwrap
 
 # import torch
 # import torch.nn.parallel
@@ -21,7 +19,6 @@ class Parameters:
     def initialize(self):
         """Initialize."""
         # Define training set depending on the user name
-        username = getpass.getuser()
         default_root = "default"
         default_out = "out"
         # Dataset parameters
@@ -152,9 +149,7 @@ class Parameters:
             default=0.0,
             help="grad z and grad img consistency.",
         )
-        self.parser.add_argument(
-            "--pixel_samples", type=int, default=1, help="Samples per pixel."
-        )
+        self.parser.add_argument("--pixel_samples", type=int, default=1, help="Samples per pixel.")
 
         # Network parameters
         self.parser.add_argument(
@@ -190,9 +185,7 @@ class Parameters:
         self.parser.add_argument(
             "--gen_bias_type", type=str, default=None, help="One of: None, plane"
         )
-        self.parser.add_argument(
-            "--netG", default="", help="path to netG (to continue training)"
-        )
+        self.parser.add_argument("--netG", default="", help="path to netG (to continue training)")
         self.parser.add_argument(
             "--netG2",
             default="",
@@ -220,9 +213,7 @@ class Parameters:
             default=500.0,
             help="max grad norm to which it will be clipped (if exceeded)",
         )
-        self.parser.add_argument(
-            "--disc_type", type=str, default="cnn", help="One of: cnn, dcgan"
-        )
+        self.parser.add_argument("--disc_type", type=str, default="cnn", help="One of: cnn, dcgan")
         self.parser.add_argument(
             "--disc_norm",
             type=str,
@@ -241,15 +232,9 @@ class Parameters:
             default=0,
             help="number of extra layers in the discriminator network",
         )
-        self.parser.add_argument(
-            "--nz", type=int, default=100, help="size of the latent z vector"
-        )
-        self.parser.add_argument(
-            "--netD", default="", help="path to netD (to continue training)"
-        )
-        self.parser.add_argument(
-            "--netE", default="", help="path to netD (to continue training)"
-        )
+        self.parser.add_argument("--nz", type=int, default=100, help="size of the latent z vector")
+        self.parser.add_argument("--netD", default="", help="path to netD (to continue training)")
+        self.parser.add_argument("--netE", default="", help="path to netD (to continue training)")
 
         # Optimization parameters
         self.parser.add_argument(
@@ -350,9 +335,7 @@ class Parameters:
         self.parser.add_argument(
             "--n_iter", type=int, default=76201, help="number of iterations to train"
         )
-        self.parser.add_argument(
-            "--batchSize", type=int, default=4, help="input batch size"
-        )
+        self.parser.add_argument("--batchSize", type=int, default=4, help="input batch size")
 
         # GAN parameters
         self.parser.add_argument(
@@ -367,9 +350,7 @@ class Parameters:
             choices=["None", "original"],
             default="original",
         )
-        self.parser.add_argument(
-            "--gp_lambda", help="GP lambda", type=float, default=10.0
-        )
+        self.parser.add_argument("--gp_lambda", help="GP lambda", type=float, default=10.0)
         self.parser.add_argument(
             "--critic_iters", type=int, default=5, help="Number of critic iterations"
         )
@@ -381,9 +362,7 @@ class Parameters:
         self.parser.add_argument(
             "--no_cuda", action="store_true", default=False, help="enables cuda"
         )
-        self.parser.add_argument(
-            "--ngpu", type=int, default=1, help="number of GPUs to use"
-        )
+        self.parser.add_argument("--ngpu", type=int, default=1, help="number of GPUs to use")
         self.parser.add_argument("--manualSeed", type=int, help="manual seed")
         self.parser.add_argument("--out_dir", type=str, default=default_out)
         self.parser.add_argument("--name", type=str, default="", required=False)
@@ -397,9 +376,7 @@ class Parameters:
             default=3.0,
             help="Camera distance from the center of the object",
         )
-        self.parser.add_argument(
-            "--nv", type=int, default=10, help="Number of views to generate"
-        )
+        self.parser.add_argument("--nv", type=int, default=10, help="Number of views to generate")
         self.parser.add_argument("--angle", type=int, default=30, help="cam angle")
         self.parser.add_argument(
             "--fovy",
@@ -407,9 +384,7 @@ class Parameters:
             default=30,
             help="Field of view in the vertical direction. Default: 15.0",
         )
-        self.parser.add_argument(
-            "--focal_length", type=float, default=0.1, help="focal length"
-        )
+        self.parser.add_argument("--focal_length", type=float, default=0.1, help="focal length")
         self.parser.add_argument(
             "--theta",
             nargs=2,
@@ -431,9 +406,7 @@ class Parameters:
             type=float,
             help="Axis for random camera position.",
         )
-        self.parser.add_argument(
-            "--cam_pos", nargs=3, type=float, help="Camera position."
-        )
+        self.parser.add_argument("--cam_pos", nargs=3, type=float, help="Camera position.")
         self.parser.add_argument(
             "--at",
             nargs=3,
@@ -451,14 +424,11 @@ class Parameters:
             default=False,
             help="Render on the normalized" " depth image.",
         )
-        self.parser.add_argument(
-            "--mesh", action="store_true", help="Render as mesh if enabled."
-        )
+        self.parser.add_argument("--mesh", action="store_true", help="Render as mesh if enabled.")
         self.parser.add_argument(
             "--test_cam_dist",
             action="store_true",
-            help="Check if the images are consistent with a"
-            "camera at a fixed distance.",
+            help="Check if the images are consistent with a" "camera at a fixed distance.",
         )
 
         # Rendering parameters
@@ -547,7 +517,6 @@ class Parameters:
 
 param = Parameters()
 args = param.parse()
-import textwrap
 
 print("\n".join(textwrap.wrap(str(args), width=80)))
 # print(args)

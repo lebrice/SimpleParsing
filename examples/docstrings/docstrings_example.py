@@ -2,8 +2,7 @@
 A simple example to demonstrate the 'attribute docstrings' mechanism of simple-parsing.
 
 """
-from dataclasses import dataclass, field
-from typing import List, Tuple
+from dataclasses import dataclass
 
 from simple_parsing import ArgumentParser
 

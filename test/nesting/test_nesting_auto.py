@@ -1,12 +1,4 @@
-import argparse
-import dataclasses
-from dataclasses import dataclass, field
-from typing import *
-
-import pytest
-
-from . import TestSetup
-from simple_parsing import InconsistentArgumentError, ArgumentParser, ConflictResolution
+from simple_parsing import ConflictResolution
 
 
 def test_real_use_case(silent, HyperParameters):
@@ -21,4 +13,4 @@ def test_real_use_case(silent, HyperParameters):
     assert hparams.gender.num_units == 32
     assert hparams.age_group.num_layers == 5
     assert hparams.age_group.num_units == 65
-    assert hparams.age_group.use_likes == True
+    assert hparams.age_group.use_likes is True

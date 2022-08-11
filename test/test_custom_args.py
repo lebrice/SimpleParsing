@@ -143,16 +143,16 @@ class Foo:
 def test_store_true_action(parser: TestParser[Foo]):
     parser.add_arguments(Foo, "foo")
     foo = parser("--flag")
-    assert foo.flag == True
+    assert foo.flag is True
 
     foo = parser("")
-    assert foo.flag == False
+    assert foo.flag is False
 
     foo = parser("-f")
-    assert foo.flag == True
+    assert foo.flag is True
 
     foo = parser("-flag")
-    assert foo.flag == True
+    assert foo.flag is True
 
 
 def test_store_false_action():
@@ -161,11 +161,11 @@ def test_store_false_action():
 
     args = parser.parse_args("--no-cache".split())
     foo: Foo = args.foo
-    assert foo.no_cache == False
+    assert foo.no_cache is False
 
     args = parser.parse_args("".split())
     foo: Foo = args.foo
-    assert foo.no_cache == True
+    assert foo.no_cache is True
 
 
 def test_only_dashes():
@@ -190,15 +190,15 @@ def test_only_dashes():
 
             optional arguments:
               -h, --help    show this help message and exit
-            
+
             test_only_dashes.<locals>.SomeClass ['some_class']:
               lol
-            
+
               --my-var int
-            
+
             test_only_dashes.<locals>.AClass ['some_class.a']:
               foo
-            
+
               --a-var int
             """  # noqa: W293
         ),

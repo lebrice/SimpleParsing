@@ -1,19 +1,9 @@
 import argparse
-from argparse import ONE_OR_MORE, OPTIONAL, PARSER, REMAINDER, ZERO_OR_MORE
+from argparse import ONE_OR_MORE, OPTIONAL, PARSER, REMAINDER, ZERO_OR_MORE, Action
 from logging import getLogger
-from typing import Type, Callable, Optional
-from argparse import Action
+from typing import Optional, Type
 
-from .utils import (
-    get_type_arguments,
-    get_type_name,
-    is_optional,
-    is_tuple,
-    is_tuple_or_list,
-    is_union,
-)
 from .wrappers.field_metavar import get_metavar
-from argparse import SUPPRESS
 
 TEMPORARY_TOKEN = "<__TEMP__>"
 logger = getLogger(__name__)
@@ -67,7 +57,7 @@ class SimpleHelpFormatter(
     def _get_default_metavar_for_optional(self, action: argparse.Action):
         try:
             return super()._get_default_metavar_for_optional(action)
-        except BaseException as e:
+        except BaseException:
             logger.debug(f"Getting metavar for action with dest {action.dest}.")
             metavar = self._get_metavar_for_action(action)
             logger.debug(f"Result metavar: {metavar}")
@@ -76,7 +66,7 @@ class SimpleHelpFormatter(
     def _get_default_metavar_for_positional(self, action: argparse.Action):
         try:
             return super()._get_default_metavar_for_positional(action)
-        except BaseException as e:
+        except BaseException:
             logger.debug(f"Getting metavar for action with dest {action.dest}.")
             metavar = self._get_metavar_for_action(action)
             logger.debug(f"Result metavar: {metavar}")

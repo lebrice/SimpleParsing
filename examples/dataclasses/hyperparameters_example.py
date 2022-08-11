@@ -1,6 +1,7 @@
-## - Argument dataclasses can also have methods!
+""" - Argument dataclasses can also have methods! """
 import json
-from dataclasses import dataclass, asdict
+import os
+from dataclasses import asdict, dataclass
 
 from simple_parsing import ArgumentParser
 
@@ -23,7 +24,7 @@ class HyperParameters:
 
     @classmethod
     def load(cls, path: str):
-        with open(path, "r") as f:
+        with open(path) as f:
             config_dict = json.load(f)
             return cls(**config_dict)
 
@@ -43,6 +44,5 @@ hparams.save("hyperparameters.json")
 _hparams = HyperParameters.load("hyperparameters.json")
 assert hparams == _hparams
 
-import os
 
 os.remove("hyperparameters.json")

@@ -1,5 +1,7 @@
 import collections
+import inspect
 import sys
+import types
 import typing
 from logging import getLogger as get_logger
 from typing import Any, Dict, Optional, get_type_hints
@@ -15,8 +17,6 @@ forward_refs_to_types = {
     "list": typing.List,
     "type": typing.Type,
 }
-import inspect
-import types
 
 
 def evaluate_string_annotation(annotation: str, containing_class: Optional[type] = None) -> type:
@@ -161,7 +161,7 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
 
     try:
         annotations_dict = get_type_hints(some_class, localns=local_ns, globalns=global_ns)
-    except TypeError as err:
+    except TypeError:
         annotations_dict = collections.ChainMap(
             *[getattr(cls, "__annotations__", {}) for cls in some_class.mro()]
         )
@@ -199,7 +199,7 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
         Temp_.__annotations__ = {field_name: field_type}
         annotations_dict = get_type_hints(Temp_, globalns=global_ns, localns=local_ns)
         field_type = annotations_dict[field_name]
-    except:
+    except Exception:
         logger.warning(
             f"Unable to evaluate forward reference {field_type} for field '{field_name}'.\n"
             f"Leaving it as-is."

@@ -1,20 +1,8 @@
 import functools
-from dataclasses import Field
-from functools import lru_cache, partial
 from logging import getLogger
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
 
-from ..utils import (
-    get_item_type,
-    get_type_arguments,
-    is_dict,
-    is_list,
-    is_optional,
-    is_set,
-    is_tuple,
-    is_union,
-    str2bool,
-)
+from ..utils import get_type_arguments, is_optional, is_tuple, is_union
 
 T = TypeVar("T")
 
@@ -62,7 +50,7 @@ def get_metavar(t: Type) -> str:
         args = get_type_arguments(t)
         metavars: List[str] = []
         for type_arg in args:
-            if type_arg is type(None):
+            if type_arg is type(None):  # noqa: E721
                 continue
             metavars.append(get_metavar(type_arg))
         metavar = "|".join(map(str, metavars))

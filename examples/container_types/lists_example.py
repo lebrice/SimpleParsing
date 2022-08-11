@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import List
 
 from simple_parsing import ArgumentParser
 from simple_parsing.helpers import list_field

@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Union
+from typing import Sequence, Union
+
 import pytest
 
-from .hyperparameters import HyperParameters, hparam, log_uniform, uniform
-
+from .hparam import categorical, log_uniform, uniform
+from .hyperparameters import HyperParameters
 
 numpy_installed = False
 try:
@@ -129,11 +130,6 @@ def test_nesting():
     assert isinstance(parent.child_a, Child)
 
 
-from typing import Type
-
-from .hparam import categorical
-
-
 def test_choice_field():
     @dataclass
     class Child(HyperParameters):
@@ -151,9 +147,7 @@ def test_choice_field():
 
     bob = Child.sample()
     assert bob.hparam in {1.23, 4.56, 7.89}
-    assert Child.get_orion_space_dict() == {
-        "hparam": "choices(['a', 'b', 'c'], default_value='a')"
-    }
+    assert Child.get_orion_space_dict() == {"hparam": "choices(['a', 'b', 'c'], default_value='a')"}
 
 
 def test_choice_field_with_values_of_a_weird_type():
@@ -203,8 +197,6 @@ def test_replace_int_or_float_preserves_type():
     assert isinstance(b.limit_test_batches, float)
 
 
-from typing import Sequence
-
 try:
     from orion.core.io.space_builder import SpaceBuilder
 
@@ -233,7 +225,7 @@ def test_priors_with_shape():
     assert len(foo.z) == 5
 
 
-@pytest.mark.xfail(reason=f"Need to update this since spaces give Trials, not points.")
+@pytest.mark.xfail(reason="Need to update this since spaces give Trials, not points.")
 @pytest.mark.skipif(not numpy_installed, reason="Test requires numpy.")
 @pytest.mark.skipif(not orion_installed, reason="Test requires Orion.")
 def test_contains():

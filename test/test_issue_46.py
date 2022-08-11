@@ -1,11 +1,12 @@
-from io import StringIO
-from dataclasses import dataclass
-import simple_parsing
-from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode
 import textwrap
+from dataclasses import dataclass
+from io import StringIO
+from test.testutils import assert_help_output_equals
+
 import pytest
 
-from test.testutils import assert_help_output_equals
+import simple_parsing
+from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode
 
 
 @dataclass
@@ -25,21 +26,21 @@ def test_issue_46(assert_equals_stdout):
     parser.print_help(s)
     s.seek(0)
     output = str(s.read())
-    
+
     assert_help_output_equals(
         actual=output,
         expected=textwrap.dedent(
             """\
         usage: pytest [-h] [--run_id str] --jbuildid int --jbuildurl str
                     --jbuilddocker_image str
-        
+
         optional arguments:
         -h, --help            show this help message and exit
         --run_id str
-        
+
         JBuildRelease ['jbuild']:
         JBuildRelease(id:int, url:str, docker_image:str)
-        
+
         --jbuildid int
         --jbuildurl str
         --jbuilddocker_image str
@@ -69,7 +70,7 @@ def test_issue_46(assert_equals_stdout):
     from .testutils import raises_missing_required_arg
 
     with raises_missing_required_arg():
-        args = parser.parse_args(
+        parser.parse_args(
             "--id 123 --jbuild.id 456 --jbuild.url bob --jbuild.docker_image foo".split()
         )
 
@@ -123,7 +124,7 @@ def test_conflict_with_regular_argparse_arg():
 
 @pytest.mark.xfail(reason="TODO: Issue #49")
 def test_workaround():
-    from simple_parsing import mutable_field, ConflictResolution
+    pass
 
     # This also doesn't work, since the prefix is only added to the 'offending'
     # argument, rather than to all the args in that group.

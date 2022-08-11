@@ -1,15 +1,10 @@
-from typing import Container
 import argparse
-import dataclasses
-import shlex
 from dataclasses import dataclass, field
-from typing import *
+from typing import Any, Container, List, Tuple, Type, Union
 
-import pytest
+from simple_parsing import ArgumentParser
 
-from simple_parsing import InconsistentArgumentError, ArgumentParser
-
-from .testutils import *
+from .testutils import TestSetup, exits_and_writes_to_stderr, parametrize, raises, xfail
 
 
 def test_multiple_at_same_dest_throws_error():
@@ -115,14 +110,12 @@ def test_parse_multiple_without_required_arguments(some_type: Type):
         """some docstring for attribute 'a'"""
 
     with exits_and_writes_to_stderr():
-        some_class = SomeClass.setup_multiple(2, "")
+        SomeClass.setup_multiple(2, "")
 
 
 @parametrize("container_type", [List, Tuple])
 @parametrize("item_type", [int, float, str, bool])
-def test_parse_multiple_without_required_container_arguments(
-    container_type: Type, item_type: Type
-):
+def test_parse_multiple_without_required_container_arguments(container_type: Type, item_type: Type):
     @dataclass
     class SomeClass(TestSetup):
         a: container_type[item_type]  # type: ignore
@@ -134,9 +127,7 @@ def test_parse_multiple_without_required_container_arguments(
 
 @parametrize("container_type", [List, Tuple])
 @parametrize("item_type", [int, float, str, bool])
-def test_parse_multiple_with_arg_name_without_arg_value(
-    container_type: Type, item_type: Type
-):
+def test_parse_multiple_with_arg_name_without_arg_value(container_type: Type, item_type: Type):
     @dataclass
     class SomeClass(TestSetup):
         a: container_type[item_type]  # type: ignore
@@ -146,9 +137,7 @@ def test_parse_multiple_with_arg_name_without_arg_value(
         _ = SomeClass.setup_multiple(3, "--a")
 
 
-@xfail(
-    reason="BUG: When # of instances to parse is equal to item count in default value."
-)
+@xfail(reason="BUG: When # of instances to parse is equal to item count in default value.")
 @parametrize("num_instances", [1, 2, 3, 5])
 @parametrize(
     "container_type, default_value",

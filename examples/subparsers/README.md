@@ -45,7 +45,7 @@ class Program:
     """Some top-level command"""
     command: Union[Train, Test]
     verbose: bool = False   # log additional messages in the console.
-    
+
     def execute(self):
         print(f"Executing Program (verbose: {self.verbose})")
         return self.command.execute()
@@ -62,7 +62,7 @@ prog.execute()
 
 Here are some usage examples:
 - Executing the training command:
- 
+
     ```console
     $ python examples/subparsers/subparsers_example.py train
     prog: Program(command=Train(train_dir=PosixPath('~/train')), verbose=False)
@@ -107,4 +107,3 @@ Here are some usage examples:
     command:
     {train,test}
     ```
-

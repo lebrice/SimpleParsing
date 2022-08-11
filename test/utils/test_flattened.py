@@ -1,10 +1,11 @@
 """Adds typed dataclasses for the "config" yaml files.
 """
-from dataclasses import dataclass, field, fields
-from typing import List, Dict, Tuple, Any, Optional
-from simple_parsing import mutable_field
+from dataclasses import dataclass, field
+from test.testutils import pytest, raises
+from typing import Any, Dict, Optional, Tuple
 
-from test.testutils import *
+from simple_parsing import mutable_field
+from simple_parsing.helpers import FlattenedAccess
 
 
 @dataclass()
@@ -90,9 +91,7 @@ class TrainConfig:
     weight_decay: float = 0.00001
     implicit_lr_decay: bool = False
     optimizer_g: ObjectConfig = ObjectConfig(type="Adam", lr=0.0003)
-    lr_scheduler_g: ObjectConfig = ObjectConfig(
-        type="MultiStepLR", milestones=[1], gamma=0.003
-    )
+    lr_scheduler_g: ObjectConfig = ObjectConfig(type="MultiStepLR", milestones=[1], gamma=0.003)
     clip_grad: ObjectConfig = ObjectConfig(type="value", clip_value=0.5)
 
 
@@ -113,9 +112,6 @@ class SummaryConfig:
     ckpt_step: int = 1000000000
     summarize_samples: bool = True
     sample_grid: Tuple[int, int] = (10, 10)
-
-
-from simple_parsing.helpers import FlattenedAccess
 
 
 @dataclass
@@ -160,7 +156,7 @@ def test_setattr_new(caplog):
 def test_getattr_ambiguous():
     c = Config()
     with raises(AttributeError, match="Ambiguous"):
-        t = c.type
+        _ = c.type
 
 
 def test_setattr_ambiguous():
@@ -205,7 +201,7 @@ def test_setitem_new(caplog):
 def test_getitem_ambiguous():
     c = Config()
     with raises(AttributeError, match="Ambiguous"):
-        t = c["type"]
+        _ = c["type"]
 
 
 def test_setitem_ambiguous():

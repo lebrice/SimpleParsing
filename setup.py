@@ -1,14 +1,16 @@
 import sys
+
 import setuptools
+
 import versioneer
 
-with open("README.md", "r") as fh:
+with open("README.md") as fh:
     long_description = fh.read()
 packages = setuptools.find_namespace_packages(include=["simple_parsing*"])
 print("PACKAGES FOUND:", packages)
 print(sys.version_info)
 
-with open("requirements.txt", "r") as req_file:
+with open("requirements.txt") as req_file:
     install_requires = req_file.read().splitlines(keepends=False)
 
 

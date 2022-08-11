@@ -1,4 +1,6 @@
-from dataclasses import dataclass
+import os
+from dataclasses import asdict, dataclass
+
 from simple_parsing import ArgumentParser
 from simple_parsing.helpers import Serializable
 
@@ -21,8 +23,6 @@ args = parser.parse_args()
 hparams: HParams = args.hparams
 
 
-from dataclasses import asdict
-
 print(asdict(hparams))
 expected = """
 {'num_layers': 4, 'num_units': 64, 'optimizer': 'ADAM', 'learning_rate': 0.001}
@@ -33,6 +33,5 @@ hparams.save_json("config.json")
 hparams_ = HParams.load_json("config.json")
 assert hparams == hparams_
 
-import os
 
 os.remove("config.json")

@@ -1,15 +1,12 @@
-import argparse
-import dataclasses
-import shlex
-from dataclasses import dataclass, field
-from typing import *
+import enum
+from dataclasses import dataclass
+from typing import Dict, List, Set, Tuple, Type
 
-import pytest
-
-from .testutils import *
-from simple_parsing import mutable_field
 import simple_parsing.utils as utils
-from simple_parsing.helpers import dict_field, set_field, list_field
+from simple_parsing import mutable_field
+from simple_parsing.helpers import dict_field, list_field, set_field
+
+from .testutils import TestSetup, parametrize
 
 
 @dataclass
@@ -74,13 +71,8 @@ def test_mutable_field():
     b1 = B()
     b2 = B()
 
-    assert id(b1.shared) == id(
-        b2.shared
-    ), f"{b1.shared} should have the same id as {b2.shared}"
+    assert id(b1.shared) == id(b2.shared), f"{b1.shared} should have the same id as {b2.shared}"
     assert id(b1.different) != id(b2.different), f"{b1.different} has the same id."
-
-
-import enum
 
 
 class Color(enum.Enum):

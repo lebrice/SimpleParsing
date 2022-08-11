@@ -38,5 +38,4 @@ print(prefs)
 
 
 
-You parse most datatypes using `simple-parsing`, as the type annotation on an argument is called as a conversion function in case the type of the attribute is not a builtin type or a dataclass. 
-
+You parse most datatypes using `simple-parsing`, as the type annotation on an argument is called as a conversion function in case the type of the attribute is not a builtin type or a dataclass.

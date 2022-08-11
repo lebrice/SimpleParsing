@@ -1,17 +1,14 @@
 """Parameters module."""
-import argparse
-import simple_parsing
-import os
-import random
 
 # import getpass
 # import torch
 # import torch.nn.parallel
 # import torch.backends.cudnn as cudnn
 # import torch.utils.data
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import ClassVar, Optional, Tuple
 
+import simple_parsing
 from simple_parsing import choice
 
 
@@ -71,9 +68,7 @@ class NetworkParams:
     ngf: int = 75  # number of features in the generator network
     nef: int = 65  # number of features in the generator network
     gen_nextra_layers: int = 0  # number of extra layers in the generator network
-    gen_bias_type: Optional[str] = choice(
-        None, "plane", default=None
-    )  # One of: None, plane
+    gen_bias_type: Optional[str] = choice(None, "plane", default=None)  # One of: None, plane
     netG: str = ""  # path to netG (to continue training)
     netG2: str = ""  # path to netG2 (normal generator to continue training)
     fix_splat_pos: bool = True  # X and Y coordinates are fix

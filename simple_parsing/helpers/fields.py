@@ -336,7 +336,10 @@ T = TypeVar("T")
 
 
 def subgroups(
-    subgroups: Dict[str, Type[T]], *args, default: Union[T, Type[T], None] = None, **kwargs
+    subgroups: Dict[str, Type[T]],
+    *args,
+    default: Union[T, Type[T], None] = None,
+    **kwargs,
 ) -> T:
     """Creates a field that will be a choice between different subgroups of arguments.
 

@@ -1,9 +1,11 @@
-from simple_parsing import ArgumentParser
-from simple_parsing.helpers.serialization.serializable import Serializable
-from simple_parsing.helpers import choice, field
+import shlex
 from dataclasses import dataclass
-from typing import Optional
 from pathlib import Path
+from typing import Optional
+
+from simple_parsing import ArgumentParser
+from simple_parsing.helpers import field
+from simple_parsing.helpers.serialization.serializable import Serializable
 
 
 @dataclass
@@ -39,13 +41,11 @@ class TrainConfig(Serializable):
     cpu: bool = False
 
 
-import shlex
-
-
 def test_comment_pull115(tmp_path):
 
     config_in_file = TrainConfig(
-        data_config=DatasetConfig(name="bob", split="victim", prop="123", value=1.23), epochs=1
+        data_config=DatasetConfig(name="bob", split="victim", prop="123", value=1.23),
+        epochs=1,
     )
     config_in_file.save(tmp_path / "config.yaml")
 
@@ -70,7 +70,12 @@ def test_comment_pull115(tmp_path):
 
     config_in_args = TrainConfig(
         data_config=DatasetConfig(
-            name="bob", split="victim", prop="123", value=1.23, drop_senstive_cols=True, scale=1.0
+            name="bob",
+            split="victim",
+            prop="123",
+            value=1.23,
+            drop_senstive_cols=True,
+            scale=1.0,
         ),
         epochs=2,
         cpu=True,

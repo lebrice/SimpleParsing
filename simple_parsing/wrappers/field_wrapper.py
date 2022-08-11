@@ -6,6 +6,7 @@ import typing
 from enum import Enum, auto
 from logging import getLogger
 from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, Union, cast
+
 from simple_parsing.help_formatter import TEMPORARY_TOKEN
 
 from .. import docstring, utils
@@ -255,7 +256,9 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 # NOTE: Optional[<something>] is always translated to
                 # Union[<something>, NoneType]
                 assert type_arguments
-                non_none_types = [t for t in type_arguments if t is not type(None)]  # noqa: E721
+                non_none_types = [
+                    t for t in type_arguments if t is not type(None)  # noqa: E721
+                ]  # noqa: E721
                 assert non_none_types
                 if len(non_none_types) == 1:
                     wrapped_type = non_none_types[0]

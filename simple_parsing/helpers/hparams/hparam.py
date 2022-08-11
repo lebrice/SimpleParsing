@@ -1,14 +1,13 @@
 import dataclasses
 from functools import wraps
 from logging import getLogger
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union, overload, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload
 
 from simple_parsing.helpers.fields import choice as _choice
 from simple_parsing.helpers.fields import field
 
 from .priors import CategoricalPrior, LogUniformPrior, NormalPrior, Prior, UniformPrior
 
-HP = TypeVar("HP", bound="HyperParameters")
 logger = getLogger(__name__)
 T = TypeVar("T")
 
@@ -136,9 +135,7 @@ def uniform(
     # fields
     default_v = None if default is dataclasses.MISSING else default
 
-    prior = UniformPrior(
-        min=min, max=max, discrete=discrete, default=default_v, shape=shape
-    )
+    prior = UniformPrior(min=min, max=max, discrete=discrete, default=default_v, shape=shape)
 
     # if default is None:
     #     default = dataclasses.MISSING
@@ -187,9 +184,7 @@ def log_uniform(
     default_v = default
     if default is dataclasses.MISSING:
         default_v = None
-    prior = LogUniformPrior(
-        min=min, max=max, discrete=discrete, default=default_v, shape=shape
-    )
+    prior = LogUniformPrior(min=min, max=max, discrete=discrete, default=default_v, shape=shape)
 
     # TODO: Do we really want to set the default value when not passed?
     # if default in {None, dataclasses.MISSING}:

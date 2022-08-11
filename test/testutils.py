@@ -1,8 +1,20 @@
 import shlex
 import string
 import sys
-from contextlib import contextmanager
-from typing import Any, Callable, Generic, List, Optional, Tuple, Type, TypeVar, cast, Union
+from contextlib import contextmanager, redirect_stderr
+from io import StringIO
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import pytest
 
@@ -25,13 +37,9 @@ Dataclass = TypeVar("Dataclass")
 
 
 @contextmanager
-def raises(exception=ParsingError, match=None, code: int = None):
+def raises(exception: Type[Exception] = ParsingError, match=None, code: Optional[int] = None):
     with pytest.raises(exception, match=match):
         yield
-
-
-from io import StringIO
-from contextlib import redirect_stderr
 
 
 @contextmanager

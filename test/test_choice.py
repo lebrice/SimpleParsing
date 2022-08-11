@@ -1,9 +1,12 @@
+from dataclasses import dataclass
+from enum import Enum
+from typing import Union
+
 import pytest
 
-from dataclasses import dataclass
-from simple_parsing import ArgumentParser, choice
-from typing import Union
-from .testutils import *
+from simple_parsing import choice
+
+from .testutils import List, TestSetup, raises
 
 
 @dataclass
@@ -20,7 +23,7 @@ def test_choice_default():
 
 def test_value_not_in_choices_throws_error():
     with raises(SystemExit):
-        a = A.setup("--color orange")
+        A.setup("--color orange")
     with raises(SystemExit):
         A.setup("--colors red orange")
 
@@ -104,9 +107,6 @@ def test_choice_with_default_instance():
 
     p = Parent.setup("")
     assert p.d.option == AA("parent")
-
-
-from enum import Enum
 
 
 class Color(Enum):

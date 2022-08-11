@@ -1,0 +1,50 @@
+---
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.3.0
+    hooks:
+    -   id: check-merge-conflict
+    -   id: end-of-file-fixer
+    -   id: trailing-whitespace
+  - repo: https://github.com/python/black
+    rev: 22.6.0
+    hooks:
+      - id: black
+        args: ["--line-length=100"]
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.1.0
+    hooks:
+      - id: codespell
+        args: ["--ignore-words-list=hist,wont"]
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.9.2
+    hooks:
+      - id: flake8
+        args:
+          - --max-complexity=30
+          - --max-line-length=100
+          - --show-source
+          - --statistics
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.10.1
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v2.34.0
+    hooks:
+      - id: pyupgrade
+        args: ["--py37-plus"]
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v1.4
+    hooks:
+      - id: autoflake
+        args: ["--in-place", "--expand-star-imports", "--remove-all-unused-imports", "--ignore-init-module-imports"]
+
+  # BUG: Appears not to not always work properly! Enable locally if you want, but the CI will use
+  # the tox variant for now.
+  # - repo: https://github.com/PyCQA/doc8
+  #   rev: 0.8.1
+  #   hooks:
+  #     - id: doc8
+  #       args: ["--max-line-length=100", "--file-encoding=utf-8"]

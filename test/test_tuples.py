@@ -1,8 +1,17 @@
-import argparse
-import textwrap
-from dataclasses import dataclass, fields
+import shlex
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
-from .testutils import *
+import pytest
+
+from simple_parsing import ArgumentParser
+
+from .testutils import (
+    TestSetup,
+    assert_help_output_equals,
+    raises_unrecognized_args,
+    xfail_param,
+)
 
 
 def test_tuple_any_becomes_string():
@@ -45,15 +54,15 @@ def test_tuple_with_ellipsis_help_format():
 
     assert_help_output_equals(
         Container.get_help_text(),
-        f"""
+        """
         usage: pytest [-h] [--ints int [int, ...]]
-        
+
         optional arguments:
           -h, --help            show this help message and exit
-        
+
         test_tuple_with_ellipsis_help_format.<locals>.Container ['container']:
           Container(ints: Tuple[int, ...] = (1, 2, 3))
-        
+
           --ints int [int, ...]   (default: (1, 2, 3))
         """,
     )
@@ -62,7 +71,7 @@ def test_tuple_with_ellipsis_help_format():
 def test_each_type_is_used_correctly():
     @dataclass
     class Container(TestSetup):
-        """ A container with mixed items in a tuple. """
+        """A container with mixed items in a tuple."""
 
         mixed: Tuple[int, str, bool, float] = (1, "bob", False, 1.23)
 
@@ -81,7 +90,7 @@ def test_each_type_is_used_correctly():
     -h, --help            show this help message and exit
 
     test_each_type_is_used_correctly.<locals>.Container ['container']:
-    A container with mixed items in a tuple. 
+    A container with mixed items in a tuple.
 
       --mixed int str bool float   (default: (1, 'bob', False, 1.23))
     """,
@@ -100,13 +109,6 @@ def test_issue_29():
     args = parser.parse_args("--asdf asdf fgfh".split())
     assert args.args == MyCli(asdf=("asdf", "fgfh"))
 
-
-import shlex
-from dataclasses import dataclass
-from typing import Optional, Tuple
-from simple_parsing import ArgumentParser
-import pytest
-from typing import Type, Dict, Any, Tuple, Optional, List, Union
 
 # 'sentinel' object used when parametrizing tests below to indicate that the option
 # string shouldn't be passed at all, rather than have no passed value: so that
@@ -174,9 +176,7 @@ class TestIssue47:
             (List[str], dict(type=str, nargs="*", required=True)),
         ],
     )
-    def test_arg_options_created(
-        self, field_type: Type, expected_options: Dict[str, Any]
-    ):
+    def test_arg_options_created(self, field_type: Type, expected_options: Dict[str, Any]):
         """Check the 'arg_options' that get created for different types of tuple
         fields.
         """

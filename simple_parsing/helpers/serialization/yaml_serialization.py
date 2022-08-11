@@ -1,14 +1,10 @@
-import inspect
-from collections import OrderedDict
-from dataclasses import MISSING, asdict, dataclass, fields, is_dataclass
 from logging import getLogger
 from pathlib import Path
-from typing import IO, Any, ClassVar, Dict, List, Type, TypeVar, Union
+from typing import IO, Type, Union
 
 import yaml
 
-from .decoding import register_decoding_fn
-from .serializable import D, Serializable, from_dict
+from .serializable import D, Serializable
 
 logger = getLogger(__name__)
 
@@ -36,30 +32,16 @@ class YamlSerializable(Serializable):
         load_fn=yaml.safe_load,
         **kwargs
     ) -> D:
-        return super().load(
-            path, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs
-        )
+        return super().load(path, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
     @classmethod
     def loads(
-        cls: Type[D],
-        s: str,
-        drop_extra_fields: bool = None,
-        load_fn=yaml.safe_load,
-        **kwargs
+        cls: Type[D], s: str, drop_extra_fields: bool = None, load_fn=yaml.safe_load, **kwargs
     ) -> D:
-        return super().loads(
-            s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs
-        )
+        return super().loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
     @classmethod
     def _load(
-        cls: Type[D],
-        fp: IO[str],
-        drop_extra_fields: bool = None,
-        load_fn=yaml.safe_load,
-        **kwargs
+        cls: Type[D], fp: IO[str], drop_extra_fields: bool = None, load_fn=yaml.safe_load, **kwargs
     ) -> D:
-        return super()._load(
-            fp, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs
-        )
+        return super()._load(fp, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)

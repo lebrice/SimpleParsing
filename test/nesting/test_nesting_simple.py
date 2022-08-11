@@ -1,17 +1,13 @@
-import argparse
-import dataclasses
-import shlex
 from dataclasses import dataclass
-from typing import *
+from typing import List, Optional
 
 import pytest
 
 import simple_parsing
+from simple_parsing import ConflictResolution, field
 
-from . import TestSetup, xfail
-from simple_parsing import ArgumentParser, field, ConflictResolution
-
-from .example_use_cases import TrainConfig, RunConfig, HParams
+from . import TestSetup
+from .example_use_cases import HParams, RunConfig, TrainConfig
 
 
 @dataclass
@@ -112,9 +108,7 @@ def test_nesting_multiple_containers_with_args_separator():
 
 
 def test_train_config_example_no_args():
-    config = TrainConfig.setup(
-        "", conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE
-    )
+    config = TrainConfig.setup("", conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE)
     assert isinstance(config.train, RunConfig)
     import os
 
@@ -179,10 +173,10 @@ def test_nesting_defaults_with_optional():
         x: int
         y: Optional[A] = None  # NOTE: The Optional annotation is causing trouble here.
 
-    # This is because of the code that we hvae to check for optional parameter groups. If we don't
+    # This is because of the code that we have to check for optional parameter groups. If we don't
     # detect any arguments from the group of the type `A`, then we just use None, because the field
-    # is marked as Optional. However, we should instead use the default value that is provided as an
-    # argument to `add_arguments`.
+    # is marked as Optional. However, we should instead use the default value that is provided as
+    # an argument to `add_arguments`.
     parser = simple_parsing.ArgumentParser()
     default = B(x=3, y=A(p=4, q=0.1))
     parser.add_arguments(B, dest="b", default=default)

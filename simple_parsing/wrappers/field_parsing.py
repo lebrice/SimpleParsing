@@ -10,17 +10,17 @@ from logging import getLogger
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from simple_parsing.utils import (
+    get_bound,
+    get_forward_arg,
     get_type_arguments,
     is_enum,
+    is_forward_ref,
     is_homogeneous_tuple_type,
     is_list,
     is_tuple,
+    is_typevar,
     is_union,
     str2bool,
-    is_typevar,
-    get_bound,
-    is_forward_ref,
-    get_forward_arg,
 )
 
 logger = getLogger(__name__)
@@ -127,7 +127,7 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
         logger.debug(f"parsing a Union field: {t}")
         args = get_type_arguments(t)
         return parse_union(*args)
-    
+
     elif is_enum(t):
         logger.debug(f"Parsing an Enum field of type {t}")
         return parse_enum(t)
@@ -147,8 +147,7 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
             return get_parsing_fn(bound)
 
     logger.debug(
-        f"Couldn't find a parsing function for type {t}, will try "
-        f"to use the type directly."
+        f"Couldn't find a parsing function for type {t}, will try " f"to use the type directly."
     )
     return t
 
@@ -158,7 +157,6 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
 
     def _try_functions(val: Any) -> Union[T, Any]:
         logger.debug(f"Debugging the 'raw value' of {val}, will try functions {funcs}")
-        e: Optional[Exception] = None
         exceptions: list[Exception] = []
         for func in funcs:
             try:
@@ -172,10 +170,13 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
         logger.error(
             f"Couldn't parse value {val}, returning the value as-is. (exceptions: {exceptions})"
         )
-        raise ValueError(f"Couldn't parse value {val}, returning the value as-is. (exceptions: {exceptions})")
+        raise ValueError(
+            f"Couldn't parse value {val}, returning the value as-is. (exceptions: {exceptions})"
+        )
 
     _try_functions.__name__ = "Try<" + " and ".join(str(func.__name__) for func in funcs) + ">"
     return _try_functions
+
 
 def parse_union(*types: Type[T]) -> Callable[[Any], Union[T, Any]]:
     types = list(types)
@@ -190,9 +191,11 @@ def parse_union(*types: Type[T]) -> Callable[[Any], Union[T, Any]]:
     # Try using each of the non-None types, in succession. Worst case, return the value.
     f = try_functions(*parsing_fns)
     from simple_parsing.wrappers.field_metavar import get_metavar
+
     f.__name__ = get_metavar(Union[tuple(types)])  # type: ignore
     # f.__name__ = "|".join(str(t.__name__) for t in types)
     return f
+
 
 def parse_optional(t: Type[T]) -> Callable[[Optional[Any]], Optional[T]]:
     parse = get_parsing_fn(t)
@@ -203,9 +206,7 @@ def parse_optional(t: Type[T]) -> Callable[[Optional[Any]], Optional[T]]:
     return _parse_optional
 
 
-def parse_tuple(
-    tuple_item_types: Tuple[Type[T], ...]
-) -> Callable[[List[T]], Tuple[T, ...]]:
+def parse_tuple(tuple_item_types: Tuple[Type[T], ...]) -> Callable[[List[T]], Tuple[T, ...]]:
     """Makes a parsing function for creating tuples from the command-line args.
 
     Can handle tuples with different item types, for instance:
@@ -224,9 +225,7 @@ def parse_tuple(
 
     def _parse_tuple(val: Any) -> Tuple[T, ...]:
         nonlocal calls_count
-        logger.debug(
-            f"Parsing a Tuple with item types {tuple_item_types}, raw value is {val}."
-        )
+        logger.debug(f"Parsing a Tuple with item types {tuple_item_types}, raw value is {val}.")
         parsing_fn_index = calls_count
 
         if Ellipsis in tuple_item_types:
@@ -247,7 +246,6 @@ def parse_tuple(
         calls_count += 1
 
         return parsed_value
-
 
     return _parse_tuple
 
@@ -289,13 +287,13 @@ def parse_enum(enum_type: Type[E]) -> Callable[[str], E]:
     # makes testing easier.
     if enum_type in _parsing_fns:
         return _parsing_fns[enum_type]
-    
+
     # NOTE: Use `functools.wraps` so that fn name is the enum, so the metavar shows up
     # just like the enum on the command-line, and not like
     # "(...).parse_enum.<locals>._parse_enum" or something.
     @functools.wraps(enum_type)
     def _parse_enum(v: str) -> E:
         return enum_type[v]
+
     _parsing_fns[enum_type] = _parse_enum
     return _parse_enum
- 
