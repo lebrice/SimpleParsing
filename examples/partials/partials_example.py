@@ -43,8 +43,12 @@ args = parser.parse_args()
 
 config: Config = args.config
 print(config)
+expected = "Config(optimizer=AdamConfig(lr=0.0003, beta1=0.9, beta2=0.999, eps=1e-08))"
 
 my_model_parameters = []  # nn.Sequential(...)
 
-optimizer: Adam = config.optimizer(parameters=my_model_parameters)
-print(optimizer)
+optimizer: Adam = config.optimizer(params=my_model_parameters)
+print(vars(optimizer))
+expected += """
+{'params': [], 'lr': 0.0003, 'beta1': 0.9, 'beta2': 0.999, 'eps': 1e-08}
+"""
