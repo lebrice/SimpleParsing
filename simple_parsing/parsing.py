@@ -392,6 +392,23 @@ class ArgumentParser(argparse.ArgumentParser):
             return parser.print_help(file)
         return super().print_help(file)
 
+    def set_defaults(self, **kwargs: Any) -> None:
+        kwargs = kwargs.copy()
+        for wrapper in self._wrappers:
+            if wrapper.dest in kwargs:
+                wrapper_default = kwargs[wrapper.dest]
+                if dataclasses.is_dataclass(wrapper_default):
+                    wrapper_default = dataclasses.asdict(wrapper_default)
+                    kwargs[wrapper.dest] = wrapper_default
+                wrapper.default = wrapper_default
+                # Set the defaults on the FieldWrappers as well.
+                for field in wrapper.fields:
+                    field.default = wrapper_default[field.name]
+                kwargs.pop(wrapper.dest)
+        self.constructor_arguments.update(kwargs)
+        # For the rest of the values, use the default argparse behaviour.
+        return super().set_defaults(**kwargs)
+
     def equivalent_argparse_code(self) -> str:
         """Returns the argparse code equivalent to that of `simple_parsing`.
 
