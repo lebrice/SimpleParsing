@@ -96,6 +96,10 @@ Options ['options']:
     It's easy to choose between different argument groups of arguments, with the `subgroups`
     function!
 
+- ### [Setting defaults from Configuration files](https://github.com/lebrice/SimpleParsing/tree/master/examples/config_files/README.md)
+
+    Default values for command-line arguments can easily be read from many different formats, including json/yaml!
+
 - ### [**Easy serialization**](https://github.com/lebrice/SimpleParsing/tree/master/examples/serialization/README.md):
 
     Easily save/load configs to `json` or `yaml`!.
