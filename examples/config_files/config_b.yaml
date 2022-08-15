@@ -1,0 +1,2 @@
+bar:
+  b: "default value for `b` from the config_b.yaml file"
