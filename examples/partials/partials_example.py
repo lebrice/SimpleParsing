@@ -1,15 +1,22 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from simple_parsing import ArgumentParser
-from simple_parsing.helpers.partial import config_dataclass_for
+from simple_parsing.helpers import subgroups
+from simple_parsing.helpers.partial import Partial, config_dataclass_for
 
 parser = ArgumentParser()
 
 
-# Suppose we import the Adam and SGD optimizers from PyTorch:
+# Suppose we want to choose between the Adam and SGD optimizers from PyTorch:
+# (NOTE: We don't import pytorch here, so we just create the types to illustrate)
+class Optimizer:
+    def __init__(self, params):
+        ...
 
 
-class Adam:
+class Adam(Optimizer):
     def __init__(
         self,
         params,
@@ -25,16 +32,42 @@ class Adam:
         self.eps = eps
 
 
-# Dynamically create a dataclass that will be used for the above type:
+class SGD(Optimizer):
+    def __init__(
+        self,
+        params,
+        lr: float = 3e-4,
+        weight_decay: float | None = None,
+        momentum: float = 0.9,
+        eps: float = 1e-08,
+    ):
+        self.params = params
+        self.lr = lr
+        self.weight_decay = weight_decay
+        self.momentum = momentum
+        self.eps = eps
 
-AdamConfig = config_dataclass_for(Adam, ignore_args="params")
+
+# Dynamically create a dataclass that will be used for the above type:
+# NOTE: We could use Partial[Adam] or Partial[Optimizer], however this would treat `params` as a
+# required argument.
+# AdamConfig = Partial[Adam]  # would treat 'params' as a required argument.
+# SGDConfig = Partial[SGD]    # same here
+AdamConfig: type[Partial[Adam]] = config_dataclass_for(Adam, ignore_args="params")
+SGDConfig: type[Partial[SGD]] = config_dataclass_for(SGD, ignore_args="params")
 
 
 @dataclass
 class Config:
 
     # Which optimizer to use.
-    optimizer: AdamConfig = AdamConfig(lr=3e-4)
+    optimizer: Partial[Optimizer] = subgroups(
+        {
+            "sgd": SGDConfig,
+            "adam": AdamConfig,
+        },
+        default=AdamConfig(lr=3e-4),
+    )
 
 
 parser.add_arguments(Config, "config")
@@ -45,9 +78,9 @@ config: Config = args.config
 print(config)
 expected = "Config(optimizer=AdamConfig(lr=0.0003, beta1=0.9, beta2=0.999, eps=1e-08))"
 
-my_model_parameters = []  # nn.Sequential(...)
+my_model_parameters = []  # nn.Sequential(...).parameters()
 
-optimizer: Adam = config.optimizer(params=my_model_parameters)
+optimizer = config.optimizer(params=my_model_parameters)
 print(vars(optimizer))
 expected += """
 {'params': [], 'lr': 0.0003, 'beta1': 0.9, 'beta2': 0.999, 'eps': 1e-08}

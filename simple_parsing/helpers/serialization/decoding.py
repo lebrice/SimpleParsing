@@ -8,6 +8,7 @@ from dataclasses import Field
 from enum import Enum
 from functools import lru_cache, partial
 from logging import getLogger
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 from simple_parsing.annotation_utils.get_field_annotations import (
@@ -444,3 +445,6 @@ def try_constructor(t: Type[T]) -> Callable[[Any], Union[T, Any]]:
             return t(val)
 
     return try_functions(constructor)
+
+
+register_decoding_fn(Path, Path)
