@@ -549,8 +549,6 @@ class ArgumentParser(argparse.ArgumentParser):
 
         for option_string in self._help_action.option_strings:
             self._option_string_actions.pop(option_string)
-        # assert False, self._option_string_actions
-        # optionals_help_actions = [action for action in self._optionals._actions]
 
     def _postprocessing(self, parsed_args: Namespace) -> Namespace:
         """Process the namespace by extract the fields and creating the objects.

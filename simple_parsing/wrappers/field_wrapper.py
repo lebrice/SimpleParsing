@@ -302,7 +302,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["type"] = get_parsing_fn(wrapped_type)
                 # TODO: Should the 'nargs' really be '?' here?
                 _arg_options["nargs"] = "?"
-                # assert False, (wrapped_type, utils.is_tuple(wrapped_type))
 
         elif self.is_union:
             logger.debug("Parsing a Union type!")
