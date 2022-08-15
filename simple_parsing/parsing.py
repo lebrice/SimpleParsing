@@ -850,39 +850,13 @@ def parse(
 
     If `config_path` is passed, loads the values from that file and uses them as defaults.
     """
-    from simple_parsing.helpers.serialization.serializable import load
 
     if isinstance(args, str):
         args = shlex.split(args)
-
-    default_config_path = config_path
-    # First parser is only made for retrieving the config path.
-    config_path_parser = ArgumentParser(add_help=False)
-    config_path_parser.add_argument(
-        "--config_path",
-        type=Path,
-        default=default_config_path,
-        help="path to a config file to use for default values.",
+    parser = ArgumentParser(
+        nested_mode=NestedMode.WITHOUT_ROOT, add_help=True, add_config_path_arg=True
     )
-    parsed_args, unused_args = config_path_parser.parse_known_args(args)
-    config_path = parsed_args.config_path
-    if config_path:
-        # If passed, use the config path argument to get the defaults for that dataclass.
-        defaults = load(config_class, config_path)
-    else:
-        defaults = None
-
-    # Parse the actual arguments.
-    parser = ArgumentParser(nested_mode=NestedMode.WITHOUT_ROOT, add_help=True)
-    # NOTE: Only add it here so the --help text also includes the --config-path argument.
-    parser.add_argument(
-        "--config_path",
-        type=Path,
-        default=default_config_path,
-        help="path to a config file to use for default values.",
-    )
-    parser.add_arguments(config_class, dest="config", default=defaults)
-
-    parsed_args = parser.parse_args(unused_args)
+    parser.add_arguments(config_class, dest="config")
+    parsed_args = parser.parse_args(args)
     config: Dataclass = parsed_args.config
     return config

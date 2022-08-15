@@ -1,4 +1,4 @@
-""" Example backported from https://github.com/eladrich/pyrallis#my-first-pyrallis-example- """
+""" Example adapted from https://github.com/eladrich/pyrallis#my-first-pyrallis-example- """
 from dataclasses import dataclass
 
 import simple_parsing
@@ -6,7 +6,7 @@ import simple_parsing
 
 @dataclass
 class TrainConfig:
-    """Training config for Machine Learning"""
+    """Training configuration."""
 
     workers: int = 8  # The number of workers for training
     exp_name: str = "default_exp"  # The experiment name

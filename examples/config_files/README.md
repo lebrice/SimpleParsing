@@ -1,25 +1,32 @@
 # Using config files
 
-Simple-Parsing can use default values from a configuration file.
+Simple-Parsing can use default values from one or more configuration files.
 
-The `config_path` argument can be passed to the ArgumentParser constructor. The default values for
-all arguments will be set from that file.
+The `config_path` argument can be passed to the ArgumentParser constructor. The values read from
+that file will overwrite the default values from the dataclass definitions.
 
 Additionally, when the `add_config_path_arg` argument of the `ArgumentParser` constructor is set,
-a `--config_path` argument will be added. This argument will overwrite the defaults.
-If the `config_path` argument to the `ArgumentParser` constructor is also set, then the values in
-the config file passed as `--config_path` are applied on top of those from the `ArgumentParser.config_file`.
+a `--config_path` argument will be added to the parser. This argument accepts one or more paths to configuration
+files, whose contents will be read, and used to update the defaults, in the same manner as with the
+`config_path` argument above.
 
-Therefore, the default values are set like so, in increasing priority:
+When using both options (the `config_path` parameter of `ArgumentParser.__init__`, as well as the `--config_path` command-line argument), the defaults are first updated using `ArgumentParser.config_path`, and then
+updated with the contents of the `--config_path` file(s).
+
+In other words, the default values are set like so, in increasing priority:
 1. normal defaults (e.g. from the dataclass definitions)
-2. from the `config_path` argument of `ArgumentParser.__init__`
-3. from the `--config_path` argument on the command-line.
+2. updated with the contents of the `config_path` file(s) of `ArgumentParser.__init__`
+3. updated with the contents of the `--config_path` file(s) from the command-line.
 
 
-## Examples:
+## [Single Config example](one_config.py)
 
-1. [train_model.py]()
+When using a single config dataclass, the `simple_parsing.parse` function can then be used to simplify the argument parsing setup a bit.
 
+## [Multiple Configs](many_configs.py)
 
+Config files can also be used when defining multiple config dataclasses with the same parser.
 
-Note: Pyrallis is a "fork" of Simple-Parsing. It has some nice features. Check it out if you want.
+## [Composition](composition.py)
+
+Multiple config files can be composed together à-la Hydra!
