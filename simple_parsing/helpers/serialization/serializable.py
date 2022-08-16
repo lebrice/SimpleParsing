@@ -653,12 +653,14 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
             continue
 
         encoding_fn = encode
-        if isinstance(value, SerializableMixin) and recurse:
+        # TODO: Make a variant of the serialization tests that use the static functions everywhere.
+        # This if statement here shouldn't be there.
+        if is_dataclass(value) and recurse:
             try:
-                encoded = value.to_dict(dict_factory=dict_factory, recurse=recurse)
+                encoded = to_dict(value, dict_factory=dict_factory, recurse=recurse)
             except TypeError:
-                encoded = value.to_dict()
-            logger.debug(f"Encoded Serializable field {name}: {encoded}")
+                encoded = to_dict(value)
+            logger.debug(f"Encoded dataclass field {name}: {encoded}")
         else:
             try:
                 encoded = encoding_fn(value)
