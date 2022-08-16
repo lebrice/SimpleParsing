@@ -85,6 +85,9 @@ DataclassType = Type[Dataclass]
 SimpleValueType = Union[bool, int, float, str]
 SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]]
 
+PossiblyNestedDict = Dict[K, Union[V, "PossiblyNestedDict[K, V]"]]
+PossiblyNestedMapping = Mapping[K, Union[V, "PossiblyNestedMapping[K, V]"]]
+
 
 def is_subparser_field(field: Field) -> bool:
     if is_union(field.type) and not is_choice(field):
@@ -871,6 +874,56 @@ def dict_union(*dicts: Dict[K, V], recurse: bool = True, dict_factory=dict) -> D
 
         result[k] = new_value
     return result
+
+
+def flatten(nested: PossiblyNestedMapping[K, V]) -> dict[tuple[K, ...], V]:
+    """Flatten a dictionary of dictionaries. The returned dictionary's keys are tuples, one entry
+    per layer.
+
+    >>> flatten({"a": {"b": 2, "c": 3}, "c": {"d": 3, "e": 4}})
+    {('a', 'b'): 2, ('a', 'c'): 3, ('c', 'd'): 3, ('c', 'e'): 4}
+    """
+    flattened: dict[tuple[K, ...], V] = {}
+    for k, v in nested.items():
+        if isinstance(v, c_abc.Mapping):
+            for subkeys, subv in flatten(v).items():
+                collision_key = (k, *subkeys)
+                assert collision_key not in flattened
+                flattened[collision_key] = subv
+        else:
+            flattened[(k,)] = v
+    return flattened
+
+
+def unflatten(flattened: Mapping[tuple[K, ...], V]) -> PossiblyNestedDict[K, V]:
+    """Unflatten a dictionary back into a possibly nested dictionary.
+
+    >>> unflatten({('a', 'b'): 2, ('a', 'c'): 3, ('c', 'd'): 3, ('c', 'e'): 4})
+    {'a': {'b': 2, 'c': 3}, 'c': {'d': 3, 'e': 4}}
+    """
+    nested: PossiblyNestedDict[K, V] = {}
+    for keys, value in flattened.items():
+        sub_dictionary = nested
+        for part in keys[:-1]:
+            assert isinstance(sub_dictionary, dict)
+            sub_dictionary = sub_dictionary.setdefault(part, {})
+        assert isinstance(sub_dictionary, dict)
+        sub_dictionary[keys[-1]] = value
+    return nested
+
+
+def flatten_join(nested: PossiblyNestedMapping[str, V], sep: str = ".") -> dict[str, V]:
+    """Flatten a dictionary of dictionaries. When collisions occur, joins the keys with `sep`."""
+    return {sep.join(keys): value for keys, value in flatten(nested).items()}
+
+
+def unflatten_split(flattened: Mapping[str, V], sep: str = ".") -> PossiblyNestedDict[str, V]:
+    """Unflatten a dict into a possibly nested dict. Keys are split using `sep`.,"""
+    return unflatten({tuple(key.split(sep)): value for key, value in flattened.items()})
+
+
+def getitem_recursive(d: PossiblyNestedDict[K, V], keys: Iterable[K]) -> V:
+    return flatten(d)[tuple(keys)]
 
 
 if __name__ == "__main__":
