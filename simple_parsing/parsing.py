@@ -153,7 +153,10 @@ class ArgumentParser(argparse.ArgumentParser):
                 add_arguments_call(self)
 
         self.config_path = Path(config_path) if isinstance(config_path, str) else config_path
-        self.add_config_path_arg = add_config_path_arg or bool(config_path)
+        if add_config_path_arg is None:
+            # By default, add a config path argument if a config path was passed.
+            add_config_path_arg = bool(config_path)
+        self.add_config_path_arg = add_config_path_arg
 
     def add_argument(
         self,
