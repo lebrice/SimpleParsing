@@ -1,4 +1,6 @@
 """Utility functions used in various parts of the simple_parsing package."""
+from __future__ import annotations
+
 import argparse
 import builtins
 import dataclasses
@@ -13,7 +15,7 @@ import typing
 from collections import OrderedDict
 from collections import abc as c_abc
 from collections import defaultdict
-from dataclasses import _MISSING_TYPE, Field
+from dataclasses import _MISSING_TYPE, MISSING, Field
 from enum import Enum
 from logging import getLogger
 from typing import (
@@ -25,12 +27,12 @@ from typing import (
     List,
     Mapping,
     MutableMapping,
-    Optional,
     Set,
     Tuple,
     Type,
     TypeVar,
     Union,
+    overload,
 )
 
 from typing_extensions import Literal, get_args
@@ -110,11 +112,11 @@ def camel_case(name):
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
 
 
-TRUE_STRINGS: List[str] = ["yes", "true", "t", "y", "1"]
-FALSE_STRINGS: List[str] = ["no", "false", "f", "n", "0"]
+TRUE_STRINGS: list[str] = ["yes", "true", "t", "y", "1"]
+FALSE_STRINGS: list[str] = ["no", "false", "f", "n", "0"]
 
 
-def str2bool(raw_value: Union[str, bool]) -> bool:
+def str2bool(raw_value: str | bool) -> bool:
     """
     Taken from https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
     """
@@ -131,7 +133,7 @@ def str2bool(raw_value: Union[str, bool]) -> bool:
         )
 
 
-def get_item_type(container_type: Type[Container[T]]) -> T:
+def get_item_type(container_type: type[Container[T]]) -> T:
     """Returns the `type` of the items in the provided container `type`.
 
     When no type annotation is found, or no item type is found, returns
@@ -195,8 +197,8 @@ def get_item_type(container_type: Type[Container[T]]) -> T:
 
 
 def get_argparse_type_for_container(
-    container_type: Type[Container[T]],
-) -> Union[Type[T], Callable[[str], T]]:
+    container_type: type[Container[T]],
+) -> type[T] | Callable[[str], T]:
     """Gets the argparse 'type' option to be used for a given container type.
     When an annotation is present, the 'type' option of argparse is set to that type.
     if not, then the default value of 'str' is returned.
@@ -226,7 +228,7 @@ def get_argparse_type_for_container(
     return T
 
 
-def _mro(t: Type) -> List[Type]:
+def _mro(t: type) -> list[type]:
     # TODO: This is mostly used in 'is_tuple' and such, and should be replaced with
     # either the built-in 'get_origin' from typing, or from typing-inspect.
     if t is None:
@@ -261,7 +263,7 @@ def is_literal(t: type) -> bool:
     return get_origin(t) is Literal
 
 
-def is_list(t: Type) -> bool:
+def is_list(t: type) -> bool:
     """returns True when `t` is a List type.
 
     Args:
@@ -292,7 +294,7 @@ def is_list(t: Type) -> bool:
     return list in _mro(t)
 
 
-def is_tuple(t: Type) -> bool:
+def is_tuple(t: type) -> bool:
     """returns True when `t` is a tuple type.
 
     Args:
@@ -323,7 +325,7 @@ def is_tuple(t: Type) -> bool:
     return tuple in _mro(t)
 
 
-def is_dict(t: Type) -> bool:
+def is_dict(t: type) -> bool:
     """returns True when `t` is a dict type or annotation.
 
     Args:
@@ -360,7 +362,7 @@ def is_dict(t: Type) -> bool:
     return dict in mro or Mapping in mro or c_abc.Mapping in mro
 
 
-def is_set(t: Type) -> bool:
+def is_set(t: type) -> bool:
     """returns True when `t` is a set type or annotation.
 
     Args:
@@ -393,7 +395,7 @@ def is_set(t: Type) -> bool:
     return set in _mro(t)
 
 
-def is_dataclass_type(t: Type) -> bool:
+def is_dataclass_type(t: type) -> bool:
     """Returns whether t is a dataclass type or a TypeVar of a dataclass type.
 
     Args:
@@ -405,21 +407,21 @@ def is_dataclass_type(t: Type) -> bool:
     return dataclasses.is_dataclass(t) or (is_typevar(t) and dataclasses.is_dataclass(get_bound(t)))
 
 
-def is_enum(t: Type) -> bool:
+def is_enum(t: type) -> bool:
     if inspect.isclass(t):
         return issubclass(t, enum.Enum)
     return Enum in _mro(t)
 
 
-def is_bool(t: Type) -> bool:
+def is_bool(t: type) -> bool:
     return bool in _mro(t)
 
 
-def is_tuple_or_list(t: Type) -> bool:
+def is_tuple_or_list(t: type) -> bool:
     return is_list(t) or is_tuple(t)
 
 
-def is_union(t: Type) -> bool:
+def is_union(t: type) -> bool:
     """Returns whether or not the given Type annotation is a variant (or subclass) of typing.Union
 
     Args:
@@ -441,7 +443,7 @@ def is_union(t: Type) -> bool:
     return getattr(t, "__origin__", "") == Union
 
 
-def is_homogeneous_tuple_type(t: Type[Tuple]) -> bool:
+def is_homogeneous_tuple_type(t: type[tuple]) -> bool:
     """Returns whether the given Tuple type is homogeneous: if all items types are the
     same.
 
@@ -485,7 +487,7 @@ def is_choice(field: Field) -> bool:
     return bool(field.metadata.get("custom_args", {}).get("choices", {}))
 
 
-def is_optional(t: Type) -> bool:
+def is_optional(t: type) -> bool:
     """Returns True if the given Type is a variant of the Optional type.
 
     Parameters
@@ -514,11 +516,11 @@ def is_optional(t: Type) -> bool:
     return is_union(t) and type(None) in get_type_arguments(t)
 
 
-def is_tuple_or_list_of_dataclasses(t: Type) -> bool:
+def is_tuple_or_list_of_dataclasses(t: type) -> bool:
     return is_tuple_or_list(t) and is_dataclass_type(get_item_type(t))
 
 
-def contains_dataclass_type_arg(t: Type) -> bool:
+def contains_dataclass_type_arg(t: type) -> bool:
     if is_dataclass_type(t):
         return True
     elif is_tuple_or_list_of_dataclasses(t):
@@ -528,7 +530,7 @@ def contains_dataclass_type_arg(t: Type) -> bool:
     return False
 
 
-def get_dataclass_type_arg(t: Type) -> Optional[Type]:
+def get_dataclass_type_arg(t: type) -> type | None:
     if not contains_dataclass_type_arg(t):
         return None
     if is_dataclass_type(t):
@@ -541,12 +543,12 @@ def get_dataclass_type_arg(t: Type) -> Optional[Type]:
     return None
 
 
-def get_type_arguments(container_type: Type) -> Tuple[Type, ...]:
+def get_type_arguments(container_type: type) -> tuple[type, ...]:
     # return getattr(container_type, "__args__", ())
     return get_args(container_type)
 
 
-def get_type_name(some_type: Type):
+def get_type_name(some_type: type):
     result = getattr(some_type, "__name__", str(some_type))
     type_arguments = get_type_arguments(some_type)
     if type_arguments:
@@ -554,7 +556,7 @@ def get_type_name(some_type: Type):
     return result
 
 
-def get_container_nargs(container_type: Type) -> Union[int, str]:
+def get_container_nargs(container_type: type) -> int | str:
     """Gets the value of 'nargs' appropriate for the given container type.
 
     Parameters
@@ -570,7 +572,7 @@ def get_container_nargs(container_type: Type) -> Union[int, str]:
     if is_tuple(container_type):
         # TODO: Should a `Tuple[int]` annotation be interpreted as "a tuple of an
         # unknown number of ints"?.
-        type_arguments: Tuple[Type, ...] = get_type_arguments(container_type)
+        type_arguments: tuple[type, ...] = get_type_arguments(container_type)
         if not type_arguments:
             return "*"
         if len(type_arguments) == 2 and type_arguments[1] is Ellipsis:
@@ -605,7 +607,7 @@ def get_container_nargs(container_type: Type) -> Union[int, str]:
 
 def _parse_multiple_containers(
     container_type: type, append_action: bool = False
-) -> Callable[[str], List[Any]]:
+) -> Callable[[str], list[Any]]:
     T = get_argparse_type_for_container(container_type)
     factory = tuple if is_tuple(container_type) else list
 
@@ -626,12 +628,12 @@ def _parse_multiple_containers(
     return parse_fn
 
 
-def _parse_container(container_type: Type[Container]) -> Callable[[str], List[Any]]:
+def _parse_container(container_type: type[Container]) -> Callable[[str], list[Any]]:
     T = get_argparse_type_for_container(container_type)
     factory = tuple if is_tuple(container_type) else list
     import ast
 
-    def _parse(value: str) -> List[Any]:
+    def _parse(value: str) -> list[Any]:
         logger.debug(f"Parsing a {container_type} of {T}s, value is: '{value}'")
         try:
             values = _parse_literal(value)
@@ -645,7 +647,7 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
         logger.debug(f"returning values: {values}")
         return values
 
-    def _parse_literal(value: str) -> Union[List[Any], Any]:
+    def _parse_literal(value: str) -> list[Any] | Any:
         """try to parse the string to a python expression directly.
         (useful for nested lists or tuples.)
         """
@@ -660,7 +662,7 @@ def _parse_container(container_type: Type[Container]) -> Callable[[str], List[An
             values = factory(T(v) for v in container)
             return values
 
-    def _fallback_parse(v: str) -> List[Any]:
+    def _fallback_parse(v: str) -> list[Any]:
         v = " ".join(v.split())
         if v.startswith("[") and v.endswith("]"):
             v = v[1:-1]
@@ -697,7 +699,7 @@ def getattr_recursive(obj: object, attribute_name: str):
         return getattr_recursive(child_object, rest_of_attribute_name)
 
 
-def split_dest(destination: str) -> Tuple[str, str]:
+def split_dest(destination: str) -> tuple[str, str]:
     parent, _, attribute_in_parent = destination.rpartition(".")
     return parent, attribute_in_parent
 
@@ -711,7 +713,7 @@ def get_nesting_level(possibly_nested_list):
         return 1 + max(get_nesting_level(item) for item in possibly_nested_list)
 
 
-def default_value(field: dataclasses.Field) -> Union[T, _MISSING_TYPE]:
+def default_value(field: dataclasses.Field) -> T | _MISSING_TYPE:
     """Returns the default value of a field in a dataclass, if available.
     When not available, returns `dataclasses.MISSING`.
 
@@ -730,7 +732,7 @@ def default_value(field: dataclasses.Field) -> Union[T, _MISSING_TYPE]:
         return dataclasses.MISSING
 
 
-def trie(sentences: List[List[str]]) -> Dict[str, Union[str, Dict]]:
+def trie(sentences: list[list[str]]) -> dict[str, str | dict]:
     """Given a list of sentences, creates a trie as a nested dicts of word strings.
 
     Args:
@@ -740,12 +742,12 @@ def trie(sentences: List[List[str]]) -> Dict[str, Union[str, Dict]]:
         Dict[str, Union[str, Dict[str, ...]]]: A tree where each node is a word in a sentence.
         Sentences which begin with the same words share the first nodes, etc.
     """
-    first_word_to_sentences: Dict[str, List[List[str]]] = defaultdict(list)
+    first_word_to_sentences: dict[str, list[list[str]]] = defaultdict(list)
     for sentence in sentences:
         first_word = sentence[0]
         first_word_to_sentences[first_word].append(sentence)
 
-    return_dict: Dict[str, Union[str, Dict]] = {}
+    return_dict: dict[str, str | dict] = {}
     for first_word, sentences in first_word_to_sentences.items():
         if len(sentences) == 1:
             return_dict[first_word] = ".".join(sentences[0])
@@ -755,7 +757,7 @@ def trie(sentences: List[List[str]]) -> Dict[str, Union[str, Dict]]:
     return return_dict
 
 
-def keep_keys(d: Dict, keys_to_keep: Iterable[str]) -> Tuple[Dict, Dict]:
+def keep_keys(d: dict, keys_to_keep: Iterable[str]) -> tuple[dict, dict]:
     """Removes all the keys in `d` that aren't in `keys`.
 
     Parameters
@@ -805,7 +807,7 @@ def compute_identity(size: int = 16, **sample) -> str:
     return sample_hash.hexdigest()[:size]
 
 
-def dict_intersection(*dicts: Dict[K, V]) -> Iterable[Tuple[K, Tuple[V, ...]]]:
+def dict_intersection(*dicts: dict[K, V]) -> Iterable[tuple[K, tuple[V, ...]]]:
     common_keys = set(dicts[0])
     for d in dicts:
         common_keys.intersection_update(d)
@@ -813,14 +815,14 @@ def dict_intersection(*dicts: Dict[K, V]) -> Iterable[Tuple[K, Tuple[V, ...]]]:
         yield (key, tuple(d[key] for d in dicts))
 
 
-def field_dict(dataclass: Dataclass) -> Dict[str, Field]:
-    result: Dict[str, Field] = OrderedDict()
+def field_dict(dataclass: Dataclass) -> dict[str, Field]:
+    result: dict[str, Field] = OrderedDict()
     for field in dataclasses.fields(dataclass):
         result[field.name] = field
     return result
 
 
-def zip_dicts(*dicts: Dict[K, V]) -> Iterable[Tuple[K, Tuple[Optional[V], ...]]]:
+def zip_dicts(*dicts: dict[K, V]) -> Iterable[tuple[K, tuple[V | None, ...]]]:
     # If any attributes are common to both the Experiment and the State,
     # copy them over to the Experiment.
     keys = set(itertools.chain(*dicts))
@@ -828,7 +830,7 @@ def zip_dicts(*dicts: Dict[K, V]) -> Iterable[Tuple[K, Tuple[Optional[V], ...]]]
         yield (key, tuple(d.get(key) for d in dicts))
 
 
-def dict_union(*dicts: Dict[K, V], recurse: bool = True, dict_factory=dict) -> Dict[K, V]:
+def dict_union(*dicts: dict[K, V], recurse: bool = True, dict_factory=dict) -> dict[K, V]:
     """Simple dict union until we use python 3.9
 
     If `recurse` is True, also does the union of nested dictionaries.
@@ -843,20 +845,20 @@ def dict_union(*dicts: Dict[K, V], recurse: bool = True, dict_factory=dict) -> D
     >>> dict_union(a, b, dict_factory=OrderedDict)
     OrderedDict([('a', 2), ('b', OrderedDict([('c', 3), ('d', 3), ('e', 6)]))])
     """
-    result: Dict = dict_factory()
+    result: dict = dict_factory()
     if not dicts:
         return result
     assert len(dicts) >= 1
-    all_keys: Set[str] = set()
+    all_keys: set[str] = set()
     all_keys.update(*dicts)
     all_keys = sorted(all_keys)
 
     # Create a neat generator of generators, to save some memory.
-    all_values: Iterable[Tuple[V, Iterable[K]]] = (
+    all_values: Iterable[tuple[V, Iterable[K]]] = (
         (k, (d[k] for d in dicts if k in d)) for k in all_keys
     )
     for k, values in all_values:
-        sub_dicts: List[Dict] = []
+        sub_dicts: list[dict] = []
         new_value: V = None
         n_values = 0
         for v in values:
@@ -922,7 +924,21 @@ def unflatten_split(flattened: Mapping[str, V], sep: str = ".") -> PossiblyNeste
     return unflatten({tuple(key.split(sep)): value for key, value in flattened.items()})
 
 
+@overload
 def getitem_recursive(d: PossiblyNestedDict[K, V], keys: Iterable[K]) -> V:
+    ...
+
+
+@overload
+def getitem_recursive(d: PossiblyNestedDict[K, V], keys: Iterable[K], default: T) -> V | T:
+    ...
+
+
+def getitem_recursive(
+    d: PossiblyNestedDict[K, V], keys: Iterable[K], default: T | _MISSING_TYPE = MISSING
+) -> V | T:
+    if default is not MISSING:
+        return flatten(d).get(tuple(keys), default)
     return flatten(d)[tuple(keys)]
 
 
