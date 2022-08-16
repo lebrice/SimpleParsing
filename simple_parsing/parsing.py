@@ -18,7 +18,7 @@ from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
 from .help_formatter import SimpleHelpFormatter
 from .helpers.serialization.serializable import read_file
-from .utils import Dataclass
+from .utils import Dataclass, dict_union
 from .wrappers import DashVariant, DataclassWrapper, FieldWrapper
 from .wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
@@ -112,6 +112,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self.conflict_resolution = conflict_resolution
         # constructor arguments for the dataclass instances.
         # (a Dict[dest, [attribute, value]])
+        # TODO: Stop using a defaultdict for the very important `self.constructor_arguments`!
         self.constructor_arguments: dict[str, dict] = defaultdict(dict)
 
         self._conflict_resolver = ConflictResolver(self.conflict_resolution)
@@ -176,8 +177,9 @@ class ArgumentParser(argparse.ArgumentParser):
         self,
         dataclass: type[Dataclass],
         dest: str,
+        *,
         prefix: str = "",
-        default: Dataclass = None,
+        default: Dataclass | None = None,
         dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
     ):
         pass
@@ -187,6 +189,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self,
         dataclass: type,
         dest: str,
+        *,
         prefix: str = "",
         dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
     ):
@@ -196,8 +199,9 @@ class ArgumentParser(argparse.ArgumentParser):
         self,
         dataclass: type[Dataclass] | Dataclass,
         dest: str,
+        *,
         prefix: str = "",
-        default: Dataclass | dict = None,
+        default: Dataclass = None,
         dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
     ):
         """Adds command-line arguments for the fields of `dataclass`.
@@ -233,15 +237,7 @@ class ArgumentParser(argparse.ArgumentParser):
         )
         for wrapper in self._wrappers:
             if wrapper.dest == dest:
-                if (
-                    wrapper.dataclass
-                    == dataclass
-                    # and wrapper.prefix == prefix
-                    # and wrapper.default == default
-                    # and type(wrapper) is dataclass_wrapper_class
-                ):
-                    # pass  # allow overwriting stuff?
-                    # return
+                if wrapper.dataclass == dataclass:
                     raise argparse.ArgumentError(
                         argument=None,
                         message=f"Destination attribute {dest} is already used for "
@@ -253,6 +249,9 @@ class ArgumentParser(argparse.ArgumentParser):
             dataclass = type(dataclass)
 
         new_wrapper = dataclass_wrapper_class(dataclass, dest, prefix=prefix, default=default)
+        if new_wrapper.dest in self._defaults:
+            new_wrapper.default = self._defaults[new_wrapper.dest]
+
         self._wrappers.append(new_wrapper)
 
     def parse_known_args(
@@ -280,12 +279,7 @@ class ArgumentParser(argparse.ArgumentParser):
             else:
                 config_paths = self.config_path
             for config_file in config_paths:
-                defaults = read_file(config_file)
-                if self.nested_mode == NestedMode.WITHOUT_ROOT and len(self._wrappers) == 1:
-                    # The file will contain the fields directly, rather than have them prefixed.
-                    self.set_defaults(**{self._wrappers[0].dest: defaults})
-                else:
-                    self.set_defaults(**defaults)
+                self.set_defaults(config_file)
 
         if self.add_config_path_arg:
             temp_parser = ArgumentParser(add_config_path_arg=False, add_help=False)
@@ -302,11 +296,7 @@ class ArgumentParser(argparse.ArgumentParser):
             if config_path is not None:
                 config_paths = config_path if isinstance(config_path, list) else [config_path]
                 for config_file in config_paths:
-                    defaults = read_file(config_file)
-                    if self.nested_mode == NestedMode.WITHOUT_ROOT and len(self._wrappers) == 1:
-                        self.set_defaults(**{self._wrappers[0].dest: defaults})
-                    else:
-                        self.set_defaults(**defaults)
+                    self.set_defaults(config_file)
 
             # Adding it here just so it shows up in the help message. The default will be set in
             # the help string.
@@ -451,23 +441,60 @@ class ArgumentParser(argparse.ArgumentParser):
             return parser.print_help(file)
         return super().print_help(file)
 
-    def set_defaults(self, **kwargs: Any) -> None:
-        used_kwargs = {}
+    def set_defaults(self, config_path: str | Path | None = None, **kwargs: Any) -> None:
+        """Set the default argument values, either from a config file, or from the given kwargs."""
+        if config_path:
+            defaults = read_file(config_path)
+            if self.nested_mode == NestedMode.WITHOUT_ROOT and len(self._wrappers) == 1:
+                # The file should have the same format as the command-line args, e.g. contain the
+                # fields of the 'root' dataclass directly (e.g. "foo: 123"), rather a dict with
+                # "config: foo: 123" where foo is a field of the root dataclass at dest 'config'.
+                # Therefore, we add the prefix back here.
+                defaults = {self._wrappers[0].dest: defaults}
+                # We also assume that the kwargs are passed as foo=123
+                kwargs = {self._wrappers[0].dest: kwargs}
+            # Also include the values from **kwargs.
+            kwargs = dict_union(defaults, kwargs)
+
+        # The kwargs that are set in the dataclasses, rather than on the namespace.
+        kwarg_defaults_set_in_dataclasses = {}
         for wrapper in self._wrappers:
             if wrapper.dest in kwargs:
-                wrapper_default = kwargs[wrapper.dest]
-                if dataclasses.is_dataclass(wrapper_default):
-                    wrapper.default = wrapper_default
-                    wrapper_default = dataclasses.asdict(wrapper_default)
-                # Set the defaults on the FieldWrappers as well.
-                for field in wrapper.fields:
-                    field.default = wrapper_default[field.name]
-                used_kwargs[wrapper.dest] = wrapper_default
-                kwargs.pop(wrapper.dest)
-        self.constructor_arguments.update(used_kwargs)
+                default_for_dataclass = kwargs[wrapper.dest]
 
-        # For the rest of the values, use the default argparse behaviour.
-        return super().set_defaults(**kwargs)
+                if isinstance(default_for_dataclass, (str, Path)):
+                    default_for_dataclass = read_file(path=default_for_dataclass)
+                elif not isinstance(default_for_dataclass, dict) and not dataclasses.is_dataclass(
+                    default_for_dataclass
+                ):
+                    raise ValueError(
+                        f"Got a default for field {wrapper.dest} that isn't a dataclass, dict or "
+                        f"path: {default_for_dataclass}"
+                    )
+
+                # Set the .default attribute on the DataclassWrapper (which also updates the
+                # defaults of the fields and any nested dataclass fields).
+                wrapper.default = default_for_dataclass
+
+                # It's impossible for multiple wrappers in kwargs to have the same destination.
+                assert wrapper.dest not in kwarg_defaults_set_in_dataclasses
+                value_for_constructor_arguments = (
+                    default_for_dataclass
+                    if isinstance(default_for_dataclass, dict)
+                    else dataclasses.asdict(default_for_dataclass)
+                )
+                kwarg_defaults_set_in_dataclasses[wrapper.dest] = value_for_constructor_arguments
+                # Remove this from the **kwargs, so they don't get set on the namespace.
+                kwargs.pop(wrapper.dest)
+        # TODO: Stop using a defaultdict for the very important `self.constructor_arguments`!
+        self.constructor_arguments = dict_union(
+            self.constructor_arguments,
+            kwarg_defaults_set_in_dataclasses,
+            dict_factory=lambda: defaultdict(dict),
+        )
+        # For the rest of the values, use the default argparse behaviour (modifying the
+        # self._defaults dictionary).
+        super().set_defaults(**kwargs)
 
     def equivalent_argparse_code(self) -> str:
         """Returns the argparse code equivalent to that of `simple_parsing`.
@@ -675,15 +702,23 @@ class ArgumentParser(argparse.ArgumentParser):
                     )
 
                     setattr(parsed_args, destination, instance)
+                # There is a collision: namespace already has an entry at this destination.
                 elif not self.subgroups:
                     existing = getattr(parsed_args, destination)
-                    raise RuntimeError(
-                        f"Namespace should not already have a '{destination}' "
-                        f"attribute!\n"
-                        f"The value would be overwritten:\n"
-                        f"- existing value: {existing}\n"
-                        f"- new value:      {instance}"
-                    )
+                    if wrapper.dest in self._defaults:
+                        logger.debug(
+                            f"Overwriting defaults in the namespace at destination '{destination}' "
+                            f"on the Namespace ({existing}) to a value of {instance}"
+                        )
+                        setattr(parsed_args, destination, instance)
+                    else:
+                        raise RuntimeError(
+                            f"Namespace should not already have a '{destination}' "
+                            f"attribute!\n"
+                            f"The value would be overwritten:\n"
+                            f"- existing value: {existing}\n"
+                            f"- new value:      {instance}"
+                        )
                 elif not any(wrapper.dest in subgroup_dest for subgroup_dest in self.subgroups):
                     # the current dataclass wrapper doesn't have anything to do with the subgroups.
                     existing = getattr(parsed_args, destination)
@@ -695,14 +730,6 @@ class ArgumentParser(argparse.ArgumentParser):
                             f"Ignoring new parsed value of {instance} for {destination}. \n"
                             f"Keeping the value that is already in the args: {existing}"
                         )
-                        # raise RuntimeError(
-                        #     "Why is there already an attribute, if this doesn't have anything to do with subgroups?\n"
-                        #     f"Namespace should not already have a '{destination}' "
-                        #     f"attribute!\n"
-                        #     f"The value would be overwritten:\n"
-                        #     f"- existing value: {existing}\n"
-                        #     f"- new value:      {instance}"
-                        # )
                 else:
                     # The dataclass wrapper isn't directly for the subgroup: It's for a parent of
                     # the subgroup choice.
@@ -852,7 +879,10 @@ def parse(
     if isinstance(args, str):
         args = shlex.split(args)
     parser = ArgumentParser(
-        nested_mode=NestedMode.WITHOUT_ROOT, add_help=True, add_config_path_arg=True
+        nested_mode=NestedMode.WITHOUT_ROOT,
+        add_help=True,
+        add_config_path_arg=True,
+        config_path=config_path,
     )
     parser.add_arguments(config_class, dest="config")
     parsed_args = parser.parse_args(args)

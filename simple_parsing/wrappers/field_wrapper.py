@@ -191,6 +191,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             parent_dest, attribute = utils.split_dest(destination)
             value = self.postprocess(value)
             self._results[destination] = value
+
             parser.constructor_arguments[parent_dest][attribute] = value
             logger.debug(
                 f"setting value of {value} in constructor arguments "
