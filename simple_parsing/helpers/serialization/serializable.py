@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import pickle
-import warnings
 from collections import OrderedDict
 from dataclasses import MISSING, Field, dataclass, fields, is_dataclass
+from functools import partial
 from itertools import chain
 from logging import getLogger
 from pathlib import Path
@@ -14,6 +14,11 @@ from simple_parsing.utils import get_args, get_forward_arg, is_optional
 
 from .decoding import decode_field, register_decoding_fn
 from .encoding import SimpleJsonEncoder, encode
+
+DumpFn = Callable[[Any, IO], None]
+DumpsFn = Callable[[Any], str]
+LoadFn = Callable[[IO], dict]
+LoadsFn = Callable[[str], dict]
 
 logger = getLogger(__name__)
 
@@ -123,29 +128,24 @@ class SerializableMixin:
         of `cls` and drop the extra keys in the dict.
         Passing `drop_extra_fields=False` forces the above-mentioned behaviour.
         """
-        if drop_extra_fields is None:
-            drop_extra_fields = not cls.decode_into_subclasses
         return from_dict(cls, obj, drop_extra_fields=drop_extra_fields)
 
-    def dump(self, fp: IO[str], dump_fn=json.dump, **kwargs) -> None:
-        # Convert `self` into a dict.
-        d = self.to_dict()
-        # Serialize that dict to the file, using dump_fn.
-        dump_fn(d, fp, **kwargs)
+    def dump(self, fp: IO[str], dump_fn: DumpFn = json.dump) -> None:
+        dump(self, fp=fp, dump_fn=dump_fn)
 
-    def dump_json(self, fp: IO[str], dump_fn=json.dump, **kwargs) -> None:
+    def dump_json(self, fp: IO[str], dump_fn: DumpFn = json.dump, **kwargs) -> None:
         return dump_json(self, fp, dump_fn=dump_fn, **kwargs)
 
-    def dump_yaml(self, fp: IO[str], dump_fn=None, **kwargs) -> None:
+    def dump_yaml(self, fp: IO[str], dump_fn: DumpFn | None = None, **kwargs) -> None:
         return dump_yaml(self, fp, dump_fn=dump_fn, **kwargs)
 
-    def dumps(self, dump_fn=json.dumps, **kwargs) -> str:
+    def dumps(self, dump_fn: DumpsFn = json.dumps, **kwargs) -> str:
         return dumps(self, dump_fn=dump_fn, **kwargs)
 
-    def dumps_json(self, dump_fn=json.dumps, **kwargs) -> str:
+    def dumps_json(self, dump_fn: DumpsFn = json.dumps, **kwargs) -> str:
         return dumps_json(self, dump_fn=dump_fn, **kwargs)
 
-    def dumps_yaml(self, dump_fn=None, **kwargs) -> str:
+    def dumps_yaml(self, dump_fn: DumpsFn | None = None, **kwargs) -> str:
         return dumps_yaml(self, dump_fn=dump_fn, **kwargs)
 
     @classmethod
@@ -153,7 +153,7 @@ class SerializableMixin:
         cls: type[D],
         path: Path | str | IO[str],
         drop_extra_fields: bool | None = None,
-        load_fn=None,
+        load_fn: LoadFn | None = None,
         **kwargs,
     ) -> D:
         """Loads an instance of `cls` from the given file.
@@ -166,7 +166,7 @@ class SerializableMixin:
                 fields. Defaults to None, in which case we use the value of
                 `cls.decode_into_subclasses`.
                 For more info, see `cls.from_dict`.
-            load_fn ([type], optional): Which loading function to use. Defaults
+            load_fn (Callable, optional): Which loading function to use. Defaults
                 to None, in which case we try to use the appropriate loading
                 function depending on `path.suffix`:
                 {
@@ -190,20 +190,17 @@ class SerializableMixin:
         cls: type[D],
         fp: IO[str],
         drop_extra_fields: bool | None = None,
-        load_fn=json.load,
+        load_fn: LoadFn = json.load,
         **kwargs,
     ) -> D:
-        # Load a dict from the file.
-        d = load_fn(fp, **kwargs)
-        # Convert the dict into an instance of the class.
-        return cls.from_dict(d, drop_extra_fields=drop_extra_fields)
+        return load(cls, path=fp, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
     @classmethod
     def load_json(
         cls: type[D],
         path: str | Path,
         drop_extra_fields: bool | None = None,
-        load_fn=json.load,
+        load_fn: LoadFn = json.load,
         **kwargs,
     ) -> D:
         """Loads an instance from the corresponding json-formatted file.
@@ -239,72 +236,26 @@ class SerializableMixin:
         """
         return load_yaml(cls, path, load_fn=load_fn, drop_extra_fields=drop_extra_fields, **kwargs)
 
-    def save(self, path: str | Path, dump_fn=None, **kwargs) -> None:
-        if not isinstance(path, Path):
-            path = Path(path)
+    def save(self, path: str | Path, dump_fn=None) -> None:
+        save(self, path=path, dump_fn=dump_fn)
 
-        if dump_fn is None and isinstance(path, Path):
-            if path.name.endswith((".yml", ".yaml")):
-                return self.save_yaml(path, **kwargs)
-            elif path.name.endswith(".json"):
-                return self.save_json(path, **kwargs)
+    def _save(self, path: str | Path, dump_fn: DumpFn = json.dump, **kwargs) -> None:
+        save(self, path=path, dump_fn=partial(dump_fn, **kwargs))
 
-            if path.name.endswith(".pth"):
-                import torch
-
-                dump_fn = torch.save
-            elif path.name.endswith(".npy"):
-                import numpy as np
-
-                dump_fn = np.save
-            elif path.name.endswith(".pkl"):
-                import pickle
-
-                dump_fn = pickle.dump
-            warnings.warn(
-                RuntimeWarning(
-                    f"Not 100% sure how to deserialize contents of {path} to a "
-                    f"file as no dump_fn was passed explicitly. Will try to use "
-                    f"{dump_fn} as the serialization function, based on the path "
-                    f"suffix. ({path.suffix})"
-                )
-            )
-
-        if dump_fn is None:
-            raise RuntimeError(
-                f"Unable to determine what function to use in order to dump "
-                f"path {path} into a dictionary, since no dump_fn was passed, "
-                f"and the path doesn't have an unfamiliar extension: "
-                f"({path.suffix})"
-            )
-        self._save(path, dump_fn=dump_fn, **kwargs)
-
-    def _save(self, path: str | Path, dump_fn=json.dump, **kwargs) -> None:
-        d = self.to_dict()
-        logger.debug(f"saving to path {path}")
-        with open(path, "w") as fp:
-            dump_fn(d, fp, **kwargs)
-
-    def save_yaml(self, path: str | Path, dump_fn=None, **kwargs) -> None:
-        import yaml
-
-        if dump_fn is None:
-            dump_fn = yaml.dump
-        self.save(path, dump_fn=dump_fn, **kwargs)
+    def save_yaml(self, path: str | Path, dump_fn: DumpFn | None = None, **kwargs) -> None:
+        save_yaml(self, path, dump_fn=dump_fn, **kwargs)
 
     def save_json(self, path: str | Path, dump_fn=json.dump, **kwargs) -> None:
-        self.save(path, dump_fn=dump_fn, **kwargs)
+        save_json(self, path, dump_fn=dump_fn, **kwargs)
 
     @classmethod
     def loads(
         cls: type[D],
         s: str,
         drop_extra_fields: bool | None = None,
-        load_fn=json.loads,
-        **kwargs,
+        load_fn: LoadsFn = json.loads,
     ) -> D:
-        d = load_fn(s, **kwargs)
-        return cls.from_dict(d, drop_extra_fields=drop_extra_fields)
+        return loads(cls, s, drop_extra_fields=drop_extra_fields, load_fn=load_fn)
 
     @classmethod
     def loads_json(
@@ -314,17 +265,19 @@ class SerializableMixin:
         load_fn=json.loads,
         **kwargs,
     ) -> D:
-        return cls.loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
+        return loads_json(
+            cls, s, drop_extra_fields=drop_extra_fields, load_fn=partial(load_fn, **kwargs)
+        )
 
     @classmethod
     def loads_yaml(
-        cls: type[D], s: str, drop_extra_fields: bool | None = None, load_fn=None, **kwargs
+        cls: type[D],
+        s: str,
+        drop_extra_fields: bool | None = None,
+        load_fn: LoadsFn | None = None,
+        **kwargs,
     ) -> D:
-        import yaml
-
-        if load_fn is None:
-            load_fn = yaml.safe_load
-        return cls.loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
+        return loads_yaml(cls, s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
 
 @dataclass
@@ -401,10 +354,9 @@ T = TypeVar("T")
 
 def load(
     cls: type[Dataclass],
-    path: Path | str,
+    path: Path | str | IO,
     drop_extra_fields: bool | None = None,
-    load_fn=None,
-    **kwargs,
+    load_fn: LoadFn | None = None,
 ) -> Dataclass:
     """Loads an instance of `cls` from the given file.
 
@@ -435,12 +387,17 @@ def load(
     """
     if isinstance(path, str):
         path = Path(path)
-    if load_fn is None:
+    if load_fn is None and isinstance(path, Path):
         # Load a dict from the file.
         d = read_file(path)
-    else:
-        with path.open() as f:
+    elif load_fn:
+        with (path.open() if isinstance(path, Path) else path) as f:
             d = load_fn(f)
+    else:
+        raise ValueError(
+            "A loading function must be passed, since we got an io stream, and the "
+            "extension can't be retrieved."
+        )
     # Convert the dict into an instance of the class.
     if drop_extra_fields is None and getattr(cls, "decode_into_subclasses", None) is not None:
         drop_extra_fields = not getattr(cls, "decode_into_subclasses")
@@ -451,7 +408,7 @@ def load_json(
     cls: type[Dataclass],
     path: str | Path,
     drop_extra_fields: bool | None = None,
-    load_fn=json.load,
+    load_fn: LoadFn = json.load,
     **kwargs,
 ) -> Dataclass:
     """Loads an instance from the corresponding json-formatted file.
@@ -464,7 +421,40 @@ def load_json(
     Returns:
         D: an instance of the dataclass.
     """
-    return load(cls, path, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
+    return load(cls, path, drop_extra_fields=drop_extra_fields, load_fn=partial(load_fn, **kwargs))
+
+
+def loads(
+    cls: type[Dataclass],
+    s: str,
+    drop_extra_fields: bool | None = None,
+    load_fn: LoadsFn = json.loads,
+) -> Dataclass:
+    d = load_fn(s)
+    return from_dict(cls, d, drop_extra_fields=drop_extra_fields)
+
+
+def loads_json(
+    cls: type[Dataclass],
+    s: str,
+    drop_extra_fields: bool | None = None,
+    load_fn: LoadsFn = json.loads,
+    **kwargs,
+) -> Dataclass:
+    return loads(cls, s, drop_extra_fields=drop_extra_fields, load_fn=partial(load_fn, **kwargs))
+
+
+def loads_yaml(
+    cls: type[Dataclass],
+    s: str,
+    drop_extra_fields: bool | None = None,
+    load_fn: LoadsFn | None = None,
+    **kwargs,
+) -> Dataclass:
+    import yaml
+
+    load_fn = load_fn or yaml.safe_load
+    return loads(cls, s, drop_extra_fields=drop_extra_fields, load_fn=partial(load_fn, **kwargs))
 
 
 extensions_to_loading_fn: dict[str, Callable[[IO], Any]] = {
@@ -537,10 +527,16 @@ def read_file(path: str | Path) -> dict:
         return load_fn(f)
 
 
-def save(obj: Any, path: str | Path) -> None:
-    """Save the given dictionary-like to the given file."""
+def save(obj: Any, path: str | Path, dump_fn: Callable[[dict, IO], None] | None = None) -> None:
+    """Save the given dataclass or dictionary to the given file."""
     path = Path(path)
-    if path.suffix in extensions_to_dump_fn:
+
+    if not isinstance(obj, dict):
+        obj = to_dict(obj)
+
+    if dump_fn:
+        save_fn = dump_fn
+    elif path.suffix in extensions_to_dump_fn:
         save_fn = extensions_to_dump_fn[path.suffix]
     else:
         raise RuntimeError(
@@ -553,11 +549,23 @@ def save(obj: Any, path: str | Path) -> None:
         return save_fn(obj, f)
 
 
+def save_yaml(obj, path: str | Path, dump_fn: DumpFn | None = None, **kwargs) -> None:
+    import yaml
+
+    if dump_fn is None:
+        dump_fn = yaml.dump
+    save(obj, path, dump_fn=partial(dump_fn, **kwargs))
+
+
+def save_json(obj, path: str | Path, dump_fn: DumpFn = json.dump, **kwargs) -> None:
+    save(obj, path, dump_fn=partial(dump_fn, **kwargs))
+
+
 def load_yaml(
     cls: type[T],
     path: str | Path,
     drop_extra_fields: bool | None = None,
-    load_fn=None,
+    load_fn: LoadFn | None = None,
     **kwargs,
 ) -> T:
     """Loads an instance from the corresponding yaml-formatted file.
@@ -575,44 +583,46 @@ def load_yaml(
 
     if load_fn is None:
         load_fn = yaml.safe_load
-    return load(cls, path, load_fn=load_fn, drop_extra_fields=drop_extra_fields, **kwargs)
+    return load(cls, path, drop_extra_fields=drop_extra_fields, load_fn=partial(load_fn, **kwargs))
 
 
-def dump(dc, fp: IO[str], dump_fn: Callable[[Any, IO], None] = json.dump, **kwargs) -> None:
-    # Convert `dc` into a dict.
-    d = to_dict(dc)
-    # Serialize that dict to the file, using dump_fn.
-    dump_fn(d, fp, **kwargs)
+def dump(dc, fp: IO[str], dump_fn: DumpFn = json.dump) -> None:
+    # Convert `dc` into a dict if needed.
+    if not isinstance(dc, dict):
+        dc = to_dict(dc)
+    # Serialize that dict to the file using dump_fn.
+    dump_fn(dc, fp)
 
 
-def dump_json(dc, fp: IO[str], dump_fn=json.dump, **kwargs) -> None:
-    return dump(dc, fp, dump_fn=dump_fn, **kwargs)
+def dump_json(dc, fp: IO[str], dump_fn: DumpFn = json.dump, **kwargs) -> None:
+    return dump(dc, fp, dump_fn=partial(dump_fn, **kwargs))
 
 
-def dump_yaml(dc, fp: IO[str], dump_fn=None, **kwargs) -> None:
+def dump_yaml(dc, fp: IO[str], dump_fn: DumpFn | None = None, **kwargs) -> None:
     import yaml
 
     if dump_fn is None:
         dump_fn = yaml.dump
-    return dump(dc, fp, dump_fn=dump_fn, **kwargs)
+    return dump(dc, fp, dump_fn=partial(dump_fn, **kwargs))
 
 
-def dumps(dc, dump_fn: Callable[..., str] = json.dumps, **kwargs) -> str:
-    d = dc.to_dict()
-    return dump_fn(d, **kwargs)
+def dumps(dc, dump_fn: DumpsFn = json.dumps) -> str:
+    if not isinstance(dc, dict):
+        dc = to_dict(dc)
+    return dump_fn(dc)
 
 
-def dumps_json(dc, dump_fn=json.dumps, **kwargs) -> str:
+def dumps_json(dc, dump_fn: DumpsFn = json.dumps, **kwargs) -> str:
     kwargs.setdefault("cls", SimpleJsonEncoder)
-    return dumps(dc, dump_fn=dump_fn, **kwargs)
+    return dumps(dc, dump_fn=partial(dump_fn, **kwargs))
 
 
-def dumps_yaml(dc, dump_fn=None, **kwargs) -> str:
+def dumps_yaml(dc, dump_fn: DumpsFn | None = None, **kwargs) -> str:
     import yaml
 
     if dump_fn is None:
         dump_fn = yaml.dump
-    return dumps(dc, dump_fn=dump_fn, **kwargs)
+    return dumps(dc, dump_fn=partial(dump_fn, **kwargs))
 
 
 def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
@@ -623,6 +633,9 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
     dict, or to perform some kind of custom encoding (for instance,
     detaching `Tensor` objects before serializing the dataclass to a dict).
     """
+    if not is_dataclass(dc):
+        raise ValueError("to_dict should only be called on a dataclass instance.")
+
     d: dict[str, Any] = dict_factory()
     for f in fields(dc):
         name = f.name
@@ -688,6 +701,7 @@ def from_dict(
     """
     if d is None:
         return None
+
     obj_dict: dict[str, Any] = d.copy()
 
     init_args: dict[str, Any] = {}
