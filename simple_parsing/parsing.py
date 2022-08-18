@@ -252,8 +252,19 @@ class ArgumentParser(argparse.ArgumentParser):
             dataclass = type(dataclass)
 
         new_wrapper = dataclass_wrapper_class(dataclass, dest, prefix=prefix, default=default)
+
         if new_wrapper.dest in self._defaults:
             new_wrapper.default = self._defaults[new_wrapper.dest]
+        if self.nested_mode == NestedMode.WITHOUT_ROOT and all(
+            field.name in self._defaults for field in new_wrapper.fields
+        ):
+            # If we did .set_defaults before we knew what dataclass we're using, then we try to
+            # still make use of those defaults:
+            new_wrapper.default = {
+                k: v
+                for k, v in self._defaults.items()
+                if k in [f.name for f in dataclasses.fields(new_wrapper.dataclass)]
+            }
 
         self._wrappers.append(new_wrapper)
 
