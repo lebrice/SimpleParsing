@@ -191,6 +191,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             parent_dest, attribute = utils.split_dest(destination)
             value = self.postprocess(value)
             self._results[destination] = value
+
             parser.constructor_arguments[parent_dest][attribute] = value
             logger.debug(
                 f"setting value of {value} in constructor arguments "
@@ -302,7 +303,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["type"] = get_parsing_fn(wrapped_type)
                 # TODO: Should the 'nargs' really be '?' here?
                 _arg_options["nargs"] = "?"
-                # assert False, (wrapped_type, utils.is_tuple(wrapped_type))
 
         elif self.is_union:
             logger.debug("Parsing a Union type!")

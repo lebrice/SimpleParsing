@@ -40,5 +40,8 @@ def main():
     print(options)
 
 
-if __name__ == "__main__":
-    main()
+main()
+expected = """
+Namespace(options=Options(config=AConfig(foo=123)))
+Options(config=AConfig(foo=123))
+"""

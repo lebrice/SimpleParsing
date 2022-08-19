@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import argparse
 import dataclasses
 from dataclasses import MISSING
 from logging import getLogger
-from typing import Dict, List, Optional, Type, Union, cast
+from typing import cast
 
 from .. import docstring, utils
 from ..utils import Dataclass
@@ -15,32 +17,32 @@ logger = getLogger(__name__)
 class DataclassWrapper(Wrapper[Dataclass]):
     def __init__(
         self,
-        dataclass: Type[Dataclass],
+        dataclass: type[Dataclass],
         name: str,
-        default: Union[Dataclass, Dict] = None,
+        default: Dataclass | dict = None,
         prefix: str = "",
-        parent: Optional["DataclassWrapper"] = None,
-        _field: Optional[dataclasses.Field] = None,
-        field_wrapper_class: Type[FieldWrapper] = FieldWrapper,
+        parent: DataclassWrapper | None = None,
+        _field: dataclasses.Field | None = None,
+        field_wrapper_class: type[FieldWrapper] = FieldWrapper,
     ):
         # super().__init__(dataclass, name)
         self.dataclass = dataclass
         self._name = name
-        self.default = default
+        self._default = default
         self.prefix = prefix
 
-        self.fields: List[FieldWrapper] = []
-        self._destinations: List[str] = []
+        self.fields: list[FieldWrapper] = []
+        self._destinations: list[str] = []
         self._required: bool = False
         self._explicit: bool = False
         self._dest: str = ""
-        self._children: List[DataclassWrapper] = []
+        self._children: list[DataclassWrapper] = []
         self._parent = parent
         # the field of the parent, which contains this child dataclass.
         self._field = _field
 
         # the default values
-        self._defaults: List[Dataclass] = []
+        self._defaults: list[Dataclass] = []
 
         if default:
             self.defaults = [default]
@@ -172,11 +174,11 @@ class DataclassWrapper(Wrapper[Dataclass]):
         return self._name
 
     @property
-    def parent(self) -> Optional["DataclassWrapper"]:
+    def parent(self) -> DataclassWrapper | None:
         return self._parent
 
     @property
-    def defaults(self) -> List[Dataclass]:
+    def defaults(self) -> list[Dataclass]:
         if self._defaults:
             return self._defaults
         if self._field is None:
@@ -197,8 +199,27 @@ class DataclassWrapper(Wrapper[Dataclass]):
         return self._defaults
 
     @defaults.setter
-    def defaults(self, value: List[Dataclass]):
+    def defaults(self, value: list[Dataclass]):
         self._defaults = value
+
+    @property
+    def default(self) -> Dataclass | None:
+        return self._default
+
+    @default.setter
+    def default(self, value: Dataclass | dict):
+        if value is None:
+            self._default = value
+            return
+        if not isinstance(value, dict):
+            self._default = value
+            value = dataclasses.asdict(value)
+        for field_wrapper in self.fields:
+            if field_wrapper.name in value:
+                field_wrapper.default = value[field_wrapper.name]
+        for nested_dataclass_wrapper in self._children:
+            if nested_dataclass_wrapper.name in value:
+                nested_dataclass_wrapper.default = value[nested_dataclass_wrapper.name]
 
     @property
     def title(self) -> str:
@@ -265,7 +286,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         return _dest
 
     @property
-    def destinations(self) -> List[str]:
+    def destinations(self) -> list[str]:
         if not self._destinations:
             if self.parent:
                 self._destinations = [f"{d}.{self.name}" for d in self.parent.destinations]
@@ -274,10 +295,10 @@ class DataclassWrapper(Wrapper[Dataclass]):
         return self._destinations
 
     @destinations.setter
-    def destinations(self, value: List[str]):
+    def destinations(self, value: list[str]):
         self._destinations = value
 
-    def merge(self, other: "DataclassWrapper"):
+    def merge(self, other: DataclassWrapper):
         """Absorb all the relevant attributes from another wrapper.
         Args:
             other (DataclassWrapper): Another instance to absorb into this one.

@@ -5,17 +5,20 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import shlex
 import sys
 from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _, _HelpAction
 from collections import defaultdict
 from functools import partial
 from logging import getLogger
+from pathlib import Path
 from typing import Any, Callable, Sequence, TypeVar, overload
 
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
 from .help_formatter import SimpleHelpFormatter
-from .utils import Dataclass
+from .helpers.serialization.serializable import read_file
+from .utils import Dataclass, dict_union
 from .wrappers import DashVariant, DataclassWrapper, FieldWrapper
 from .wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
@@ -27,6 +30,66 @@ class ParsingError(RuntimeError, SystemExit):
 
 
 class ArgumentParser(argparse.ArgumentParser):
+    """Creates an ArgumentParser instance.
+
+    Parameters
+    ----------
+    - conflict_resolution : ConflictResolution, optional
+
+        What kind of prefixing mechanism to use when reusing dataclasses
+        (argument groups).
+        For more info, check the docstring of the `ConflictResolution` Enum.
+
+    - add_option_string_dash_variants : DashVariant, optional
+
+        Whether or not to add option_string variants where the underscores in
+        attribute names are replaced with dashes.
+        For example, when set to DashVariant.UNDERSCORE_AND_DASH,
+        "--no-cache" and "--no_cache" can both be used to point to the same
+        attribute `no_cache` on some dataclass.
+
+    - argument_generation_mode : ArgumentGenerationMode, optional
+
+        How to generate the arguments. In the ArgumentGenerationMode.FLAT mode,
+        the default one, the arguments are flat when possible, ignoring
+        their nested structure and including it only on the presence of a
+        conflict.
+
+        In the ArgumentGenerationMode.NESTED mode, the arguments are always
+        composed reflecting their nested structure.
+
+        In the ArgumentGenerationMode.BOTH mode, both kind of arguments
+        are generated.
+
+    - nested_mode : NestedMode, optional
+
+        How to handle argument generation in for nested arguments
+        in the modes ArgumentGenerationMode.NESTED and ArgumentGenerationMode.BOTH.
+        In the NestedMode.DEFAULT mode, the nested arguments are generated
+        reflecting their full 'destination' path from the returning namespace.
+
+        In the NestedMode.WITHOUT_ROOT, the first level is removed. This is useful when
+        parser.add_arguments is only called once, and where the same prefix would be shared
+        by all arguments. For example, if you have a single dataclass MyArguments and
+        you call parser.add_arguments(MyArguments, "args"), the arguments could look like this:
+        '--args.input.path --args.output.path'.
+        We could prefer to remove the root level in such a case
+            so that the arguments get generated as
+        '--input.path --output.path'.
+
+    - formatter_class : Type[HelpFormatter], optional
+
+        The formatter class to use. By default, uses
+        `simple_parsing.SimpleHelpFormatter`, which is a combination of the
+        `argparse.ArgumentDefaultsHelpFormatter`,
+        `argparse.MetavarTypeHelpFormatter` and
+        `argparse.RawDescriptionHelpFormatter` classes.
+
+    - add_config_path_arg : bool, optional
+        When set to `True`, adds a `--config_path` argument, of type Path, which is used to parse
+
+    """
+
     def __init__(
         self,
         *args,
@@ -37,63 +100,11 @@ class ArgumentParser(argparse.ArgumentParser):
         argument_generation_mode=ArgumentGenerationMode.FLAT,
         nested_mode: NestedMode = NestedMode.DEFAULT,
         formatter_class: type[HelpFormatter] = SimpleHelpFormatter,
+        add_dest_to_option_strings: bool | None = None,
+        add_config_path_arg: bool | None = None,
+        config_path: Path | str | Sequence[Path | str] | None = None,
         **kwargs,
     ):
-        """Creates an ArgumentParser instance.
-
-        Parameters
-        ----------
-        - conflict_resolution : ConflictResolution, optional
-
-            What kind of prefixing mechanism to use when reusing dataclasses
-            (argument groups).
-            For more info, check the docstring of the `ConflictResolution` Enum.
-
-        - add_option_string_dash_variants : DashVariant, optional
-
-            Whether or not to add option_string variants where the underscores in
-            attribute names are replaced with dashes.
-            For example, when set to DashVariant.UNDERSCORE_AND_DASH,
-            "--no-cache" and "--no_cache" can both be used to point to the same
-            attribute `no_cache` on some dataclass.
-
-        - argument_generation_mode : ArgumentGenerationMode, optional
-
-            How to generate the arguments. In the ArgumentGenerationMode.FLAT mode,
-            the default one, the arguments are flat when possible, ignoring
-            their nested structure and including it only on the presence of a
-            conflict.
-
-            In the ArgumentGenerationMode.NESTED mode, the arguments are always
-            composed reflecting their nested structure.
-
-            In the ArgumentGenerationMode.BOTH mode, both kind of arguments
-            are generated.
-
-        - nested_mode : NestedMode, optional
-
-            How to handle argument generation in for nested arguments
-            in the modes ArgumentGenerationMode.NESTED and ArgumentGenerationMode.BOTH.
-            In the NestedMode.DEFAULT mode, the nested arguments are generated
-            reflecting their full 'destination' path from the returning namespace.
-
-            In the NestedMode.WITHOUT_ROOT, the first level is removed. This is useful when
-            parser.add_arguments is only called once, and where the same prefix would be shared
-            by all arguments. For example, if you have a single dataclass MyArguments and
-            you call parser.add_arguments(MyArguments, "args"), the arguments could look like this:
-            '--args.input.path --args.output.path'.
-            We could prefer to remove the root level in such a case
-             so that the arguments get generated as
-            '--input.path --output.path'.
-
-        - formatter_class : Type[HelpFormatter], optional
-
-            The formatter class to use. By default, uses
-            `simple_parsing.SimpleHelpFormatter`, which is a combination of the
-            `argparse.ArgumentDefaultsHelpFormatter`,
-            `argparse.MetavarTypeHelpFormatter` and
-            `argparse.RawDescriptionHelpFormatter` classes.
-        """
         kwargs["formatter_class"] = formatter_class
         # Pass parents=[] since we override this mechanism below.
         # NOTE: We end up with the same parents.
@@ -101,10 +112,14 @@ class ArgumentParser(argparse.ArgumentParser):
         self.conflict_resolution = conflict_resolution
         # constructor arguments for the dataclass instances.
         # (a Dict[dest, [attribute, value]])
+        # TODO: Stop using a defaultdict for the very important `self.constructor_arguments`!
         self.constructor_arguments: dict[str, dict] = defaultdict(dict)
 
         self._conflict_resolver = ConflictResolver(self.conflict_resolution)
         self._wrappers: list[DataclassWrapper] = []
+
+        if add_dest_to_option_strings:
+            argument_generation_mode = ArgumentGenerationMode.BOTH
 
         self._preprocessing_done: bool = False
         self.add_option_string_dash_variants = add_option_string_dash_variants
@@ -137,6 +152,12 @@ class ArgumentParser(argparse.ArgumentParser):
             for add_arguments_call in parent._add_argument_replay:
                 add_arguments_call(self)
 
+        self.config_path = Path(config_path) if isinstance(config_path, str) else config_path
+        if add_config_path_arg is None:
+            # By default, add a config path argument if a config path was passed.
+            add_config_path_arg = bool(config_path)
+        self.add_config_path_arg = add_config_path_arg
+
     def add_argument(
         self,
         *name_or_flags: str,
@@ -159,8 +180,9 @@ class ArgumentParser(argparse.ArgumentParser):
         self,
         dataclass: type[Dataclass],
         dest: str,
+        *,
         prefix: str = "",
-        default: Dataclass = None,
+        default: Dataclass | None = None,
         dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
     ):
         pass
@@ -170,6 +192,7 @@ class ArgumentParser(argparse.ArgumentParser):
         self,
         dataclass: type,
         dest: str,
+        *,
         prefix: str = "",
         dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
     ):
@@ -179,8 +202,9 @@ class ArgumentParser(argparse.ArgumentParser):
         self,
         dataclass: type[Dataclass] | Dataclass,
         dest: str,
+        *,
         prefix: str = "",
-        default: Dataclass | dict = None,
+        default: Dataclass = None,
         dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
     ):
         """Adds command-line arguments for the fields of `dataclass`.
@@ -216,15 +240,7 @@ class ArgumentParser(argparse.ArgumentParser):
         )
         for wrapper in self._wrappers:
             if wrapper.dest == dest:
-                if (
-                    wrapper.dataclass
-                    == dataclass
-                    # and wrapper.prefix == prefix
-                    # and wrapper.default == default
-                    # and type(wrapper) is dataclass_wrapper_class
-                ):
-                    # pass  # allow overwriting stuff?
-                    # return
+                if wrapper.dataclass == dataclass:
                     raise argparse.ArgumentError(
                         argument=None,
                         message=f"Destination attribute {dest} is already used for "
@@ -236,12 +252,26 @@ class ArgumentParser(argparse.ArgumentParser):
             dataclass = type(dataclass)
 
         new_wrapper = dataclass_wrapper_class(dataclass, dest, prefix=prefix, default=default)
+
+        if new_wrapper.dest in self._defaults:
+            new_wrapper.default = self._defaults[new_wrapper.dest]
+        if self.nested_mode == NestedMode.WITHOUT_ROOT and all(
+            field.name in self._defaults for field in new_wrapper.fields
+        ):
+            # If we did .set_defaults before we knew what dataclass we're using, then we try to
+            # still make use of those defaults:
+            new_wrapper.default = {
+                k: v
+                for k, v in self._defaults.items()
+                if k in [f.name for f in dataclasses.fields(new_wrapper.dataclass)]
+            }
+
         self._wrappers.append(new_wrapper)
 
     def parse_known_args(
         self,
-        args: Sequence[str] = None,
-        namespace: Namespace = None,
+        args: Sequence[str] | None = None,
+        namespace: Namespace | None = None,
         attempt_to_reorder: bool = False,
     ):
         # NOTE: since the usual ArgumentParser.parse_args() calls
@@ -257,6 +287,39 @@ class ArgumentParser(argparse.ArgumentParser):
         # default Namespace built from parser defaults
         if namespace is None:
             namespace = Namespace()
+        if self.config_path:
+            if isinstance(self.config_path, Path):
+                config_paths = [self.config_path]
+            else:
+                config_paths = self.config_path
+            for config_file in config_paths:
+                self.set_defaults(config_file)
+
+        if self.add_config_path_arg:
+            temp_parser = ArgumentParser(add_config_path_arg=False, add_help=False)
+            temp_parser.add_argument(
+                "--config_path",
+                type=Path,
+                nargs="*",
+                default=self.config_path,
+                help="Path to a config file containing default values to use.",
+            )
+            args_for_config_path, args = temp_parser.parse_known_args(args)
+            config_path = args_for_config_path.config_path
+
+            if config_path is not None:
+                config_paths = config_path if isinstance(config_path, list) else [config_path]
+                for config_file in config_paths:
+                    self.set_defaults(config_file)
+
+            # Adding it here just so it shows up in the help message. The default will be set in
+            # the help string.
+            self.add_argument(
+                "--config_path",
+                type=Path,
+                default=config_path,
+                help="Path to a config file containing default values to use.",
+            )
 
         self._preprocessing()
 
@@ -392,6 +455,61 @@ class ArgumentParser(argparse.ArgumentParser):
             return parser.print_help(file)
         return super().print_help(file)
 
+    def set_defaults(self, config_path: str | Path | None = None, **kwargs: Any) -> None:
+        """Set the default argument values, either from a config file, or from the given kwargs."""
+        if config_path:
+            defaults = read_file(config_path)
+            if self.nested_mode == NestedMode.WITHOUT_ROOT and len(self._wrappers) == 1:
+                # The file should have the same format as the command-line args, e.g. contain the
+                # fields of the 'root' dataclass directly (e.g. "foo: 123"), rather a dict with
+                # "config: foo: 123" where foo is a field of the root dataclass at dest 'config'.
+                # Therefore, we add the prefix back here.
+                defaults = {self._wrappers[0].dest: defaults}
+                # We also assume that the kwargs are passed as foo=123
+                kwargs = {self._wrappers[0].dest: kwargs}
+            # Also include the values from **kwargs.
+            kwargs = dict_union(defaults, kwargs)
+
+        # The kwargs that are set in the dataclasses, rather than on the namespace.
+        kwarg_defaults_set_in_dataclasses = {}
+        for wrapper in self._wrappers:
+            if wrapper.dest in kwargs:
+                default_for_dataclass = kwargs[wrapper.dest]
+
+                if isinstance(default_for_dataclass, (str, Path)):
+                    default_for_dataclass = read_file(path=default_for_dataclass)
+                elif not isinstance(default_for_dataclass, dict) and not dataclasses.is_dataclass(
+                    default_for_dataclass
+                ):
+                    raise ValueError(
+                        f"Got a default for field {wrapper.dest} that isn't a dataclass, dict or "
+                        f"path: {default_for_dataclass}"
+                    )
+
+                # Set the .default attribute on the DataclassWrapper (which also updates the
+                # defaults of the fields and any nested dataclass fields).
+                wrapper.default = default_for_dataclass
+
+                # It's impossible for multiple wrappers in kwargs to have the same destination.
+                assert wrapper.dest not in kwarg_defaults_set_in_dataclasses
+                value_for_constructor_arguments = (
+                    default_for_dataclass
+                    if isinstance(default_for_dataclass, dict)
+                    else dataclasses.asdict(default_for_dataclass)
+                )
+                kwarg_defaults_set_in_dataclasses[wrapper.dest] = value_for_constructor_arguments
+                # Remove this from the **kwargs, so they don't get set on the namespace.
+                kwargs.pop(wrapper.dest)
+        # TODO: Stop using a defaultdict for the very important `self.constructor_arguments`!
+        self.constructor_arguments = dict_union(
+            self.constructor_arguments,
+            kwarg_defaults_set_in_dataclasses,
+            dict_factory=lambda: defaultdict(dict),
+        )
+        # For the rest of the values, use the default argparse behaviour (modifying the
+        # self._defaults dictionary).
+        super().set_defaults(**kwargs)
+
     def equivalent_argparse_code(self) -> str:
         """Returns the argparse code equivalent to that of `simple_parsing`.
 
@@ -472,8 +590,6 @@ class ArgumentParser(argparse.ArgumentParser):
 
         for option_string in self._help_action.option_strings:
             self._option_string_actions.pop(option_string)
-        # assert False, self._option_string_actions
-        # optionals_help_actions = [action for action in self._optionals._actions]
 
     def _postprocessing(self, parsed_args: Namespace) -> Namespace:
         """Process the namespace by extract the fields and creating the objects.
@@ -600,15 +716,23 @@ class ArgumentParser(argparse.ArgumentParser):
                     )
 
                     setattr(parsed_args, destination, instance)
+                # There is a collision: namespace already has an entry at this destination.
                 elif not self.subgroups:
                     existing = getattr(parsed_args, destination)
-                    raise RuntimeError(
-                        f"Namespace should not already have a '{destination}' "
-                        f"attribute!\n"
-                        f"The value would be overwritten:\n"
-                        f"- existing value: {existing}\n"
-                        f"- new value:      {instance}"
-                    )
+                    if wrapper.dest in self._defaults:
+                        logger.debug(
+                            f"Overwriting defaults in the namespace at destination '{destination}' "
+                            f"on the Namespace ({existing}) to a value of {instance}"
+                        )
+                        setattr(parsed_args, destination, instance)
+                    else:
+                        raise RuntimeError(
+                            f"Namespace should not already have a '{destination}' "
+                            f"attribute!\n"
+                            f"The value would be overwritten:\n"
+                            f"- existing value: {existing}\n"
+                            f"- new value:      {instance}"
+                        )
                 elif not any(wrapper.dest in subgroup_dest for subgroup_dest in self.subgroups):
                     # the current dataclass wrapper doesn't have anything to do with the subgroups.
                     existing = getattr(parsed_args, destination)
@@ -620,14 +744,6 @@ class ArgumentParser(argparse.ArgumentParser):
                             f"Ignoring new parsed value of {instance} for {destination}. \n"
                             f"Keeping the value that is already in the args: {existing}"
                         )
-                        # raise RuntimeError(
-                        #     "Why is there already an attribute, if this doesn't have anything to do with subgroups?\n"
-                        #     f"Namespace should not already have a '{destination}' "
-                        #     f"attribute!\n"
-                        #     f"The value would be overwritten:\n"
-                        #     f"- existing value: {existing}\n"
-                        #     f"- new value:      {instance}"
-                        # )
                 else:
                     # The dataclass wrapper isn't directly for the subgroup: It's for a parent of
                     # the subgroup choice.
@@ -759,3 +875,30 @@ class ArgumentParser(argparse.ArgumentParser):
             logger.debug(f"deleted values: {deleted_values}")
             logger.debug(f"leftover args: {leftover_args}")
         return leftover_args
+
+
+T = TypeVar("T")
+
+
+def parse(
+    config_class: type[Dataclass],
+    config_path: Path | str | None = None,
+    args: str | Sequence[str] | None = None,
+) -> Dataclass:
+    """Parse the given dataclass from the command-line.
+
+    If `config_path` is passed, loads the values from that file and uses them as defaults.
+    """
+
+    if isinstance(args, str):
+        args = shlex.split(args)
+    parser = ArgumentParser(
+        nested_mode=NestedMode.WITHOUT_ROOT,
+        add_help=True,
+        add_config_path_arg=True,
+        config_path=config_path,
+    )
+    parser.add_arguments(config_class, dest="config")
+    parsed_args = parser.parse_args(args)
+    config: Dataclass = parsed_args.config
+    return config

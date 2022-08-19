@@ -21,6 +21,7 @@ from .parsing import (
     DashVariant,
     NestedMode,
     ParsingError,
+    parse,
 )
 from .utils import InconsistentArgumentError
 
