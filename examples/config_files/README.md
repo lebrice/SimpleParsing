@@ -27,6 +27,6 @@ When using a single config dataclass, the `simple_parsing.parse` function can th
 
 Config files can also be used when defining multiple config dataclasses with the same parser.
 
-## [Composition](composition.py)
+## [Composition (WIP)](composition.py)
 
-Multiple config files can be composed together à-la Hydra!
+(Coming soon): Multiple config files can be composed together à-la Hydra!
