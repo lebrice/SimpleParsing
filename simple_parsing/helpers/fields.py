@@ -32,10 +32,14 @@ K = TypeVar("K")
 V = TypeVar("V")
 T = TypeVar("T")
 
+@dataclasses.dataclass
+class Alias:
+    name: str
+    suppress_prefix: bool = False
 
 def field(
     default: Union[T, _MISSING_TYPE] = MISSING,
-    alias: Optional[Union[str, List[str]]] = None,
+    alias: Optional[Union[str, Alias, List[str], List[Alias]]] = None,
     cmd: bool = True,
     positional: bool = False,
     *,
@@ -64,11 +68,13 @@ def field(
     ----------
     default : Union[T, _MISSING_TYPE], optional
         The default field value (same as in `dataclasses.field`), by default MISSING
-    alias : Union[str, List[str]], optional
+    alias : Union[str, Alias, List[str], List[Alias]], optional
         Additional option_strings to pass to the `add_argument` method, by
-        default None. When passing strings which do not start by "-" or "--",
+        default None. When passing aliases which do not start by "-" or "--",
         will be prefixed with "-" if the string is one character and by "--"
-        otherwise.
+        otherwise. Using the Alias class allows to suppress the prefix defined
+        for the dataclass to make the corresponding command line switch extra short
+        (e.g. "-l" instead of "--experiment_label").
     cmd: bool, optional
         Whether to add command-line arguments for this field or not. Defaults to
         True.

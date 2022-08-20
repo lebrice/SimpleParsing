@@ -13,6 +13,7 @@ from .. import docstring, utils
 from .field_metavar import get_metavar
 from .field_parsing import get_parsing_fn
 from .wrapper import Wrapper
+from ..helpers import Alias
 
 if typing.TYPE_CHECKING:
     from simple_parsing import ArgumentParser
@@ -603,16 +604,23 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
         # add all the aliases that were passed to the `field` function.
         for alias in self.aliases:
-            if alias.startswith("--"):
+            if isinstance(alias, Alias):
+                name = alias.name
+            else:
+                name = alias
+            if name.startswith("--"):
                 dash = "--"
-                name = alias[2:]
-            elif alias.startswith("-"):
+                name = name[2:]
+            elif name.startswith("-"):
                 dash = "-"
-                name = alias[1:]
+                name = name[1:]
             else:
                 dash = "-" if len(alias) == 1 else "--"
                 name = alias
-            option = f"{self.prefix}{name}"
+            if isinstance(alias, Alias) and alias.suppress_prefix:
+                option = name
+            else:
+                option = f"{self.prefix}{name}"
 
             dashes.append(dash)
             options.append(option)

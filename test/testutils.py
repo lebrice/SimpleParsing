@@ -79,6 +79,12 @@ def raises_unrecognized_args(*args: str):
         yield
 
 
+@contextmanager
+def raises_ambiguous_option(*args: str):
+    with exits_and_writes_to_stderr("ambiguous option: " + " ".join(args or [])):
+        yield
+
+
 def assert_help_output_equals(actual: str, expected: str) -> None:
     # Replace the start with `prog`, since the test runner might not always be
     # `pytest`, could also be __main__ when debugging with VSCode
@@ -131,6 +137,7 @@ class TestSetup:
         arguments: Optional[str] = "",
         dest: Optional[str] = None,
         default: Optional[Dataclass] = None,
+        prefix: Optional[str] = "",
         conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
         add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
         parse_known_args: bool = False,
@@ -157,7 +164,7 @@ class TestSetup:
         if dest is None:
             dest = camel_case(cls.__name__)
 
-        parser.add_arguments(cls, dest=dest, default=default)
+        parser.add_arguments(cls, dest=dest, default=default, prefix=prefix)
 
         if arguments is None:
             if parse_known_args:

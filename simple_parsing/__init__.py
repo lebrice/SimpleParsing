@@ -5,6 +5,7 @@ from . import helpers, utils, wrappers
 from .conflicts import ConflictResolution
 from .help_formatter import SimpleHelpFormatter
 from .helpers import (
+    Alias,
     MutableField,
     Serializable,
     choice,
@@ -45,6 +46,7 @@ __all__ = [
     "ParsingError",
     "ArgumentGenerationMode",
     "NestedMode",
+    "Alias",
     "InconsistentArgumentError",
 ]
 
