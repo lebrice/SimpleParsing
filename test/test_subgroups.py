@@ -276,3 +276,44 @@ def test_subgroups_dict_in_args():
 
     args = parser.parse_args(shlex.split("--a.person alice --b.person daniel --b.person.age 54"))
     assert args.subgroups == {"config.a.person": "alice", "config.b.person": "daniel"}
+
+
+def test_nested_subgroups():
+    @dataclass
+    class FooConfig:
+        ...
+
+    @dataclass
+    class FooAConfig(FooConfig):
+        foo_param_a: float = 0.0
+
+    @dataclass
+    class FooBConfig(FooConfig):
+        foo_param_b: str = "foo_b"
+
+    @dataclass
+    class BarConfig:
+        ...
+
+    @dataclass
+    class Bar1Config(BarConfig):
+        bar_config_1: FooConfig = subgroups(
+            {"foo_a": FooAConfig, "foo_b": FooBConfig},
+            default=FooAConfig(),
+        )
+
+    @dataclass
+    class Bar2Config(BarConfig):
+        bar_config_2: FooConfig = subgroups(
+            {"foo_a": FooAConfig, "foo_b": FooBConfig},
+            default=FooBConfig(),
+        )
+
+    @dataclass
+    class Config(TestSetup):
+        bar_config: BarConfig = subgroups(
+            {"bar_1": Bar1Config, "bar_2": Bar2Config},
+            default=Bar2Config(),
+        )
+
+    assert Config.setup("") == Config(bar_config=Bar2Config(bar_config_2=FooBConfig()))
