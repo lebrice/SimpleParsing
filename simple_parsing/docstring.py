@@ -41,6 +41,8 @@ def get_attribute_docstring(
 
     mro = inspect.getmro(dataclass)
     assert mro[0] is dataclass
+    assert mro[-1] is object
+    mro = mro[:-1]
     for base_class in mro:
         attribute_docstring = _get_attribute_docstring(base_class, field_name)
         if not attribute_docstring:
@@ -62,23 +64,26 @@ def get_attribute_docstring(
                 created_docstring.docstring_below or attribute_docstring.docstring_below
             )
     if not created_docstring:
-        raise RuntimeError(
-            f"Couldn't find the definition for field '{field_name}' within the dataclass "
-            f"{dataclass} or any of its base classes {','.join(map(str, mro[1:]))}."
+        logger.warning(
+            RuntimeWarning(
+                f"Couldn't find the definition for field '{field_name}' within the dataclass "
+                f"{dataclass} or any of its base classes {','.join(map(str, mro[1:]))}."
+            )
         )
+        return AttributeDocString()
     return created_docstring
 
 
-def _get_attribute_docstring(some_dataclass: type, field_name: str) -> AttributeDocString | None:
+def _get_attribute_docstring(dataclass: type, field_name: str) -> AttributeDocString | None:
     """Gets the AttributeDocString of the given field in the given dataclass.
     Doesn't inspect base classes.
     """
     try:
-        source = inspect.getsource(some_dataclass)
+        source = inspect.getsource(dataclass)
     except (TypeError, OSError) as e:
         logger.debug(
             UserWarning(
-                f"Couldn't retrieve the source code of class {some_dataclass} "
+                f"Couldn't retrieve the source code of class {dataclass} "
                 f"(in order to retrieve the docstring of field {field_name}): {e}"
             )
         )
@@ -86,11 +91,12 @@ def _get_attribute_docstring(some_dataclass: type, field_name: str) -> Attribute
     # NOTE: We want to skip the docstring lines.
     # NOTE: Currently, we just remove the __doc__ from the source. It's perhaps a bit crude,
     # but it works.
-    if some_dataclass.__doc__ and some_dataclass.__doc__ in source:
-        source = source.replace(some_dataclass.__doc__, "", 1)
+    if dataclass.__doc__ and dataclass.__doc__ in source:
+        source = source.replace(dataclass.__doc__, "\n", 1)
+        # note: does this remove the whitespace though?
 
     code_lines: list[str] = source.splitlines()
-    # the first line is the class definition, we skip it.
+    # the first line is the class definition (OR the decorator!), we skip it.
     start_line_index = 1
     # starting at the second line, there might be the docstring for the class.
     # We want to skip over that until we reach an attribute definition.
@@ -98,21 +104,17 @@ def _get_attribute_docstring(some_dataclass: type, field_name: str) -> Attribute
         if _contains_field_definition(code_lines[start_line_index]):
             break
         start_line_index += 1
-    # body_lines = code_lines[start_line_index:]
 
-    lines_with_attribute_defs = [
+    lines_with_field_defs = [
         (index, line) for index, line in enumerate(code_lines) if _contains_field_definition(line)
     ]
-
-    for i, line in lines_with_attribute_defs:
-        parts: list[str] = line.split(":", maxsplit=1)
-        if parts[0].strip() == field_name:
+    for i, line in lines_with_field_defs:
+        if _line_contains_definition_for(line, field_name):
             # we found the line with the definition of this field.
             comment_above = _get_comment_ending_at_line(code_lines, i - 1)
             comment_inline = _get_inline_comment_at_line(code_lines, i)
             docstring_below = _get_docstring_starting_at_line(code_lines, i + 1)
-            complete_docstring = AttributeDocString(comment_above, comment_inline, docstring_below)
-            return complete_docstring
+            return AttributeDocString(comment_above, comment_inline, docstring_below)
     return None
 
 
@@ -169,10 +171,11 @@ def _contains_field_definition(line: str) -> bool:
 
 
 def _line_contains_definition_for(line: str, field_name: str) -> bool:
+    line = line.strip()
     if not _contains_field_definition(line):
         return False
-    line = line.strip()
     attribute, _, type_and_value_assignment = line.partition(":")
+    attribute = attribute.strip()  # remove any whitespace after the attribute name.
     return attribute.isidentifier() and attribute == field_name
 
 

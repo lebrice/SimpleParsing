@@ -84,14 +84,14 @@ def test_docstring_parsing_works_on_extended():
 
 def test_docstring_works_with_field_function():
     @dataclass
-    class Foo(TestSetup):
+    class UniqueFoo(TestSetup):
         """Some class Foo"""
 
         # A sequence of tasks.
         task_sequence: List[str] = field(choices=["train", "test", "ood"])  # side
         """Below"""
 
-    docstring = get_attribute_docstring(Foo, "task_sequence")
+    docstring = get_attribute_docstring(UniqueFoo, "task_sequence")
     assert docstring.comment_above == "A sequence of tasks."
     assert docstring.comment_inline == "side"
     assert docstring.docstring_below == "Below"
@@ -99,7 +99,7 @@ def test_docstring_works_with_field_function():
 
 def test_docstrings_with_multiple_inheritance():
     @dataclass
-    class Foo:
+    class Fooz:
         bar: int = 123  #: The bar property
 
     @dataclass
@@ -107,7 +107,7 @@ def test_docstrings_with_multiple_inheritance():
         bat: int = 123  #: The bat property
 
     @dataclass
-    class FooBaz(Foo, Baz):
+    class FooBaz(Fooz, Baz):
         foobaz: int = 123  #: The foobaz property
 
     assert get_attribute_docstring(FooBaz, "bar") == AttributeDocString(
@@ -123,7 +123,7 @@ def test_docstrings_with_multiple_inheritance():
 
 def test_weird_docstring_with_field_like():
     @dataclass
-    class Foo:
+    class FooA:
         """
         @dataclass
         class weird:
@@ -132,14 +132,14 @@ def test_weird_docstring_with_field_like():
 
         bar: int = 123  # The bar property
 
-    assert get_attribute_docstring(Foo, "bar") == AttributeDocString(
+    assert get_attribute_docstring(FooA, "bar") == AttributeDocString(
         comment_inline="The bar property"
     )
 
 
 def test_docstring_builds_upon_bases():
     @dataclass
-    class Base:
+    class Base2(TestSetup):
         """
         # WRONG ABOVE
         bar: int = 333 # WRONG INLINE
@@ -147,15 +147,30 @@ def test_docstring_builds_upon_bases():
         """
 
         bar: int = 123  # inline
-        """docstring"""
+        """field docstring from base class"""
 
     @dataclass
-    class Foo(Base):
+    class FooB(Base2):
         # Above
         bar: int = 123  # The bar property
 
-    assert get_attribute_docstring(Foo, "bar") == AttributeDocString(
+    assert get_attribute_docstring(FooB, "bar") == AttributeDocString(
         comment_inline="The bar property",
         comment_above="Above",
-        docstring_below="docstring",
+        docstring_below="field docstring from base class",
     )
+
+    assert "field docstring from base class" in FooB.get_help_text()
+
+
+def test_getdocstring_bug():
+    @dataclass
+    class HParams:
+        batch_size: int = 32
+
+    @dataclass
+    class Parent(TestSetup):
+        batch_size: int = 48
+        child: HParams = HParams()
+
+    assert get_attribute_docstring(Parent, "child") == AttributeDocString()
