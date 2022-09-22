@@ -1,10 +1,11 @@
 """Utility for retrieveing the docstring of a dataclass's attributes
 @author: Fabrice Normandin
 """
+from __future__ import annotations
+
 import inspect
 from dataclasses import dataclass
 from logging import getLogger
-from typing import List, Optional, Type
 
 logger = getLogger(__name__)
 
@@ -18,7 +19,7 @@ class AttributeDocString:
     docstring_below: str = ""
 
 
-def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeDocString:
+def get_attribute_docstring(some_dataclass: type, field_name: str) -> AttributeDocString:
     """Returns the docstrings of a dataclass field.
     NOTE: a docstring can either be:
     - An inline comment, starting with <#>
@@ -38,7 +39,7 @@ def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeD
         logger.debug(f"Couldn't find the attribute docstring: {e}")
         return AttributeDocString()
 
-    code_lines: List[str] = source.splitlines()
+    code_lines: list[str] = source.splitlines()
     # the first line is the class definition, we skip it.
     start_line_index = 1
     # starting at the second line, there might be the docstring for the class.
@@ -54,7 +55,7 @@ def get_attribute_docstring(some_dataclass: Type, field_name: str) -> AttributeD
         if _contains_attribute_definition(line)
     ]
     for i, line in lines_with_attribute_defs:
-        parts: List[str] = line.split(":", maxsplit=1)
+        parts: list[str] = line.split(":", maxsplit=1)
         if parts[0].strip() == field_name:
             # we found the line with the definition of this field.
             comment_above = _get_comment_ending_at_line(code_lines, i - 1)
@@ -107,7 +108,7 @@ def _is_comment(line_str: str) -> bool:
     return line_str.strip().startswith("#")
 
 
-def _get_comment_at_line(code_lines: List[str], line: int) -> str:
+def _get_comment_at_line(code_lines: list[str], line: int) -> str:
     """Gets the comment at line `line` in `code_lines`.
 
     Arguments:
@@ -125,7 +126,7 @@ def _get_comment_at_line(code_lines: List[str], line: int) -> str:
     return comment
 
 
-def _get_inline_comment_at_line(code_lines: List[str], line: int) -> str:
+def _get_inline_comment_at_line(code_lines: list[str], line: int) -> str:
     """Gets the inline comment at line `line`.
 
     Arguments:
@@ -144,7 +145,7 @@ def _get_inline_comment_at_line(code_lines: List[str], line: int) -> str:
     return comment
 
 
-def _get_comment_ending_at_line(code_lines: List[str], line: int) -> str:
+def _get_comment_ending_at_line(code_lines: list[str], line: int) -> str:
     start_line = line
     end_line = line
     # print(f"Get comment ending at line {line}")
@@ -173,9 +174,9 @@ def _get_comment_ending_at_line(code_lines: List[str], line: int) -> str:
     return "\n".join(lines)
 
 
-def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
+def _get_docstring_starting_at_line(code_lines: list[str], line: int) -> str:
     i = line
-    token: Optional[str] = None
+    token: str | None = None
     triple_single = "'''"
     triple_double = '"""'
     # print("finding docstring starting from line", line)
@@ -185,7 +186,7 @@ def _get_docstring_starting_at_line(code_lines: List[str], line: int) -> str:
     if line >= len(code_lines):
         return ""
     # the list of lines making up the docstring.
-    docstring_contents: List[str] = []
+    docstring_contents: list[str] = []
 
     while i <= len(code_lines):
         line_str = code_lines[i]
