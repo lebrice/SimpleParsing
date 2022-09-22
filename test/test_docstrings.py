@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import List
 
 from simple_parsing import field
-from simple_parsing.docstring import get_attribute_docstring
+from simple_parsing.docstring import AttributeDocString, get_attribute_docstring
 
 from .testutils import TestSetup
 
@@ -95,3 +95,27 @@ def test_docstring_works_with_field_function():
     assert docstring.comment_above == "A sequence of tasks."
     assert docstring.comment_inline == "side"
     assert docstring.docstring_below == "Below"
+
+
+def test_docstrings_with_multiple_inheritance():
+    @dataclass
+    class Foo:
+        bar: int = 123  #: The bar property
+
+    @dataclass
+    class Baz:
+        bat: int = 123  #: The bat property
+
+    @dataclass
+    class FooBaz(Foo, Baz):
+        foobaz: int = 123  #: The foobaz property
+
+    assert get_attribute_docstring(FooBaz, "foobaz") == AttributeDocString(
+        comment_inline=": The foobaz property"
+    )
+    assert get_attribute_docstring(FooBaz, "bar") == AttributeDocString(
+        comment_inline=": The bar property"
+    )
+    assert get_attribute_docstring(FooBaz, "bat") == AttributeDocString(
+        comment_inline=": The bat property"
+    )
