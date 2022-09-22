@@ -98,6 +98,8 @@ def test_docstring_works_with_field_function():
 
 
 def test_docstrings_with_multiple_inheritance():
+    """Test to reproduce issue 162: https://github.com/lebrice/SimpleParsing/issues/162"""
+
     @dataclass
     class Fooz:
         bar: int = 123  #: The bar property
