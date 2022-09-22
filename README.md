@@ -9,12 +9,9 @@ Using [dataclasses](https://docs.python.org/3.7/library/dataclasses.html), `simp
 Supports inheritance, **nesting**, easy serialization to json/yaml, automatic help strings from comments, and much more!
 
 ```python
-# examples/demo.py
+# examples/demo_simple.py
 from dataclasses import dataclass
-from simple_parsing import ArgumentParser
-
-parser = ArgumentParser()
-parser.add_argument("--foo", type=int, default=123, help="foo help")
+import simple_parsing
 
 @dataclass
 class Options:
@@ -22,33 +19,52 @@ class Options:
     log_dir: str                # Help string for a required str argument
     learning_rate: float = 1e-4 # Help string for a float argument
 
-parser.add_arguments(Options, dest="options")
-
-args = parser.parse_args()
-print("foo:", args.foo)
-print("options:", args.options)
+options: Options = simple_parsing.parse(Options)
+print(f"options: {options}")
 ```
 ```console
-$ python examples/demo.py --log_dir logs --foo 123
-foo: 123
+$ python examples/demo_simple.py --log_dir logs
 options: Options(log_dir='logs', learning_rate=0.0001)
 ```
 ```console
-$ python examples/demo.py --help
-usage: demo.py [-h] [--foo int] --log_dir str [--learning_rate float]
+$ python examples/demo_simple.py --help
+usage: demo_simple.py [-h] [--config_path Path] --log_dir str [--learning_rate float]
 
 optional arguments:
   -h, --help            show this help message and exit
-  --foo int             foo help (default: 123)
+  --config_path Path    Path to a config file containing default values to use. (default: None)
 
-Options ['options']:
-   Help string for this group of command-line arguments
+Options ['config']:
+  Help string for this group of command-line arguments
 
-  --log_dir str         Help string for a required str argument (default:
-                        None)
+  --log_dir str         Help string for a required str argument (default: None)
   --learning_rate float
                         Help string for a float argument (default: 0.0001)
 ```
+
+
+Simple-Parsing is an extension of python's Argparse library, so you can mix and match the two.
+Simple-Parsing helps you transitition from old argparse-style code to new, beautiful, typed-out code:
+simply convert blocks of argparse code into dataclasses, and let Simple-Parsing do the rest!
+
+```python
+# examples/demo.py
+from dataclasses import dataclass
+from simple_parsing import ArgumentParser
+
+parser = ArgumentParser()
+# Adding a regular argparse-style argument
+parser.add_argument("--foo", type=int, default=123, help="foo help")
+# Adding a group of arguments (a dataclass) using Simple-Parsing!
+parser.add_arguments(Options, dest="options")
+
+# Parsing args as usual with argparse:
+args = parser.parse_args()
+
+foo: int = args.foo
+options: Options = args.options
+```
+
 
 
 ## installation
