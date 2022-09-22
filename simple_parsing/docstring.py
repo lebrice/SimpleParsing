@@ -64,7 +64,7 @@ def get_attribute_docstring(
                 created_docstring.docstring_below or attribute_docstring.docstring_below
             )
     if not created_docstring:
-        logger.warning(
+        logger.debug(
             RuntimeWarning(
                 f"Couldn't find the definition for field '{field_name}' within the dataclass "
                 f"{dataclass} or any of its base classes {','.join(map(str, mro[1:]))}."
