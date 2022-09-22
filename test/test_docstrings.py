@@ -119,3 +119,43 @@ def test_docstrings_with_multiple_inheritance():
     assert get_attribute_docstring(FooBaz, "foobaz") == AttributeDocString(
         comment_inline=": The foobaz property"
     )
+
+
+def test_weird_docstring_with_field_like():
+    @dataclass
+    class Foo:
+        """
+        @dataclass
+        class weird:
+            bar: int = 123  # WRONG DOCSTRING
+        """
+
+        bar: int = 123  # The bar property
+
+    assert get_attribute_docstring(Foo, "bar") == AttributeDocString(
+        comment_inline="The bar property"
+    )
+
+
+def test_docstring_builds_upon_bases():
+    @dataclass
+    class Base:
+        """
+        # WRONG ABOVE
+        bar: int = 333 # WRONG INLINE
+        '''WRONG DOCSTRING'''
+        """
+
+        bar: int = 123  # inline
+        """docstring"""
+
+    @dataclass
+    class Foo(Base):
+        # Above
+        bar: int = 123  # The bar property
+
+    assert get_attribute_docstring(Foo, "bar") == AttributeDocString(
+        comment_inline="The bar property",
+        comment_above="Above",
+        docstring_below="docstring",
+    )

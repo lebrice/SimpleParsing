@@ -19,7 +19,9 @@ class AttributeDocString:
     docstring_below: str = ""
 
 
-def get_attribute_docstring(some_dataclass: type, field_name: str) -> AttributeDocString:
+def get_attribute_docstring(
+    dataclass: type, field_name: str, accumulate_from_bases: bool = True
+) -> AttributeDocString:
     """Returns the docstrings of a dataclass field.
     NOTE: a docstring can either be:
     - An inline comment, starting with <#>
@@ -27,17 +29,65 @@ def get_attribute_docstring(some_dataclass: type, field_name: str) -> AttributeD
     - A docstring on the following line, starting with either <\"\"\"> or <'''>
 
     Arguments:
-        some_dataclass {type} -- a dataclass
-        field_name {str} -- the name of the field.
-
+        some_dataclass: a dataclass
+        field_name: the name of the field.
+        accumulate_from_bases: Whether to accumulate the docstring components by looking through the
+            base classes. When set to `False`, whenever one of the classes has a definition for the
+            field, it is directly returned. Otherwise, we accumulate the parts of the dodc
     Returns:
         AttributeDocString -- an object holding the three possible comments
+    """
+    created_docstring: AttributeDocString | None = None
+
+    mro = inspect.getmro(dataclass)
+    assert mro[0] is dataclass
+    for base_class in mro:
+        attribute_docstring = _get_attribute_docstring(base_class, field_name)
+        if not attribute_docstring:
+            continue
+        if not created_docstring:
+            created_docstring = attribute_docstring
+            if not accumulate_from_bases:
+                # We found a definition for that field in that class, so return it directly.
+                return created_docstring
+        else:
+            # Update the fields.
+            created_docstring.comment_above = (
+                created_docstring.comment_above or attribute_docstring.comment_above
+            )
+            created_docstring.comment_inline = (
+                created_docstring.comment_inline or attribute_docstring.comment_inline
+            )
+            created_docstring.docstring_below = (
+                created_docstring.docstring_below or attribute_docstring.docstring_below
+            )
+    if not created_docstring:
+        raise RuntimeError(
+            f"Couldn't find the definition for field '{field_name}' within the dataclass "
+            f"{dataclass} or any of its base classes {','.join(map(str, mro[1:]))}."
+        )
+    return created_docstring
+
+
+def _get_attribute_docstring(some_dataclass: type, field_name: str) -> AttributeDocString | None:
+    """Gets the AttributeDocString of the given field in the given dataclass.
+    Doesn't inspect base classes.
     """
     try:
         source = inspect.getsource(some_dataclass)
     except (TypeError, OSError) as e:
-        logger.debug(f"Couldn't find the attribute docstring: {e}")
-        return AttributeDocString()
+        logger.debug(
+            UserWarning(
+                f"Couldn't retrieve the source code of class {some_dataclass} "
+                f"(in order to retrieve the docstring of field {field_name}): {e}"
+            )
+        )
+        return None
+    # NOTE: We want to skip the docstring lines.
+    # NOTE: Currently, we just remove the __doc__ from the source. It's perhaps a bit crude,
+    # but it works.
+    if some_dataclass.__doc__ and some_dataclass.__doc__ in source:
+        source = source.replace(some_dataclass.__doc__, "", 1)
 
     code_lines: list[str] = source.splitlines()
     # the first line is the class definition, we skip it.
@@ -63,36 +113,7 @@ def get_attribute_docstring(some_dataclass: type, field_name: str) -> AttributeD
             docstring_below = _get_docstring_starting_at_line(code_lines, i + 1)
             complete_docstring = AttributeDocString(comment_above, comment_inline, docstring_below)
             return complete_docstring
-
-    # we didn't find the attribute.
-    mro = inspect.getmro(some_dataclass)
-    if len(mro) == 1:
-        raise RuntimeWarning(
-            f"Couldn't find the given attribute name {field_name}' within the " "given class."
-        )
-    # TODO: Accumulate the parts for each subclass.
-    created_docstring = AttributeDocString()
-    assert mro[0] is some_dataclass
-    for base_class in mro[1:]:
-        try:
-            attribute_docstring = get_attribute_docstring(base_class, field_name)
-        except OSError as e:
-            logger.warning(
-                UserWarning(
-                    f"Couldn't find the docstring for field {field_name} in class {base_class}: {e}"
-                )
-            )
-        else:
-            created_docstring.comment_above = (
-                created_docstring.comment_above or attribute_docstring.comment_above
-            )
-            created_docstring.comment_inline = (
-                created_docstring.comment_inline or attribute_docstring.comment_inline
-            )
-            created_docstring.docstring_below = (
-                created_docstring.docstring_below or attribute_docstring.docstring_below
-            )
-    return created_docstring
+    return None
 
 
 def _contains_field_definition(line: str) -> bool:
@@ -203,10 +224,6 @@ def _get_inline_comment_at_line(code_lines: list[str], line: int) -> str:
 def _get_comment_ending_at_line(code_lines: list[str], line: int) -> str:
     start_line = line
     end_line = line
-    # print(f"Get comment ending at line {line}")
-    # for i, l in enumerate(code_lines):
-    #     print(f"line {i}: {l}")
-
     # move up the code, one line at a time, while we don't hit the start,
     # an attribute definition, or the end of a docstring.
     while start_line > 0:
@@ -226,7 +243,7 @@ def _get_comment_ending_at_line(code_lines: list[str], line: int) -> str:
         assert not _contains_field_definition(code_lines[i])
         comment = _get_comment_at_line(code_lines, i)
         lines.append(comment)
-    return "\n".join(lines)
+    return "\n".join(lines).strip()
 
 
 def _get_docstring_starting_at_line(code_lines: list[str], line: int) -> str:
