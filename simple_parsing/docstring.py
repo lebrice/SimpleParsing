@@ -45,15 +45,15 @@ def get_attribute_docstring(some_dataclass: type, field_name: str) -> AttributeD
     # starting at the second line, there might be the docstring for the class.
     # We want to skip over that until we reach an attribute definition.
     while start_line_index < len(code_lines):
-        if _contains_attribute_definition(code_lines[start_line_index]):
+        if _contains_field_definition(code_lines[start_line_index]):
             break
         start_line_index += 1
+    # body_lines = code_lines[start_line_index:]
 
     lines_with_attribute_defs = [
-        (index, line)
-        for index, line in enumerate(code_lines)
-        if _contains_attribute_definition(line)
+        (index, line) for index, line in enumerate(code_lines) if _contains_field_definition(line)
     ]
+
     for i, line in lines_with_attribute_defs:
         parts: list[str] = line.split(":", maxsplit=1)
         if parts[0].strip() == field_name:
@@ -70,15 +70,32 @@ def get_attribute_docstring(some_dataclass: type, field_name: str) -> AttributeD
         raise RuntimeWarning(
             f"Couldn't find the given attribute name {field_name}' within the " "given class."
         )
-    base_class = mro[1]
-    try:
-        return get_attribute_docstring(base_class, field_name)
-    except OSError as e:
-        logger.warning(UserWarning(f"Couldn't find the docstring: {e}"))
-        return AttributeDocString()
+    # TODO: Accumulate the parts for each subclass.
+    created_docstring = AttributeDocString()
+    assert mro[0] is some_dataclass
+    for base_class in mro[1:]:
+        try:
+            attribute_docstring = get_attribute_docstring(base_class, field_name)
+        except OSError as e:
+            logger.warning(
+                UserWarning(
+                    f"Couldn't find the docstring for field {field_name} in class {base_class}: {e}"
+                )
+            )
+        else:
+            created_docstring.comment_above = (
+                created_docstring.comment_above or attribute_docstring.comment_above
+            )
+            created_docstring.comment_inline = (
+                created_docstring.comment_inline or attribute_docstring.comment_inline
+            )
+            created_docstring.docstring_below = (
+                created_docstring.docstring_below or attribute_docstring.docstring_below
+            )
+    return created_docstring
 
 
-def _contains_attribute_definition(line_str: str) -> bool:
+def _contains_field_definition(line: str) -> bool:
     """Returns whether or not a line contains a an dataclass field definition.
 
     Arguments:
@@ -86,18 +103,56 @@ def _contains_attribute_definition(line_str: str) -> bool:
 
     Returns:
         bool -- True if there is an attribute definition in the line.
-    """
-    parts = line_str.split("#", maxsplit=1)
-    before_comment = parts[0].strip()
 
-    before_first_equal = before_comment.split("=", maxsplit=1)[0]
-    parts = before_first_equal.split(":")
-    if len(parts) != 2:
-        # For now, I don't think it's possible to have a type annotation contain :
+    >>> _contains_field_definition("a: int = 0")
+    True
+    >>> _contains_field_definition("a: int")
+    True
+    >>> _contains_field_definition("a: int # comment")
+    True
+    >>> _contains_field_definition("a: int = 0 # comment")
+    True
+    >>> _contains_field_definition("class FooBaz(Foo, Baz):")
+    False
+    >>> _contains_field_definition("a = 4")
+    False
+    >>> _contains_field_definition("fooooooooobar.append(123)")
+    False
+    >>> _contains_field_definition("{a: int}")
+    False
+    >>> _contains_field_definition("        foobaz: int = 123  #: The foobaz property")
+    True
+    >>> _contains_field_definition("a #:= 3")
+    False
+    """
+    # Get rid of any comments first.
+    line, _, _ = line.partition("#")
+
+    if ":" not in line:
         return False
-    attr_name = parts[0]
-    attr_type = parts[1]
-    return not attr_name.isspace() and not attr_type.isspace()
+
+    if "=" in line:
+        attribute_and_type, _, _ = line.partition("=")
+    else:
+        attribute_and_type = line
+
+    field_name, _, type = attribute_and_type.partition(":")
+    field_name = field_name.strip()
+    if ":" in type:
+        # weird annotation or dictionary?
+        return False
+    if not field_name:
+        # Empty attribute name?
+        return False
+    return field_name.isidentifier()
+
+
+def _line_contains_definition_for(line: str, field_name: str) -> bool:
+    if not _contains_field_definition(line):
+        return False
+    line = line.strip()
+    attribute, _, type_and_value_assignment = line.partition(":")
+    return attribute.isidentifier() and attribute == field_name
 
 
 def _is_empty(line_str: str) -> bool:
@@ -118,7 +173,7 @@ def _get_comment_at_line(code_lines: list[str], line: int) -> str:
         str -- the comment at the given line. empty string if not present.
     """
     line_str = code_lines[line]
-    assert not _contains_attribute_definition(line_str)
+    assert not _contains_field_definition(line_str)
     if "#" not in line_str:
         return ""
     parts = line_str.split("#", maxsplit=1)
@@ -136,7 +191,7 @@ def _get_inline_comment_at_line(code_lines: list[str], line: int) -> str:
         str -- the inline comment at the given line, else an empty string.
     """
     assert 0 <= line < len(code_lines)
-    assert _contains_attribute_definition(code_lines[line])
+    assert _contains_field_definition(code_lines[line])
     line_str = code_lines[line]
     parts = line_str.split("#", maxsplit=1)
     if len(parts) != 2:
@@ -156,7 +211,7 @@ def _get_comment_ending_at_line(code_lines: list[str], line: int) -> str:
     # an attribute definition, or the end of a docstring.
     while start_line > 0:
         line_str = code_lines[start_line]
-        if _contains_attribute_definition(line_str):
+        if _contains_field_definition(line_str):
             break  # previous line is an assignment
         if '"""' in line_str or "'''" in line_str:
             break  # previous line has a docstring
@@ -168,7 +223,7 @@ def _get_comment_ending_at_line(code_lines: list[str], line: int) -> str:
         # print(f"line {i}: {code_lines[i]}")
         if _is_empty(code_lines[i]):
             continue
-        assert not _contains_attribute_definition(code_lines[i])
+        assert not _contains_field_definition(code_lines[i])
         comment = _get_comment_at_line(code_lines, i)
         lines.append(comment)
     return "\n".join(lines)
@@ -188,7 +243,7 @@ def _get_docstring_starting_at_line(code_lines: list[str], line: int) -> str:
     # the list of lines making up the docstring.
     docstring_contents: list[str] = []
 
-    while i <= len(code_lines):
+    while i < len(code_lines):
         line_str = code_lines[i]
         # print(f"(docstring) line {line}: {line_str}")
 
@@ -198,7 +253,7 @@ def _get_docstring_starting_at_line(code_lines: list[str], line: int) -> str:
                 i += 1
                 continue
 
-            elif _contains_attribute_definition(line_str) or _is_comment(line_str):
+            elif _contains_field_definition(line_str) or _is_comment(line_str):
                 # we haven't reached the start of a docstring yet (since token
                 # is None), and we reached a line with an attribute definition,
                 # or a comment, hence the docstring is empty.

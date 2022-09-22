@@ -110,12 +110,12 @@ def test_docstrings_with_multiple_inheritance():
     class FooBaz(Foo, Baz):
         foobaz: int = 123  #: The foobaz property
 
-    assert get_attribute_docstring(FooBaz, "foobaz") == AttributeDocString(
-        comment_inline=": The foobaz property"
-    )
     assert get_attribute_docstring(FooBaz, "bar") == AttributeDocString(
         comment_inline=": The bar property"
     )
     assert get_attribute_docstring(FooBaz, "bat") == AttributeDocString(
         comment_inline=": The bat property"
+    )
+    assert get_attribute_docstring(FooBaz, "foobaz") == AttributeDocString(
+        comment_inline=": The foobaz property"
     )
