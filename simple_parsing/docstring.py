@@ -67,7 +67,7 @@ def get_attribute_docstring(
         logger.debug(
             RuntimeWarning(
                 f"Couldn't find the definition for field '{field_name}' within the dataclass "
-                f"{dataclass} or any of its base classes {','.join(map(str, mro[1:]))}."
+                f"{dataclass} or any of its base classes {','.join(t.__name__ for t in mro[1:])}."
             )
         )
         return AttributeDocString()
