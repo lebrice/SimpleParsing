@@ -43,6 +43,7 @@ __all__ = [
     "ArgumentParser",
     "DashVariant",
     "ParsingError",
+    "parse",
     "ArgumentGenerationMode",
     "NestedMode",
     "InconsistentArgumentError",
