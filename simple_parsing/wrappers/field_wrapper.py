@@ -839,6 +839,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     def help(self) -> Optional[str]:
         if self._help:
             return self._help
+        if self.field.metadata.get("help"):
+            return self.field.metadata.get("help")
         try:
             self._docstring = docstring.get_attribute_docstring(
                 self.parent.dataclass, self.field.name
