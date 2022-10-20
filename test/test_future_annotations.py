@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import dataclasses
 import typing
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
+import sys
 from typing import Any, Callable, Generic, TypeVar
 
 import pytest
@@ -27,6 +28,12 @@ class Foo(TestSetup):
 
     d: list[bool] = field(default_factory=list)
 
+    e: InitVar[int] = 5
+    d: int = field(init=False)
+
+    def __post_init__(self, e: int) -> None:
+        self.d = e + 2
+
 
 @dataclass
 class Bar(TestSetup):
@@ -42,6 +49,15 @@ def test_future_annotations():
 
     foo = Foo.setup("--a 2 --b heyo --c 1 7.89")
     assert foo == Foo(a=2, b="heyo", c=(1, 7.89))
+
+
+@pytest.mark.skipif(
+    sys.version_info[:2] < (3, 8),
+    reason="Before 3.8 `InitVar[tp] is InitVar` so it's impossible to retrieve field type",
+)
+def test_future_annotations_initvar():
+    foo = Foo.setup("--e 6")
+    assert foo.d == 8
 
 
 def test_future_annotations_nested():
