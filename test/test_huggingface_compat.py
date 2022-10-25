@@ -4,6 +4,7 @@ This checks that Simple-Parsing can be used as a replacement for the HFArgumentP
 """
 import io
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Optional
 
 from simple_parsing import ArgumentParser
@@ -218,3 +219,47 @@ def test_choices():
         Config.setup("--log_level invalid")
     for choice in ["debug", "info", "warning", "error", "critical"]:
         assert Config.setup(f"--log_level {choice}").log_level == choice
+
+
+class ExplicitEnum(str, Enum):
+    """
+    Enum with more explicit error message for missing values.
+    """
+
+    @classmethod
+    def _missing_(cls, value):
+        raise ValueError(
+            f"{value} is not a valid {cls.__name__}, please select one of {list(cls._value2member_map_.keys())}"
+        )
+
+
+class IntervalStrategy(ExplicitEnum):
+    NO = "no"
+    STEPS = "steps"
+    EPOCH = "epoch"
+
+
+from typing import Union  # noqa
+
+
+@dataclass
+class TrainingArguments(TestSetup):
+    evaluation_strategy: Union[IntervalStrategy, str] = field(
+        default="no",
+        metadata={"help": "The evaluation strategy to use."},
+    )
+
+
+def test_enums():
+    # with raises_invalid_choice():
+    # NOTE: Since it's a union of str and IntervalStrategy, it shouldn't raise an error if given
+    # an invalid value, right?
+    assert TrainingArguments.setup("--evaluation_strategy invalid").evaluation_strategy == "invalid"
+    for mode, enum_value in zip(
+        ["no", "steps", "epoch"],
+        [IntervalStrategy.NO, IntervalStrategy.STEPS, IntervalStrategy.EPOCH],
+    ):
+        assert (
+            TrainingArguments.setup(f"--evaluation_strategy {mode}").evaluation_strategy
+            == enum_value
+        )
