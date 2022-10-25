@@ -16,6 +16,7 @@ from .testutils import (
     raises_expected_n_args,
     raises_missing_required_arg,
     raises_unrecognized_args,
+    using_simple_api,
 )
 
 
@@ -182,27 +183,28 @@ def test_only_dashes():
         my_var: int
         a: AClass
 
-    assert_help_output_equals(
-        SomeClass.get_help_text(add_option_string_dash_variants=DashVariant.DASH),
-        textwrap.dedent(
-            """\
-            usage: pytest [-h] --my-var int --a-var int
+    if not using_simple_api():
+        assert_help_output_equals(
+            SomeClass.get_help_text(add_option_string_dash_variants=DashVariant.DASH),
+            textwrap.dedent(
+                """\
+                usage: pytest [-h] --my-var int --a-var int
 
-            optional arguments:
-              -h, --help    show this help message and exit
+                optional arguments:
+                -h, --help    show this help message and exit
 
-            test_only_dashes.<locals>.SomeClass ['some_class']:
-              lol
+                test_only_dashes.<locals>.SomeClass ['some_class']:
+                lol
 
-              --my-var int
+                --my-var int
 
-            test_only_dashes.<locals>.AClass ['some_class.a']:
-              foo
+                test_only_dashes.<locals>.AClass ['some_class.a']:
+                foo
 
-              --a-var int
-            """  # noqa: W293
-        ),
-    )
+                --a-var int
+                """  # noqa: W293
+            ),
+        )
     sc = SomeClass.setup("--my-var 2 --a-var 3", add_option_string_dash_variants=DashVariant.DASH)
     assert sc.my_var == 2
     assert sc.a.a_var == 3

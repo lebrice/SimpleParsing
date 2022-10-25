@@ -1,8 +1,9 @@
 import logging
+import os
 import sys
 from dataclasses import dataclass
 from logging import getLogger as get_logger
-from typing import Any, ClassVar, List, NamedTuple, Optional, Tuple, Type
+from typing import Any, ClassVar, List, Literal, NamedTuple, Optional, Tuple, Type
 
 import pytest
 
@@ -55,6 +56,13 @@ def simple_attribute(request):
     return SimpleAttributeTuple(
         field_type=some_type, passed_value=passed_value, expected_value=expected_value
     )
+
+
+@pytest.fixture(autouse=True, params=["simple", "verbose"])
+def simple_and_advanced_api(request, monkeypatch):
+    api: Literal["simple", "verbose"] = request.param
+    monkeypatch.setitem(os.environ, "SIMPLE_PARSING_API", api)
+    yield
 
 
 @pytest.fixture

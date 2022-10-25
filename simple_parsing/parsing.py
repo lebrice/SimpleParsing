@@ -100,9 +100,9 @@ class ArgumentParser(argparse.ArgumentParser):
         argument_generation_mode=ArgumentGenerationMode.FLAT,
         nested_mode: NestedMode = NestedMode.DEFAULT,
         formatter_class: type[HelpFormatter] = SimpleHelpFormatter,
-        add_dest_to_option_strings: bool | None = None,
         add_config_path_arg: bool | None = None,
         config_path: Path | str | Sequence[Path | str] | None = None,
+        add_dest_to_option_strings: bool | None = None,
         **kwargs,
     ):
         kwargs["formatter_class"] = formatter_class
@@ -884,8 +884,64 @@ def parse(
     config_class: type[Dataclass],
     config_path: Path | str | None = None,
     args: str | Sequence[str] | None = None,
+    default: Dataclass | None = None,
+    dest: str = "config",
+    *,
+    nested_mode: NestedMode = NestedMode.WITHOUT_ROOT,
+    conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
+    add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
+    argument_generation_mode=ArgumentGenerationMode.FLAT,
+    formatter_class: type[HelpFormatter] = SimpleHelpFormatter,
+    add_config_path_arg: bool | None = None,
 ) -> Dataclass:
     """Parse the given dataclass from the command-line.
+
+    See the `ArgumentParser` constructor for more details on the arguments (they are the same here
+    except for `nested_mode`, which has a different default value).
+
+    If `config_path` is passed, loads the values from that file and uses them as defaults.
+    """
+    parser = ArgumentParser(
+        nested_mode=nested_mode,
+        add_help=True,
+        # add_config_path_arg=None,
+        config_path=config_path,
+        conflict_resolution=conflict_resolution,
+        add_option_string_dash_variants=add_option_string_dash_variants,
+        argument_generation_mode=argument_generation_mode,
+        formatter_class=formatter_class,
+        add_config_path_arg=add_config_path_arg,
+    )
+
+    parser.add_arguments(config_class, dest=dest, default=default)
+
+    if isinstance(args, str):
+        args = shlex.split(args)
+    parsed_args = parser.parse_args(args)
+
+    config: Dataclass = getattr(parsed_args, dest)
+    return config
+
+
+def parse_known_args(
+    config_class: type[Dataclass],
+    config_path: Path | str | None = None,
+    args: str | Sequence[str] | None = None,
+    default: Dataclass | None = None,
+    dest: str = "config",
+    attempt_to_reorder: bool = False,
+    *,
+    nested_mode: NestedMode = NestedMode.WITHOUT_ROOT,
+    conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
+    add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
+    argument_generation_mode=ArgumentGenerationMode.FLAT,
+    formatter_class: type[HelpFormatter] = SimpleHelpFormatter,
+    add_config_path_arg: bool | None = None,
+) -> tuple[Dataclass, list[str]]:
+    """Parse the given dataclass from the command-line, returning the leftover arguments.
+
+    See the `ArgumentParser` constructor for more details on the arguments (they are the same here
+    except for `nested_mode`, which has a different default value).
 
     If `config_path` is passed, loads the values from that file and uses them as defaults.
     """
@@ -893,12 +949,17 @@ def parse(
     if isinstance(args, str):
         args = shlex.split(args)
     parser = ArgumentParser(
-        nested_mode=NestedMode.WITHOUT_ROOT,
+        nested_mode=nested_mode,
         add_help=True,
-        add_config_path_arg=True,
+        # add_config_path_arg=None,
         config_path=config_path,
+        conflict_resolution=conflict_resolution,
+        add_option_string_dash_variants=add_option_string_dash_variants,
+        argument_generation_mode=argument_generation_mode,
+        formatter_class=formatter_class,
+        add_config_path_arg=add_config_path_arg,
     )
-    parser.add_arguments(config_class, dest="config")
-    parsed_args = parser.parse_args(args)
-    config: Dataclass = parsed_args.config
-    return config
+    parser.add_arguments(config_class, dest=dest, default=default)
+    parsed_args, unknown_args = parser.parse_known_args(args, attempt_to_reorder=attempt_to_reorder)
+    config: Dataclass = getattr(parsed_args, dest)
+    return config, unknown_args

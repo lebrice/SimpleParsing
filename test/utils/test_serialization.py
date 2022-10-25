@@ -39,8 +39,12 @@ from simple_parsing.helpers.serialization.serializable import SerializableMixin
 #         children: Mapping[str, Optional[ChildWithFriends]] = mutable_field(OrderedDict)
 
 
-@pytest.fixture(scope="module", params=[True, False])
-def frozen(request):
+@pytest.fixture(scope="function", params=[True, False])
+def frozen(request, monkeypatch):
+    """Switches from using frozen / non-frozen dataclasses during tests."""
+
+    # NOTE: Need to unregister all the subclasses of SerializableMixin and FrozenSerializable, so
+    # the dataclasses from one test aren't used in another.
     subclasses_before = SerializableMixin.subclasses.copy()
     from simple_parsing.helpers.serialization.decoding import (
         _decoding_fns,
@@ -52,19 +56,23 @@ def frozen(request):
 
     yield frozen
 
+    # NOTE: Not assigning a new list here, just to be sure we're changing the object on the class
+    # where it is originally set.
     SerializableMixin.subclasses.clear()
     SerializableMixin.subclasses.extend(subclasses_before)
-    # TODO: Need to unregister the decoding functions!
+
+    # Unregister the decoding functions.
     _decoding_fns.clear()
     _decoding_fns.update(decoding_fns_before)
 
+    # Clear the LRU cache of `get_decoding_fn`.
     get_decoding_fn.cache_clear()
 
     # SerializableMixin.subclasses = subclasses_before
     # note: clear the `subclasses` of the base classes?
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def Child(frozen: bool):
     @dataclass(frozen=frozen)
     class Child(FrozenSerializable if frozen else Serializable):
@@ -74,7 +82,7 @@ def Child(frozen: bool):
     return Child
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def Parent(frozen: bool, Child):
     @dataclass(frozen=frozen)
     class Parent(FrozenSerializable if frozen else Serializable):
@@ -84,7 +92,7 @@ def Parent(frozen: bool, Child):
     return Parent
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def ParentWithOptionalChildren(Parent, Child):
     @dataclass(frozen=issubclass(Parent, FrozenSerializable))
     class ParentWithOptionalChildren(Parent):
@@ -94,7 +102,7 @@ def ParentWithOptionalChildren(Parent, Child):
     return ParentWithOptionalChildren
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def ChildWithFriends(Child):
     @dataclass(frozen=issubclass(Child, FrozenSerializable))
     class ChildWithFriends(Child):
@@ -103,7 +111,7 @@ def ChildWithFriends(Child):
     return ChildWithFriends
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def ParentWithOptionalChildrenWithFriends(ParentWithOptionalChildren, ChildWithFriends):
     @dataclass(frozen=issubclass(ParentWithOptionalChildren, FrozenSerializable))
     class ParentWithOptionalChildrenWithFriends(ParentWithOptionalChildren):
@@ -192,7 +200,7 @@ def test_lists(silent, ChildWithFriends, Child, ParentWithOptionalChildrenWithFr
     assert parsed_nancy == nancy
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def Base(frozen: bool):
     @dataclass(frozen=frozen)
     class Base(FrozenSerializable if frozen else Serializable, decode_into_subclasses=True):
@@ -201,7 +209,7 @@ def Base(frozen: bool):
     return Base
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def A(Base):
     @dataclass(frozen=issubclass(Base, FrozenSerializable))
     class A(Base):
@@ -211,7 +219,7 @@ def A(Base):
     return A
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def B(Base):
     @dataclass(frozen=issubclass(Base, FrozenSerializable))
     class B(Base):
@@ -221,7 +229,7 @@ def B(Base):
     return B
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def Container(frozen: bool, Base):
     @dataclass(frozen=frozen)
     class Container(FrozenSerializable if frozen else Serializable):

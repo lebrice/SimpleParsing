@@ -1,3 +1,4 @@
+import os
 import shlex
 import string
 import sys
@@ -124,6 +125,10 @@ class TestParser(simple_parsing.ArgumentParser, Generic[T]):
         return value
 
 
+def using_simple_api() -> bool:
+    return os.environ.get("SIMPLE_PARSING_API", "simple") == "simple"
+
+
 class TestSetup:
     @classmethod
     def setup(
@@ -148,40 +153,68 @@ class TestSetup:
         Returns:
             {cls}} -- the class's type.
         """
-        parser = simple_parsing.ArgumentParser(
-            conflict_resolution=conflict_resolution_mode,
-            add_option_string_dash_variants=add_option_string_dash_variants,
-            argument_generation_mode=argument_generation_mode,
-            nested_mode=nested_mode,
-        )
-        if dest is None:
-            dest = camel_case(cls.__name__)
 
-        parser.add_arguments(cls, dest=dest, default=default)
+        # TODO: Add a switch here, that uses either the 'simpler' API: `simple_parsing.parse` or
+        # this more verbose API: `simple_parsing.ArgumentParser().parse_args()`
+        dest = dest or camel_case(cls.__name__)
 
-        if arguments is None:
+        if using_simple_api():
+            common_kwargs = dict(
+                config_class=cls,
+                config_path=None,
+                args=arguments,
+                default=default,
+                add_config_path_arg=None,
+                nested_mode=nested_mode,
+                dest=dest,
+                add_option_string_dash_variants=add_option_string_dash_variants,
+                conflict_resolution=conflict_resolution_mode,
+                argument_generation_mode=argument_generation_mode,
+            )
             if parse_known_args:
-                args = parser.parse_known_args(attempt_to_reorder=attempt_to_reorder)
-            else:
-                args = parser.parse_args()
-        else:
-            splits = shlex.split(arguments)
-            if parse_known_args:
-                args, unknown_args = parser.parse_known_args(
-                    splits, attempt_to_reorder=attempt_to_reorder
+                instance, unknown_args = simple_parsing.parse_known_args(
+                    **common_kwargs,
+                    attempt_to_reorder=attempt_to_reorder,
                 )
             else:
-                args = parser.parse_args(splits)
-        assert hasattr(args, dest), f"attribute '{dest}' not found in args {args}"
-        instance: Dataclass = getattr(args, dest)  # type: ignore
-        delattr(args, dest)
+                instance = simple_parsing.parse(**common_kwargs)
+        else:
+            parser = simple_parsing.ArgumentParser(
+                conflict_resolution=conflict_resolution_mode,
+                add_option_string_dash_variants=add_option_string_dash_variants,
+                argument_generation_mode=argument_generation_mode,
+                nested_mode=nested_mode,
+            )
+            if dest is None:
+                dest = camel_case(cls.__name__)
 
-        # If there are subgroups, we can allow an extra "subgroups" attribute, otherwise we don't
-        # expect any other arguments.
-        args_dict = vars(args).copy()
-        args_dict.pop("subgroups", None)
+            parser.add_arguments(cls, dest=dest, default=default)
 
-        assert not args_dict, f"Namespace has leftover garbage values (besides subgroups): {args}"
+            if arguments is None:
+                if parse_known_args:
+                    args = parser.parse_known_args(attempt_to_reorder=attempt_to_reorder)
+                else:
+                    args = parser.parse_args()
+            else:
+                splits = shlex.split(arguments)
+                if parse_known_args:
+                    args, unknown_args = parser.parse_known_args(
+                        splits, attempt_to_reorder=attempt_to_reorder
+                    )
+                else:
+                    args = parser.parse_args(splits)
+            assert hasattr(args, dest), f"attribute '{dest}' not found in args {args}"
+            instance: Dataclass = getattr(args, dest)  # type: ignore
+            delattr(args, dest)
+
+            # If there are subgroups, we can allow an extra "subgroups" attribute, otherwise we don't
+            # expect any other arguments.
+            args_dict = vars(args).copy()
+            args_dict.pop("subgroups", None)
+
+            assert (
+                not args_dict
+            ), f"Namespace has leftover garbage values (besides subgroups): {args}"
 
         instance = cast(Dataclass, instance)
         return instance
