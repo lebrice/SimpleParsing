@@ -1,7 +1,9 @@
 from simple_parsing import ConflictResolution
 
+from .example_use_cases import HyperParameters
 
-def test_hparam_use_case(silent, HyperParameters, TaskHyperParameters):
+
+def test_hparam_use_case(silent):
     hparams = HyperParameters.setup(
         "--num_layers 5 6 7", conflict_resolution_mode=ConflictResolution.ALWAYS_MERGE
     )
