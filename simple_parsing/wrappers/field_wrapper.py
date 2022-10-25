@@ -811,8 +811,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     @property
     def choices(self) -> Optional[List]:
         """The list of possible values that can be passed on the command-line for this field, or None."""
+
         if "choices" in self.custom_arg_options:
             return self.custom_arg_options["choices"]
+        if "choices" in self.field.metadata:
+            return list(self.field.metadata["choices"])
         if "choice_dict" in self.field.metadata:
             return list(self.field.metadata["choice_dict"].keys())
         if utils.is_literal(self.type):

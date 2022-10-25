@@ -3,9 +3,12 @@
 This checks that Simple-Parsing can be used as a replacement for the HFArgumentParser.
 """
 import io
-from typing import Optional
 from dataclasses import dataclass, field
+from typing import Optional
+
 from simple_parsing import ArgumentParser
+
+from .testutils import TestSetup, raises_invalid_choice
 
 
 @dataclass
@@ -40,15 +43,11 @@ class ModelArguments:
     )
     config_name: Optional[str] = field(
         default=None,
-        metadata={
-            "help": "Pretrained config name or path if not the same as model_name"
-        },
+        metadata={"help": "Pretrained config name or path if not the same as model_name"},
     )
     tokenizer_name: Optional[str] = field(
         default=None,
-        metadata={
-            "help": "Pretrained tokenizer name or path if not the same as model_name"
-        },
+        metadata={"help": "Pretrained tokenizer name or path if not the same as model_name"},
     )
     cache_dir: Optional[str] = field(
         default=None,
@@ -161,14 +160,8 @@ class DataTrainingArguments:
     )
 
     def __post_init__(self):
-        if (
-            self.dataset_name is None
-            and self.train_file is None
-            and self.validation_file is None
-        ):
-            raise ValueError(
-                "Need either a dataset name or a training/validation file."
-            )
+        if self.dataset_name is None and self.train_file is None and self.validation_file is None:
+            raise ValueError("Need either a dataset name or a training/validation file.")
         else:
             if self.train_file is not None:
                 extension = self.train_file.split(".")[-1]
@@ -195,3 +188,33 @@ def test_help_text_gets_used():
         f.seek(0)
         help_text = f.read()
     assert "The number of processes to use for the preprocessing." in help_text
+
+
+@dataclass
+class Config(TestSetup):
+    log_level: Optional[str] = field(
+        default="passive",
+        metadata={
+            "help": (
+                "Logger log level to use on the main node. Possible choices are the log levels as strings: 'debug',"
+                " 'info', 'warning', 'error' and 'critical', plus a 'passive' level which doesn't set anything and"
+                " lets the application set the level. Defaults to 'passive'."
+            ),
+            "choices": [
+                "debug",
+                "info",
+                "warning",
+                "error",
+                "critical",
+            ],
+        },
+    )
+
+
+def test_choices():
+    """Checks that the `choices` in the field metadata are used as the `choice` argument to `add_argument`"""
+
+    with raises_invalid_choice():
+        Config.setup("--log_level invalid")
+    for choice in ["debug", "info", "warning", "error", "critical"]:
+        assert Config.setup(f"--log_level {choice}").log_level == choice
