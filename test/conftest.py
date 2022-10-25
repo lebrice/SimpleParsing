@@ -3,9 +3,10 @@ import os
 import sys
 from dataclasses import dataclass
 from logging import getLogger as get_logger
-from typing import Any, ClassVar, List, Literal, NamedTuple, Optional, Tuple, Type
+from typing import Any, ClassVar, List, NamedTuple, Optional, Tuple, Type
 
 import pytest
+from typing_extensions import Literal
 
 from simple_parsing import choice
 from simple_parsing.helpers import Serializable
