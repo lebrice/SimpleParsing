@@ -56,6 +56,7 @@ For a simple use-case, where you only want to parse a single dataclass, you can 
 
 ```python
 options: Options = simple_parsing.parse(Options)
+# or:
 options, leftover_args = simple_parsing.parse_known_args(Options)
 ```
 
