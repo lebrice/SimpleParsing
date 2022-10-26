@@ -1,8 +1,9 @@
 from simple_parsing import ConflictResolution
 
+from .example_use_cases import HyperParameters
 
-def test_real_use_case(silent, HyperParameters):
-    HyperParameters
+
+def test_real_use_case(silent):
     hparams = HyperParameters.setup(
         "--age_group.num_layers 5 " "--age_group.num_units 65 ",
         conflict_resolution_mode=ConflictResolution.AUTO,

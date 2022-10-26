@@ -1,4 +1,5 @@
 import enum
+import os
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple, Type
 
@@ -100,9 +101,10 @@ def test_is_enum(t: Type):
     assert utils.is_enum(t)
 
 
-def test_json_serializable(HyperParameters, tmpdir):
+def test_json_serializable(tmpdir):
+    from .nesting.example_use_cases import HyperParameters
+
     hparams = HyperParameters()
-    import os
 
     filename = "hparams.json"
     hparams.save_json(os.path.join(tmpdir, filename))
