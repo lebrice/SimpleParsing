@@ -16,7 +16,7 @@ from .testutils import (
     raises_expected_n_args,
     raises_missing_required_arg,
     raises_unrecognized_args,
-    using_simple_api,
+    using_parse_api,
 )
 
 
@@ -183,7 +183,7 @@ def test_only_dashes():
         my_var: int
         a: AClass
 
-    if not using_simple_api():
+    if not using_parse_api():
         assert_help_output_equals(
             SomeClass.get_help_text(add_option_string_dash_variants=DashVariant.DASH),
             textwrap.dedent(

@@ -1,21 +1,13 @@
+from __future__ import annotations
+
 import os
 import shlex
 import string
 import sys
 from contextlib import contextmanager, redirect_stderr
 from io import StringIO
-from typing import (
-    Any,
-    Callable,
-    Generic,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-)
+from pathlib import Path
+from typing import Any, Callable, Generic, List, TypeVar, cast
 
 import pytest
 
@@ -38,7 +30,7 @@ Dataclass = TypeVar("Dataclass")
 
 
 @contextmanager
-def raises(exception: Type[Exception] = ParsingError, match=None, code: Optional[int] = None):
+def raises(exception: type[Exception] = ParsingError, match=None, code: int | None = None):
     with pytest.raises(exception, match=match):
         yield
 
@@ -69,7 +61,7 @@ def raises_invalid_choice():
 
 
 @contextmanager
-def raises_expected_n_args(n: Union[int, str]):
+def raises_expected_n_args(n: int | str):
     with exits_and_writes_to_stderr(f"expected {n} arguments"):
         yield
 
@@ -111,7 +103,7 @@ class TestParser(simple_parsing.ArgumentParser, Generic[T]):
         self._current_dataclass = None
         super().__init__(*args, **kwargs)
 
-    def add_arguments(self, dataclass: Type, dest, prefix="", default=None):
+    def add_arguments(self, dataclass: type, dest, prefix="", default=None):
         if self._current_dest == dest and self._current_dataclass == dataclass:
             return  # already added arguments for that dataclass.
         self._current_dest = dest
@@ -125,17 +117,18 @@ class TestParser(simple_parsing.ArgumentParser, Generic[T]):
         return value
 
 
-def using_simple_api() -> bool:
-    return os.environ.get("SIMPLE_PARSING_API", "simple") == "simple"
+def using_parse_api() -> bool:
+    return os.environ.get("SIMPLE_PARSING_API", "parse") == "parse"
 
 
 class TestSetup:
     @classmethod
     def setup(
-        cls: Type[Dataclass],
-        arguments: Optional[str] = "",
-        dest: Optional[str] = None,
-        default: Optional[Dataclass] = None,
+        cls: type[Dataclass],
+        arguments: str | None = "",
+        dest: str | None = None,
+        default: Dataclass | None = None,
+        config_path: Path | str | None = None,
         conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
         add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
         parse_known_args: bool = False,
@@ -158,10 +151,10 @@ class TestSetup:
         # this more verbose API: `simple_parsing.ArgumentParser().parse_args()`
         dest = dest or camel_case(cls.__name__)
 
-        if using_simple_api():
+        if using_parse_api():
             common_kwargs = dict(
                 config_class=cls,
-                config_path=None,
+                config_path=config_path,
                 args=arguments,
                 default=default,
                 add_config_path_arg=None,
@@ -184,6 +177,7 @@ class TestSetup:
                 add_option_string_dash_variants=add_option_string_dash_variants,
                 argument_generation_mode=argument_generation_mode,
                 nested_mode=nested_mode,
+                config_path=config_path,
             )
             if dest is None:
                 dest = camel_case(cls.__name__)
@@ -221,8 +215,8 @@ class TestSetup:
 
     @classmethod
     def setup_multiple(
-        cls: Type[Dataclass], num_to_parse: int, arguments: Optional[str] = ""
-    ) -> Tuple[Dataclass, ...]:
+        cls: type[Dataclass], num_to_parse: int, arguments: str | None = ""
+    ) -> tuple[Dataclass, ...]:
         conflict_resolution_mode: ConflictResolution = ConflictResolution.ALWAYS_MERGE
 
         parser = simple_parsing.ArgumentParser(conflict_resolution=conflict_resolution_mode)
@@ -241,7 +235,7 @@ class TestSetup:
     @classmethod
     def get_help_text(
         cls,
-        argv: Optional[str] = None,
+        argv: str | None = None,
         multiple=False,
         conflict_resolution_mode: ConflictResolution = ConflictResolution.AUTO,
         add_option_string_dash_variants=DashVariant.AUTO,
@@ -272,29 +266,29 @@ ListFormattingFunction = Callable[[List[Any]], str]
 ListOfListsFormattingFunction = Callable[[List[List[Any]]], str]
 
 
-def format_list_using_spaces(value_list: List[Any]) -> str:
+def format_list_using_spaces(value_list: list[Any]) -> str:
     return " ".join(str(p) for p in value_list)
 
 
-def format_list_using_brackets(value_list: List[Any]) -> str:
+def format_list_using_brackets(value_list: list[Any]) -> str:
     return f"[{','.join(str(p) for p in value_list)}]"
 
 
-def format_list_using_single_quotes(value_list: List[Any]) -> str:
+def format_list_using_single_quotes(value_list: list[Any]) -> str:
     return f"'{format_list_using_spaces(value_list)}'"
 
 
-def format_list_using_double_quotes(value_list: List[Any]) -> str:
+def format_list_using_double_quotes(value_list: list[Any]) -> str:
     return f'"{format_list_using_spaces(value_list)}"'
 
 
-def format_lists_using_brackets(list_of_lists: List[List[Any]]) -> str:
+def format_lists_using_brackets(list_of_lists: list[list[Any]]) -> str:
     return " ".join(format_list_using_brackets(value_list) for value_list in list_of_lists)
 
 
-def format_lists_using_double_quotes(list_of_lists: List[List[Any]]) -> str:
+def format_lists_using_double_quotes(list_of_lists: list[list[Any]]) -> str:
     return " ".join(format_list_using_double_quotes(value_list) for value_list in list_of_lists)
 
 
-def format_lists_using_single_quotes(list_of_lists: List[List[Any]]) -> str:
+def format_lists_using_single_quotes(list_of_lists: list[list[Any]]) -> str:
     return " ".join(format_list_using_single_quotes(value_list) for value_list in list_of_lists)

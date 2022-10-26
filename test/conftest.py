@@ -57,11 +57,27 @@ def simple_attribute(request):
     )
 
 
-@pytest.fixture(autouse=True, params=["simple", "verbose"])
-def simple_and_advanced_api(request, monkeypatch):
-    api: Literal["simple", "verbose"] = request.param
+APIKind = Literal["parse", "ArgumentParser"]
+
+
+@pytest.fixture(autouse=True, params=["parse", "ArgumentParser"])
+def simple_and_advanced_api(request: pytest.FixtureRequest, monkeypatch):
+    api: APIKind = request.param
+    # TODO: Try to not re-run the tests twice if they don't use the TestSetup class.
+    # Could try to inspect the globals of the containing module, and see if it contains a
+    # `TestSetup` class (or a subclass of it).
+    # import inspect
+    # from .testutils import TestSetup
+    # subclasses_of_TestSetup = [v for k, v in vars(request.module).keys() if inspect.isclass(v) and issubclass(v, TestSetup)]
+    # if subclasses_of_TestSetup:
+    #     pytest.skip(reason="No need to run a second time.")
     monkeypatch.setitem(os.environ, "SIMPLE_PARSING_API", api)
-    yield
+    yield api
+
+
+@pytest.fixture()
+def parse_api(simple_and_advanced_api: bool):
+    yield simple_and_advanced_api == "parse"
 
 
 @pytest.fixture
