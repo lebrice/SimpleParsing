@@ -22,6 +22,7 @@ from .parsing import (
     NestedMode,
     ParsingError,
     parse,
+    parse_known_args,
 )
 from .utils import InconsistentArgumentError
 
@@ -44,6 +45,7 @@ __all__ = [
     "DashVariant",
     "ParsingError",
     "parse",
+    "parse_known_args",
     "ArgumentGenerationMode",
     "NestedMode",
     "InconsistentArgumentError",

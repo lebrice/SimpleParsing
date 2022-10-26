@@ -50,6 +50,15 @@ Options ['options']:
                         Help string for a float argument (default: 0.0001)
 ```
 
+### (*new*) Simplified API:
+
+For a simple use-case, where you only want to parse a single dataclass, you can use the `simple_parsing.parse` or `simple_parsing.parse_known_args` functions:
+
+```python
+options: Options = simple_parsing.parse(Options)
+options, leftover_args = simple_parsing.parse_known_args(Options)
+```
+
 
 ## installation
 

@@ -4,6 +4,8 @@ from typing import Callable, Type
 
 from simple_parsing import ConflictResolution
 
+from .example_use_cases import HyperParameters
+
 
 def simple_tree_structure(some_type: Type[T], default_value_function: Callable[[str], T]):
     @dataclass
@@ -200,7 +202,7 @@ def test_weird_with_duplicates_and_at_different_levels():
     assert aabbccdd.ccdd.dd.d2.d == "ccdd_dd_d_2"
 
 
-def test_defaults(HyperParameters):
+def test_defaults():
     default = HyperParameters()
     parsed = HyperParameters.setup("")
     for attr, value in vars(default).items():
