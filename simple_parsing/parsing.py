@@ -887,6 +887,7 @@ def parse(
     default: Dataclass | None = None,
     dest: str = "config",
     *,
+    prefix: str = "",
     nested_mode: NestedMode = NestedMode.WITHOUT_ROOT,
     conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
     add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
@@ -913,7 +914,7 @@ def parse(
         add_config_path_arg=add_config_path_arg,
     )
 
-    parser.add_arguments(config_class, dest=dest, default=default)
+    parser.add_arguments(config_class, prefix=prefix, dest=dest, default=default)
 
     if isinstance(args, str):
         args = shlex.split(args)
