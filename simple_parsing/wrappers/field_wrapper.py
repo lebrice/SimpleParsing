@@ -225,6 +225,10 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         if not self.field.metadata.get("positional"):
             _arg_options["required"] = self.required
             _arg_options["dest"] = self.dest
+        elif not self.required:
+            # For positional arguments that aren't required we need to set
+            # nargs='?' to make them optional.
+            _arg_options["nargs"] = "?"
         _arg_options["default"] = self.default
         _arg_options["metavar"] = get_metavar(self.type)
 
