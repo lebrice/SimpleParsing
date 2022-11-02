@@ -793,6 +793,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
                 field_type = get_field_type_from_annotations(self.parent.dataclass, self.field.name)
                 self._type = field_type
+            elif isinstance(self._type, dataclasses.InitVar):
+                self._type = self._type.type
         return self._type
 
     def __str__(self):

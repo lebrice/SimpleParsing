@@ -4,6 +4,7 @@ import argparse
 import dataclasses
 from dataclasses import MISSING
 from logging import getLogger
+import sys
 from typing import cast
 
 from .. import docstring, utils
@@ -48,7 +49,25 @@ class DataclassWrapper(Wrapper[Dataclass]):
             self.defaults = [default]
         self.optional: bool = False
 
-        for field in dataclasses.fields(self.dataclass):
+        # NOTE: `dataclasses.fields` method retrieves only `dataclasses._FIELD`
+        # NOTE: but we also want to know about `dataclasses._FIELD_INITVAR`
+        # NOTE: therefore we partly copy-paste its implementation
+        if sys.version_info[:2] < (3, 8):
+            # Before 3.8 `InitVar[tp] is InitVar` so it's impossible to retrieve field type
+            # therefore we should skip it just to be fully backward compatible
+            dataclass_fields = dataclasses.fields(self.dataclass)
+        else:
+            try:
+                dataclass_fields_map = getattr(self.dataclass, dataclasses._FIELDS)
+            except AttributeError:
+                raise TypeError('must be called with a dataclass type or instance')
+            dataclass_fields = tuple(
+                field
+                for field in dataclass_fields_map.values()
+                if field._field_type in (dataclasses._FIELD, dataclasses._FIELD_INITVAR)
+            )
+
+        for field in dataclass_fields:
             if not field.init or field.metadata.get("cmd", True) is False:
                 # Don't add arguments for these fields.
                 continue
