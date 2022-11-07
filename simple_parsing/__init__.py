@@ -3,6 +3,7 @@
 """
 from . import helpers, utils, wrappers
 from .conflicts import ConflictResolution
+from .decorators import main
 from .help_formatter import SimpleHelpFormatter
 from .helpers import (
     MutableField,
@@ -27,28 +28,29 @@ from .parsing import (
 from .utils import InconsistentArgumentError
 
 __all__ = [
-    "helpers",
-    "utils",
-    "wrappers",
-    "ConflictResolution",
-    "SimpleHelpFormatter",
-    "MutableField",
-    "Serializable",
+    "ArgumentGenerationMode",
+    "ArgumentParser",
     "choice",
+    "ConflictResolution",
+    "DashVariant",
     "field",
     "flag",
+    "helpers",
+    "InconsistentArgumentError",
     "list_field",
+    "main",
     "mutable_field",
+    "MutableField",
+    "NestedMode",
+    "parse_known_args",
+    "parse",
+    "ParsingError",
+    "Serializable",
+    "SimpleHelpFormatter",
     "subgroups",
     "subparsers",
-    "ArgumentParser",
-    "DashVariant",
-    "ParsingError",
-    "parse",
-    "parse_known_args",
-    "ArgumentGenerationMode",
-    "NestedMode",
-    "InconsistentArgumentError",
+    "utils",
+    "wrappers",
 ]
 
 from . import _version
