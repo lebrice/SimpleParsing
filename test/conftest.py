@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import pathlib
 import sys
 from logging import getLogger as get_logger
 from typing import Any, NamedTuple
@@ -146,3 +147,11 @@ def logs_warning(caplog):
     messages = [x.message for x in caplog.get_records("call") if x.levelno == logging.WARNING]
     if not messages:
         pytest.fail(f"No warning messages were logged: {messages}")
+
+
+def pytest_ignore_collect(collection_path: pathlib.Path):
+    # We can only test the decorator on Py38+.
+    # TODO: Remove this when we drop support for Py37
+    if sys.version_info < (3, 8) and collection_path.stem == "test_decorator":
+        return True
+    return False
