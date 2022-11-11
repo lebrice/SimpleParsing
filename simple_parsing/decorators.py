@@ -5,15 +5,11 @@ import dataclasses
 import functools
 import inspect
 import typing
-from typing import Any, Callable, NamedTuple, Optional, Type, TypeVar
+from typing import Any, Callable, NamedTuple, Type
 
 import docstring_parser as dp
-from typing_extensions import ParamSpec
 
 from . import helpers, parsing
-
-T = TypeVar("T")
-P = ParamSpec("P")
 
 
 class _Field(NamedTuple):
@@ -36,17 +32,26 @@ def _description_from_docstring(docstring: dp.Docstring) -> str:
     return description
 
 
+@typing.overload
 def main(
-    original_function: Optional[Callable[P, T]] = None,
-    **sp_kwargs,
-) -> Callable[P, T]:
+    original_function: None = None, **sp_kwargs
+) -> Callable[..., Callable[..., Any]]:
+    ...
+
+
+@typing.overload
+def main(original_function: Callable[..., Any], **sp_kwargs) -> Callable[..., Any]:
+    ...
+
+
+def main(original_function=None, **sp_kwargs):
     """Parse a function's arguments using simple-parsing from type annotations."""
 
-    def _decorate_with_cli_args(function: Callable[P, T]) -> Callable[P, T]:
+    def _decorate_with_cli_args(function: Callable[..., Any]) -> Callable[..., Any]:
         """Decorate `function` by binding its arguments obtained from simple-parsing."""
 
         @functools.wraps(function)
-        def _wrapper(*other_args: P.args, **other_kwargs: P.kwargs) -> T:
+        def _wrapper(*other_args, **other_kwargs) -> Any:
             # Parse signature and parameters
             signature = inspect.signature(function, follow_wrapped=True)
             parameters = signature.parameters
