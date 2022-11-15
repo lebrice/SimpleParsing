@@ -8,6 +8,7 @@ import typing
 from typing import Callable
 
 import pytest
+
 import simple_parsing as sp
 
 

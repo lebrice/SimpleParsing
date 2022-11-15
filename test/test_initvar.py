@@ -1,5 +1,5 @@
-from dataclasses import dataclass, InitVar
 import sys
+from dataclasses import InitVar, dataclass
 from typing import Any, List, Tuple, Type
 
 import pytest
@@ -13,14 +13,14 @@ from .testutils import TestSetup
     reason="Before 3.8 `InitVar[tp] is InitVar` so it's impossible to retrieve field type",
 )
 @pytest.mark.parametrize(
-    'tp, passed_value, expected',
+    "tp, passed_value, expected",
     [
-        (int, '1', 1),
-        (float, '1.4', 1.4),
-        (Tuple[int, float], '2 -1.2', (2, -1.2)),
-        (List[str], '12 abc', ['12', 'abc']),
-        (Literal[1, 2, 3, '4'], '1', 1),
-        (Literal[1, 2, 3, '4'], '4', '4'),
+        (int, "1", 1),
+        (float, "1.4", 1.4),
+        (Tuple[int, float], "2 -1.2", (2, -1.2)),
+        (List[str], "12 abc", ["12", "abc"]),
+        (Literal[1, 2, 3, "4"], "1", 1),
+        (Literal[1, 2, 3, "4"], "4", "4"),
     ],
 )
 def test_initvar(tp: Type[Any], passed_value: str, expected: Any) -> None:
