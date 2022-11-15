@@ -7,6 +7,9 @@ import inspect
 from dataclasses import dataclass
 from logging import getLogger
 
+import docstring_parser as dp
+from docstring_parser.common import Docstring
+
 logger = getLogger(__name__)
 
 
@@ -18,6 +21,9 @@ class AttributeDocString:
     comment_inline: str = ""
     docstring_below: str = ""
 
+    desc_from_cls_docstring: str = ""
+    """ The description of this field from the class docstring. """
+
 
 def get_attribute_docstring(
     dataclass: type, field_name: str, accumulate_from_bases: bool = True
@@ -27,6 +33,7 @@ def get_attribute_docstring(
     - An inline comment, starting with <#>
     - A Comment on the preceding line, starting with <#>
     - A docstring on the following line, starting with either <\"\"\"> or <'''>
+    - The description of a field in the classes's docstring.
 
     Arguments:
         some_dataclass: a dataclass
@@ -35,7 +42,7 @@ def get_attribute_docstring(
             base classes. When set to `False`, whenever one of the classes has a definition for the
             field, it is directly returned. Otherwise, we accumulate the parts of the dodc
     Returns:
-        AttributeDocString -- an object holding the three possible comments
+        AttributeDocString -- an object holding the string descriptions of the field.
     """
     created_docstring: AttributeDocString | None = None
 
@@ -63,6 +70,10 @@ def get_attribute_docstring(
             created_docstring.docstring_below = (
                 created_docstring.docstring_below or attribute_docstring.docstring_below
             )
+            created_docstring.desc_from_cls_docstring = (
+                created_docstring.desc_from_cls_docstring
+                or attribute_docstring.desc_from_cls_docstring
+            )
     if not created_docstring:
         logger.debug(
             RuntimeWarning(
@@ -88,6 +99,16 @@ def _get_attribute_docstring(dataclass: type, field_name: str) -> AttributeDocSt
             )
         )
         return None
+
+    # Parse docstring to use as help strings
+    desc_from_cls_docstring = ""
+    cls_docstring = inspect.getdoc(dataclass)
+    if cls_docstring:
+        docstring: Docstring = dp.parse(cls_docstring)
+        for param in docstring.params:
+            if param.arg_name == field_name:
+                desc_from_cls_docstring = param.description or ""
+
     # NOTE: We want to skip the docstring lines.
     # NOTE: Currently, we just remove the __doc__ from the source. It's perhaps a bit crude,
     # but it works.
@@ -114,7 +135,12 @@ def _get_attribute_docstring(dataclass: type, field_name: str) -> AttributeDocSt
             comment_above = _get_comment_ending_at_line(code_lines, i - 1)
             comment_inline = _get_inline_comment_at_line(code_lines, i)
             docstring_below = _get_docstring_starting_at_line(code_lines, i + 1)
-            return AttributeDocString(comment_above, comment_inline, docstring_below)
+            return AttributeDocString(
+                comment_above,
+                comment_inline,
+                docstring_below,
+                desc_from_cls_docstring=desc_from_cls_docstring,
+            )
     return None
 
 

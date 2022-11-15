@@ -847,12 +847,16 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             logger.debug(f"Couldn't find attribute docstring for field {self.name}, {e}")
             self._docstring = docstring.AttributeDocString()
 
-        if self._docstring.docstring_below:
-            self._help = self._docstring.docstring_below
-        elif self._docstring.comment_above:
-            self._help = self._docstring.comment_above
-        elif self._docstring.comment_inline:
-            self._help = self._docstring.comment_inline
+        self._help = (
+            self._docstring.docstring_below
+            or self._docstring.comment_above
+            or self._docstring.comment_inline
+            or self._docstring.desc_from_cls_docstring
+        )
+        # NOTE: Need to make sure this doesn't interfere with the default value added to the help
+        # string.
+        if self._help == "":
+            self._help = None
         return self._help
 
     @help.setter
