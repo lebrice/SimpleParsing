@@ -1209,3 +1209,11 @@ class TrainingArguments(TestSetup):
             "help": "Overrides the default timeout for distributed training (value should be given in seconds)."
         },
     )
+
+
+def test_docstring_parse_works_with_hf_training_args():
+    from simple_parsing.docstring import get_attribute_docstring
+
+    assert get_attribute_docstring(TrainingArguments, "output_dir").desc_from_cls_docstring == (
+        "The output directory where the model predictions and checkpoints will be written."
+    )
