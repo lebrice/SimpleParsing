@@ -5,6 +5,7 @@ This checks that Simple-Parsing can be used as a replacement for the HFArgumentP
 import io
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import List, Optional, Union
 
 import pytest
@@ -1276,3 +1277,21 @@ def test_entire_docstring_isnt_used_as_help():
         "use_mps_device (`bool`, *optional*, defaults to `False`):"
         not in TrainingArguments.get_help_text()
     )
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        TrainingArguments(),
+        TrainingArguments(save_strategy="steps"),
+        TrainingArguments(save_strategy=IntervalStrategy.EPOCH),
+    ],
+)
+@pytest.mark.parametrize("filename", ["bob.yaml", "bob.json", "bob.pkl", "bob.yml"])
+def test_serialization(tmp_path: Path, filename: str, args: TrainingArguments):
+    """test that serializing / deserializing a TrainingArguments works."""
+    from simple_parsing.helpers.serialization import load, save
+
+    path = tmp_path / filename
+    save(args, path)
+    assert load(TrainingArguments, path) == args
