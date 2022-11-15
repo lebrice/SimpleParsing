@@ -180,8 +180,8 @@ def test_getdocstring_bug():
 
 def test_desc_from_cls_docstring():
     @dataclass
-    class HParams:
-        """Creates a new HParams object.
+    class SomeClass:
+        """Creates a new object.
 
         Parameters
         ----------
@@ -194,7 +194,7 @@ def test_desc_from_cls_docstring():
         batch_size: int = 32  # side
         """below"""
 
-    assert get_attribute_docstring(HParams, "batch_size") == AttributeDocString(
+    assert get_attribute_docstring(SomeClass, "batch_size") == AttributeDocString(
         desc_from_cls_docstring="_description_, by default 32",
         comment_above="above",
         comment_inline="side",
