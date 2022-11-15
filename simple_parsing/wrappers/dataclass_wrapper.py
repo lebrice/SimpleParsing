@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
-import sys
 import inspect
+import sys
+import textwrap
 from dataclasses import MISSING
 from logging import getLogger
 from typing import cast
+
+import docstring_parser as dp
 
 from .. import docstring, utils
 from ..utils import Dataclass
@@ -259,24 +262,34 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 elif doc.comment_inline:
                     return doc.comment_inline
 
-        # NOTE: This docstring may be EXTRELEMY LARGE.
-        # In the case where there is a line that contains the words "Parameters" or "Attributes",
-        # we will cut it short before there. This is because we can already use those strings to
-        # create the --help text for each field.
-        import docstring_parser as dp
-
-        for field in self.fields:
-            if field._docstring.desc_from_cls_docstring:
-                # todo
-                pass
+        # NOTE: The class docstring may be EXTRELEMY LARGE.
 
         class_docstring = inspect.getdoc(self.dataclass) or ""
-        doc = dp.parse(class_docstring)
-        doc.short_description + "\n" + docstring.long_description
-        import textwrap
+        if not class_docstring:
+            return ""
 
-        textwrap.shorten()
-        return self.dataclass.__doc__ or ""
+        doc = dp.parse(class_docstring)
+
+        from simple_parsing.decorators import _description_from_docstring
+
+        description = _description_from_docstring(doc)
+        shortened_description = textwrap.shorten(description, width=400)
+
+        if not doc.params:
+            # docstring wasn't formatted according to some standard, so docstring_parser wasn't
+            # able to parse it.
+            # If the fields have docstrings, then we can shorten it, since we expect there to
+            # be a lot of duplication between the field docstrings/comments and the class
+            # docstring.
+            if len(description) > 400 and any(f._docstring.help_string for f in self.fields):
+                return shortened_description
+            # The fields don't have docstrings, so we keep the entire class docstring in the
+            # help.
+            return description
+
+        # The fields have docstrings, and the class has a nicely formatted docstring. Shorten
+        # the class docstring, if needed.
+        return shortened_description
 
     # @property
     # def prefix(self) -> str:

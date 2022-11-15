@@ -5,9 +5,12 @@ This checks that Simple-Parsing can be used as a replacement for the HFArgumentP
 import io
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import List, Optional
+from typing import List, Optional, Union
+
+import pytest
 
 from simple_parsing import ArgumentParser
+from simple_parsing.docstring import get_attribute_docstring
 
 from .testutils import TestSetup, raises_invalid_choice
 
@@ -286,14 +289,23 @@ class OptimizerNames(ExplicitEnum):
     ADAGRAD = "adagrad"
 
 
-from typing import Union  # noqa
+@dataclass
+class ClassWithEnum(TestSetup):
+    evaluation_strategy: Union[IntervalStrategy, str] = field(
+        default="no",
+        metadata={"help": "The evaluation strategy to use."},
+    )
 
 
-def test_enums():
-    # with raises_invalid_choice():
+def test_enums_are_parsed_to_enum_member():
     # NOTE: Since it's a union of str and IntervalStrategy, it shouldn't raise an error if given
-    # an invalid value, right?
-    assert TrainingArguments.setup("--evaluation_strategy invalid").evaluation_strategy == "invalid"
+    # an invalid value.
+    assert ClassWithEnum.setup("--evaluation_strategy invalid").evaluation_strategy == "invalid"
+
+    # However, it is, once we factor in what's happening in the __post_init__ of TrainingArguments.
+    with pytest.raises(ValueError):
+        TrainingArguments.setup("--evaluation_strategy invalid")
+
     for mode, enum_value in zip(
         ["no", "steps", "epoch"],
         [IntervalStrategy.NO, IntervalStrategy.STEPS, IntervalStrategy.EPOCH],
@@ -649,6 +661,7 @@ class TrainingArguments(TestSetup):
 
     framework = "pt"
     output_dir: str = field(
+        default="tmp_trainer",
         metadata={
             "help": "The output directory where the model predictions and checkpoints will be written."
         },
@@ -1210,10 +1223,56 @@ class TrainingArguments(TestSetup):
         },
     )
 
+    def __post_init__(self):
+        # NOTE: Just a portion of the actual __post_init__ of the TrainingArguments class which is
+        # causing issues.
+        import os
 
+        # Handle --use_env option in torch.distributed.launch (local_rank not passed as an arg then).
+        # This needs to happen before any call to self.device or self.n_gpu.
+        env_local_rank = int(os.environ.get("LOCAL_RANK", -1))
+        if env_local_rank != -1 and env_local_rank != self.local_rank:
+            self.local_rank = env_local_rank
+
+        # expand paths, if not os.makedirs("~/bar") will make directory
+        # in the current directory instead of the actual home
+        #  see https://github.com/huggingface/transformers/issues/10628
+        if self.output_dir is not None:
+            self.output_dir = os.path.expanduser(self.output_dir)
+        if self.logging_dir is None and self.output_dir is not None:
+            self.logging_dir = os.path.join(self.output_dir, "tmp_trainer")
+        if self.logging_dir is not None:
+            self.logging_dir = os.path.expanduser(self.logging_dir)
+
+        # if self.disable_tqdm is None:
+        #     self.disable_tqdm = logger.getEffectiveLevel() > logging.WARN
+        import warnings
+
+        if isinstance(self.evaluation_strategy, EvaluationStrategy):
+            warnings.warn(
+                "using `EvaluationStrategy` for `evaluation_strategy` is deprecated and will be removed in version 5"
+                " of 🤗 Transformers. Use `IntervalStrategy` instead",
+                FutureWarning,
+            )
+            # Go back to the underlying string or we won't be able to instantiate `IntervalStrategy` on it.
+            self.evaluation_strategy = self.evaluation_strategy.value
+
+        self.evaluation_strategy = IntervalStrategy(self.evaluation_strategy)
+        self.logging_strategy = IntervalStrategy(self.logging_strategy)
+        self.save_strategy = IntervalStrategy(self.save_strategy)
+        self.hub_strategy = HubStrategy(self.hub_strategy)
+
+
+@pytest.mark.xfail(reason="docstring_parser can't parse the docstring of TrainingArguments!")
 def test_docstring_parse_works_with_hf_training_args():
-    from simple_parsing.docstring import get_attribute_docstring
 
     assert get_attribute_docstring(TrainingArguments, "output_dir").desc_from_cls_docstring == (
         "The output directory where the model predictions and checkpoints will be written."
+    )
+
+
+def test_entire_docstring_isnt_used_as_help():
+    assert (
+        "use_mps_device (`bool`, *optional*, defaults to `False`):"
+        not in TrainingArguments.get_help_text()
     )
