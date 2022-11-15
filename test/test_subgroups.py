@@ -278,6 +278,22 @@ def test_subgroups_dict_in_args():
     assert args.subgroups == {"config.a.person": "alice", "config.b.person": "daniel"}
 
 
+def test_nested_subgroup():
+    @dataclass
+    class Foo:
+        foo: int = 0
+
+    @dataclass
+    class Inner:
+        inner: Foo = subgroups({"foo": Foo}, default=Foo())
+
+    @dataclass
+    class Outer(TestSetup):
+        outer: Inner = subgroups({"inner": Inner}, default=Inner())
+
+    assert Outer.setup("") == Outer()
+
+
 def test_nested_subgroups():
     @dataclass
     class FooConfig:
@@ -296,24 +312,23 @@ def test_nested_subgroups():
         ...
 
     @dataclass
-    class Bar1Config(BarConfig):
-        bar_config_1: FooConfig = subgroups(
+    class InnerConfigA(BarConfig):
+        inner: FooConfig = subgroups(
             {"foo_a": FooAConfig, "foo_b": FooBConfig},
             default=FooAConfig(),
         )
 
-    @dataclass
-    class Bar2Config(BarConfig):
-        bar_config_2: FooConfig = subgroups(
-            {"foo_a": FooAConfig, "foo_b": FooBConfig},
-            default=FooBConfig(),
-        )
+    # @dataclass
+    # class InnerConfigB(BarConfig):
+    #     inner: FooConfig = subgroups(
+    #         {"foo_a": FooAConfig, "foo_b": FooBConfig}, default=FooBConfig(),
+    #     )
 
     @dataclass
     class Config(TestSetup):
-        bar_config: BarConfig = subgroups(
-            {"bar_1": Bar1Config, "bar_2": Bar2Config},
-            default=Bar2Config(),
+        outer: BarConfig = subgroups(
+            {"a": InnerConfigA, "b": InnerConfigA},
+            default=InnerConfigA(),
         )
 
-    assert Config.setup("") == Config(bar_config=Bar2Config(bar_config_2=FooBConfig()))
+    assert Config.setup("") == Config(outer=InnerConfigA(inner=FooBConfig()))
