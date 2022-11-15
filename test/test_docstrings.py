@@ -176,3 +176,27 @@ def test_getdocstring_bug():
         child: HParams = HParams()
 
     assert get_attribute_docstring(Parent, "child") == AttributeDocString()
+
+
+def test_desc_from_cls_docstring():
+    @dataclass
+    class HParams:
+        """Creates a new HParams object.
+
+        Parameters
+        ----------
+        batch_size : int, optional
+            _description_, by default 32
+
+        """
+
+        # above
+        batch_size: int = 32  # side
+        """below"""
+
+    assert get_attribute_docstring(HParams, "batch_size") == AttributeDocString(
+        desc_from_cls_docstring="_description_, by default 32",
+        comment_above="above",
+        comment_inline="side",
+        docstring_below="below",
+    )
