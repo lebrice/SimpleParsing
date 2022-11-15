@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import sys
+import inspect
 from dataclasses import MISSING
 from logging import getLogger
 from typing import cast
@@ -257,6 +258,24 @@ class DataclassWrapper(Wrapper[Dataclass]):
                     return doc.comment_above
                 elif doc.comment_inline:
                     return doc.comment_inline
+
+        # NOTE: This docstring may be EXTRELEMY LARGE.
+        # In the case where there is a line that contains the words "Parameters" or "Attributes",
+        # we will cut it short before there. This is because we can already use those strings to
+        # create the --help text for each field.
+        import docstring_parser as dp
+
+        for field in self.fields:
+            if field._docstring.desc_from_cls_docstring:
+                # todo
+                pass
+
+        class_docstring = inspect.getdoc(self.dataclass) or ""
+        doc = dp.parse(class_docstring)
+        doc.short_description + "\n" + docstring.long_description
+        import textwrap
+
+        textwrap.shorten()
         return self.dataclass.__doc__ or ""
 
     # @property
