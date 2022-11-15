@@ -5,7 +5,7 @@ import dataclasses
 import functools
 import inspect
 import typing
-from typing import Any, Callable, NamedTuple, Type
+from typing import Any, Callable, NamedTuple
 
 import docstring_parser as dp
 
@@ -14,7 +14,7 @@ from . import helpers, parsing
 
 class _Field(NamedTuple):
     name: str
-    annotation: Type
+    annotation: type
     field: dataclasses.Field
 
 
@@ -33,9 +33,7 @@ def _description_from_docstring(docstring: dp.Docstring) -> str:
 
 
 @typing.overload
-def main(
-    original_function: None = None, **sp_kwargs
-) -> Callable[..., Callable[..., Any]]:
+def main(original_function: None = None, **sp_kwargs) -> Callable[..., Callable[..., Any]]:
     ...
 
 
@@ -92,7 +90,7 @@ def main(original_function=None, **sp_kwargs):
 
             # We can have positional arguments with no defaults that come out of order
             # when parsing the function signature. Therefore, before we construct
-            # the dataclass we have to sort fields acording to their default value.
+            # the dataclass we have to sort fields according to their default value.
             # We query fields by name so there's no need to worry about the order.
             def _field_has_default(field: _Field) -> bool:
                 return (

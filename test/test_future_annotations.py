@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import dataclasses
+import sys
 import typing
 from dataclasses import InitVar, dataclass
-import sys
 from typing import Any, Callable, Generic, TypeVar
 
 import pytest
