@@ -1,10 +1,10 @@
 import collections
-from contextlib import contextmanager
-from dataclasses import InitVar
 import inspect
 import sys
 import types
 import typing
+from contextlib import contextmanager
+from dataclasses import InitVar
 from logging import getLogger as get_logger
 from typing import Any, Dict, Iterator, Optional, get_type_hints
 

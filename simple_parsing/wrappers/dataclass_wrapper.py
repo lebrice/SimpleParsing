@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import sys
 from dataclasses import MISSING
 from logging import getLogger
-import sys
 from typing import cast
 
 from .. import docstring, utils
@@ -60,7 +60,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
             try:
                 dataclass_fields_map = getattr(self.dataclass, dataclasses._FIELDS)
             except AttributeError:
-                raise TypeError('must be called with a dataclass type or instance')
+                raise TypeError("must be called with a dataclass type or instance")
             dataclass_fields = tuple(
                 field
                 for field in dataclass_fields_map.values()
