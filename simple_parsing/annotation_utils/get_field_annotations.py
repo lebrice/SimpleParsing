@@ -6,7 +6,7 @@ import typing
 from contextlib import contextmanager
 from dataclasses import InitVar
 from logging import getLogger as get_logger
-from typing import Any, Dict, Iterator, Optional, get_type_hints
+from typing import Any, Dict, Iterator, Optional, get_type_hints, TypeVar
 
 logger = get_logger(__name__)
 
@@ -18,6 +18,7 @@ forward_refs_to_types = {
     "dict": typing.Dict,
     "list": typing.List,
     "type": typing.Type,
+    "D": TypeVar("D"),
 }
 
 
