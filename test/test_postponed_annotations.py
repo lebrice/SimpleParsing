@@ -1,3 +1,4 @@
+from __future__ import annotations
 import sys
 from pathlib import Path
 
@@ -27,6 +28,7 @@ def test_postponed_annotations_with_baseclass(sys_argv, b_value, p_value, monkey
 @dataclass
 class MyArguments(Serializable):
     arg1: str = 'this_argment'
+    arg2: str | Path = Path('test_dir')
     
 @pytest.mark.parametrize(
     'sys_argv, result', [
@@ -39,3 +41,4 @@ def test_postponed_annotations_with_Serializable_base(sys_argv, result):
     parser.add_arguments(MyArguments, 'myargs')
     args, _ = parser.parse_known_args(sys_argv)
     assert args.myargs.arg1 == result
+    assert args.myargs.arg2 == Path('test_dir')
