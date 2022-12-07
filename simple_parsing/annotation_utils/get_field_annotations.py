@@ -18,7 +18,6 @@ forward_refs_to_types = {
     "dict": typing.Dict,
     "list": typing.List,
     "type": typing.Type,
-    # "D": TypeVar("D"),
 }
 
 
