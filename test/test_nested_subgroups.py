@@ -128,10 +128,8 @@ class ParserForSubgroups(ArgumentParser):
                 self.add_argument(option_string, dest=field_dest, **add_argument_kwargs)
 
     def parse_known_args(self, args: Sequence | None = None, namespace: Namespace | None = None):
-        for nesting_level in range(100):
-            if not self.unresolved_subgroups:
-                break
-
+        current_nesting_level = 0
+        while self.unresolved_subgroups:
             # NOTE: Assuming that we are creating a new namespace for now. This might make a bit
             # simpler when doing this initial round of parsing, since we don't have to worry about
             # side-effects. Might need to test this later.
@@ -144,7 +142,7 @@ class ParserForSubgroups(ArgumentParser):
 
             parsed_args, unused_args = super().parse_known_args(args=args, namespace=namespace)
             logger.debug(
-                f"Nesting level {nesting_level}: args: {args}, "
+                f"Nesting level {current_nesting_level}: args: {args}, "
                 f"parsed_args: {parsed_args}, unused_args: {unused_args}"
             )
 
@@ -170,9 +168,11 @@ class ParserForSubgroups(ArgumentParser):
                 logger.info("Done parsing all the subgroups!")
             else:
                 logger.info(
-                    f"Done parsing a round of subparsers, moving to the next nesting level, "
-                    f"which appears to have {len(self.unresolved_subgroups)} unresolved subgroups."
+                    f"Done parsing a round of subparsers at nesting level "
+                    f"{current_nesting_level}. Moving to the next round which has "
+                    f"{len(self.unresolved_subgroups)} unresolved subgroup choices."
                 )
+                current_nesting_level += 1
 
         logger.info("Adding the rest of the arguments.")
         self._add_rest_of_arguments()
