@@ -278,57 +278,37 @@ def test_subgroups_dict_in_args():
     assert args.subgroups == {"config.a.person": "alice", "config.b.person": "daniel"}
 
 
-def test_nested_subgroup():
-    @dataclass
-    class Foo:
-        foo: int = 0
-
-    @dataclass
-    class Inner:
-        inner: Foo = subgroups({"foo": Foo}, default=Foo())
-
-    @dataclass
-    class Outer(TestSetup):
-        outer: Inner = subgroups({"inner": Inner}, default=Inner())
-
-    assert Outer.setup("") == Outer()
-
-
 def test_nested_subgroups():
     @dataclass
-    class FooConfig:
-        ...
+    class A:
+        a: float = 0.0
 
     @dataclass
-    class FooAConfig(FooConfig):
-        foo_param_a: float = 0.0
+    class B:
+        b: str = "bar"
 
     @dataclass
-    class FooBConfig(FooConfig):
-        foo_param_b: str = "foo_b"
+    class AB:
+        a_or_b: Union[A, B] = subgroups({"a": A, "b": B}, default=A(1.23))
 
     @dataclass
-    class BarConfig:
-        ...
+    class C:
+        c: bool = False
 
     @dataclass
-    class InnerConfigA(BarConfig):
-        inner: FooConfig = subgroups(
-            {"foo_a": FooAConfig, "foo_b": FooBConfig},
-            default=FooAConfig(),
-        )
+    class D:
+        d: int = 0
 
-    # @dataclass
-    # class InnerConfigB(BarConfig):
-    #     inner: FooConfig = subgroups(
-    #         {"foo_a": FooAConfig, "foo_b": FooBConfig}, default=FooBConfig(),
-    #     )
+    @dataclass
+    class CD:
+        c_or_d: Union[C, D] = subgroups({"c": C, "d": D}, default=C(True))
 
     @dataclass
     class Config(TestSetup):
-        outer: BarConfig = subgroups(
-            {"a": InnerConfigA, "b": InnerConfigA},
-            default=InnerConfigA(),
+        ab_or_cd: Union[AB, CD] = subgroups(
+            {"ab": AB, "cd": CD},
+            default=AB(a_or_b=B("heyo")),
         )
 
-    assert Config.setup("") == Config(outer=InnerConfigA(inner=FooBConfig()))
+    assert Config.setup("") == Config(ab_or_cd=AB(a_or_b=B("heyo")))
+    assert Config.setup("--ab_or_cd cd --c_or_d d --d 123") == Config(ab_or_cd=CD(c_or_d=D(d=123)))

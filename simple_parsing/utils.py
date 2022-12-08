@@ -752,7 +752,9 @@ def trie(sentences: list[list[str]]) -> dict[str, str | dict]:
         if len(sentences) == 1:
             return_dict[first_word] = ".".join(sentences[0])
         else:
-            sentences_without_first_word = [sentence[1:] for sentence in sentences]
+            sentences_without_first_word = [
+                sentence[1:] for sentence in sentences if len(sentence) > 1
+            ]
             return_dict[first_word] = trie(sentences_without_first_word)
     return return_dict
 
@@ -936,10 +938,30 @@ def getitem_recursive(d: PossiblyNestedDict[K, V], keys: Iterable[K], default: T
 
 def getitem_recursive(
     d: PossiblyNestedDict[K, V], keys: Iterable[K], default: T | _MISSING_TYPE = MISSING
-) -> V | T:
+) -> V | T | PossiblyNestedDict[K, V]:
+    keys = list(keys)
+    for key in keys[:-1]:
+        assert key in d
+        d = d[key]  # type: ignore
+    last_key = keys[-1]
+    if default is MISSING:
+        return d[last_key]
+    return d.get(last_key, default)
+    # NOTE: This here was assuming that it was given a "full" key, that points to a value.
+    # but the key could also very well be pointing to one of the intermediate dictionaries.
     if default is not MISSING:
         return flatten(d).get(tuple(keys), default)
     return flatten(d)[tuple(keys)]
+
+
+def setitem_recursive(
+    nested_dictionary: PossiblyNestedDict[K, V], keys: Iterable[K], value: V
+) -> None:
+    keys = list(keys)
+    for key in keys[:-1]:
+        assert key in nested_dictionary
+        nested_dictionary = nested_dictionary[key]  # type: ignore
+    nested_dictionary[keys[-1]] = value
 
 
 if __name__ == "__main__":
