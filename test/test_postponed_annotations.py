@@ -17,7 +17,7 @@ from .b import B
         pytest.param(['test.py'], None, None, marks=pytest.mark.xfail(reason='no default value in the dataclass'))
     ]
 )
-def test_postponed_annotations_with_baseclass(sys_argv, b_value, p_value, monkeypatch):
+def test_postponed_annotations_with_baseclass(sys_argv: list[str], b_value: int | None, p_value: Path | None, monkeypatch):
     monkeypatch.setattr(sys, 'argv', sys_argv)
     parser = ArgumentParser()
     parser.add_arguments(B, 'b')
