@@ -46,3 +46,9 @@ def test_postponed_annotations_with_multi_depth_inherits_1():
     
 def test_postponed_annotations_with_multi_depth_inherits_2():
     assert C.setup('--p test/test1 --v 1 --m string') == C(Path('test/test1'), 1, 'string')
+    
+def test_overwrite_base():
+    import test.postponed_annotations.overwrite_subclass as overwrite_subclass
+    import test.postponed_annotations.overwrite_base as overwrite_base
+    assert overwrite_subclass.Subclass.setup('--something_else False') == overwrite_subclass.Subclass(a=overwrite_base.Foo(), other_attribute=overwrite_subclass.Foo(False))
+    
