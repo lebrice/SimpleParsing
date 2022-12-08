@@ -54,9 +54,14 @@ class Config:
 class ParserForSubgroups(ArgumentParser):
     def __init__(self) -> None:
         super().__init__()
+        self.dataclasses: dict[str, type] = {}
+
+        # dict of all subgroups that get spawned in the initial phase of `parse_known_args`.
+        # Entries are never removed from this dict.
+        self.all_subgroups: dict[str, Field] = {}
+        # dict of currently unresolved subgroups: subgroup choices whose value hasn't been parsed
+        # yet.
         self.unresolved_subgroups: dict[str, Field] = {}
-        # self.resolved_subgroups: dict[str, type] = {}
-        self.dataclasses = {}
 
     def add_arguments(self, dataclass: type, dest: str):
         """Add arguments for a dataclass to the parser."""
@@ -82,12 +87,12 @@ class ParserForSubgroups(ArgumentParser):
                 field_type = field.metadata["custom_args"]["type"]
 
             self.unresolved_subgroups[field_dest] = field
-            choices = field.metadata["custom_args"]["choices"]
+            self.all_subgroups[field_dest] = field
 
             # NOTE: ignoring name conflicts for now: the field dest is just going to be the field
             # name for now.
             option_string = f"--{field.name}"
-
+            choices = field.metadata["custom_args"]["choices"]
             logger.info(
                 f"Adding an argument for subgroup at dest {field_dest} with options {choices}"
             )
@@ -105,6 +110,9 @@ class ParserForSubgroups(ArgumentParser):
             for field in fields(dataclass_type):
                 field_dest = f"{dest}.{field.name}"
 
+                if field_dest in self.unresolved_subgroups:
+                    logger.debug(f"ignoring field at dest {field_dest} because it's a subgroup.")
+                    continue
                 if "subgroups" in field.metadata:
                     logger.debug(f"ignoring field at dest {field_dest} because it's a subgroup.")
                     continue
@@ -129,6 +137,12 @@ class ParserForSubgroups(ArgumentParser):
 
     def parse_known_args(self, args: Sequence | None = None, namespace: Namespace | None = None):
         current_nesting_level = 0
+
+        # NOTE: Might be a good idea to make this have no side-effects. For now, we will reset
+        # `self.subgroups` to its original value after this method is called.
+        subgroups_backup = self.unresolved_subgroups.copy()
+        self.all_subgroups = self.unresolved_subgroups.copy()
+
         while self.unresolved_subgroups:
             # NOTE: Assuming that we are creating a new namespace for now. This might make a bit
             # simpler when doing this initial round of parsing, since we don't have to worry about
@@ -146,9 +160,7 @@ class ParserForSubgroups(ArgumentParser):
                 f"parsed_args: {parsed_args}, unused_args: {unused_args}"
             )
 
-            subgroups_at_this_level = self.unresolved_subgroups.copy()
-
-            for dest, field in list(subgroups_at_this_level.items()):
+            for dest, field in list(self.unresolved_subgroups.items()):
                 # NOTE: There should always be a parsed value for the subgroup argument on the
                 # namespace. This is because we added all the subgroup arguments before we get
                 # here.
@@ -174,14 +186,17 @@ class ParserForSubgroups(ArgumentParser):
                 )
                 current_nesting_level += 1
 
+        # Reset the `subgroups` attribute to its original value. This is so we can call
+        # `parse_known_args` multiple times, which each call having no side-effect on the state of
+        # the parser.
+        self.unresolved_subgroups = subgroups_backup
+
         logger.info("Adding the rest of the arguments.")
         self._add_rest_of_arguments()
 
         parsed_args, unused_args = super().parse_known_args(args=args, namespace=namespace)
 
         logger.info(f"Raw parsed args: {parsed_args}, unused args: {unused_args}")
-
-        parsed_args_dict = vars(parsed_args)
 
         # --- Postprocessing step ---
         # Convert the dicts on the namespace to dataclasses.
@@ -214,7 +229,8 @@ class ParserForSubgroups(ArgumentParser):
                 if field_dest in instantiated_dataclasses:
                     field_value = instantiated_dataclasses[field_dest]
                 else:
-                    field_value = parsed_args_dict[field_dest]
+                    field_value = getattr(parsed_args, field_dest)
+                    delattr(parsed_args, field_dest)
 
                 logger.debug(
                     f"Field {field.name} of dataclass at dest {dest} has value {field_value}"
@@ -230,12 +246,27 @@ class ParserForSubgroups(ArgumentParser):
 
             instantiated_dataclasses[dest] = dataclass_instance
 
-        # Set the instantiated dataclasses on the namespace.
-        # However, we need to take care, and only actually need to only set the dataclasses that are not nested inside other
-        # dataclasses!
+        # Final step: set the instantiated dataclasses on the namespace.
+        # However, we need to take care, and only actually set the dataclasses that are not nested
+        # inside other dataclasses!
         for dest, dataclass_type in instantiated_dataclasses.items():
+            if "." in dest:
+                continue
+            logger.debug(f"Setting dataclass instance {dataclass_type} on namespace at dest {dest}")
             setattr(parsed_args, dest, dataclass_type)
 
+        # Only thing left to remove are the values for the subgroup arguments.
+        # TODO: Should we store these values somewhere? Or just leave them in the namespace?
+        # NOTE: Probably best to just leave them in the namespace, since users would have to use
+        # `getattr(args, "something.something")` to get them, I think. Not 100% sure.
+        if self.unresolved_subgroups:
+            # parsed_args.subgroups = self.subgroups.copy()
+            parsed_args.subgroup_values = {}
+        for dest in self.all_subgroups:
+            logger.debug(f"Removing subgroup entry {dest} from the namespace.")
+            value = getattr(parsed_args, dest)
+            delattr(parsed_args, dest)
+            parsed_args.subgroup_values[dest] = value
         return parsed_args, unused_args
 
 
@@ -246,3 +277,7 @@ def test_subgroups():
     parser.add_arguments(Config, "config")
     args = parser.parse_args(shlex.split("--ab_or_cd cd --c_or_d d --d 123"))
     assert args.config == Config(ab_or_cd=CD(c_or_d=D(d=123)))
+    assert list(vars(args)) == [
+        "config",
+        "subgroup_values",
+    ], "should be any leftover garbage in the namespace"
