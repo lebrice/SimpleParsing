@@ -178,10 +178,17 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     local_ns: Dict[str, Any] = {"typing": typing, **vars(typing)}
     local_ns.update(forward_refs_to_types)
     # Get the globals in the module where the class and the bases of the class were defined, recursively.
-    global_ns = sys.modules[some_cls.__module__].__dict__
-    for base_cls in some_cls.__bases__:
-        global_ns.update(sys.modules[base_cls.__module__].__dict__)
-        
+    global_ns = {}
+
+    def add_global_ns(some_cls: type):
+        nonlocal global_ns
+        global_ns.update(sys.modules[some_cls.__module__].__dict__)
+        print(some_cls, some_cls.__module__)
+        for base_cls in some_cls.__bases__:
+            add_global_ns(base_cls)
+
+    add_global_ns(some_class)
+    
     try:
         with _initvar_patcher():
             annotations_dict = get_type_hints(some_class, localns=local_ns, globalns=global_ns)
