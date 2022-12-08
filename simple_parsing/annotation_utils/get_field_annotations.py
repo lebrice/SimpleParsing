@@ -183,7 +183,6 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     def add_global_ns(some_cls: type):
         nonlocal global_ns
         global_ns.update(sys.modules[some_cls.__module__].__dict__)
-        print(some_cls, some_cls.__module__)
         for base_cls in some_cls.__bases__:
             add_global_ns(base_cls)
 
