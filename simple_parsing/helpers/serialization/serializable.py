@@ -57,6 +57,88 @@ except ImportError:
     pass
 
 
+class FormatExtension:
+    binary: bool = False
+
+    def __init__(self, extension_name: str, binary=False):
+        self.extension_name = extension_name
+
+
+class JSONExtension(FormatExtension):
+    load = staticmethod(json.load)
+    dump = staticmethod(json.dump)
+
+
+class PickleExtension(FormatExtension):
+    load = staticmethod(pickle.load)
+    dump = staticmethod(pickle.dump)
+
+
+class YamlExtension(FormatExtension):
+    def load(self, io: IO) -> None:
+        import yaml
+
+        return yaml.safe_load(io)
+
+    def dump(self, obj: Any, io: IO, **kwargs) -> None:
+        import yaml
+
+        return yaml.dump(obj, io, **kwargs)
+
+
+class NumpyExtension(FormatExtension):
+    binary: bool = True
+
+    def load(self, io: IO) -> None:
+        import numpy
+
+        return numpy.load(io)
+
+    def dump(self, obj: Any, io: IO, **kwargs) -> None:
+        import numpy
+
+        return numpy.save(obj, io, **kwargs)
+
+
+class TorchExtension(FormatExtension):
+    binary: bool = True
+
+    def load(self, io: IO) -> None:
+        import torch
+
+        return torch.load(io)
+
+    def dump(self, obj: Any, io: IO, **kwargs) -> None:
+        import torch
+
+        return torch.save(obj, io, **kwargs)
+
+
+json_extension = JSONExtension("_")
+yaml_extension = YamlExtension("_")
+
+
+extensions: dict[str, FormatExtension] = {
+    ".json": JSONExtension(".json"),
+    ".pkl": PickleExtension(".pkl"),
+    ".yaml": YamlExtension(".yaml"),
+    ".yml": YamlExtension(".yml"),
+    ".npy": NumpyExtension(".npy"),
+    ".pth": TorchExtension(".pth"),
+}
+
+
+def get_extension(path: str | Path) -> FormatExtension:
+    path = Path(path)
+    if path.suffix in extensions:
+        return extensions[path.suffix]
+    else:
+        raise RuntimeError(
+            f"Cannot load to/save from a {path.suffix} file because "
+            "this extension is not registered in the extensions dictionary."
+        )
+
+
 class SerializableMixin:
     """Makes a dataclass serializable to and from dictionaries.
 
@@ -248,17 +330,21 @@ class SerializableMixin:
         """
         return load_yaml(cls, path, load_fn=load_fn, drop_extra_fields=drop_extra_fields, **kwargs)
 
-    def save(self, path: str | Path, dump_fn=None) -> None:
-        save(self, path=path, dump_fn=dump_fn)
+    def save(self, path: str | Path, format: FormatExtension = None) -> None:
+        save(self, path=path, format=format)
 
-    def _save(self, path: str | Path, dump_fn: DumpFn = json.dump, **kwargs) -> None:
-        save(self, path=path, dump_fn=partial(dump_fn, **kwargs))
+    def _save(
+        self, path: str | Path, format: FormatExtension = json_extension, **kwargs
+    ) -> None:
+        save(self, path=path, format=format, **kwargs)
 
-    def save_yaml(self, path: str | Path, dump_fn: DumpFn | None = None, **kwargs) -> None:
-        save_yaml(self, path, dump_fn=dump_fn, **kwargs)
+    def save_yaml(
+        self, path: str | Path, dump_fn: DumpFn | None = None, **kwargs
+    ) -> None:
+        save_yaml(self, path, **kwargs)
 
-    def save_json(self, path: str | Path, dump_fn=json.dump, **kwargs) -> None:
-        save_json(self, path, dump_fn=dump_fn, **kwargs)
+    def save_json(self, path: str | Path, **kwargs) -> None:
+        save_json(self, path, **kwargs)
 
     @classmethod
     def loads(
@@ -484,51 +570,6 @@ def loads_yaml(
     return loads(cls, s, drop_extra_fields=drop_extra_fields, load_fn=partial(load_fn, **kwargs))
 
 
-extensions_to_loading_fn: dict[str, Callable[[IO], Any]] = {
-    ".json": json.load,
-    ".pkl": pickle.load,
-}
-extensions_to_read_mode: dict[str, str] = {".pkl": "rb"}
-
-extensions_to_write_mode: dict[str, str] = {".pkl": "wb"}
-extensions_to_dump_fn: dict[str, Callable[[Any, IO], None]] = {
-    ".json": json.dump,
-    ".pkl": pickle.dump,
-}
-try:
-    import yaml
-
-    extensions_to_loading_fn[".yaml"] = yaml.safe_load
-    extensions_to_loading_fn[".yml"] = yaml.safe_load
-    extensions_to_dump_fn[".yaml"] = yaml.dump
-    extensions_to_dump_fn[".yml"] = yaml.dump
-
-
-except ImportError:
-    pass
-
-try:
-    import numpy  # type: ignore
-
-    extensions_to_loading_fn[".npy"] = numpy.load
-    extensions_to_dump_fn[".npy"] = numpy.save
-    extensions_to_read_mode[".npy"] = "rb"
-    extensions_to_write_mode[".npy"] = "wb"
-
-except ImportError:
-    pass
-
-try:
-    import torch  # type: ignore
-
-    extensions_to_loading_fn[".pth"] = torch.load
-    extensions_to_dump_fn[".pth"] = torch.save
-    extensions_to_read_mode[".pth"] = "rb"
-    extensions_to_write_mode[".pth"] = "wb"
-except ImportError:
-    pass
-
-
 def read_file(path: str | Path) -> dict:
     """Returns the contents of the given file as a dictionary.
     Uses the right function depending on `path.suffix`:
@@ -540,66 +581,29 @@ def read_file(path: str | Path) -> dict:
         ".pkl": pickle.load,
     }
     """
-    path = Path(path)
-    if path.suffix in extensions_to_loading_fn:
-        load_fn = extensions_to_loading_fn[path.suffix]
-    else:
-        raise RuntimeError(
-            f"Unable to determine what function to use in order to load "
-            f"path {path} into a dictionary since the path's extension isn't registered in the "
-            f"`extensions_to_loading_fn` dictionary..."
-        )
-    mode = extensions_to_read_mode.get(path.suffix, "r")
-    with open(path, mode=mode) as f:
-        return load_fn(f)
+    format = get_extension(path)
+    with open(path, mode="rb" if format.binary else "r") as f:
+        return format.load(f)
 
 
 def save(
-    obj: Any,
-    path: str | Path,
-    dump_fn: Callable[[dict, IO], None] | None = None,
-    save_dc_types: bool = False,
+    obj: Any, path: str | Path, format: FormatExtension | None = None, **kwargs
 ) -> None:
-    """Save the given dataclass or dictionary to the given file.
-
-    Note: The `encode` function is applied to all the object fields to get serializable values,
-    like so:
-    - obj -> encode -> "raw" values (dicts, strings, ints, etc) -> `dump_fn` ([json/yaml/etc].dumps) -> string
-    """
-    path = Path(path)
-
+    """Save the given dataclass or dictionary to the given file."""
     if not isinstance(obj, dict):
-        obj = to_dict(obj, save_dc_types=save_dc_types)
-
-    if dump_fn:
-        save_fn = dump_fn
-    elif path.suffix in extensions_to_dump_fn:
-        save_fn = extensions_to_dump_fn[path.suffix]
-    else:
-        raise RuntimeError(
-            f"Unable to determine what function to use in order to save obj {obj} to path {path},"
-            f"since the path's extension isn't registered in the "
-            f"`extensions_to_dump_fn` dictionary..."
-        )
-    mode = extensions_to_write_mode.get(path.suffix, "w")
-    with open(path, mode=mode) as f:
-        return save_fn(obj, f)
+        obj = to_dict(obj)
+    if format is None:
+        format = get_extension(path)
+    with open(path, mode="wb" if format.binary else "w") as f:
+        return format.dump(obj, f, **kwargs)
 
 
-def save_yaml(
-    obj, path: str | Path, dump_fn: DumpFn | None = None, save_dc_types: bool = False, **kwargs
-) -> None:
-    import yaml
-
-    if dump_fn is None:
-        dump_fn = yaml.dump
-    save(obj, path, dump_fn=partial(dump_fn, **kwargs), save_dc_types=save_dc_types)
+def save_yaml(obj, path: str | Path, **kwargs) -> None:
+    save(obj, path, format=yaml_extension, **kwargs)
 
 
-def save_json(
-    obj, path: str | Path, dump_fn: DumpFn = json.dump, save_dc_types: bool = False, **kwargs
-) -> None:
-    save(obj, path, dump_fn=partial(dump_fn, **kwargs), save_dc_types=save_dc_types)
+def save_json(obj, path: str | Path, **kwargs) -> None:
+    save(obj, path, format=json_extension, **kwargs)
 
 
 def load_yaml(
