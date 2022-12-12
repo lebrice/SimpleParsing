@@ -595,7 +595,7 @@ class ArgumentParser(argparse.ArgumentParser):
             # dataclass, there's a field called `model`. Then, this will cause a conflict!)
             # For now, I'm just going to wait and see how this plays itself out.
 
-            logger.critical(f"Tree: {print_tree(wrappers)}")
+            logger.critical(f"Tree: {_print_tree(wrappers)}")
 
             # FIXME: There is a FieldWrapper which appears to be duplicated somewhere, since the
             # ConflictResolution code is raising an AssertionError.
@@ -689,6 +689,8 @@ class ArgumentParser(argparse.ArgumentParser):
         # find all subgroup fields
         subgroup_fields = _get_subgroup_fields(self._wrappers)
 
+        if not subgroup_fields:
+            return
         # IDEA: Store the choices in a `subgroups` dict on the namespace.
         if not hasattr(parsed_args, "subgroups"):
             parsed_args.subgroups = {}
@@ -723,10 +725,7 @@ class ArgumentParser(argparse.ArgumentParser):
             corresponding destinations.
         """
 
-        def flatten(wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
-            return sum((list(w.descendants) + [w] for w in wrappers), [])
-
-        self._wrappers = flatten(self._wrappers)
+        self._wrappers = _flatten_wrappers(self._wrappers)
 
         # sort the wrappers so as to construct the leaf nodes first.
         sorted_wrappers: list[DataclassWrapper] = sorted(
@@ -930,6 +929,7 @@ def parse_known_args(
 
 def _get_subgroup_fields(wrappers: list[DataclassWrapper]) -> dict[str, FieldWrapper]:
     subgroup_fields = {}
+    wrappers = _flatten_wrappers(wrappers=wrappers)
     for wrapper in wrappers:
         for field in wrapper.fields:
             if field.is_subgroup:
@@ -948,7 +948,11 @@ def _get_subgroup_fields(wrappers: list[DataclassWrapper]) -> dict[str, FieldWra
     return subgroup_fields
 
 
-def print_tree(wrappers: list[DataclassWrapper], is_subgroup: bool = False) -> str:
+def _flatten_wrappers(wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
+    return sum((list(w.descendants) + [w] for w in wrappers), [])
+
+
+def _print_tree(wrappers: list[DataclassWrapper], is_subgroup: bool = False) -> str:
     s = StringIO()
     import textwrap
 
@@ -961,7 +965,7 @@ def print_tree(wrappers: list[DataclassWrapper], is_subgroup: bool = False) -> s
                     child_with_this_name = [
                         child for child in wrapper._children if child.name == field.name
                     ]
-                    substring = print_tree(child_with_this_name, is_subgroup=True)
+                    substring = _print_tree(child_with_this_name, is_subgroup=True)
                     print(textwrap.indent(substring, "\t"))
     s.seek(0)
     return s.read()
