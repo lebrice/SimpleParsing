@@ -193,11 +193,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             self._results[destination] = value
 
             parser.constructor_arguments[parent_dest][attribute] = value
-            logger.debug(
-                f"setting value of {value} in constructor arguments "
-                f"of parent at key '{parent_dest}' and attribute "
-                f"'{attribute}'"
-            )
+            logger.debug(f"parser.constructor_arguments[{parent_dest}][{attribute}] = {value}")
             if self.is_subgroup:
                 if not hasattr(namespace, "subgroups"):
                     namespace.subgroups = {}

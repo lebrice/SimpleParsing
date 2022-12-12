@@ -222,12 +222,34 @@ class ArgumentParser(argparse.ArgumentParser):
         The generated DataclassWrapper instance. Feel free to inspect / play around with this if
         you want :)
         """
+        new_wrapper = self._add_arguments(
+            dataclass=dataclass,
+            name=dest,
+            prefix=prefix,
+            default=default,
+            dataclass_wrapper_class=dataclass_wrapper_class,
+        )
+        self._wrappers.append(new_wrapper)
+        return new_wrapper
+
+    def _add_arguments(
+        self,
+        dataclass: type[Dataclass] | Dataclass,
+        name: str,
+        *,
+        prefix: str = "",
+        default: Dataclass = None,
+        dataclass_wrapper_class: type[DataclassWrapperType] = DataclassWrapper,
+        parent: DataclassWrapper | None = None,
+        _field: dataclasses.Field | None = None,
+        field_wrapper_class: type[FieldWrapper] = FieldWrapper,
+    ) -> DataclassWrapper[Dataclass] | DataclassWrapperType:
         for wrapper in self._wrappers:
-            if wrapper.dest == dest:
+            if wrapper.dest == name:
                 if wrapper.dataclass == dataclass:
                     raise argparse.ArgumentError(
                         argument=None,
-                        message=f"Destination attribute {dest} is already used for "
+                        message=f"Destination attribute {name} is already used for "
                         f"dataclass of type {dataclass}. Make sure all destinations"
                         f" are unique. (new dataclass type: {dataclass})",
                     )
@@ -235,7 +257,15 @@ class ArgumentParser(argparse.ArgumentParser):
             default = dataclass if default is None else default
             dataclass = type(dataclass)
 
-        new_wrapper = dataclass_wrapper_class(dataclass, dest, prefix=prefix, default=default)
+        new_wrapper = dataclass_wrapper_class(
+            dataclass=dataclass,
+            name=name,
+            prefix=prefix,
+            default=default,
+            parent=parent,
+            _field=_field,
+            field_wrapper_class=field_wrapper_class,
+        )
 
         if new_wrapper.dest in self._defaults:
             new_wrapper.default = self._defaults[new_wrapper.dest]
@@ -250,7 +280,6 @@ class ArgumentParser(argparse.ArgumentParser):
                 if k in [f.name for f in dataclasses.fields(new_wrapper.dataclass)]
             }
 
-        self._wrappers.append(new_wrapper)
         return new_wrapper
 
     def parse_known_args(
@@ -497,14 +526,14 @@ class ArgumentParser(argparse.ArgumentParser):
                 f"parsed_args: {parsed_args}, unused_args: {unused_args}"
             )
 
-            for dest, wrapped_field in list(unresolved_subgroups.items()):
+            for dest, subgroup_field in list(unresolved_subgroups.items()):
                 # NOTE: There should always be a parsed value for the subgroup argument on the
                 # namespace. This is because we added all the subgroup arguments before we get
                 # here.
                 assert hasattr(parsed_args, dest)
-                subgroup_chosen_value: str = getattr(parsed_args, dest)
-                assert isinstance(subgroup_chosen_value, str)
-                chosen_subgroup = wrapped_field.subgroup_choices[subgroup_chosen_value]
+                chosen_subgroup_name: str = getattr(parsed_args, dest)
+                assert isinstance(chosen_subgroup_name, str)
+                chosen_subgroup = subgroup_field.subgroup_choices[chosen_subgroup_name]
                 # if a type, then use it as the chosen type. If it's a value, then use it as the
                 # default value, and use the type of the default value as the chosen type.
                 if isinstance(chosen_subgroup, type):
@@ -516,20 +545,44 @@ class ArgumentParser(argparse.ArgumentParser):
 
                 logger.info(
                     f"resolved the subgroup at dest {dest} to a value of "
-                    f"{subgroup_chosen_value}, which means to use the "
+                    f"{chosen_subgroup_name}, which means to use the "
                     f"{subgroup_type} dataclass."
                 )
-                # NOTE: This modifies the `self._wrappers` list in-place.
-                new_wrapper = self.add_arguments(
-                    dataclass=subgroup_type, dest=dest, default=subgroup_default
-                )
-                # Trying to make this a bit more "stateless".
-                assert wrappers == self._wrappers[:-1]
-                assert new_wrapper is self._wrappers[-1]
+                parent_dataclass_wrapper = subgroup_field.parent
+                subgroup_field_default = subgroup_field.default
+                # NOTE: making
+                subgroup_field.default = chosen_subgroup_name
 
-                wrappers.append(new_wrapper)
+                # Use the private variant of self.add_arguments (which is 'stateless'), so it
+                # doesn't modify the `self._wrappers` list.
+                # NOTE: we don't add the new wrapper to `self._wrappers`! Those only contain the
+                # wrappers that are added at the top-level by the user with a call to
+                # `add_arguments`.
+                name = dest.split(".")[-1]
+                # assert False, (subgroup_default, subgroup_field_default)
+
+                # TODO: Determine what the default value for the argument group should be.
+                # TODO: Handle the `MISSING` case!
+                if subgroup_default is not None:
+                    default = subgroup_default
+                elif isinstance(subgroup_field_default, subgroup_type):
+                    default = subgroup_field_default
+                else:
+                    default = None
+
+                new_wrapper = self._add_arguments(
+                    dataclass=subgroup_type,
+                    name=name,
+                    default=default,
+                    parent=parent_dataclass_wrapper,
+                )
+
+                # Make the new wrapper a child of the class which contains the field.
+                parent_dataclass_wrapper._children.append(new_wrapper)
+                assert new_wrapper.parent is parent_dataclass_wrapper
+
                 unresolved_subgroups.pop(dest)
-                resolved_subgroups[dest] = subgroup_chosen_value
+                resolved_subgroups[dest] = chosen_subgroup_name
 
             # Find the new subgroup fields that weren't resolved before.
             # NOTE: This should behave fine, and not cause any cycles, because:
@@ -661,6 +714,12 @@ class ArgumentParser(argparse.ArgumentParser):
             self._wrappers, key=lambda w: w.nesting_level, reverse=True
         )
         D = TypeVar("D")
+        # BUG: The nesting level is broken, because the DataclassWrappers that are created from
+        # the subgroup choices are not children of the class with the subgroup field.
+        # FIXME: Need to make the new dataclass wrappers children of the parent which actually spawned them
+        # FIXME: The FieldWrapper associated with a Subgroup should somehow be "changed" to
+        # the newly created DataclassWrapper!
+        assert False, [w.dest for w in sorted_wrappers]
 
         def _create_dataclass_instance(
             wrapper: DataclassWrapper[D],
@@ -895,4 +954,8 @@ def _get_subgroup_fields(wrappers: list[DataclassWrapper]) -> dict[str, FieldWra
         for field in wrapper.fields:
             if field.is_subgroup:
                 subgroup_fields[field.dest] = field
+        for child_wrapper in wrapper.descendants:
+            for field in child_wrapper.fields:
+                if field.is_subgroup:
+                    subgroup_fields[field.dest] = field
     return subgroup_fields

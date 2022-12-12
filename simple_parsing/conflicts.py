@@ -233,8 +233,8 @@ class ConflictResolver:
         """
         field_wrappers = sorted(conflict.wrappers, key=lambda w: w.nesting_level)
         logger.debug(f"Conflict with options string '{conflict.option_string}':")
-        for field in field_wrappers:
-            logger.debug(f"Field wrapper: {field} nesting level: {field.nesting_level}.")
+        for i, field in enumerate(field_wrappers):
+            logger.debug(f"Field wrapper #{i+1}: {field} nesting level: {field.nesting_level}.")
 
         assert (
             len(set(field_wrappers)) >= 2
