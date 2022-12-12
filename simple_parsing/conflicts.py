@@ -135,7 +135,7 @@ class ConflictResolver:
         for field_wrapper in field_wrappers:
             for option_string in field_wrapper.option_strings:
                 conflicts[option_string].append(field_wrapper)
-                logger.debug(f"conflicts[{option_string}].append({repr(field_wrapper)})")
+                # logger.debug(f"conflicts[{option_string}].append({repr(field_wrapper)})")
 
         for option_string, wrappers in conflicts.items():
             if len(wrappers) > 1:

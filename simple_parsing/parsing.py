@@ -581,24 +581,28 @@ class ArgumentParser(argparse.ArgumentParser):
                 )
 
                 # Make the new wrapper a child of the class which contains the field.
+                # - it isn't already a child
+                # - it's parent is the parent dataclass wrapper
+                # - the parent is already in the tree of DataclassWrappers.
                 assert new_wrapper not in parent_dataclass_wrapper._children
                 parent_dataclass_wrapper._children.append(new_wrapper)
                 assert new_wrapper.parent is parent_dataclass_wrapper
+                assert parent_dataclass_wrapper in _flatten_wrappers(wrappers)
+                # FIXME: I think I figured out the issue. If we generate a DataclassWrapper for a
+                # subgroup, then it doesn't get a real `Field`, which might be impeding the parsing
+                # from working properly?
 
                 unresolved_subgroups.pop(dest)
                 resolved_subgroups[dest] = chosen_subgroup_name
 
             # Find the new subgroup fields that weren't resolved before.
-            # NOTE: This should behave fine, and not cause any cycles, because:
             # TODO: What if a name conflict occurs between a subgroup field and one of the new
             # fields below it? For example, something like --model model_a (and inside the `ModelA`
             # dataclass, there's a field called `model`. Then, this will cause a conflict!)
-            # For now, I'm just going to wait and see how this plays itself out.
-
+            # For now, I'm just going to wait and see how this plays out. I'm thinking that the
+            # auto conflict resolution shouldn't run into any issues with this here.
             logger.critical(f"Tree: {_print_tree(wrappers)}")
 
-            # FIXME: There is a FieldWrapper which appears to be duplicated somewhere, since the
-            # ConflictResolution code is raising an AssertionError.
             assert len(wrappers) == 1  # FIXME: Remove
             wrappers = self._conflict_resolver.resolve(wrappers)
             assert len(wrappers) == 1  # FIXME: Remove
@@ -608,7 +612,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 k: v for k, v in all_subgroup_fields.items() if k not in resolved_subgroups
             }
             logger.info(f"All subgroups: {list(all_subgroup_fields.keys())}")
-            logger.info(f"resolved subgroups: {resolved_subgroups}")
+            logger.info(f"Resolved subgroups: {resolved_subgroups}")
             logger.info(f"Unresolved subgroups: {list(unresolved_subgroups.keys())}")
 
             if not unresolved_subgroups:
@@ -678,7 +682,14 @@ class ArgumentParser(argparse.ArgumentParser):
         self._remove_subgroups_from_namespace(parsed_args)
         # create the constructor arguments for each instance by consuming all
         # the relevant attributes from `parsed_args`
-        parsed_args = self._consume_constructor_arguments(parsed_args)
+        wrappers = _flatten_wrappers(self._wrappers)
+
+        # FIXME: Double-check that this is also true when using defaults from files, etc.
+        assert not self.constructor_arguments
+        constructor_arguments = {wrapper.dest: {} for wrapper in wrappers}
+        parsed_args = self._consume_constructor_arguments(
+            parsed_args, wrappers=wrappers, constructor_arguments=constructor_arguments
+        )
         parsed_args = self._set_instances_in_namespace(parsed_args)
         return parsed_args
 
@@ -790,7 +801,12 @@ class ArgumentParser(argparse.ArgumentParser):
         assert not self.constructor_arguments
         return parsed_args
 
-    def _consume_constructor_arguments(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+    def _consume_constructor_arguments(
+        self,
+        parsed_args: argparse.Namespace,
+        wrappers: list[DataclassWrapper],
+        constructor_arguments: dict[str, dict[str, Any]],
+    ) -> argparse.Namespace:
         """Create the constructor arguments for each instance.
 
         Creates the arguments by consuming all the attributes from
@@ -803,15 +819,37 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args : argparse.Namespace
             the argparse.Namespace returned from super().parse_args().
 
+        wrappers : list[DataclassWrapper]
+            The (assumed flattened) list of dataclass wrappers that were created with
+            `add_arguments`.
+
+        constructor_arguments : dict[str, dict[str, Any]]
+            The dict of constructor arguments to create for each dataclass. This will be filled by
+            each FieldWrapper.
+
         Returns
         -------
         argparse.Namespace
             The namespace, without the consumed arguments.
         """
+        if self.conflict_resolution != ConflictResolution.ALWAYS_MERGE:
+            assert len(wrappers) == len(constructor_arguments), "should have one dict per wrapper"
+
+        # TODO: Make this actually stateless by passing the `constructor_arguments` to the
+        # FieldWrapper's __call__.
+        constructor_arguments_backup = self.constructor_arguments.copy()
+        self.constructor_arguments = constructor_arguments
+
         parsed_arg_values = vars(parsed_args)
-        for wrapper in self._wrappers:
+
+        for wrapper in wrappers:
             for field in wrapper.fields:
                 if argparse.SUPPRESS in wrapper.defaults and field.dest not in parsed_args:
+                    continue
+
+                if field.is_subgroup:
+                    # Skip the subgroup fields.
+                    logger.debug(f"Not calling the subgroup FieldWrapper for dest {field.dest}")
                     continue
 
                 if not field.field.init:
@@ -835,6 +873,9 @@ class ArgumentParser(argparse.ArgumentParser):
         if deleted_values:
             logger.debug(f"deleted values: {deleted_values}")
             logger.debug(f"leftover args: {leftover_args}")
+
+        self.constructor_arguments = constructor_arguments_backup
+
         return leftover_args
 
 
@@ -929,33 +970,43 @@ def parse_known_args(
 
 def _get_subgroup_fields(wrappers: list[DataclassWrapper]) -> dict[str, FieldWrapper]:
     subgroup_fields = {}
-    wrappers = _flatten_wrappers(wrappers=wrappers)
-    for wrapper in wrappers:
+    all_wrappers = _flatten_wrappers(wrappers)
+    for wrapper in all_wrappers:
         for field in wrapper.fields:
             if field.is_subgroup:
-                if field in subgroup_fields.values():
-                    # Make sure we wouldn't be overwriting anything.
-                    assert subgroup_fields[field.dest] is field
-                else:
-                    subgroup_fields[field.dest] = field
-        for child_wrapper in wrapper.descendants:
-            # FIXME: Do we need to know which of the children were created from subgroups or not?
-            # Is this the source of the 'duplicate' error?
-            for field in child_wrapper.fields:
-                if field.is_subgroup:
-                    assert field not in subgroup_fields.values()
-                    subgroup_fields[field.dest] = field
+                assert field not in subgroup_fields.values()
+                subgroup_fields[field.dest] = field
     return subgroup_fields
 
 
+def _remove_duplicates(wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
+    return list(set(wrappers))
+
+
+def _assert_no_duplicates(wrappers: list[DataclassWrapper]) -> None:
+    if len(wrappers) != len(set(wrappers)):
+        raise RuntimeError(
+            "Duplicate wrappers found! This is a potentially nasty bug on our "
+            "part. Please make an issue at https://www.github.com/lebrice/SimpleParsing/issues "
+        )
+
+
 def _flatten_wrappers(wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
-    return sum((list(w.descendants) + [w] for w in wrappers), [])
+    _assert_no_duplicates(wrappers)
+    roots_only = _unflatten_wrappers(wrappers)
+    return sum(([w] + list(w.descendants) for w in roots_only), [])
+
+
+def _unflatten_wrappers(wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
+    _assert_no_duplicates(wrappers)
+    return [w for w in wrappers if w.parent is None]
 
 
 def _print_tree(wrappers: list[DataclassWrapper], is_subgroup: bool = False) -> str:
     s = StringIO()
     import textwrap
 
+    wrappers = _unflatten_wrappers(wrappers)
     with redirect_stdout(s):
         for wrapper in wrappers:
             print(f"{wrapper.dest} " + ("(subgroup)" if is_subgroup else "") + ":")
@@ -967,6 +1018,8 @@ def _print_tree(wrappers: list[DataclassWrapper], is_subgroup: bool = False) -> 
                     ]
                     substring = _print_tree(child_with_this_name, is_subgroup=True)
                     print(textwrap.indent(substring, "\t"))
+            for children in wrapper._children:
+                print(_print_tree([children], is_subgroup=False))
     s.seek(0)
     return s.read()
 

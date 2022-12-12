@@ -149,9 +149,12 @@ class DataclassWrapper(Wrapper[Dataclass]):
 
             # NOTE: Not skipping subgroup fields, because even though they will have been resolved
             # at this point, we still want them to show up in the --help message!
-            # if wrapped_field.is_subgroup:
-            #     logger.debug(f"Skipping field {wrapped_field.name} because it is a subgroup.")
-            #     continue
+            # TODO: However, perhaps we could check that the default was properly set to the
+            # chosen subgroup value?
+            if wrapped_field.is_subgroup:
+                logger.debug(f"Skipping field {wrapped_field.name} because it is a subgroup.")
+                assert wrapped_field.default in wrapped_field.subgroup_choices.keys()
+                continue
 
             if wrapped_field.is_subparser:
                 wrapped_field.add_subparsers(parser)

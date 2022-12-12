@@ -288,10 +288,10 @@ def test_subgroups():
     parser.add_arguments(Config, "config")
     args, unused_args = parser.parse_known_args(shlex.split("--ab_or_cd cd --c_or_d d --d 123"))
     assert args.config == Config(ab_or_cd=CD(c_or_d=D(d=123))), unused_args
-    assert False, unused_args
+    assert unused_args == []
     assert list(vars(args)) == [
         "config",
-        "subgroup_values",
+        "subgroups",
     ], "should be any leftover garbage in the namespace"
 
     config = Config.setup("--ab_or_cd cd --c_or_d d --d 123")
