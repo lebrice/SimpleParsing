@@ -722,43 +722,16 @@ class ArgumentParser(argparse.ArgumentParser):
             The transformed namespace with the instances set at their
             corresponding destinations.
         """
+
+        def flatten(wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
+            return sum((list(w.descendants) + [w] for w in wrappers), [])
+
+        self._wrappers = flatten(self._wrappers)
+
         # sort the wrappers so as to construct the leaf nodes first.
         sorted_wrappers: list[DataclassWrapper] = sorted(
             self._wrappers, key=lambda w: w.nesting_level, reverse=True
         )
-        D = TypeVar("D")
-
-        def _create_dataclass_instance(
-            wrapper: DataclassWrapper[D],
-            constructor: Callable[..., D],
-            constructor_args: dict[str, dict],
-        ) -> D | None:
-
-            # Check if the dataclass annotation is marked as Optional.
-            # In this case, if no arguments were passed, and the default value is None, then return
-            # None.
-            if wrapper.optional and wrapper.default is None:
-                for field_wrapper in wrapper.fields:
-                    arg_value = constructor_args[field_wrapper.name]
-                    default_value = field_wrapper.default
-                    logger.debug(
-                        f"field {field_wrapper.name}, arg value: {arg_value}, "
-                        f"default value: {default_value}"
-                    )
-                    if arg_value != default_value:
-                        # Value is not the default value, so an argument must have been passed.
-                        # Break, and return the instance.
-                        break
-                else:
-                    logger.debug(f"All fields for {wrapper.dest} were either default or None.")
-                    return None
-            elif argparse.SUPPRESS in wrapper.defaults:
-                if len(constructor_args) == 0:
-                    return None
-                else:
-                    return constructor_args
-
-            return constructor(**constructor_args)
 
         for wrapper in sorted_wrappers:
             for destination in wrapper.destinations:
@@ -992,3 +965,37 @@ def print_tree(wrappers: list[DataclassWrapper], is_subgroup: bool = False) -> s
                     print(textwrap.indent(substring, "\t"))
     s.seek(0)
     return s.read()
+
+
+def _create_dataclass_instance(
+    wrapper: DataclassWrapper[Dataclass],
+    constructor: Callable[..., Dataclass],
+    constructor_args: dict[str, dict],
+) -> Dataclass | None:
+
+    # Check if the dataclass annotation is marked as Optional.
+    # In this case, if no arguments were passed, and the default value is None, then return
+    # None.
+    if wrapper.optional and wrapper.default is None:
+        for field_wrapper in wrapper.fields:
+
+            arg_value = constructor_args[field_wrapper.name]
+            default_value = field_wrapper.default
+            logger.debug(
+                f"field {field_wrapper.name}, arg value: {arg_value}, "
+                f"default value: {default_value}"
+            )
+            if arg_value != default_value:
+                # Value is not the default value, so an argument must have been passed.
+                # Break, and return the instance.
+                break
+        else:
+            logger.debug(f"All fields for {wrapper.dest} were either default or None.")
+            return None
+    elif argparse.SUPPRESS in wrapper.defaults:
+        if len(constructor_args) == 0:
+            return None
+        else:
+            return constructor_args
+
+    return constructor(**constructor_args)

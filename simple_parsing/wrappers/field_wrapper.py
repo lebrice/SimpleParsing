@@ -188,6 +188,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         self._results = {}
 
         for destination, value in zip(self.destinations, values):
+
+            if self.is_subgroup:
+                logger.debug(f"Ignoring the FieldWrapper for subgroup at dest {self.dest}")
+                return
+
             parent_dest, attribute = utils.split_dest(destination)
             value = self.postprocess(value)
             self._results[destination] = value
