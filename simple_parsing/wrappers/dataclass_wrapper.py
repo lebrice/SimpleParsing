@@ -5,7 +5,7 @@ import dataclasses
 import sys
 from dataclasses import MISSING
 from logging import getLogger
-from typing import cast
+from typing import TypeVar, cast
 
 from .. import docstring, utils
 from ..utils import Dataclass
@@ -13,6 +13,8 @@ from .field_wrapper import FieldWrapper
 from .wrapper import Wrapper
 
 logger = getLogger(__name__)
+
+DataclassWrapperType = TypeVar("DataclassWrapperType", bound="DataclassWrapper")
 
 
 class DataclassWrapper(Wrapper[Dataclass]):
@@ -140,12 +142,12 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 logger.debug(f"Skipping field {wrapped_field.name} because it has cmd=False.")
                 continue
 
+            if wrapped_field.is_subgroup:
+                logger.debug(f"Skipping field {wrapped_field.name} because it is a subgroup.")
+                continue
+
             if wrapped_field.is_subparser:
                 wrapped_field.add_subparsers(parser)
-
-            # if wrapped_field.is_subgroup:
-            #     pass  # What to do in that case? Just add it like a regular `choice` argument?
-            # wrapped_field.add_subparsers(parser)
 
             elif wrapped_field.arg_options:
                 options = wrapped_field.arg_options
@@ -301,7 +303,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         lineage = list(reversed(lineage))
         lineage.append(self.name)
         _dest = ".".join(lineage)
-        logger.debug(f"getting dest, returning {_dest}")
+        # logger.debug(f"getting dest, returning {_dest}")
         return _dest
 
     @property
