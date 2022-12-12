@@ -690,7 +690,9 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args = self._consume_constructor_arguments(
             parsed_args, wrappers=wrappers, constructor_arguments=constructor_arguments
         )
-        parsed_args = self._set_instances_in_namespace(parsed_args)
+        parsed_args = self._set_instances_in_namespace(
+            parsed_args, wrappers=wrappers, constructor_arguments=constructor_arguments
+        )
         return parsed_args
 
     def _remove_subgroups_from_namespace(self, parsed_args: argparse.Namespace) -> None:
@@ -711,7 +713,12 @@ class ArgumentParser(argparse.ArgumentParser):
             parsed_args.subgroups[dest] = chosen_value
             delattr(parsed_args, dest)
 
-    def _set_instances_in_namespace(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
+    def _set_instances_in_namespace(
+        self,
+        parsed_args: argparse.Namespace,
+        wrappers: list[DataclassWrapper],
+        constructor_arguments: dict[str, dict[str, Any]],
+    ) -> argparse.Namespace:
         """Create the instances set them at their destination in the namespace.
 
         We now have all the constructor arguments for each instance.
@@ -729,34 +736,50 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args : argparse.Namespace
             The 'raw' Namespace that is produced by `parse_args`.
 
+        wrappers : list[DataclassWrapper]
+            The (assumed flattened) list of dataclass wrappers that were created with
+            `add_arguments`.
+
+        constructor_arguments : dict[str, dict[str, Any]]
+            The partially populated dict of constructor arguments for each dataclass. This will be
+            consumed in order to create the dataclass instances for each DataclassWrapper.
+
         Returns
         -------
         argparse.Namespace
             The transformed namespace with the instances set at their
             corresponding destinations.
         """
-
-        self._wrappers = _flatten_wrappers(self._wrappers)
+        if self.conflict_resolution != ConflictResolution.ALWAYS_MERGE:
+            assert len(wrappers) == len(constructor_arguments), "should have one dict per wrapper"
 
         # sort the wrappers so as to construct the leaf nodes first.
         sorted_wrappers: list[DataclassWrapper] = sorted(
-            self._wrappers, key=lambda w: w.nesting_level, reverse=True
+            wrappers, key=lambda w: w.nesting_level, reverse=True
         )
 
         for wrapper in sorted_wrappers:
             for destination in wrapper.destinations:
-                # instantiate the dataclass by passing the constructor arguments
+                # Instantiate the dataclass by passing the constructor arguments
                 # to the constructor.
-                # TODO: for now, this might prevent users from having required
-                # InitVars in their dataclasses, as we can't pass the value to
-                # the constructor. Might be fine though.
                 constructor = wrapper.dataclass
-                constructor_args = self.constructor_arguments[destination]
+                constructor_args = constructor_arguments[destination]
                 # If the dataclass wrapper is marked as 'optional' and all the
                 # constructor args are None, then the instance is None.
-                instance = _create_dataclass_instance(wrapper, constructor, constructor_args)
+                # TODO: Refactor the SUPPRESS stuff.
+                value_for_dataclass_field: Any | dict[str, Any] | None
+                if argparse.SUPPRESS in wrapper.defaults:
+                    if constructor_args == {}:
+                        value_for_dataclass_field = None
+                    else:
+                        # Don't create the dataclass instance. Instead, keep the value as a dict.
+                        value_for_dataclass_field = constructor_args
+                else:
+                    value_for_dataclass_field = _create_dataclass_instance(
+                        wrapper, constructor, constructor_args
+                    )
 
-                if argparse.SUPPRESS in wrapper.defaults and instance is None:
+                if argparse.SUPPRESS in wrapper.defaults and value_for_dataclass_field is None:
                     logger.debug(
                         f"Suppressing entire destination {destination} because none of its"
                         f"subattributes were specified on the command line."
@@ -764,39 +787,39 @@ class ArgumentParser(argparse.ArgumentParser):
                 elif wrapper.parent is not None:
                     parent_key, attr = utils.split_dest(destination)
                     logger.debug(
-                        f"Setting a value of {instance} at attribute {attr} in "
+                        f"Setting a value of {value_for_dataclass_field} at attribute {attr} in "
                         f"parent at key {parent_key}."
                     )
-                    self.constructor_arguments[parent_key][attr] = instance
+                    constructor_arguments[parent_key][attr] = value_for_dataclass_field
 
                 elif not hasattr(parsed_args, destination):
                     logger.debug(
                         f"setting attribute '{destination}' on the Namespace "
-                        f"to a value of {instance}"
+                        f"to a value of {value_for_dataclass_field}"
                     )
 
-                    setattr(parsed_args, destination, instance)
+                    setattr(parsed_args, destination, value_for_dataclass_field)
                 # There is a collision: namespace already has an entry at this destination.
                 else:
                     existing = getattr(parsed_args, destination)
                     if wrapper.dest in self._defaults:
                         logger.debug(
                             f"Overwriting defaults in the namespace at destination '{destination}' "
-                            f"on the Namespace ({existing}) to a value of {instance}"
+                            f"on the Namespace ({existing}) to a value of {value_for_dataclass_field}"
                         )
-                        setattr(parsed_args, destination, instance)
+                        setattr(parsed_args, destination, value_for_dataclass_field)
                     else:
                         raise RuntimeError(
                             f"Namespace should not already have a '{destination}' "
                             f"attribute!\n"
                             f"The value would be overwritten:\n"
                             f"- existing value: {existing}\n"
-                            f"- new value:      {instance}"
+                            f"- new value:      {value_for_dataclass_field}"
                         )
 
                 # TODO: not needed, but might be a good thing to do?
                 # remove the 'args dict' for this child class.
-                self.constructor_arguments.pop(destination)
+                constructor_arguments.pop(destination)
 
         assert not self.constructor_arguments
         return parsed_args
@@ -1027,7 +1050,7 @@ def _print_tree(wrappers: list[DataclassWrapper], is_subgroup: bool = False) -> 
 def _create_dataclass_instance(
     wrapper: DataclassWrapper[Dataclass],
     constructor: Callable[..., Dataclass],
-    constructor_args: dict[str, dict],
+    constructor_args: dict[str, Any],
 ) -> Dataclass | None:
 
     # Check if the dataclass annotation is marked as Optional.
@@ -1049,10 +1072,5 @@ def _create_dataclass_instance(
         else:
             logger.debug(f"All fields for {wrapper.dest} were either default or None.")
             return None
-    elif argparse.SUPPRESS in wrapper.defaults:
-        if len(constructor_args) == 0:
-            return None
-        else:
-            return constructor_args
 
     return constructor(**constructor_args)
