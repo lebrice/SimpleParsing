@@ -306,6 +306,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 help="Path to a config file containing default values to use.",
             )
 
+        assert isinstance(args, list)
         self._preprocessing(args=args, namespace=namespace)
 
         logger.debug(f"Parser {id(self)} is parsing args: {args}, namespace: {namespace}")
@@ -326,8 +327,8 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args = self._postprocessing(parsed_args)
         return parsed_args, unparsed_args
 
-    def print_help(self, file=None):
-        self._preprocessing()
+    def print_help(self, file=None, args: Sequence[str] | None = None):
+        self._preprocessing(args=list(args) if args else [])
         return super().print_help(file)
 
     def set_defaults(self, config_path: str | Path | None = None, **kwargs: Any) -> None:
@@ -385,7 +386,7 @@ class ArgumentParser(argparse.ArgumentParser):
         # self._defaults dictionary).
         super().set_defaults(**kwargs)
 
-    def equivalent_argparse_code(self) -> str:
+    def equivalent_argparse_code(self, args: Sequence[str] | None) -> str:
         """Returns the argparse code equivalent to that of `simple_parsing`.
 
         TODO: Could be fun, pretty sure this is useless though.
@@ -395,7 +396,7 @@ class ArgumentParser(argparse.ArgumentParser):
         str
             A string containing the auto-generated argparse code.
         """
-        self._preprocessing()
+        self._preprocessing(list(args) if args else [])
         code = "parser = ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)"
         for wrapper in self._wrappers:
             code += "\n"
@@ -408,10 +409,11 @@ class ArgumentParser(argparse.ArgumentParser):
     def _resolve_conflicts(self) -> None:
         self._wrappers = self._conflict_resolver.resolve(self._wrappers)
 
-    def _preprocessing(
-        self, args: Sequence[str] | None = None, namespace: Namespace | None = None
-    ) -> None:
-        """Resolve potential conflicts and actual add all the arguments."""
+    def _preprocessing(self, args: list[str], namespace: Namespace | None = None) -> None:
+        """Resolve potential conflicts, resolve subgroups, and all the arguments.
+
+        Returns the args with the subgroup choice arguments removed, if present.
+        """
         logger.debug("\nPREPROCESSING\n")
         if self._preprocessing_done:
             return
@@ -421,7 +423,6 @@ class ArgumentParser(argparse.ArgumentParser):
 
         # Add and resolve all the subgroup arguments.
         self._wrappers = self._resolve_subgroups(args=args, namespace=namespace)
-
         # Create one argument group per dataclass
         for wrapper in self._wrappers:
             logger.debug(
@@ -435,21 +436,12 @@ class ArgumentParser(argparse.ArgumentParser):
 
     def _resolve_subgroups(
         self,
-        args: Sequence | None = None,
+        args: list[str],
         namespace: Namespace | None = None,
     ) -> list[DataclassWrapper]:
 
         # TODO: Might want to remove the "--help" action temporarily, so we only add it after the
         # subgroups are parsed.
-
-        def _get_subgroup_fields(wrappers: list[DataclassWrapper]) -> dict[str, FieldWrapper]:
-            subgroup_fields = {}
-            for wrapper in wrappers:
-                for field in wrapper.fields:
-                    if field.is_subgroup:
-                        subgroup_fields[field.dest] = field
-            return subgroup_fields
-
         wrappers: list[DataclassWrapper] = self._wrappers
         # Fix any conflicts (shouldn't be necessary, but just to be explicit), then find all the
         # subgroup fields.
@@ -463,19 +455,17 @@ class ArgumentParser(argparse.ArgumentParser):
             # No subgroups to parse.
             return wrappers
 
-        subgroup_choice_parser = type(self)(
+        subgroup_choice_parser = argparse.ArgumentParser(
             add_help=False,
-            conflict_resolution=self.conflict_resolution,
-            add_option_string_dash_variants=self.add_option_string_dash_variants,
-            argument_generation_mode=self.argument_generation_mode,
-            nested_mode=self.nested_mode,
+            # conflict_resolution=self.conflict_resolution,
+            # add_option_string_dash_variants=self.add_option_string_dash_variants,
+            # argument_generation_mode=self.argument_generation_mode,
+            # nested_mode=self.nested_mode,
             formatter_class=self.formatter_class,
-            add_config_path_arg=self.add_config_path_arg,
-            config_path=self.config_path,
+            # add_config_path_arg=self.add_config_path_arg,
+            # config_path=self.config_path,
         )
         # subgroup_choice_parser = self
-
-        # FIXME: If we use a temp parser, then we end up with unused arguments for each subgroup.
 
         for current_nesting_level in itertools.count():
             # Do rounds of parsing with just the subgroup arguments, until all the subgroups
@@ -564,7 +554,6 @@ class ArgumentParser(argparse.ArgumentParser):
                     f"{current_nesting_level}. Moving to the next round which has "
                     f"{len(unresolved_subgroups)} unresolved subgroup choices."
                 )
-
         return wrappers
 
     def add_argument_group(
@@ -619,11 +608,29 @@ class ArgumentParser(argparse.ArgumentParser):
         """
         logger.debug("\nPOST PROCESSING\n")
         logger.debug(f"(raw) parsed args: {parsed_args}")
+
+        self._remove_subgroups_from_namespace(parsed_args)
         # create the constructor arguments for each instance by consuming all
         # the relevant attributes from `parsed_args`
         parsed_args = self._consume_constructor_arguments(parsed_args)
         parsed_args = self._set_instances_in_namespace(parsed_args)
         return parsed_args
+
+    def _remove_subgroups_from_namespace(self, parsed_args: argparse.Namespace) -> None:
+        """Removes the subgroup choice results from the namespace.
+        Modifies the namespace in-place.
+        """
+        # find all subgroup fields
+        subgroup_fields = _get_subgroup_fields(self._wrappers)
+
+        # IDEA: Store the choices in a `subgroups` dict on the namespace.
+        if not hasattr(parsed_args, "subgroups"):
+            parsed_args.subgroups = {}
+
+        for dest in subgroup_fields:
+            chosen_value = getattr(parsed_args, dest)
+            parsed_args.subgroups[dest] = chosen_value
+            delattr(parsed_args, dest)
 
     def _set_instances_in_namespace(self, parsed_args: argparse.Namespace) -> argparse.Namespace:
         """Create the instances set them at their destination in the namespace.
@@ -880,3 +887,12 @@ def parse_known_args(
     parsed_args, unknown_args = parser.parse_known_args(args, attempt_to_reorder=attempt_to_reorder)
     config: Dataclass = getattr(parsed_args, dest)
     return config, unknown_args
+
+
+def _get_subgroup_fields(wrappers: list[DataclassWrapper]) -> dict[str, FieldWrapper]:
+    subgroup_fields = {}
+    for wrapper in wrappers:
+        for field in wrapper.fields:
+            if field.is_subgroup:
+                subgroup_fields[field.dest] = field
+    return subgroup_fields

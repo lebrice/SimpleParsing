@@ -142,9 +142,11 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 logger.debug(f"Skipping field {wrapped_field.name} because it has cmd=False.")
                 continue
 
-            if wrapped_field.is_subgroup:
-                logger.debug(f"Skipping field {wrapped_field.name} because it is a subgroup.")
-                continue
+            # NOTE: Not skipping subgroup fields, because even though they will have been resolved
+            # at this point, we still want them to show up in the --help message!
+            # if wrapped_field.is_subgroup:
+            #     logger.debug(f"Skipping field {wrapped_field.name} because it is a subgroup.")
+            #     continue
 
             if wrapped_field.is_subparser:
                 wrapped_field.add_subparsers(parser)
