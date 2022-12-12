@@ -10,6 +10,8 @@ import shlex
 import sys
 from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _, _HelpAction
 from collections import defaultdict
+from contextlib import redirect_stdout
+from io import StringIO
 from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, Sequence, TypeVar, overload
@@ -436,7 +438,7 @@ class ArgumentParser(argparse.ArgumentParser):
         return code
 
     def _resolve_conflicts(self) -> None:
-        self._wrappers = self._conflict_resolver.resolve(self._wrappers)
+        self._wrappers = self._conflict_resolver.resolve_and_flatten(self._wrappers)
 
     def _preprocessing(self, args: list[str], namespace: Namespace | None = None) -> None:
         """Resolve potential conflicts, resolve subgroups, and all the arguments.
@@ -448,7 +450,7 @@ class ArgumentParser(argparse.ArgumentParser):
             return
 
         # Fix the potential conflicts between dataclass fields with the same names.
-        self._wrappers = self._conflict_resolver.resolve(self._wrappers)
+        self._wrappers = self._conflict_resolver.resolve_and_flatten(self._wrappers)
 
         # Add and resolve all the subgroup arguments.
         self._wrappers = self._resolve_subgroups(args=args, namespace=namespace)
@@ -512,7 +514,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 # instance?
                 logger.info(
                     f"Adding subgroup arg: "
-                    f"add_argument(*{subgroup_field.option_strings} **{argument_options})"
+                    f"add_argument(*{subgroup_field.option_strings} **{str(argument_options)})"
                 )
                 subgroup_choice_parser.add_argument(
                     *subgroup_field.option_strings, **argument_options
@@ -550,7 +552,8 @@ class ArgumentParser(argparse.ArgumentParser):
                 )
                 parent_dataclass_wrapper = subgroup_field.parent
                 subgroup_field_default = subgroup_field.default
-                # NOTE: making
+                # NOTE: making it so the FieldWrapper for the subgroup choice has a string as the
+                # default value, rather than the dataclass instance.
                 subgroup_field.default = chosen_subgroup_name
 
                 # Use the private variant of self.add_arguments (which is 'stateless'), so it
@@ -578,6 +581,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 )
 
                 # Make the new wrapper a child of the class which contains the field.
+                assert new_wrapper not in parent_dataclass_wrapper._children
                 parent_dataclass_wrapper._children.append(new_wrapper)
                 assert new_wrapper.parent is parent_dataclass_wrapper
 
@@ -590,13 +594,22 @@ class ArgumentParser(argparse.ArgumentParser):
             # fields below it? For example, something like --model model_a (and inside the `ModelA`
             # dataclass, there's a field called `model`. Then, this will cause a conflict!)
             # For now, I'm just going to wait and see how this plays itself out.
+
+            logger.critical(f"Tree: {print_tree(wrappers)}")
+
+            # FIXME: There is a FieldWrapper which appears to be duplicated somewhere, since the
+            # ConflictResolution code is raising an AssertionError.
+            assert len(wrappers) == 1  # FIXME: Remove
             wrappers = self._conflict_resolver.resolve(wrappers)
-            unresolved_subgroups = _get_subgroup_fields(wrappers)
+            assert len(wrappers) == 1  # FIXME: Remove
+
+            all_subgroup_fields = _get_subgroup_fields(wrappers)
+            unresolved_subgroups = {
+                k: v for k, v in all_subgroup_fields.items() if k not in resolved_subgroups
+            }
+            logger.info(f"All subgroups: {list(all_subgroup_fields.keys())}")
             logger.info(f"resolved subgroups: {resolved_subgroups}")
             logger.info(f"Unresolved subgroups: {list(unresolved_subgroups.keys())}")
-            unresolved_subgroups = {
-                k: v for k, v in unresolved_subgroups.items() if k not in resolved_subgroups
-            }
 
             if not unresolved_subgroups:
                 logger.info("Done parsing all the subgroups!")
@@ -714,12 +727,6 @@ class ArgumentParser(argparse.ArgumentParser):
             self._wrappers, key=lambda w: w.nesting_level, reverse=True
         )
         D = TypeVar("D")
-        # BUG: The nesting level is broken, because the DataclassWrappers that are created from
-        # the subgroup choices are not children of the class with the subgroup field.
-        # FIXME: Need to make the new dataclass wrappers children of the parent which actually spawned them
-        # FIXME: The FieldWrapper associated with a Subgroup should somehow be "changed" to
-        # the newly created DataclassWrapper!
-        assert False, [w.dest for w in sorted_wrappers]
 
         def _create_dataclass_instance(
             wrapper: DataclassWrapper[D],
@@ -953,9 +960,35 @@ def _get_subgroup_fields(wrappers: list[DataclassWrapper]) -> dict[str, FieldWra
     for wrapper in wrappers:
         for field in wrapper.fields:
             if field.is_subgroup:
-                subgroup_fields[field.dest] = field
+                if field in subgroup_fields.values():
+                    # Make sure we wouldn't be overwriting anything.
+                    assert subgroup_fields[field.dest] is field
+                else:
+                    subgroup_fields[field.dest] = field
         for child_wrapper in wrapper.descendants:
+            # FIXME: Do we need to know which of the children were created from subgroups or not?
+            # Is this the source of the 'duplicate' error?
             for field in child_wrapper.fields:
                 if field.is_subgroup:
+                    assert field not in subgroup_fields.values()
                     subgroup_fields[field.dest] = field
     return subgroup_fields
+
+
+def print_tree(wrappers: list[DataclassWrapper], is_subgroup: bool = False) -> str:
+    s = StringIO()
+    import textwrap
+
+    with redirect_stdout(s):
+        for wrapper in wrappers:
+            print(f"{wrapper.dest} " + ("(subgroup)" if is_subgroup else "") + ":")
+            for field in wrapper.fields:
+                print(f"- {field.dest}")
+                if field.is_subgroup:
+                    child_with_this_name = [
+                        child for child in wrapper._children if child.name == field.name
+                    ]
+                    substring = print_tree(child_with_this_name, is_subgroup=True)
+                    print(textwrap.indent(substring, "\t"))
+    s.seek(0)
+    return s.read()

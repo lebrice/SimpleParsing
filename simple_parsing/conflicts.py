@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import enum
 from collections import defaultdict
 from logging import getLogger
-from typing import Dict, List, NamedTuple, Optional, Set, Union
+from typing import NamedTuple
 
 from .wrappers import DataclassWrapper, FieldWrapper
 
@@ -49,18 +51,26 @@ class ConflictResolutionError(Exception):
 
 class Conflict(NamedTuple):
     option_string: str
-    wrappers: List[FieldWrapper]
+    wrappers: list[FieldWrapper]
+
+
+def unflatten(possibly_related_wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
+    return [wrapper for wrapper in possibly_related_wrappers if wrapper.parent is None]
 
 
 class ConflictResolver:
     def __init__(self, conflict_resolution=ConflictResolution.AUTO):
         self.conflict_resolution = conflict_resolution
 
-    def resolve(self, wrappers: List[DataclassWrapper]) -> List[DataclassWrapper]:
+    def resolve_and_flatten(self, wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
         wrappers_flat = []
         for wrapper in wrappers:
             wrappers_flat.append(wrapper)
             wrappers_flat.extend(wrapper.descendants)
+
+        assert len(wrappers_flat) == len(set(wrappers_flat)), "shouldn't be any duplicates!"
+        dests = list(w.dest for w in wrappers_flat)
+        assert len(dests) == len(set(dests)), "shouldn't be any duplicates"
 
         conflict = self.get_conflict(wrappers_flat)
 
@@ -109,22 +119,23 @@ class ConflictResolver:
         assert not self._conflict_exists(wrappers_flat)
         return wrappers_flat
 
-    def get_conflict(
-        self, wrappers: Union[List[FieldWrapper], List[DataclassWrapper]]
-    ) -> Optional[Conflict]:
-        field_wrappers: List[FieldWrapper] = []
+    def resolve(self, wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
+        return unflatten(self.resolve_and_flatten(wrappers))
+
+    def get_conflict(self, wrappers: list[DataclassWrapper]) -> Conflict | None:
+        field_wrappers: list[FieldWrapper] = []
         for w in wrappers:
-            if isinstance(w, FieldWrapper):
-                field_wrappers.append(w)
-            else:
-                field_wrappers.extend(w.fields)
+            field_wrappers.extend(w.fields)
+            logger.debug(f"Wrapper {w.dest} has fields {w.fields}")
+
+        assert len(field_wrappers) == len(set(field_wrappers)), "duplicates?"
 
         # TODO: #49: Also consider the conflicts with regular argparse arguments.
-
-        conflicts: Dict[str, List[FieldWrapper]] = defaultdict(list)
+        conflicts: dict[str, list[FieldWrapper]] = defaultdict(list)
         for field_wrapper in field_wrappers:
             for option_string in field_wrapper.option_strings:
                 conflicts[option_string].append(field_wrapper)
+                logger.debug(f"conflicts[{option_string}].append({repr(field_wrapper)})")
 
         for option_string, wrappers in conflicts.items():
             if len(wrappers) > 1:
@@ -133,8 +144,8 @@ class ConflictResolver:
 
     def _add(
         self,
-        wrapper: Union[DataclassWrapper, FieldWrapper],
-        wrappers: List[DataclassWrapper],
+        wrapper: DataclassWrapper | FieldWrapper,
+        wrappers: list[DataclassWrapper],
     ) -> DataclassWrapper:
         if isinstance(wrapper, FieldWrapper):
             wrapper = wrapper.parent
@@ -147,8 +158,8 @@ class ConflictResolver:
 
     def _remove(
         self,
-        wrapper: Union[DataclassWrapper, FieldWrapper],
-        wrappers: List[DataclassWrapper],
+        wrapper: DataclassWrapper | FieldWrapper,
+        wrappers: list[DataclassWrapper],
     ):
         if isinstance(wrapper, FieldWrapper):
             wrapper = wrapper.parent
@@ -239,6 +250,7 @@ class ConflictResolver:
         assert (
             len(set(field_wrappers)) >= 2
         ), "Need at least 2 (distinct) FieldWrappers to have a conflict..."
+
         first_wrapper = field_wrappers[0]
         second_wrapper = field_wrappers[1]
         if first_wrapper.nesting_level < second_wrapper.nesting_level:
@@ -286,7 +298,7 @@ class ConflictResolver:
             field_wrapper.prefix = word_to_add + "." + current_prefix
             logger.debug(f"New prefix: {field_wrapper.prefix}")
 
-    def _fix_conflict_merge(self, conflict: Conflict, wrappers_flat: List[DataclassWrapper]):
+    def _fix_conflict_merge(self, conflict: Conflict, wrappers_flat: list[DataclassWrapper]):
         """Fix conflicts using the merging approach.
 
         The first wrapper is kept, and the rest of the wrappers are absorbed
@@ -317,12 +329,12 @@ class ConflictResolver:
 
         return wrappers_flat
 
-    def _get_conflicting_group(self, all_wrappers: List[DataclassWrapper]) -> Optional[Conflict]:
+    def _get_conflicting_group(self, all_wrappers: list[DataclassWrapper]) -> Conflict | None:
         """Return the conflicting DataclassWrappers which share argument names.
 
         TODO: maybe return the list of fields, rather than the dataclasses?
         """
-        conflicts: Dict[str, List[FieldWrapper]] = defaultdict(list)
+        conflicts: dict[str, list[FieldWrapper]] = defaultdict(list)
         for wrapper in all_wrappers:
             for field in wrapper.fields:
                 for option in field.option_strings:
@@ -338,9 +350,9 @@ class ConflictResolver:
                 return Conflict(option_string, fields)
         return None
 
-    def _conflict_exists(self, all_wrappers: List[DataclassWrapper]) -> bool:
+    def _conflict_exists(self, all_wrappers: list[DataclassWrapper]) -> bool:
         """Return True whenever a conflict exists. (option strings overlap)."""
-        arg_names: Set[str] = set()
+        arg_names: set[str] = set()
         for wrapper in all_wrappers:
             for field in wrapper.fields:
                 for option in field.option_strings:

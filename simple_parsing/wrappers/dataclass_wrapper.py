@@ -85,6 +85,11 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 # Modify the `type` of the Field object, in-place.
                 field.type = field_type
 
+            # TODO: Should we do anything different here for subgroups?
+            # if utils.is_subgroup_field(field):
+            #     wrapper = field_wrapper_class(field, parent=self, prefix=prefix)
+            #     self.fields.append(wrapper)
+
             if utils.is_subparser_field(field) or utils.is_choice(field):
                 wrapper = field_wrapper_class(field, parent=self, prefix=prefix)
                 self.fields.append(wrapper)
