@@ -6,7 +6,7 @@ import typing
 from contextlib import contextmanager
 from dataclasses import InitVar
 from logging import getLogger as get_logger
-from typing import Any, Dict, Iterator, Optional, get_type_hints, TypeVar
+from typing import Any, Dict, Iterator, Optional, get_type_hints
 
 logger = get_logger(__name__)
 
@@ -181,10 +181,10 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     global_ns = {}
     for base_cls in reversed(some_class.mro()):
         global_ns.update(sys.modules[base_cls.__module__].__dict__)
-        annotations = getattr(base_cls, '__annotations__', None)
+        annotations = getattr(base_cls, "__annotations__", None)
         if annotations and field_name in annotations:
             break
-    
+
     try:
         with _initvar_patcher():
             annotations_dict = get_type_hints(some_class, localns=local_ns, globalns=global_ns)
@@ -192,7 +192,7 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
         annotations_dict = collections.ChainMap(
             *[getattr(cls, "__annotations__", {}) for cls in some_class.mro()]
         )
-    
+
     if field_name not in annotations_dict:
         raise ValueError(f"Field {field_name} not found in annotations of class {some_class}")
 
@@ -233,5 +233,5 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
             f"Leaving it as-is."
         )
         field_type = field_type
-    
+
     return field_type

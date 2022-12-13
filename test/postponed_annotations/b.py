@@ -1,6 +1,8 @@
 from dataclasses import dataclass
-from .a import A
+
 from ..test_utils import TestSetup
+from .a import A
+
 
 @dataclass
 class B(A, TestSetup):
