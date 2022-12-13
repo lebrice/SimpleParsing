@@ -881,8 +881,9 @@ class ArgumentParser(argparse.ArgumentParser):
 
         # "Clean up" the Namespace by returning a new Namespace without the
         # consumed attributes.
+
         deleted_values: dict[str, Any] = {}
-        for wrapper in self._wrappers:
+        for wrapper in wrappers:
             for field in wrapper.fields:
                 value = parsed_arg_values.pop(field.dest, None)
                 deleted_values[field.dest] = value
@@ -891,7 +892,6 @@ class ArgumentParser(argparse.ArgumentParser):
         if deleted_values:
             logger.debug(f"deleted values: {deleted_values}")
             logger.debug(f"leftover args: {leftover_args}")
-
         self.constructor_arguments = constructor_arguments_backup
 
         return leftover_args
