@@ -151,7 +151,7 @@ class ConflictResolver:
         self,
         wrapper: DataclassWrapper | FieldWrapper,
         wrappers: list[DataclassWrapper],
-    ) -> DataclassWrapper:
+    ) -> list[DataclassWrapper]:
         if isinstance(wrapper, FieldWrapper):
             wrapper = wrapper.parent
         assert isinstance(wrapper, DataclassWrapper)
@@ -322,17 +322,23 @@ class ConflictResolver:
             logger.debug(f"Field wrapper: {field} nesting level: {field.nesting_level}.")
 
         assert len(conflict.wrappers) > 1
+
+        # Merge all the fields into the first one.
         first_wrapper: FieldWrapper = fields[0]
-        wrappers_flat = self._remove(first_wrapper.parent, wrappers_flat)
+        wrappers = wrappers_flat.copy()
+
+        first_containing_dataclass: DataclassWrapper = first_wrapper.parent
+        wrappers = self._remove(first_containing_dataclass, wrappers)
 
         for wrapper in conflict.wrappers[1:]:
-            wrappers_flat = self._remove(wrapper.parent, wrappers_flat)
-            first_wrapper.parent.merge(wrapper.parent)
+            containing_dataclass = wrapper.parent
+            wrappers = self._remove(containing_dataclass, wrappers)
+            first_containing_dataclass.merge(containing_dataclass)
 
-        assert first_wrapper.parent.multiple
-        wrappers_flat = self._add(first_wrapper.parent, wrappers_flat)
+        assert first_containing_dataclass.multiple
+        wrappers = self._add(first_containing_dataclass, wrappers)
 
-        return wrappers_flat
+        return wrappers
 
     def _get_conflicting_group(self, all_wrappers: list[DataclassWrapper]) -> Conflict | None:
         """Return the conflicting DataclassWrappers which share argument names.

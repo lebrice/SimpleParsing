@@ -160,6 +160,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
         values: Any,
+        constructor_arguments: dict[str, dict[str, Any]],
         option_string: Optional[str] = None,
     ):
         """Immitates a custom Action, which sets the corresponding value from
@@ -173,6 +174,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             parser (argparse.ArgumentParser): the `simple_parsing.ArgumentParser` used.
             namespace (argparse.Namespace): (unused).
             values (Any): The parsed values for the argument.
+            constructor_arguments: The dict of constructor arguments for each dataclass.
             option_string (Optional[str], optional): (unused). Defaults to None.
         """
         from simple_parsing import ArgumentParser
@@ -197,8 +199,13 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             value = self.postprocess(value)
             self._results[destination] = value
 
-            parser.constructor_arguments[parent_dest][attribute] = value
-            logger.debug(f"parser.constructor_arguments[{parent_dest}][{attribute}] = {value}")
+            # if destination.endswith(f"_{i}"):
+            #     attribute = attribute[:-2]
+            #     constructor_arguments[parent_dest][attribute] = value
+
+            logger.debug(f"constructor_arguments[{parent_dest}][{attribute}] = {value}")
+            constructor_arguments[parent_dest][attribute] = value
+
             if self.is_subgroup:
                 if not hasattr(namespace, "subgroups"):
                     namespace.subgroups = {}

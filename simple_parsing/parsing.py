@@ -440,7 +440,7 @@ class ArgumentParser(argparse.ArgumentParser):
     def _resolve_conflicts(self) -> None:
         self._wrappers = self._conflict_resolver.resolve_and_flatten(self._wrappers)
 
-    def _preprocessing(self, args: list[str], namespace: Namespace | None = None) -> None:
+    def _preprocessing(self, args: Sequence[str] = (), namespace: Namespace | None = None) -> None:
         """Resolve potential conflicts, resolve subgroups, and all the arguments.
 
         Returns the args with the subgroup choice arguments removed, if present.
@@ -448,6 +448,8 @@ class ArgumentParser(argparse.ArgumentParser):
         logger.debug("\nPREPROCESSING\n")
         if self._preprocessing_done:
             return
+
+        args = list(args)
 
         # Fix the potential conflicts between dataclass fields with the same names.
         wrappers = self._conflict_resolver.resolve_and_flatten(self._wrappers)
@@ -683,10 +685,10 @@ class ArgumentParser(argparse.ArgumentParser):
         constructor_arguments = {
             wrapper_dest: {} for wrapper in wrappers for wrapper_dest in wrapper.destinations
         }
-        parsed_args = self._consume_constructor_arguments(
-            parsed_args, wrappers=wrappers, constructor_arguments=constructor_arguments
+        parsed_args = self._fill_constructor_arguments_with_fields(
+            parsed_args, wrappers=wrappers, initial_constructor_arguments=constructor_arguments
         )
-        parsed_args = self._set_instances_in_namespace(
+        parsed_args = self._create_dataclasses(
             parsed_args, wrappers=wrappers, constructor_arguments=constructor_arguments
         )
         return parsed_args
@@ -709,7 +711,7 @@ class ArgumentParser(argparse.ArgumentParser):
             parsed_args.subgroups[dest] = chosen_value
             delattr(parsed_args, dest)
 
-    def _set_instances_in_namespace(
+    def _create_dataclasses(
         self,
         parsed_args: argparse.Namespace,
         wrappers: list[DataclassWrapper],
@@ -754,12 +756,14 @@ class ArgumentParser(argparse.ArgumentParser):
             wrappers, key=lambda w: w.nesting_level, reverse=True
         )
 
+        constructor_arguments = constructor_arguments.copy()
+
         for wrapper in sorted_wrappers:
             for destination in wrapper.destinations:
                 # Instantiate the dataclass by passing the constructor arguments
                 # to the constructor.
                 constructor = wrapper.dataclass
-                constructor_args = constructor_arguments[destination]
+                constructor_args = constructor_arguments.pop(destination)
                 # If the dataclass wrapper is marked as 'optional' and all the
                 # constructor args are None, then the instance is None.
                 # TODO: Refactor the SUPPRESS stuff.
@@ -779,6 +783,7 @@ class ArgumentParser(argparse.ArgumentParser):
                         f"Suppressing entire destination {destination} because none of its"
                         f"subattributes were specified on the command line."
                     )
+
                 elif wrapper.parent is not None:
                     parent_key, attr = utils.split_dest(destination)
                     logger.debug(
@@ -812,18 +817,16 @@ class ArgumentParser(argparse.ArgumentParser):
                             f"- new value:      {value_for_dataclass_field}"
                         )
 
-                # TODO: not needed, but might be a good thing to do?
-                # remove the 'args dict' for this child class.
-                constructor_arguments.pop(destination)
+        # We should be consuming all the constructor arguments.
+        assert not constructor_arguments
 
-        assert not self.constructor_arguments
         return parsed_args
 
-    def _consume_constructor_arguments(
+    def _fill_constructor_arguments_with_fields(
         self,
         parsed_args: argparse.Namespace,
         wrappers: list[DataclassWrapper],
-        constructor_arguments: dict[str, dict[str, Any]],
+        initial_constructor_arguments: dict[str, dict[str, Any]],
     ) -> argparse.Namespace:
         """Create the constructor arguments for each instance.
 
@@ -850,13 +853,14 @@ class ArgumentParser(argparse.ArgumentParser):
         argparse.Namespace
             The namespace, without the consumed arguments.
         """
-        if self.conflict_resolution != ConflictResolution.ALWAYS_MERGE:
-            assert len(wrappers) == len(constructor_arguments), "should have one dict per wrapper"
 
-        # TODO: Make this actually stateless by passing the `constructor_arguments` to the
-        # FieldWrapper's __call__.
-        constructor_arguments_backup = self.constructor_arguments.copy()
-        self.constructor_arguments = constructor_arguments
+        if self.conflict_resolution != ConflictResolution.ALWAYS_MERGE:
+            assert len(wrappers) == len(
+                initial_constructor_arguments
+            ), "should have one dict per wrapper"
+
+        # The output
+        constructor_arguments = initial_constructor_arguments.copy()
 
         parsed_arg_values = vars(parsed_args)
 
@@ -877,7 +881,12 @@ class ArgumentParser(argparse.ArgumentParser):
 
                 # call the "action" for the given attribute. This sets the right
                 # value in the `self.constructor_arguments` dictionary.
-                field(parser=self, namespace=parsed_args, values=values)
+                field(
+                    parser=self,
+                    namespace=parsed_args,
+                    values=values,
+                    constructor_arguments=constructor_arguments,
+                )
 
         # "Clean up" the Namespace by returning a new Namespace without the
         # consumed attributes.
@@ -892,7 +901,6 @@ class ArgumentParser(argparse.ArgumentParser):
         if deleted_values:
             logger.debug(f"deleted values: {deleted_values}")
             logger.debug(f"leftover args: {leftover_args}")
-        self.constructor_arguments = constructor_arguments_backup
 
         return leftover_args
 
