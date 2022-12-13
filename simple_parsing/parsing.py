@@ -450,12 +450,13 @@ class ArgumentParser(argparse.ArgumentParser):
             return
 
         # Fix the potential conflicts between dataclass fields with the same names.
-        self._wrappers = self._conflict_resolver.resolve_and_flatten(self._wrappers)
+        wrappers = self._conflict_resolver.resolve_and_flatten(self._wrappers)
 
         # Add and resolve all the subgroup arguments.
-        self._wrappers = self._resolve_subgroups(args=args, namespace=namespace)
+        self._resolve_subgroups(wrappers=wrappers, args=args, namespace=namespace)
+
         # Create one argument group per dataclass
-        for wrapper in self._wrappers:
+        for wrapper in wrappers:
             logger.debug(
                 f"Parser {id(self)} is Adding arguments for dataclass: {wrapper.dataclass} "
                 f"at destinations {wrapper.destinations}"
@@ -467,16 +468,11 @@ class ArgumentParser(argparse.ArgumentParser):
 
     def _resolve_subgroups(
         self,
+        wrappers: list[DataclassWrapper],
         args: list[str],
         namespace: Namespace | None = None,
-    ) -> list[DataclassWrapper]:
+    ) -> None:
 
-        # TODO: Might want to remove the "--help" action temporarily, so we only add it after the
-        # subgroups are parsed.
-        wrappers: list[DataclassWrapper] = self._wrappers
-        # Fix any conflicts (shouldn't be necessary, but just to be explicit), then find all the
-        # subgroup fields.
-        wrappers = self._conflict_resolver.resolve(wrappers)
         unresolved_subgroups = _get_subgroup_fields(wrappers)
         # Dictionary of the subgroup choices that were resolved (key: subgroup dest, value: chosen
         # subgroup name).
@@ -484,7 +480,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         if not unresolved_subgroups:
             # No subgroups to parse.
-            return wrappers
+            return
 
         subgroup_choice_parser = argparse.ArgumentParser(
             add_help=False,
@@ -536,8 +532,8 @@ class ArgumentParser(argparse.ArgumentParser):
                 chosen_subgroup_name: str = getattr(parsed_args, dest)
                 assert isinstance(chosen_subgroup_name, str)
                 chosen_subgroup = subgroup_field.subgroup_choices[chosen_subgroup_name]
-                # if a type, then use it as the chosen type. If it's a value, then use it as the
-                # default value, and use the type of the default value as the chosen type.
+                # if it's a type, then use it as the chosen type. If it's a value, then use it as
+                # the default value, and use the type of the default value as the chosen type.
                 if isinstance(chosen_subgroup, type):
                     subgroup_type = chosen_subgroup
                     subgroup_default = None
@@ -548,7 +544,8 @@ class ArgumentParser(argparse.ArgumentParser):
                 logger.info(
                     f"resolved the subgroup at dest {dest} to a value of "
                     f"{chosen_subgroup_name}, which means to use the "
-                    f"{subgroup_type} dataclass."
+                    f"{subgroup_type} dataclass"
+                    + (f"(with a default of {subgroup_default})." if subgroup_default else ".")
                 )
                 parent_dataclass_wrapper = subgroup_field.parent
                 subgroup_field_default = subgroup_field.default
@@ -603,9 +600,7 @@ class ArgumentParser(argparse.ArgumentParser):
             # auto conflict resolution shouldn't run into any issues with this here.
             logger.critical(f"Tree: {_print_tree(wrappers)}")
 
-            assert len(wrappers) == 1  # FIXME: Remove
             wrappers = self._conflict_resolver.resolve(wrappers)
-            assert len(wrappers) == 1  # FIXME: Remove
 
             all_subgroup_fields = _get_subgroup_fields(wrappers)
             unresolved_subgroups = {
@@ -624,7 +619,6 @@ class ArgumentParser(argparse.ArgumentParser):
                     f"{current_nesting_level}. Moving to the next round which has "
                     f"{len(unresolved_subgroups)} unresolved subgroup choices."
                 )
-        return wrappers
 
     def add_argument_group(
         self,
@@ -686,7 +680,9 @@ class ArgumentParser(argparse.ArgumentParser):
 
         # FIXME: Double-check that this is also true when using defaults from files, etc.
         assert not self.constructor_arguments
-        constructor_arguments = {wrapper.dest: {} for wrapper in wrappers}
+        constructor_arguments = {
+            wrapper_dest: {} for wrapper in wrappers for wrapper_dest in wrapper.destinations
+        }
         parsed_args = self._consume_constructor_arguments(
             parsed_args, wrappers=wrappers, constructor_arguments=constructor_arguments
         )
@@ -768,16 +764,15 @@ class ArgumentParser(argparse.ArgumentParser):
                 # constructor args are None, then the instance is None.
                 # TODO: Refactor the SUPPRESS stuff.
                 value_for_dataclass_field: Any | dict[str, Any] | None
-                if argparse.SUPPRESS in wrapper.defaults:
-                    if constructor_args == {}:
-                        value_for_dataclass_field = None
-                    else:
-                        # Don't create the dataclass instance. Instead, keep the value as a dict.
-                        value_for_dataclass_field = constructor_args
-                else:
+                if argparse.SUPPRESS not in wrapper.defaults:
                     value_for_dataclass_field = _create_dataclass_instance(
                         wrapper, constructor, constructor_args
                     )
+                elif constructor_args == {}:
+                    value_for_dataclass_field = None
+                else:
+                    # Don't create the dataclass instance. Instead, keep the value as a dict.
+                    value_for_dataclass_field = constructor_args
 
                 if argparse.SUPPRESS in wrapper.defaults and value_for_dataclass_field is None:
                     logger.debug(
@@ -797,10 +792,10 @@ class ArgumentParser(argparse.ArgumentParser):
                         f"setting attribute '{destination}' on the Namespace "
                         f"to a value of {value_for_dataclass_field}"
                     )
-
                     setattr(parsed_args, destination, value_for_dataclass_field)
-                # There is a collision: namespace already has an entry at this destination.
+
                 else:
+                    # There is a collision: namespace already has an entry at this destination.
                     existing = getattr(parsed_args, destination)
                     if wrapper.dest in self._defaults:
                         logger.debug(

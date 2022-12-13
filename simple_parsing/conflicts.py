@@ -63,10 +63,10 @@ class ConflictResolver:
         self.conflict_resolution = conflict_resolution
 
     def resolve_and_flatten(self, wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
-        wrappers_flat = []
-        for wrapper in wrappers:
-            wrappers_flat.append(wrapper)
-            wrappers_flat.extend(wrapper.descendants)
+        from simple_parsing.parsing import _assert_no_duplicates, _flatten_wrappers
+
+        _assert_no_duplicates(wrappers)
+        wrappers_flat = _flatten_wrappers(wrappers)
 
         assert len(wrappers_flat) == len(set(wrappers_flat)), "shouldn't be any duplicates!"
         dests = list(w.dest for w in wrappers_flat)
@@ -122,11 +122,16 @@ class ConflictResolver:
     def resolve(self, wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
         return unflatten(self.resolve_and_flatten(wrappers))
 
-    def get_conflict(self, wrappers: list[DataclassWrapper]) -> Conflict | None:
+    def get_conflict(
+        self, wrappers: list[DataclassWrapper] | list[FieldWrapper]
+    ) -> Conflict | None:
         field_wrappers: list[FieldWrapper] = []
         for w in wrappers:
-            field_wrappers.extend(w.fields)
-            logger.debug(f"Wrapper {w.dest} has fields {w.fields}")
+            if isinstance(w, DataclassWrapper):
+                field_wrappers.extend(w.fields)
+                logger.debug(f"Wrapper {w.dest} has fields {w.fields}")
+            else:
+                field_wrappers.append(w)
 
         assert len(field_wrappers) == len(set(field_wrappers)), "duplicates?"
 
@@ -137,9 +142,9 @@ class ConflictResolver:
                 conflicts[option_string].append(field_wrapper)
                 # logger.debug(f"conflicts[{option_string}].append({repr(field_wrapper)})")
 
-        for option_string, wrappers in conflicts.items():
-            if len(wrappers) > 1:
-                return Conflict(option_string, wrappers)
+        for option_string, field_wrappers in conflicts.items():
+            if len(field_wrappers) > 1:
+                return Conflict(option_string, field_wrappers)
         return None
 
     def _add(
