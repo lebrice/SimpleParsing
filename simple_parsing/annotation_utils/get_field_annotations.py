@@ -6,7 +6,7 @@ import typing
 from contextlib import contextmanager
 from dataclasses import InitVar
 from logging import getLogger as get_logger
-from typing import Any, Dict, Iterator, Optional, get_type_hints, TypeVar
+from typing import Any, Dict, Iterator, Optional, get_type_hints
 
 logger = get_logger(__name__)
 
@@ -18,7 +18,6 @@ forward_refs_to_types = {
     "dict": typing.Dict,
     "list": typing.List,
     "type": typing.Type,
-    "D": TypeVar("D"),
 }
 
 
@@ -178,8 +177,13 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     # Get the local and global namespaces to pass to the `get_type_hints` function.
     local_ns: Dict[str, Any] = {"typing": typing, **vars(typing)}
     local_ns.update(forward_refs_to_types)
-    # Get the globals in the module where the class was defined.
-    global_ns = sys.modules[some_class.__module__].__dict__
+    # Get the global_ns in the module starting from the deepest base until the module where the field_name is defined.
+    global_ns = {}
+    for base_cls in reversed(some_class.mro()):
+        global_ns.update(sys.modules[base_cls.__module__].__dict__)
+        annotations = getattr(base_cls, "__annotations__", None)
+        if annotations and field_name in annotations:
+            break
 
     try:
         with _initvar_patcher():
