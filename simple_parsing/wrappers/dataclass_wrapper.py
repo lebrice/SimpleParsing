@@ -164,7 +164,8 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 if argparse.SUPPRESS in self.defaults:
                     options["default"] = argparse.SUPPRESS
 
-                logger.debug(f"Arg options for field '{wrapped_field.name}': {options}")
+                # logger.debug(f"Arg options for field '{wrapped_field.name}': {options}")
+                logger.info(f"group.add_argument(*{wrapped_field.option_strings}, **{options})")
                 group.add_argument(*wrapped_field.option_strings, **options)
 
     def equivalent_argparse_code(self, leading="group") -> str:

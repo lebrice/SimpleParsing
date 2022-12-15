@@ -455,14 +455,29 @@ class ArgumentParser(argparse.ArgumentParser):
         wrappers = self._conflict_resolver.resolve_and_flatten(self._wrappers)
 
         # Add and resolve all the subgroup arguments.
-        self._resolve_subgroups(wrappers=wrappers, args=args, namespace=namespace)
+        wrappers, chosen_subgroups = self._resolve_subgroups(
+            wrappers=wrappers, args=args, namespace=namespace
+        )
+        # TODO: Now we have two options: Either treat the subgroup fields differently than others
+        # and add them manually here so they show up in the "--help" string, or keep them as they
+        # are inside the `fields` attribute of the DataclassWrapper.
 
+        subgroup_fields = _get_subgroup_fields(wrappers=wrappers)
+        for dest, wrapped_field in subgroup_fields.items():
+            option_strings = wrapped_field.option_strings
+            options = wrapped_field.arg_options
+            logger.info(f"Adding subgroup: self.add_argument(*{option_strings}, **{options})")
+            self.add_argument(*option_strings, **options)
+
+        wrappers = _unflatten_wrappers(wrappers)
         # Create one argument group per dataclass
+        assert False, [d.dest for d in wrappers[0].descendants]
         for wrapper in wrappers:
             logger.debug(
                 f"Parser {id(self)} is Adding arguments for dataclass: {wrapper.dataclass} "
                 f"at destinations {wrapper.destinations}"
             )
+            assert False, "heyo?"
             wrapper.add_arguments(parser=self)
 
         self._had_help = self.add_help
@@ -473,7 +488,22 @@ class ArgumentParser(argparse.ArgumentParser):
         wrappers: list[DataclassWrapper],
         args: list[str],
         namespace: Namespace | None = None,
-    ) -> None:
+    ) -> tuple[list[DataclassWrapper], dict[str, str]]:
+        """Iteratively add and resolve all the choice of argument subgroups, if any.
+
+        This modifies the `wrappers` list in-place, by possibly adding children to the dataclasses
+        in the list.
+        Returns the modified list. (unsure if it's going to stay that way though.)
+
+        Each round does the following:
+        1.  Resolve any conflicts using the conflict resolver. Two subgroups at the same nesting
+            level, with the same name, get a different prefix, for example "--generator.optimizer"
+            and "--discriminator.optimizer".
+        2.  Add all the subgroup choice arguments to a parser.
+        3.  Add the chosen dataclasses to the list of dataclasses to parse later in the main
+            parser. This is done by adding wrapping the dataclass and adding it to the `wrappers`
+            list.
+        """
 
         unresolved_subgroups = _get_subgroup_fields(wrappers)
         # Dictionary of the subgroup choices that were resolved (key: subgroup dest, value: chosen
@@ -482,8 +512,10 @@ class ArgumentParser(argparse.ArgumentParser):
 
         if not unresolved_subgroups:
             # No subgroups to parse.
-            return
+            return wrappers, {}
 
+        # Use a temporary parser, to avoid parsing "vanilla argparse" arguments of `self` multiple
+        # times.
         subgroup_choice_parser = argparse.ArgumentParser(
             add_help=False,
             # conflict_resolution=self.conflict_resolution,
@@ -494,7 +526,6 @@ class ArgumentParser(argparse.ArgumentParser):
             # add_config_path_arg=self.add_config_path_arg,
             # config_path=self.config_path,
         )
-        # subgroup_choice_parser = self
 
         for current_nesting_level in itertools.count():
             # Do rounds of parsing with just the subgroup arguments, until all the subgroups
@@ -534,6 +565,9 @@ class ArgumentParser(argparse.ArgumentParser):
                 chosen_subgroup_name: str = getattr(parsed_args, dest)
                 assert isinstance(chosen_subgroup_name, str)
                 chosen_subgroup = subgroup_field.subgroup_choices[chosen_subgroup_name]
+
+                resolved_subgroups[dest] = chosen_subgroup_name
+
                 # if it's a type, then use it as the chosen type. If it's a value, then use it as
                 # the default value, and use the type of the default value as the chosen type.
                 if isinstance(chosen_subgroup, type):
@@ -553,16 +587,16 @@ class ArgumentParser(argparse.ArgumentParser):
                 subgroup_field_default = subgroup_field.default
                 # NOTE: making it so the FieldWrapper for the subgroup choice has a string as the
                 # default value, rather than the dataclass instance.
+
+                # NOTE: invalidate the previously-generated options for this field:
+                subgroup_field._arg_options = {}
                 subgroup_field.default = chosen_subgroup_name
 
-                # Use the private variant of self.add_arguments (which is 'stateless'), so it
-                # doesn't modify the `self._wrappers` list.
+                # Use the private variant of self.add_arguments, so it doesn't modify the
+                # `self._wrappers` list.
                 # NOTE: we don't add the new wrapper to `self._wrappers`! Those only contain the
                 # wrappers that are added at the top-level by the user with a call to
                 # `add_arguments`.
-                name = dest.split(".")[-1]
-                # assert False, (subgroup_default, subgroup_field_default)
-
                 # TODO: Determine what the default value for the argument group should be.
                 # TODO: Handle the `MISSING` case!
                 if subgroup_default is not None:
@@ -572,6 +606,8 @@ class ArgumentParser(argparse.ArgumentParser):
                 else:
                     default = None
 
+                name = dest.split(".")[-1]
+                # todo: maybe we have to pass a fake 'field' to use here?
                 new_wrapper = self._add_arguments(
                     dataclass=subgroup_type,
                     name=name,
@@ -587,12 +623,12 @@ class ArgumentParser(argparse.ArgumentParser):
                 parent_dataclass_wrapper._children.append(new_wrapper)
                 assert new_wrapper.parent is parent_dataclass_wrapper
                 assert parent_dataclass_wrapper in _flatten_wrappers(wrappers)
-                # FIXME: I think I figured out the issue. If we generate a DataclassWrapper for a
-                # subgroup, then it doesn't get a real `Field`, which might be impeding the parsing
-                # from working properly?
+                assert new_wrapper in _flatten_wrappers(wrappers)
+
+                # FIXME: If we generate a DataclassWrapper for a subgroup, then it doesn't get a
+                # real `Field`, which might be preventing the parsing from working properly?
 
                 unresolved_subgroups.pop(dest)
-                resolved_subgroups[dest] = chosen_subgroup_name
 
             # Find the new subgroup fields that weren't resolved before.
             # TODO: What if a name conflict occurs between a subgroup field and one of the new
@@ -621,6 +657,7 @@ class ArgumentParser(argparse.ArgumentParser):
                     f"{current_nesting_level}. Moving to the next round which has "
                     f"{len(unresolved_subgroups)} unresolved subgroup choices."
                 )
+        return wrappers, resolved_subgroups
 
     def add_argument_group(
         self,
