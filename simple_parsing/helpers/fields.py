@@ -338,7 +338,8 @@ T = TypeVar("T")
 def subgroups(
     subgroups: Dict[str, Type[T]],
     *args,
-    default: Union[T, Type[T], None] = None,
+    default: Union[T, Type[T]] = MISSING,
+    default_factory: Union[T, Type[T]] = MISSING,
     **kwargs,
 ) -> T:
     """Creates a field that will be a choice between different subgroups of arguments.
@@ -362,12 +363,17 @@ def subgroups(
     metadata["subgroups"] = subgroups
     choices = subgroups.keys()
     kwargs["type"] = str
-    if default and inspect.isclass(default):
-        matching_keys = [k for k, v in subgroups.items() if v is default]
-        if len(matching_keys) != 1:
-            raise ValueError(f"Default subgroup {default} is not in the subgroups dict")
-        default = matching_keys[0]
-    return choice(*choices, *args, default=default, **kwargs)  # type: ignore
+
+    if default is not MISSING:
+        if inspect.isclass(default):
+            matching_keys = [k for k, v in subgroups.items() if v is default]
+            if len(matching_keys) != 1:
+                raise ValueError(f"Default subgroup {default} is not in the subgroups dict")
+            default = matching_keys[0]
+    elif default_factory is not MISSING:
+        pass
+
+    return choice(*choices, *args, default=default, default_factory=default_factory, **kwargs)  # type: ignore
 
 
 def subparsers(
