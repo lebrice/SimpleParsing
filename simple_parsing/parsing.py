@@ -441,46 +441,41 @@ class ArgumentParser(argparse.ArgumentParser):
         self._wrappers = self._conflict_resolver.resolve_and_flatten(self._wrappers)
 
     def _preprocessing(self, args: Sequence[str] = (), namespace: Namespace | None = None) -> None:
-        """Resolve potential conflicts, resolve subgroups, and all the arguments.
-
-        Returns the args with the subgroup choice arguments removed, if present.
-        """
+        """Resolve potential conflicts, resolve subgroups, and add all the arguments."""
         logger.debug("\nPREPROCESSING\n")
+        args = list(args)
+
+        wrapped_dataclasses = self._wrappers.copy()
+        # Fix the potential conflicts between dataclass fields with the same names.
+        wrapped_dataclasses = self._conflict_resolver.resolve_and_flatten(wrapped_dataclasses)
+        # Add and resolve all the subgroup arguments.
+        wrapped_dataclasses, chosen_subgroups = self._resolve_subgroups(
+            wrappers=wrapped_dataclasses, args=args, namespace=namespace
+        )
+        self._wrappers = wrapped_dataclasses
+
         if self._preprocessing_done:
             return
 
-        args = list(args)
-
-        # Fix the potential conflicts between dataclass fields with the same names.
-        wrappers = self._conflict_resolver.resolve_and_flatten(self._wrappers)
-
-        # Add and resolve all the subgroup arguments.
-        wrappers, chosen_subgroups = self._resolve_subgroups(
-            wrappers=wrappers, args=args, namespace=namespace
-        )
-        # TODO: Now we have two options: Either treat the subgroup fields differently than others
-        # and add them manually here so they show up in the "--help" string, or keep them as they
-        # are inside the `fields` attribute of the DataclassWrapper.
-
-        subgroup_fields = _get_subgroup_fields(wrappers=wrappers)
+        # TODO: Keep the subgroup fields in their dataclasses so they show up with the other
+        # arguments.
+        subgroup_fields = _get_subgroup_fields(wrappers=wrapped_dataclasses)
         for dest, wrapped_field in subgroup_fields.items():
             option_strings = wrapped_field.option_strings
             options = wrapped_field.arg_options
             logger.info(f"Adding subgroup: self.add_argument(*{option_strings}, **{options})")
+            assert wrapped_field.default == chosen_subgroups[dest]
             self.add_argument(*option_strings, **options)
 
-        wrappers = _unflatten_wrappers(wrappers)
+        wrapped_dataclasses = _flatten_wrappers(wrapped_dataclasses)
         # Create one argument group per dataclass
-        assert False, [d.dest for d in wrappers[0].descendants]
-        for wrapper in wrappers:
+        for wrapped_dataclass in wrapped_dataclasses:
             logger.debug(
-                f"Parser {id(self)} is Adding arguments for dataclass: {wrapper.dataclass} "
-                f"at destinations {wrapper.destinations}"
+                f"Parser {id(self)} is Adding arguments for dataclass: {wrapped_dataclass.dataclass} "
+                f"at destinations {wrapped_dataclass.destinations}"
             )
-            assert False, "heyo?"
-            wrapper.add_arguments(parser=self)
+            wrapped_dataclass.add_arguments(parser=self)
 
-        self._had_help = self.add_help
         self._preprocessing_done = True
 
     def _resolve_subgroups(
@@ -792,11 +787,16 @@ class ArgumentParser(argparse.ArgumentParser):
         sorted_wrappers: list[DataclassWrapper] = sorted(
             wrappers, key=lambda w: w.nesting_level, reverse=True
         )
-
+        assert len(sorted_wrappers) == len(set(sorted_wrappers))
         constructor_arguments = constructor_arguments.copy()
 
         for wrapper in sorted_wrappers:
+            logger.info(
+                f"Instantiating the wrapper {wrapper} with destinations {wrapper.destinations}"
+            )
+
             for destination in wrapper.destinations:
+                logger.info(f"Instantiating the dataclass at destination {destination}")
                 # Instantiate the dataclass by passing the constructor arguments
                 # to the constructor.
                 constructor = wrapper.dataclass

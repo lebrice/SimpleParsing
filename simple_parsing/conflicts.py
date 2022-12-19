@@ -166,15 +166,19 @@ class ConflictResolver:
         wrapper: DataclassWrapper | FieldWrapper,
         wrappers: list[DataclassWrapper],
     ):
+        """Remove the given wrapper and all its descendants from the list of wrappers."""
         if isinstance(wrapper, FieldWrapper):
             wrapper = wrapper.parent
         assert isinstance(wrapper, DataclassWrapper)
         logger.debug(f"Removing DataclassWrapper {wrapper}")
         wrappers.remove(wrapper)
         for child in wrapper.descendants:
-            logger.debug(f"\tAlso Removing Child DataclassWrapper {child}")
+            logger.debug(f"\tAlso removing Child DataclassWrapper {child}")
             wrappers.remove(child)
-
+        # TODO: Should we also remove the reference to this wrapper from its parent?
+        for other_wrapper in wrappers:
+            if wrapper in other_wrapper._children:
+                other_wrapper._children.remove(wrapper)
         return wrappers
 
     def _fix_conflict_explicit(self, conflict: Conflict):
