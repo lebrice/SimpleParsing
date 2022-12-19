@@ -717,11 +717,11 @@ class ArgumentParser(argparse.ArgumentParser):
         # the relevant attributes from `parsed_args`
         wrappers = _flatten_wrappers(self._wrappers)
 
-        # FIXME: Double-check that this is also true when using defaults from files, etc.
-        assert not self.constructor_arguments
-        constructor_arguments = {
-            wrapper_dest: {} for wrapper in wrappers for wrapper_dest in wrapper.destinations
-        }
+        constructor_arguments = self.constructor_arguments.copy()
+        for wrapper in wrappers:
+            for destination in wrapper.destinations:
+                constructor_arguments.setdefault(destination, {})
+
         parsed_args = self._fill_constructor_arguments_with_fields(
             parsed_args, wrappers=wrappers, initial_constructor_arguments=constructor_arguments
         )
