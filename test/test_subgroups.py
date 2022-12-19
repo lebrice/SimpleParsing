@@ -1,278 +1,298 @@
-import contextlib
+from __future__ import annotations
+
 import shlex
-from dataclasses import dataclass, is_dataclass
-from io import StringIO
-from typing import Union
+from dataclasses import dataclass
+from typing import TypeVar
 
 import pytest
 
 from simple_parsing import ArgumentParser, subgroups
-from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
-from .testutils import TestSetup, raises_missing_required_arg, raises_unrecognized_args
-
-
-@dataclass
-class Foo:
-    a: int = 1
-    b: int = 2
+from .testutils import TestSetup, raises_missing_required_arg
 
 
 @dataclass
-class Bar:
-    c: int = 1
-    d: int = 2
+class A:
+    a: float = 0.0
 
 
 @dataclass
-class Baz:
-    e: int = 1
-    f: bool = False
+class B:
+    b: str = "bar"
 
 
 @dataclass
-class Blop:
-    g: str = "arwg"
-    h: float = 1.2
+class AB(TestSetup):
+    a_or_b: A | B = subgroups({"a": A, "b": B}, default_factory=A)
 
 
-@dataclass
-class Bob(TestSetup):
-    thing: Union[Foo, Bar] = subgroups({"foo_thing": Foo, "bar_thing": Bar}, default=Bar(d=3))
+TestClass = TypeVar("TestClass", bound=TestSetup)
+
+
+class TestSimpleSubgroup:
+    def test_help_action(self):
+        """Test that the arguments for the chosen subgroup are shown in the help string."""
+        assert "--a_or_b" in AB.get_help_text("--help")
+        assert False, AB.get_help_text("--help")
+
+        assert "--a float" in AB.get_help_text("--a_or_b a --help")
+        assert "--ab_or_cd.c" in AB.get_help_text("--ab_or_cd cd --help")
+
+        # The default for ab_or_cd is of type CD, so if the option isn't passed, it should show the
+        # help for the default subgroup choice.
+        assert "--ab_or_cd.c" in AB.get_help_text("--help")
+
+    @pytest.mark.parametrize(
+        "dataclass_type, args, expected",
+        [
+            (
+                AB,
+                "--a_or_b a --a 123",
+                AB(a_or_b=A(a=123)),
+            ),
+            (
+                AB,
+                "--a_or_b b --b foooo",
+                AB(a_or_b=B(b="foooo")),
+            ),
+        ],
+    )
+    def test_subgroup(self, dataclass_type: type[TestClass], args: str, expected: TestClass):
+        assert dataclass_type.setup(args) == expected
+
+
+# @dataclass
+# class C:
+#     c: bool = False
+
+
+# @dataclass
+# class D:
+#     d: int = 0
+
+
+# @dataclass
+# class CD:
+#     c_or_d: C | D = subgroups({"c": C, "d": D}, default_factory=C)
+
+#     other_c_arg: str = "bob"
+
+
+# @dataclass
+# class ABCD:
+#     ab_or_cd: AB | CD = subgroups({"ab": AB, "cd": CD}, default_factory=AB)
+
+
+# @dataclass
+# class E:
+#     e: bool = False
+
+
+# @dataclass
+# class F:
+#     f: str = "f_default"
+
+
+# @dataclass
+# class EF:
+#     e_or_f: E | F = subgroups({"e": E, "f": F}, default_factory=E)
+
+
+# @dataclass
+# class MultipleSubgroupsDifferentNestingLevel(TestSetup):
+#     ab_or_cd: Union[AB, CD] = subgroups({"ab": AB, "cd": CD}, default_factory=CD)
+#     ef: EF = field(default_factory=EF)
+
+
+# @dataclass
+# class NestedSubgroups(TestSetup):
+#     ab_or_cd: AB | CD = subgroups(
+#         {"ab": AB, "cd": CD},
+#         default_factory=AB,
+#     )
 
 
 def test_remove_help_action():
     # Test that it's possible to remove the '--help' action from a parser that had add_help=True
 
     parser = ArgumentParser(add_help=True)
-    parser.add_arguments(Foo, "foo")
-    parser.add_arguments(Bar, "bar")
+    parser.add_arguments(A, "a")
+    parser.add_arguments(B, "b")
     parser._remove_help_action()
-    import shlex
 
-    args, unused = parser.parse_known_args(shlex.split("--a 123 --c 456 --help"))
+    args, unused = parser.parse_known_args(shlex.split("--a 123 --b foo --help"))
     assert unused == ["--help"]
-    assert args.foo == Foo(a=123)
-    assert args.bar == Bar(c=456)
-
-
-class TestSubgroup:
-    def test_subgroup(self):
-        parser = ArgumentParser()
-        parser.add_arguments(Bob, dest="bob")
-        args = parser.parse_args(shlex.split("--thing foo_thing --thing.a 123"))
-        bob = args.bob
-        thing = bob.thing
-        assert is_dataclass(thing)
-        assert thing == Foo(a=123)
-
-    def test_help_action(self):
-        """Test that the arguments for the chosen subgroup are shown in the help string."""
-
-        # The default is of type Bar, so if the option isn't passed, it should show the help for
-        # the default argument choice.
-        assert "--thing.c" in Bob.get_help_text("--help")
-
-        assert "--thing.a" in Bob.get_help_text("--thing foo_thing --help")
-        assert "--thing.c" in Bob.get_help_text("--thing bar_thing --help")
-
-    def test_manual_help_action(self):
-        """Test without the use of `get_help_text` from TestSetup, just to be sure."""
-        parser = ArgumentParser()
-        parser.add_arguments(Bob, dest="bob")
-
-        with StringIO() as f:
-            with contextlib.suppress(SystemExit), contextlib.redirect_stdout(f):
-                parser.parse_args(["--help"])
-            help_text = f.getvalue()
-        # print("\n" + help_text)
-        assert "--thing.c" in help_text
-
-    @pytest.mark.xfail(reason="TODO, doesn't quite work yet.")
-    def test_print_help(self):
-        parser = ArgumentParser()
-        parser.add_arguments(Bob, dest="bob")
-
-        with StringIO() as f:
-            parser.print_help(f)
-            help_text = f.getvalue()
-            print(help_text)
-            assert "--thing.c" in help_text
+    assert args.a == A(a=123)
+    assert args.b == B(b="foo")
 
 
 def test_required_subgroup():
     """Test when a subgroup doesn't have a default value, and is required."""
 
     @dataclass
-    class Bob(TestSetup):
-        thing: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar})
+    class RequiredSubgroup(TestSetup):
+        a_or_b: A | B = subgroups({"a": A, "b": B})
 
     with raises_missing_required_arg():
-        assert Bob.setup("")
+        assert RequiredSubgroup.setup("")
 
-    assert Bob.setup("--thing foo") == Bob(thing=Foo())
-
-
-@dataclass
-class WithRequiredArg:
-    some_required_arg: int
-    other_arg: int = 123
+    assert RequiredSubgroup.setup("--a_or_b b") == RequiredSubgroup(a_or_b=B())
 
 
-def test_subgroup_with_required_argument():
-    """Test where a subgroup has a required argument."""
-
-    @dataclass
-    class Bob(TestSetup):
-        thing: Union[Foo, WithRequiredArg] = subgroups({"foo": Foo, "req": WithRequiredArg})
-
-    assert Bob.setup("--thing foo --thing.a 44") == Bob(thing=Foo(a=44))
-    assert Bob.setup("--thing req --thing.some_required_arg 22") == Bob(
-        thing=WithRequiredArg(some_required_arg=22)
-    )
-    with raises_missing_required_arg():
-        assert Bob.setup("--thing req")
+# @dataclass
+# class WithRequiredArg:
+#     some_required_arg: int
+#     other_arg: int = 123
 
 
-def test_two_subgroups():
-    @dataclass
-    class Bob(TestSetup):
-        first: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar}, default=Bar(d=3))
-        second: Union[Baz, Blop] = subgroups({"baz": Baz, "blop": Blop}, default=Blop())
+# def test_subgroup_with_required_argument():
+#     """Test where a subgroup has a required argument."""
 
-    bob = Bob.setup("--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2")
-    assert bob == Bob(first=Foo(a=123), second=Blop(g="arwg", h=1.2))
+#     @dataclass
+#     class Bob(TestSetup):
+#         thing: Union[AB, WithRequiredArg] = subgroups({"foo": AB, "req": WithRequiredArg})
 
-
-def test_two_subgroups_with_conflict():
-    @dataclass
-    class Bob(TestSetup):
-        first: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar}, default=Bar(d=3))
-        second: Union[Foo, Blop] = subgroups({"foo": Foo, "blop": Blop}, default=Blop())
-
-    assert Bob.setup(
-        "--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2"
-    ) == Bob(first=Foo(a=123), second=Blop(g="arwg", h=1.2))
-
-    assert Bob.setup("--first foo --first.a 123 --second foo --second.a 456") == Bob(
-        first=Foo(a=123), second=Foo(a=456)
-    )
+#     assert Bob.setup("--thing foo --thing.a 44") == Bob(thing=AB(a=44))
+#     assert Bob.setup("--thing req --thing.some_required_arg 22") == Bob(
+#         thing=WithRequiredArg(some_required_arg=22)
+#     )
+#     with raises_missing_required_arg():
+#         assert Bob.setup("--thing req")
 
 
-def test_unrelated_arg_raises_error():
-    @dataclass
-    class Bob(TestSetup):
-        first: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar}, default=Bar(d=3))
-        second: Union[Foo, Blop] = subgroups({"foo": Foo, "blop": Blop}, default=Blop())
+# def test_two_subgroups():
+#     @dataclass
+#     class Bob(TestSetup):
+#         first: Union[AB, CD] = subgroups({"foo": AB, "bar": CD}, default=CD(d=3))
+#         second: Union[EF, GH] = subgroups({"baz": EF, "blop": GH}, default=GH())
 
-    with raises_unrecognized_args("--bblarga"):
-        Bob.setup("--first foo --first.a 123 --second foo --second.a 456 --bblarga")
-
-
-@dataclass
-class Person:
-    age: int
+#     bob = Bob.setup("--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2")
+#     assert bob == Bob(first=AB(a=123), second=GH(g="arwg", h=1.2))
 
 
-@dataclass
-class Daniel(Person):
-    """Person named Bob."""
+# def test_two_subgroups_with_conflict():
+#     @dataclass
+#     class Bob(TestSetup):
+#         first: Union[AB, CD] = subgroups({"foo": AB, "bar": CD}, default=CD(d=3))
+#         second: Union[AB, GH] = subgroups({"foo": AB, "blop": GH}, default=GH())
 
-    age: int = 32
-    cool: bool = True
+#     assert Bob.setup(
+#         "--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2"
+#     ) == Bob(first=AB(a=123), second=GH(g="arwg", h=1.2))
 
-
-@dataclass
-class Alice(Person):
-    """Person named Alice."""
-
-    age: int = 13
-    popular: bool = True
-
-
-@dataclass
-class Config:
-    """Configuration dataclass."""
-
-    person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
-
-    @dataclass
-    class Config:
-        """Configuration dataclass."""
-
-        person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
+#     assert Bob.setup("--first foo --first.a 123 --second foo --second.a 456") == Bob(
+#         first=AB(a=123), second=AB(a=456)
+#     )
 
 
-@dataclass
-class HigherConfig(TestSetup):
-    """Higher-level config."""
+# def test_unrelated_arg_raises_error():
+#     @dataclass
+#     class Bob(TestSetup):
+#         first: Union[AB, CD] = subgroups({"foo": AB, "bar": CD}, default=CD(d=3))
+#         second: Union[AB, GH] = subgroups({"foo": AB, "blop": GH}, default=GH())
 
-    a: Config = Config(person=Daniel())
-    b: Config = Config(person=Alice())
-
-
-def test_mixing_subgroup_with_regular_dataclass():
-
-    parser = ArgumentParser()
-    parser.add_arguments(Config, dest="config")
-    parser.add_arguments(Foo, dest="foo")
-
-    args = parser.parse_args([])
-    assert args.config == Config(person=Daniel())
-    assert args.foo == Foo()
-
-    # NOTE: Not sure if the parser can safely be reused twice.
-    parser = ArgumentParser()
-    parser.add_arguments(Config, dest="config")
-    parser.add_arguments(Foo, dest="foo")
-    args = parser.parse_args(shlex.split("--person alice --person.age=33 --a 123"))
-    assert args.config == Config(person=Alice(age=33))
-    assert args.foo == Foo(a=123)
+#     with raises_unrecognized_args("--bblarga"):
+#         Bob.setup("--first foo --first.a 123 --second foo --second.a 456 --bblarga")
 
 
-def test_issue_139():
-    """test for https://github.com/lebrice/SimpleParsing/issues/139
-
-    Need to save the chosen subgroup name somewhere on the args.
-    """
-
-    parser = ArgumentParser()
-    parser.add_arguments(Config, dest="config")
-
-    args = parser.parse_args([])
-    assert args.config == Config(person=Daniel())
-    assert args.subgroups == {"config.person": "daniel"}
+# @dataclass
+# class Person:
+#     age: int
 
 
-def test_deeper_nesting_prefixing():
-    """Test that the prefixing mechanism works for deeper nesting of subgroups."""
+# @dataclass
+# class Daniel(Person):
+#     """Person named Bob."""
 
-    assert "--a.person.cool" in HigherConfig.get_help_text(
-        "--help",
-        nested_mode=NestedMode.WITHOUT_ROOT,
-        argument_generation_mode=ArgumentGenerationMode.NESTED,
-    )
-
-    assert "--a.person.popular" in HigherConfig.get_help_text(
-        "--a.person alice --help",
-        nested_mode=NestedMode.WITHOUT_ROOT,
-        argument_generation_mode=ArgumentGenerationMode.NESTED,
-    )
-
-    assert HigherConfig.setup("") == HigherConfig()
-    assert HigherConfig.setup("--a.person alice") == HigherConfig(a=Config(person=Alice()))
-    assert HigherConfig.setup("--b.person daniel --b.person.age 54") == HigherConfig(
-        b=Config(person=Daniel(age=54))
-    )
+#     age: int = 32
+#     cool: bool = True
 
 
-def test_subgroups_dict_in_args():
-    parser = ArgumentParser()
-    parser.add_arguments(HigherConfig, "config")
+# @dataclass
+# class Alice(Person):
+#     """Person named Alice."""
 
-    args = parser.parse_args([])
-    assert args.config == HigherConfig()
-    assert args.subgroups == {"config.a.person": "daniel", "config.b.person": "alice"}
+#     age: int = 13
+#     popular: bool = True
 
-    args = parser.parse_args(shlex.split("--a.person alice --b.person daniel --b.person.age 54"))
-    assert args.subgroups == {"config.a.person": "alice", "config.b.person": "daniel"}
+
+# @dataclass
+# class NestedSubgroups(TestSetup):
+#     """Configuration dataclass."""
+
+#     person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
+
+
+# @dataclass
+# class HigherConfig(TestSetup):
+#     """Higher-level config."""
+
+#     a: NestedSubgroups = NestedSubgroups(person=Daniel())
+#     b: NestedSubgroups = NestedSubgroups(person=Alice())
+
+
+# def test_mixing_subgroup_with_regular_dataclass():
+
+#     parser = ArgumentParser()
+#     parser.add_arguments(NestedSubgroups, dest="config")
+#     parser.add_arguments(AB, dest="foo")
+
+#     args = parser.parse_args([])
+#     assert args.config == NestedSubgroups(person=Daniel())
+#     assert args.foo == AB()
+
+#     # NOTE: Not sure if the parser can safely be reused twice.
+#     parser = ArgumentParser()
+#     parser.add_arguments(NestedSubgroups, dest="config")
+#     parser.add_arguments(AB, dest="foo")
+#     args = parser.parse_args(shlex.split("--person alice --person.age=33 --a 123"))
+#     assert args.config == NestedSubgroups(person=Alice(age=33))
+#     assert args.foo == AB(a=123)
+
+
+# def test_issue_139():
+#     """test for https://github.com/lebrice/SimpleParsing/issues/139
+
+#     Need to save the chosen subgroup name somewhere on the args.
+#     """
+
+#     parser = ArgumentParser()
+#     parser.add_arguments(NestedSubgroups, dest="config")
+
+#     args = parser.parse_args([])
+#     assert args.config == NestedSubgroups(person=Daniel())
+#     assert args.subgroups == {"config.person": "daniel"}
+
+
+# def test_deeper_nesting_prefixing():
+#     """Test that the prefixing mechanism works for deeper nesting of subgroups."""
+
+#     assert "--a.person.cool" in HigherConfig.get_help_text(
+#         "--help",
+#         nested_mode=NestedMode.WITHOUT_ROOT,
+#         argument_generation_mode=ArgumentGenerationMode.NESTED,
+#     )
+
+#     assert "--a.person.popular" in HigherConfig.get_help_text(
+#         "--a.person alice --help",
+#         nested_mode=NestedMode.WITHOUT_ROOT,
+#         argument_generation_mode=ArgumentGenerationMode.NESTED,
+#     )
+
+#     assert HigherConfig.setup("") == HigherConfig()
+#     assert HigherConfig.setup("--a.person alice") == HigherConfig(a=NestedSubgroups(person=Alice()))
+#     assert HigherConfig.setup("--b.person daniel --b.person.age 54") == HigherConfig(
+#         b=NestedSubgroups(person=Daniel(age=54))
+#     )
+
+
+# def test_subgroups_dict_in_args():
+#     parser = ArgumentParser()
+#     parser.add_arguments(HigherConfig, "config")
+
+#     args = parser.parse_args([])
+#     assert args.config == HigherConfig()
+#     assert args.subgroups == {"config.a.person": "daniel", "config.b.person": "alice"}
+
+#     args = parser.parse_args(shlex.split("--a.person alice --b.person daniel --b.person.age 54"))
+#     assert args.subgroups == {"config.a.person": "alice", "config.b.person": "daniel"}
