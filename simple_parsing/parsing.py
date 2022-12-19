@@ -417,7 +417,7 @@ class ArgumentParser(argparse.ArgumentParser):
         # self._defaults dictionary).
         super().set_defaults(**kwargs)
 
-    def equivalent_argparse_code(self, args: Sequence[str] | None) -> str:
+    def equivalent_argparse_code(self, args: Sequence[str] | None = None) -> str:
         """Returns the argparse code equivalent to that of `simple_parsing`.
 
         TODO: Could be fun, pretty sure this is useless though.
