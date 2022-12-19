@@ -130,6 +130,9 @@ def test_passing_enum_to_choice():
     assert s.colors == [Color.blue, Color.red]
 
 
+# TODO: Add a test to check how the enum arguments are shown on the help string.
+
+
 def test_passing_enum_to_choice_no_default_makes_required_arg():
     @dataclass
     class Something(TestSetup):

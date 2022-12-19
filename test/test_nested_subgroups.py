@@ -24,7 +24,7 @@ class B:
 
 @dataclass
 class AB:
-    a_or_b: A | B = subgroups({"a": A, "b": B}, default=A(1.23))
+    a_or_b: A | B = subgroups({"a": A, "b": B}, default="a")
 
 
 @dataclass
@@ -39,7 +39,7 @@ class D:
 
 @dataclass
 class CD:
-    c_or_d: C | D = subgroups({"c": C, "d": D}, default=C(True))
+    c_or_d: C | D = subgroups({"c": C, "d": D}, default="c")
 
     other_arg: str = "bob"
 
@@ -48,7 +48,7 @@ class CD:
 class Config(TestSetup):
     ab_or_cd: AB | CD = subgroups(
         {"ab": AB, "cd": CD},
-        default=AB(a_or_b=B("heyo")),
+        default_factory=AB,
     )
 
 
@@ -287,12 +287,12 @@ def test_subgroups():
     parser = ArgumentParser()
     parser.add_arguments(Config, "config")
     args, unused_args = parser.parse_known_args(shlex.split("--ab_or_cd cd --c_or_d d --d 123"))
-    assert args.config == Config(ab_or_cd=CD(c_or_d=D(d=123))), unused_args
     assert unused_args == []
-    assert list(vars(args)) == [
+    assert args.config == Config(ab_or_cd=CD(c_or_d=D(d=123))), unused_args
+    assert set(vars(args)) == {
         "config",
         "subgroups",
-    ], "should be any leftover garbage in the namespace"
+    }, "should be any leftover garbage in the namespace"
 
     config = Config.setup("--ab_or_cd cd --c_or_d d --d 123")
     assert config == Config(ab_or_cd=CD(c_or_d=D(d=123)))

@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import shlex
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TypeVar
 
 import pytest
 
 from simple_parsing import ArgumentParser, subgroups
 
+from .test_choice import Color
 from .testutils import TestSetup, raises_missing_required_arg
+
+TestClass = TypeVar("TestClass", bound=TestSetup)
 
 
 @dataclass
@@ -26,90 +29,153 @@ class AB(TestSetup):
     a_or_b: A | B = subgroups({"a": A, "b": B}, default_factory=A)
 
 
-TestClass = TypeVar("TestClass", bound=TestSetup)
+@dataclass
+class C:
+    c: bool = False
 
 
-class TestSimpleSubgroup:
-    def test_help_action(self):
-        """Test that the arguments for the chosen subgroup are shown in the help string."""
-        assert "--a_or_b" in AB.get_help_text("--help")
-        assert False, AB.get_help_text("--help")
-
-        assert "--a float" in AB.get_help_text("--a_or_b a --help")
-        assert "--ab_or_cd.c" in AB.get_help_text("--ab_or_cd cd --help")
-
-        # The default for ab_or_cd is of type CD, so if the option isn't passed, it should show the
-        # help for the default subgroup choice.
-        assert "--ab_or_cd.c" in AB.get_help_text("--help")
-
-    @pytest.mark.parametrize(
-        "dataclass_type, args, expected",
-        [
-            (
-                AB,
-                "--a_or_b a --a 123",
-                AB(a_or_b=A(a=123)),
-            ),
-            (
-                AB,
-                "--a_or_b b --b foooo",
-                AB(a_or_b=B(b="foooo")),
-            ),
-        ],
-    )
-    def test_subgroup(self, dataclass_type: type[TestClass], args: str, expected: TestClass):
-        assert dataclass_type.setup(args) == expected
+@dataclass
+class D:
+    d: int = 0
 
 
-# @dataclass
-# class C:
-#     c: bool = False
+@dataclass
+class E:
+    e: bool = False
 
 
-# @dataclass
-# class D:
-#     d: int = 0
+@dataclass
+class F:
+    f: str = "f_default"
 
 
-# @dataclass
-# class CD:
-#     c_or_d: C | D = subgroups({"c": C, "d": D}, default_factory=C)
-
-#     other_c_arg: str = "bob"
+@dataclass
+class G:
+    g: int = 0
 
 
-# @dataclass
-# class ABCD:
-#     ab_or_cd: AB | CD = subgroups({"ab": AB, "cd": CD}, default_factory=AB)
+@dataclass
+class H:
+    h: bool = False
 
 
-# @dataclass
-# class E:
-#     e: bool = False
+@dataclass
+class CD:
+    c_or_d: C | D = subgroups({"c": C, "d": D}, default_factory=C)
+    other_c_arg: str = "bob"
 
 
-# @dataclass
-# class F:
-#     f: str = "f_default"
+@dataclass
+class EF:
+    e_or_f: E | F = subgroups({"e": E, "f": F}, default_factory=E)
 
 
-# @dataclass
-# class EF:
-#     e_or_f: E | F = subgroups({"e": E, "f": F}, default_factory=E)
+@dataclass
+class GH:
+    g_or_h: G | H = subgroups({"g": G, "h": H}, default_factory=G)
 
 
-# @dataclass
-# class MultipleSubgroupsDifferentNestingLevel(TestSetup):
-#     ab_or_cd: Union[AB, CD] = subgroups({"ab": AB, "cd": CD}, default_factory=CD)
-#     ef: EF = field(default_factory=EF)
+@dataclass
+class ABCD(TestSetup):
+    ab_or_cd: AB | CD = subgroups({"ab": AB, "cd": CD}, default_factory=AB)
 
 
-# @dataclass
-# class NestedSubgroups(TestSetup):
-#     ab_or_cd: AB | CD = subgroups(
-#         {"ab": AB, "cd": CD},
-#         default_factory=AB,
-#     )
+@dataclass
+class EFGH:
+    ef_or_gh: EF | GH = subgroups({"ef": EF, "gh": GH}, default_factory=EF)
+
+
+@dataclass
+class ABCDEFGH(TestSetup):
+    """Dataclass with three levels of subgroup nesting."""
+
+    abc_or_efgh: ABCD | EFGH = subgroups({"abcd": ABCD, "efgh": EFGH}, default_factory=ABCD)
+
+
+@dataclass
+class MultipleSubgroupsSameLevel(TestSetup):
+    a_or_b: A | B = subgroups({"a": A, "b": B}, default_factory=A)
+    c_or_d: C | D = subgroups({"c": C, "d": D}, default_factory=D)
+
+
+@dataclass
+class MultipleSubgroupsDifferentLevel(TestSetup):
+    ab_or_cd: AB | CD = subgroups({"ab": AB, "cd": CD}, default_factory=CD)
+    ef: EF = field(default_factory=EF)
+
+
+@dataclass
+class EnumsAsKeys(TestSetup):
+    """Dataclass where the subgroup choices are keys."""
+
+    a_or_b: A | B = subgroups({Color.red: A, Color.blue: B}, default_factory=A)
+
+
+@pytest.mark.parametrize(
+    "dataclass_type, get_help_text_args, should_contain",
+    [
+        (AB, {}, ["--a_or_b {a,b}", "--a float"]),
+        (EnumsAsKeys, {}, ["--a_or_b {Color.red,Color.blue}", "--a float"]),
+        (
+            MultipleSubgroupsSameLevel,
+            {},
+            ["--a_or_b {a,b}", "--a float", "--c_or_d {c,d}", "--d int"],
+        ),
+        (
+            MultipleSubgroupsDifferentLevel,
+            {},
+            ["--ab_or_cd {ab,cd}", "--c_or_d {c,d}", "--e_or_f {e,f}", "--e bool"],
+        ),
+    ],
+)
+def test_help_string(
+    dataclass_type: type[TestClass],
+    get_help_text_args: dict,
+    should_contain: list[str],
+):
+    """Test that the arguments for the chosen subgroup are shown in the help string."""
+    help_text = dataclass_type.get_help_text(*get_help_text_args)
+    for expected in should_contain:
+        assert expected in help_text
+
+
+@pytest.mark.parametrize(
+    "dataclass_type, args, expected",
+    [
+        (
+            AB,
+            "--a_or_b a --a 123",
+            AB(a_or_b=A(a=123)),
+        ),
+        (
+            AB,
+            "--a_or_b b --b foooo",
+            AB(a_or_b=B(b="foooo")),
+        ),
+        (
+            MultipleSubgroupsSameLevel,
+            "--a_or_b a --a 123 --d 456",
+            MultipleSubgroupsSameLevel(a_or_b=A(a=123), c_or_d=D(d=456)),
+        ),
+        (
+            MultipleSubgroupsSameLevel,
+            "--a_or_b b --b foooo",
+            MultipleSubgroupsSameLevel(a_or_b=B(b="foooo")),
+        ),
+        (
+            ABCD,
+            "--ab_or_cd ab --a_or_b a --a 123",
+            ABCD(ab_or_cd=AB(a_or_b=A(a=123))),
+        ),
+        (
+            ABCD,
+            "--ab_or_cd cd --c_or_d d --d 456",
+            ABCD(ab_or_cd=CD(c_or_d=D(d=456))),
+        ),
+    ],
+)
+def test_parse(dataclass_type: type[TestClass], args: str, expected: TestClass):
+    assert dataclass_type.setup(args) == expected
 
 
 def test_remove_help_action():
@@ -145,7 +211,7 @@ def test_required_subgroup():
 #     other_arg: int = 123
 
 
-# def test_subgroup_with_required_argument():
+# def test_subwith_required_argument():
 #     """Test where a subgroup has a required argument."""
 
 #     @dataclass
@@ -231,7 +297,7 @@ def test_required_subgroup():
 #     b: NestedSubgroups = NestedSubgroups(person=Alice())
 
 
-# def test_mixing_subgroup_with_regular_dataclass():
+# def test_mixing_subwith_regular_dataclass():
 
 #     parser = ArgumentParser()
 #     parser.add_arguments(NestedSubgroups, dest="config")

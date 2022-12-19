@@ -443,6 +443,10 @@ class ArgumentParser(argparse.ArgumentParser):
     def _preprocessing(self, args: Sequence[str] = (), namespace: Namespace | None = None) -> None:
         """Resolve potential conflicts, resolve subgroups, and add all the arguments."""
         logger.debug("\nPREPROCESSING\n")
+
+        if self._preprocessing_done:
+            return
+
         args = list(args)
 
         wrapped_dataclasses = self._wrappers.copy()
@@ -454,20 +458,18 @@ class ArgumentParser(argparse.ArgumentParser):
         )
         self._wrappers = wrapped_dataclasses
 
-        if self._preprocessing_done:
-            return
-
-        # TODO: Keep the subgroup fields in their dataclasses so they show up with the other
+        # NOTE: We keep the subgroup fields in their dataclasses so they show up with the other
         # arguments.
-        subgroup_fields = _get_subgroup_fields(wrappers=wrapped_dataclasses)
-        for dest, wrapped_field in subgroup_fields.items():
-            option_strings = wrapped_field.option_strings
-            options = wrapped_field.arg_options
-            logger.info(f"Adding subgroup: self.add_argument(*{option_strings}, **{options})")
-            assert wrapped_field.default == chosen_subgroups[dest]
-            self.add_argument(*option_strings, **options)
+        # subgroup_fields = _get_subgroup_fields(wrappers=wrapped_dataclasses)
+        # for dest, wrapped_field in subgroup_fields.items():
+        #     option_strings = wrapped_field.option_strings
+        #     options = wrapped_field.arg_options
+        #     logger.info(f"Adding subgroup: self.add_argument(*{option_strings}, **{options})")
+        #     assert wrapped_field.default == chosen_subgroups[dest]
+        #     self.add_argument(*option_strings, **options)
 
         wrapped_dataclasses = _flatten_wrappers(wrapped_dataclasses)
+
         # Create one argument group per dataclass
         for wrapped_dataclass in wrapped_dataclasses:
             logger.debug(
@@ -520,6 +522,7 @@ class ArgumentParser(argparse.ArgumentParser):
             formatter_class=self.formatter_class,
             # add_config_path_arg=self.add_config_path_arg,
             # config_path=self.config_path,
+            allow_abbrev=False,
         )
 
         for current_nesting_level in itertools.count():
@@ -530,19 +533,21 @@ class ArgumentParser(argparse.ArgumentParser):
             )
             # Add all the subgroups arguments.
             for dest, subgroup_field in unresolved_subgroups.items():
+                flags = subgroup_field.option_strings
                 argument_options = subgroup_field.arg_options
+                # FIXME: Here I'm just making sure that the subgroup argument has the right default
+                # (the default subgroup name if a value is passed to `subgroups`).
+                if subgroup_field.subgroup_default is not dataclasses.MISSING:
+                    argument_options["default"] = subgroup_field.subgroup_default
+                # assert argument_options["default"] in list(subgroup_field.subgroup_choices), dest
+
                 # TODO: Do we need to care about this "SUPPRESS" stuff here?
                 if argparse.SUPPRESS in subgroup_field.parent.defaults:
                     argument_options["default"] = argparse.SUPPRESS
-                # does it make sense for the default value at this point here to be the dataclass
-                # instance?
                 logger.info(
-                    f"Adding subgroup arg: "
-                    f"add_argument(*{subgroup_field.option_strings} **{str(argument_options)})"
+                    f"Adding subgroup argument: add_argument(*{flags} **{str(argument_options)})"
                 )
-                subgroup_choice_parser.add_argument(
-                    *subgroup_field.option_strings, **argument_options
-                )
+                subgroup_choice_parser.add_argument(*flags, **argument_options)
 
             parsed_args, unused_args = subgroup_choice_parser.parse_known_args(
                 args=args, namespace=namespace
@@ -557,11 +562,11 @@ class ArgumentParser(argparse.ArgumentParser):
                 # namespace. This is because we added all the subgroup arguments before we get
                 # here.
                 assert hasattr(parsed_args, dest)
-                chosen_subgroup_name: str = getattr(parsed_args, dest)
-                assert isinstance(chosen_subgroup_name, str)
-                chosen_subgroup = subgroup_field.subgroup_choices[chosen_subgroup_name]
+                chosen_subgroup_key = getattr(parsed_args, dest)
+                assert chosen_subgroup_key in subgroup_field.subgroup_choices
+                chosen_subgroup = subgroup_field.subgroup_choices[chosen_subgroup_key]
 
-                resolved_subgroups[dest] = chosen_subgroup_name
+                resolved_subgroups[dest] = chosen_subgroup_key
 
                 # if it's a type, then use it as the chosen type. If it's a value, then use it as
                 # the default value, and use the type of the default value as the chosen type.
@@ -574,7 +579,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
                 logger.info(
                     f"resolved the subgroup at dest {dest} to a value of "
-                    f"{chosen_subgroup_name}, which means to use the "
+                    f"{chosen_subgroup_key}, which means to use the "
                     f"{subgroup_type} dataclass"
                     + (f"(with a default of {subgroup_default})." if subgroup_default else ".")
                 )
@@ -585,7 +590,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
                 # NOTE: invalidate the previously-generated options for this field:
                 subgroup_field._arg_options = {}
-                subgroup_field.default = chosen_subgroup_name
+                subgroup_field.default = chosen_subgroup_key
 
                 # Use the private variant of self.add_arguments, so it doesn't modify the
                 # `self._wrappers` list.

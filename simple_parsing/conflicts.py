@@ -63,14 +63,21 @@ class ConflictResolver:
         self.conflict_resolution = conflict_resolution
 
     def resolve_and_flatten(self, wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
+        """Given the list of all dataclass wrappers, find and resolve any conflicts between fields.
+
+        Returns the new list of (possibly mutated in-place) dataclass wrappers.
+        This returned list is flattened, i.e. it contains all the dataclass wrappers and their
+        children.
+        """
         from simple_parsing.parsing import _assert_no_duplicates, _flatten_wrappers
+
+        wrappers = wrappers.copy()
 
         _assert_no_duplicates(wrappers)
         wrappers_flat = _flatten_wrappers(wrappers)
 
-        assert len(wrappers_flat) == len(set(wrappers_flat)), "shouldn't be any duplicates!"
-        dests = list(w.dest for w in wrappers_flat)
-        assert len(dests) == len(set(dests)), "shouldn't be any duplicates"
+        dests = [w.dest for w in wrappers_flat]
+        assert len(dests) == len(set(dests)), f"shouldn't be any duplicates: {wrappers_flat}"
 
         conflict = self.get_conflict(wrappers_flat)
 

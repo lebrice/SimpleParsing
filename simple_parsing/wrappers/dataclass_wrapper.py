@@ -151,22 +151,23 @@ class DataclassWrapper(Wrapper[Dataclass]):
             # at this point, we still want them to show up in the --help message!
             # TODO: However, perhaps we could check that the default was properly set to the
             # chosen subgroup value?
-            if wrapped_field.is_subgroup:
-                logger.debug(f"Skipping field {wrapped_field.name} because it is a subgroup.")
-                assert wrapped_field.default in wrapped_field.subgroup_choices.keys()
-                continue
 
             if wrapped_field.is_subparser:
                 wrapped_field.add_subparsers(parser)
+                continue
 
-            elif wrapped_field.arg_options:
-                options = wrapped_field.arg_options
-                if argparse.SUPPRESS in self.defaults:
-                    options["default"] = argparse.SUPPRESS
+            arg_options = wrapped_field.arg_options
 
-                # logger.debug(f"Arg options for field '{wrapped_field.name}': {options}")
-                logger.info(f"group.add_argument(*{wrapped_field.option_strings}, **{options})")
-                group.add_argument(*wrapped_field.option_strings, **options)
+            if argparse.SUPPRESS in self.defaults:
+                arg_options["default"] = argparse.SUPPRESS
+            if wrapped_field.is_subgroup:
+                logger.debug(
+                    f"Adding a subgroup field {wrapped_field.name} just so it shows up in the --help text."
+                )
+                assert wrapped_field.default in wrapped_field.subgroup_choices.keys()
+
+            logger.info(f"group.add_argument(*{wrapped_field.option_strings}, **{arg_options})")
+            group.add_argument(*wrapped_field.option_strings, **arg_options)
 
     def equivalent_argparse_code(self, leading="group") -> str:
         code = ""

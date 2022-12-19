@@ -5,7 +5,19 @@ import sys
 import typing
 from enum import Enum, auto
 from logging import getLogger
-from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, Union, cast
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    Hashable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 
 from simple_parsing.help_formatter import TEMPORARY_TOKEN
 
@@ -715,6 +727,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
         default: Any = utils.default_value(self.field)
 
+        if self.is_subgroup:
+            default = self.subgroup_default
         if default is dataclasses.MISSING:
             default = None
 
@@ -926,6 +940,12 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         if not self.is_subgroup:
             raise RuntimeError(f"Field {self.field} doesn't have subgroups! ")
         return self.field.metadata["subgroups"]
+
+    @property
+    def subgroup_default(self) -> Hashable:
+        if not self.is_subgroup:
+            raise RuntimeError(f"Field {self.field} doesn't have subgroups! ")
+        return self.field.metadata["subgroup_default"]
 
     @property
     def type_arguments(self) -> Optional[Tuple[Type, ...]]:
