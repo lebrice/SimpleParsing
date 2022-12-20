@@ -954,7 +954,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             return self.field.metadata["subparsers"]
         elif self.is_union:
             type_arguments = utils.get_type_arguments(self.field.type)
-            if type_arguments and any(map(utils.is_dataclass_type, type_arguments)):
+            if type_arguments and any(map(utils.is_dataclass_type_or_typevar, type_arguments)):
                 return {
                     utils.get_type_name(dataclass_type).lower(): dataclass_type
                     for dataclass_type in type_arguments
