@@ -92,7 +92,7 @@ def setup_logging():
     ch = logging.StreamHandler(stream=sys.stdout)
     ch.setFormatter(
         logging.Formatter(
-            "[%(asctime)s] p%(process)s {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s",
+            "%(levelname)s {%(pathname)s:%(lineno)d} - %(message)s",
             "%m-%d %H:%M:%S"
             # "%(asctime)-15s::%(levelname)s::%(pathname)s::%(lineno)d::%(message)s"
         )
