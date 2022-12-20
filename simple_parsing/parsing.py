@@ -238,7 +238,7 @@ class ArgumentParser(argparse.ArgumentParser):
         name: str,
         *,
         prefix: str = "",
-        default: Dataclass = None,
+        default: Dataclass | None = None,
         dataclass_wrapper_class: type[DataclassWrapperType] = DataclassWrapper,
         parent: DataclassWrapper | None = None,
         _field: dataclasses.Field | None = None,
@@ -524,15 +524,18 @@ class ArgumentParser(argparse.ArgumentParser):
             logger.info(
                 f"Starting subgroup parsing round {current_nesting_level}: {list(unresolved_subgroups.keys())}"
             )
-            # Add all the subgroups arguments.
+            # Add all the unresolved subgroups arguments.
             for dest, subgroup_field in unresolved_subgroups.items():
                 flags = subgroup_field.option_strings
                 argument_options = subgroup_field.arg_options
-                # FIXME: Here I'm just making sure that the subgroup argument has the right default
-                # (the default subgroup name if a value is passed to `subgroups`).
+                # FIXME: Here I'm manually overwriting the "default" entry, but it shouldn't be
+                # necessary! (This is necessary when using multiple subgroups at different levels,
+                # for some reason).
                 if subgroup_field.subgroup_default is not dataclasses.MISSING:
+                    assert (
+                        argument_options["default"] == subgroup_field.subgroup_default
+                    ), argument_options["default"]
                     argument_options["default"] = subgroup_field.subgroup_default
-                # assert argument_options["default"] in list(subgroup_field.subgroup_choices), dest
 
                 # TODO: Do we need to care about this "SUPPRESS" stuff here?
                 if argparse.SUPPRESS in subgroup_field.parent.defaults:
@@ -557,42 +560,33 @@ class ArgumentParser(argparse.ArgumentParser):
                 assert hasattr(parsed_args, dest)
                 chosen_subgroup_key = getattr(parsed_args, dest)
                 assert chosen_subgroup_key in subgroup_field.subgroup_choices
-                chosen_subgroup = subgroup_field.subgroup_choices[chosen_subgroup_key]
+                chosen_subgroup_type = subgroup_field.subgroup_choices[chosen_subgroup_key]
+                # TODO: Currently we only support using dataclass types as subgroups. However we
+                # should also support callables (e.g. functools.Partial) if they return a
+                # dataclass. We'd have to figure out a way to pass the partially filled default
+                # arguments to self._add_arguments below.
+                assert dataclasses.is_dataclass(chosen_subgroup_type)
 
                 resolved_subgroups[dest] = chosen_subgroup_key
-
-                # If it's a type, then use it as the chosen type. If it's a value, then use it as
-                # the default value, and use the type of the default value as the chosen type.
-                subgroup_type = chosen_subgroup
 
                 logger.info(
                     f"resolved the subgroup at dest {dest} to a value of "
                     f"{chosen_subgroup_key}, which means to use the "
-                    f"{subgroup_type} dataclass"
+                    f"{chosen_subgroup_type} dataclass"
                 )
                 parent_dataclass_wrapper = subgroup_field.parent
                 # The default value for the subgroup field should be the value that was chosen:
-                # TODO: Do we actually want to set it like this?
                 subgroup_field.default = chosen_subgroup_key
 
-                # Use the private variant of self.add_arguments, so it doesn't modify the
-                # `self._wrappers` list.
-                # NOTE: we don't add the new wrapper to `self._wrappers`! Those only contain the
-                # wrappers that are added at the top-level by the user with a call to
-                # `add_arguments`.
-                # TODO: Determine what the default value for the argument group should be.
-                # TODO: Handle the `MISSING` case!
-                # if subgroup_default is not None:
-                #     default = subgroup_default
-                # elif isinstance(subgroup_field_default, subgroup_type):
-                #     default = subgroup_field_default
-                # else:
+                # NOTE: Here the `default` for the new argument group is `None`, because
+                # `subgroups` only allows using a dict[Hashable, callable], so we don't want to
+                # instantiate the dataclass twice.
                 default = None
-
                 name = dest.split(".")[-1]
-                # todo: maybe we have to pass a fake 'field' to use here?
+                # NOTE: Using the private variant of self.add_arguments, so it doesn't modify the
+                # `self._wrappers` list.
                 new_wrapper = self._add_arguments(
-                    dataclass=subgroup_type,
+                    dataclass=chosen_subgroup_type,
                     name=name,
                     default=default,
                     parent=parent_dataclass_wrapper,
@@ -607,9 +601,6 @@ class ArgumentParser(argparse.ArgumentParser):
                 assert new_wrapper.parent is parent_dataclass_wrapper
                 assert parent_dataclass_wrapper in _flatten_wrappers(wrappers)
                 assert new_wrapper in _flatten_wrappers(wrappers)
-
-                # FIXME: If we generate a DataclassWrapper for a subgroup, then it doesn't get a
-                # real `Field`, which might be preventing the parsing from working properly?
 
                 unresolved_subgroups.pop(dest)
 
