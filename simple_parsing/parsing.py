@@ -636,7 +636,7 @@ class ArgumentParser(argparse.ArgumentParser):
             # dataclass, there's a field called `model`. Then, this will cause a conflict!)
             # For now, I'm just going to wait and see how this plays out. I'm thinking that the
             # auto conflict resolution shouldn't run into any issues with this here.
-            logger.critical(f"Tree: {_print_tree(wrappers)}")
+            logger.debug(f"Tree: {_print_tree(wrappers)}")
 
             wrappers = self._conflict_resolver.resolve(wrappers)
 
