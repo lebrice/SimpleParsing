@@ -10,8 +10,6 @@ import shlex
 import sys
 from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _, _HelpAction
 from collections import defaultdict
-from contextlib import redirect_stdout
-from io import StringIO
 from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, Sequence, TypeVar, overload
@@ -621,7 +619,6 @@ class ArgumentParser(argparse.ArgumentParser):
             # dataclass, there's a field called `model`. Then, this will cause a conflict!)
             # For now, I'm just going to wait and see how this plays out. I'm thinking that the
             # auto conflict resolution shouldn't run into any issues with this here.
-            logger.debug(f"Tree: {_print_tree(wrappers)}")
 
             wrappers = self._conflict_resolver.resolve(wrappers)
 
@@ -1046,36 +1043,20 @@ def _assert_no_duplicates(wrappers: list[DataclassWrapper]) -> None:
 
 
 def _flatten_wrappers(wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
+    """Takes a list of nodes, returns a flattened list of all nodes in the tree."""
     _assert_no_duplicates(wrappers)
     roots_only = _unflatten_wrappers(wrappers)
     return sum(([w] + list(w.descendants) for w in roots_only), [])
 
 
 def _unflatten_wrappers(wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
+    """Given a list of nodes in one or more trees, returns only the root nodes.
+
+    In our context, this is all the dataclass arg groups that were added with
+    `parser.add_arguments`.
+    """
     _assert_no_duplicates(wrappers)
     return [w for w in wrappers if w.parent is None]
-
-
-def _print_tree(wrappers: list[DataclassWrapper], is_subgroup: bool = False) -> str:
-    s = StringIO()
-    import textwrap
-
-    wrappers = _unflatten_wrappers(wrappers)
-    with redirect_stdout(s):
-        for wrapper in wrappers:
-            print(f"{wrapper.dest} " + ("(subgroup)" if is_subgroup else "") + ":")
-            for field in wrapper.fields:
-                print(f"- {field.dest}")
-                if field.is_subgroup:
-                    child_with_this_name = [
-                        child for child in wrapper._children if child.name == field.name
-                    ]
-                    substring = _print_tree(child_with_this_name, is_subgroup=True)
-                    print(textwrap.indent(substring, "\t"))
-            for children in wrapper._children:
-                print(_print_tree([children], is_subgroup=False))
-    s.seek(0)
-    return s.read()
 
 
 def _create_dataclass_instance(
