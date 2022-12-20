@@ -179,6 +179,19 @@ def test_parse(dataclass_type: type[TestClass], args: str, expected: TestClass):
     assert dataclass_type.setup(args) == expected
 
 
+def test_subgroup_choice_is_saved_on_namespace():
+    """test for https://github.com/lebrice/SimpleParsing/issues/139
+
+    Need to save the chosen subgroup name somewhere on the args.
+    """
+    parser = ArgumentParser()
+    parser.add_arguments(AB, dest="config")
+
+    args = parser.parse_args(shlex.split("--a_or_b b --b foobar"))
+    assert args.config == AB(a_or_b=B(b="foobar"))
+    assert args.subgroups == {"config.a_or_b": "b"}
+
+
 def test_remove_help_action():
     # Test that it's possible to remove the '--help' action from a parser that had add_help=True
 
@@ -315,20 +328,6 @@ def test_required_subgroup():
 #     args = parser.parse_args(shlex.split("--person alice --person.age=33 --a 123"))
 #     assert args.config == NestedSubgroups(person=Alice(age=33))
 #     assert args.foo == AB(a=123)
-
-
-# def test_issue_139():
-#     """test for https://github.com/lebrice/SimpleParsing/issues/139
-
-#     Need to save the chosen subgroup name somewhere on the args.
-#     """
-
-#     parser = ArgumentParser()
-#     parser.add_arguments(NestedSubgroups, dest="config")
-
-#     args = parser.parse_args([])
-#     assert args.config == NestedSubgroups(person=Daniel())
-#     assert args.subgroups == {"config.person": "daniel"}
 
 
 # def test_deeper_nesting_prefixing():
