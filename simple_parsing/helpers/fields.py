@@ -14,7 +14,7 @@ from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 
 from typing_extensions import Literal
 
-from simple_parsing.utils import Dataclass, str2bool
+from simple_parsing.utils import Dataclass, DataclassT, str2bool
 
 logger = getLogger(__name__)
 
@@ -330,38 +330,38 @@ Key = TypeVar("Key", str, int, bool, Enum)
 
 @overload
 def subgroups(
-    subgroups: dict[Key, Callable[[], T]],
+    subgroups: dict[Key, type[DataclassT]],
     *args,
     **kwargs,
-) -> T:
+) -> DataclassT:
     ...
 
 
 @overload
 def subgroups(
-    subgroups: dict[Key, Callable[[], T]],
+    subgroups: dict[Key, type[DataclassT]],
     *args,
     default: Key,
     **kwargs,
-) -> T:
+) -> type[DataclassT]:
     ...
 
 
 @overload
 def subgroups(
-    subgroups: dict[Key, Callable[[], T]],
+    subgroups: dict[Key, type[DataclassT]],
     *args,
-    default_factory: Callable[[], T],
+    default_factory: type[DataclassT],
     **kwargs,
-) -> T:
+) -> type[DataclassT]:
     ...
 
 
 def subgroups(
-    subgroups: dict[Key, Callable[[], T]],
+    subgroups: dict[Key, type[DataclassT]],
     *args,
     default: Key | Literal[MISSING] = MISSING,
-    default_factory: Callable[[], T] | Literal[MISSING] = MISSING,
+    default_factory: type[DataclassT] | Literal[MISSING] = MISSING,
     **kwargs,
 ) -> T:
     """Creates a field that will be a choice between different subgroups of arguments.
@@ -369,13 +369,19 @@ def subgroups(
     This is different than adding a subparser action. There can only be one subparser action, while
     there can be arbitrarily many subgroups. Subgroups can also be nested!
 
+    TODO: Support using functools.partial or maybe arbitrary callables (e.g. lambdas) in addition
+    to dataclass types.
+
     Parameters
     ----------
-    subgroups : Dict[str, Type[T]]
+    subgroups :
         Dictionary mapping from the subgroup name to the subgroup type.
-    default : Optional[str], optional
-        The default subgroup to use, by default None, in which case a subgroup has to be selected.
-        Can either be the type of subgroup, or an instance of the config class for the subgroup.
+    default :
+        The default subgroup to use, by default MISSING, in which case a subgroup has to be
+        selected. Needs to be a key in the subgroups dictionary.
+    default_factory :
+        The default_factory to use to create the subgroup. Needs to be a value of the `subgroups`
+        dictionary.
 
     Returns
     -------
