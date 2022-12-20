@@ -8,7 +8,7 @@ from logging import getLogger
 from typing import TypeVar, cast
 
 from .. import docstring, utils
-from ..utils import Dataclass
+from ..utils import DataclassT
 from .field_wrapper import FieldWrapper
 from .wrapper import Wrapper
 
@@ -17,12 +17,12 @@ logger = getLogger(__name__)
 DataclassWrapperType = TypeVar("DataclassWrapperType", bound="DataclassWrapper")
 
 
-class DataclassWrapper(Wrapper[Dataclass]):
+class DataclassWrapper(Wrapper[DataclassT]):
     def __init__(
         self,
-        dataclass: type[Dataclass],
+        dataclass: type[DataclassT],
         name: str,
-        default: Dataclass | dict = None,
+        default: DataclassT | dict = None,
         prefix: str = "",
         parent: DataclassWrapper | None = None,
         _field: dataclasses.Field | None = None,
@@ -45,7 +45,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         self._field = _field
 
         # the default values
-        self._defaults: list[Dataclass] = []
+        self._defaults: list[DataclassT] = []
 
         if default:
             self.defaults = [default]
@@ -211,7 +211,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         return self._parent
 
     @property
-    def defaults(self) -> list[Dataclass]:
+    def defaults(self) -> list[DataclassT]:
         if self._defaults:
             return self._defaults
         if self._field is None:
@@ -232,15 +232,15 @@ class DataclassWrapper(Wrapper[Dataclass]):
         return self._defaults
 
     @defaults.setter
-    def defaults(self, value: list[Dataclass]):
+    def defaults(self, value: list[DataclassT]):
         self._defaults = value
 
     @property
-    def default(self) -> Dataclass | None:
+    def default(self) -> DataclassT | None:
         return self._default
 
     @default.setter
-    def default(self, value: Dataclass | dict):
+    def default(self, value: DataclassT | dict):
         if value is None:
             self._default = value
             return

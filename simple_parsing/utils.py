@@ -29,7 +29,6 @@ from typing import (
     MutableMapping,
     Set,
     Tuple,
-    Type,
     TypeVar,
     Union,
     overload,
@@ -95,7 +94,7 @@ def is_dataclass_type(obj: Any) -> TypeGuard[type[Dataclass]]:
     return inspect.isclass(obj) and dataclasses.is_dataclass(obj)
 
 
-DataclassType = Type[Dataclass]
+DataclassT = TypeVar("DataclassT", bound=Dataclass)
 
 SimpleValueType = Union[bool, int, float, str]
 SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]]

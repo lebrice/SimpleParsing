@@ -11,6 +11,20 @@ class Wrapper(Generic[T], ABC):
         self.wrapped = wrapped
         self._dest: Optional[str] = None
 
+    @abstractmethod
+    def equivalent_argparse_code(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def parent(self) -> Optional["Wrapper"]:
+        pass
+
     @property
     def dest(self) -> str:
         """Where the attribute will be stored in the Namespace."""
@@ -36,17 +50,3 @@ class Wrapper(Generic[T], ABC):
             parent = parent.parent
             level += 1
         return level
-
-    @abstractmethod
-    def equivalent_argparse_code(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def parent(self) -> Optional["Wrapper"]:
-        pass
