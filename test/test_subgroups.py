@@ -206,12 +206,13 @@ def test_remove_help_action():
     assert args.b == B(b="foo")
 
 
+@dataclass
+class RequiredSubgroup(TestSetup):
+    a_or_b: A | B = subgroups({"a": A, "b": B})
+
+
 def test_required_subgroup():
     """Test when a subgroup doesn't have a default value, and is required."""
-
-    @dataclass
-    class RequiredSubgroup(TestSetup):
-        a_or_b: A | B = subgroups({"a": A, "b": B})
 
     with raises_missing_required_arg():
         assert RequiredSubgroup.setup("")
@@ -219,50 +220,18 @@ def test_required_subgroup():
     assert RequiredSubgroup.setup("--a_or_b b") == RequiredSubgroup(a_or_b=B())
 
 
-# @dataclass
-# class WithRequiredArg:
-#     some_required_arg: int
-#     other_arg: int = 123
+@dataclass
+class TwoSubgroupsWithConflict(TestSetup):
+    first: AB | CD = subgroups({"ab": AB, "cd": CD}, default_factory=CD)
+    second: AB | GH = subgroups({"ab": AB, "gh": GH}, default_factory=GH)
 
 
-# def test_subwith_required_argument():
-#     """Test where a subgroup has a required argument."""
-
-#     @dataclass
-#     class Bob(TestSetup):
-#         thing: Union[AB, WithRequiredArg] = subgroups({"foo": AB, "req": WithRequiredArg})
-
-#     assert Bob.setup("--thing foo --thing.a 44") == Bob(thing=AB(a=44))
-#     assert Bob.setup("--thing req --thing.some_required_arg 22") == Bob(
-#         thing=WithRequiredArg(some_required_arg=22)
-#     )
-#     with raises_missing_required_arg():
-#         assert Bob.setup("--thing req")
-
-
-# def test_two_subgroups():
-#     @dataclass
-#     class Bob(TestSetup):
-#         first: Union[AB, CD] = subgroups({"foo": AB, "bar": CD}, default=CD(d=3))
-#         second: Union[EF, GH] = subgroups({"baz": EF, "blop": GH}, default=GH())
-
-#     bob = Bob.setup("--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2")
-#     assert bob == Bob(first=AB(a=123), second=GH(g="arwg", h=1.2))
-
-
-# def test_two_subgroups_with_conflict():
-#     @dataclass
-#     class Bob(TestSetup):
-#         first: Union[AB, CD] = subgroups({"foo": AB, "bar": CD}, default=CD(d=3))
-#         second: Union[AB, GH] = subgroups({"foo": AB, "blop": GH}, default=GH())
-
-#     assert Bob.setup(
-#         "--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2"
-#     ) == Bob(first=AB(a=123), second=GH(g="arwg", h=1.2))
-
-#     assert Bob.setup("--first foo --first.a 123 --second foo --second.a 456") == Bob(
-#         first=AB(a=123), second=AB(a=456)
-#     )
+def test_two_subgroups_with_conflict():
+    # TODO: Really unsure about this one. The 'abbrv' feature might also cause some problems...
+    assert TwoSubgroupsWithConflict.setup(
+        "--first ab --first.a_or_b a --first.a_or_b.a 111 "
+        "--second ab --second.a_or_b b --second.a_or_b.b arwg"
+    ) == TwoSubgroupsWithConflict(first=AB(a_or_b=A(a=111), second=AB(a_or_b=B(b="arwg"))))
 
 
 # def test_unrelated_arg_raises_error():
