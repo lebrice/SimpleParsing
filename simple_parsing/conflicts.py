@@ -159,6 +159,7 @@ class ConflictResolver:
         wrapper: DataclassWrapper | FieldWrapper,
         wrappers: list[DataclassWrapper],
     ) -> list[DataclassWrapper]:
+        """Add the given wrapper and all its descendants to the list of wrappers."""
         if isinstance(wrapper, FieldWrapper):
             wrapper = wrapper.parent
         assert isinstance(wrapper, DataclassWrapper)
@@ -339,6 +340,7 @@ class ConflictResolver:
         wrappers = wrappers_flat.copy()
 
         first_containing_dataclass: DataclassWrapper = first_wrapper.parent
+        original_parent = first_containing_dataclass.parent
         wrappers = self._remove(first_containing_dataclass, wrappers)
 
         for wrapper in conflict.wrappers[1:]:
@@ -348,7 +350,8 @@ class ConflictResolver:
 
         assert first_containing_dataclass.multiple
         wrappers = self._add(first_containing_dataclass, wrappers)
-
+        if original_parent:
+            original_parent._children.append(first_containing_dataclass)
         return wrappers
 
     def _get_conflicting_group(self, all_wrappers: list[DataclassWrapper]) -> Conflict | None:

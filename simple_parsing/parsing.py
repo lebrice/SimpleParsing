@@ -452,22 +452,15 @@ class ArgumentParser(argparse.ArgumentParser):
         wrapped_dataclasses = self._wrappers.copy()
         # Fix the potential conflicts between dataclass fields with the same names.
         wrapped_dataclasses = self._conflict_resolver.resolve_and_flatten(wrapped_dataclasses)
-        # Add and resolve all the subgroup arguments.
+
+        # TODO: We're using the `self._conflict_resolver` inside `self._resolve_subgroups`, but
+        # what if the resolver is the ALWAYS_MERGE one? Would that cause issues if used repeatedly?
         wrapped_dataclasses, chosen_subgroups = self._resolve_subgroups(
             wrappers=wrapped_dataclasses, args=args, namespace=namespace
         )
-        self._wrappers = wrapped_dataclasses
 
         # NOTE: We keep the subgroup fields in their dataclasses so they show up with the other
         # arguments.
-        # subgroup_fields = _get_subgroup_fields(wrappers=wrapped_dataclasses)
-        # for dest, wrapped_field in subgroup_fields.items():
-        #     option_strings = wrapped_field.option_strings
-        #     options = wrapped_field.arg_options
-        #     logger.info(f"Adding subgroup: self.add_argument(*{option_strings}, **{options})")
-        #     assert wrapped_field.default == chosen_subgroups[dest]
-        #     self.add_argument(*option_strings, **options)
-
         wrapped_dataclasses = _flatten_wrappers(wrapped_dataclasses)
 
         # Create one argument group per dataclass
@@ -478,6 +471,8 @@ class ArgumentParser(argparse.ArgumentParser):
             )
             wrapped_dataclass.add_arguments(parser=self)
 
+        self._wrappers = wrapped_dataclasses
+        # Save this so we don't re-add all the arguments.
         self._preprocessing_done = True
 
     def _resolve_subgroups(
@@ -568,28 +563,18 @@ class ArgumentParser(argparse.ArgumentParser):
 
                 resolved_subgroups[dest] = chosen_subgroup_key
 
-                # if it's a type, then use it as the chosen type. If it's a value, then use it as
+                # If it's a type, then use it as the chosen type. If it's a value, then use it as
                 # the default value, and use the type of the default value as the chosen type.
-                if isinstance(chosen_subgroup, type):
-                    subgroup_type = chosen_subgroup
-                    subgroup_default = None
-                else:
-                    subgroup_type = type(chosen_subgroup)
-                    subgroup_default = chosen_subgroup
+                subgroup_type = chosen_subgroup
 
                 logger.info(
                     f"resolved the subgroup at dest {dest} to a value of "
                     f"{chosen_subgroup_key}, which means to use the "
                     f"{subgroup_type} dataclass"
-                    + (f"(with a default of {subgroup_default})." if subgroup_default else ".")
                 )
                 parent_dataclass_wrapper = subgroup_field.parent
-                subgroup_field_default = subgroup_field.default
-                # NOTE: making it so the FieldWrapper for the subgroup choice has a string as the
-                # default value, rather than the dataclass instance.
-
-                # NOTE: invalidate the previously-generated options for this field:
-                subgroup_field._arg_options = {}
+                # The default value for the subgroup field should be the value that was chosen:
+                # TODO: Do we actually want to set it like this?
                 subgroup_field.default = chosen_subgroup_key
 
                 # Use the private variant of self.add_arguments, so it doesn't modify the
@@ -599,12 +584,12 @@ class ArgumentParser(argparse.ArgumentParser):
                 # `add_arguments`.
                 # TODO: Determine what the default value for the argument group should be.
                 # TODO: Handle the `MISSING` case!
-                if subgroup_default is not None:
-                    default = subgroup_default
-                elif isinstance(subgroup_field_default, subgroup_type):
-                    default = subgroup_field_default
-                else:
-                    default = None
+                # if subgroup_default is not None:
+                #     default = subgroup_default
+                # elif isinstance(subgroup_field_default, subgroup_type):
+                #     default = subgroup_field_default
+                # else:
+                default = None
 
                 name = dest.split(".")[-1]
                 # todo: maybe we have to pass a fake 'field' to use here?
@@ -785,34 +770,35 @@ class ArgumentParser(argparse.ArgumentParser):
             The transformed namespace with the instances set at their
             corresponding destinations.
         """
+        constructor_arguments = constructor_arguments.copy()
+        # FIXME: There's a bug here happening with the `ALWAYS_MERGE` case: The namespace has the
+        # values, but the constructor arguments dict doesn't.
+
         if self.conflict_resolution != ConflictResolution.ALWAYS_MERGE:
             assert len(wrappers) == len(constructor_arguments), "should have one dict per wrapper"
 
         # sort the wrappers so as to construct the leaf nodes first.
-        sorted_wrappers: list[DataclassWrapper] = sorted(
+        sorted_dc_wrappers: list[DataclassWrapper] = sorted(
             wrappers, key=lambda w: w.nesting_level, reverse=True
         )
-        assert len(sorted_wrappers) == len(set(sorted_wrappers))
-        constructor_arguments = constructor_arguments.copy()
+        assert len(sorted_dc_wrappers) == len(set(sorted_dc_wrappers))
 
-        for wrapper in sorted_wrappers:
-            logger.info(
-                f"Instantiating the wrapper {wrapper} with destinations {wrapper.destinations}"
-            )
+        for dc_wrapper in sorted_dc_wrappers:
+            logger.info(f"Instantiating the wrapper with destinations {dc_wrapper.destinations}")
 
-            for destination in wrapper.destinations:
+            for destination in dc_wrapper.destinations:
                 logger.info(f"Instantiating the dataclass at destination {destination}")
                 # Instantiate the dataclass by passing the constructor arguments
                 # to the constructor.
-                constructor = wrapper.dataclass
+                constructor = dc_wrapper.dataclass
                 constructor_args = constructor_arguments.pop(destination)
                 # If the dataclass wrapper is marked as 'optional' and all the
                 # constructor args are None, then the instance is None.
                 # TODO: Refactor the SUPPRESS stuff.
                 value_for_dataclass_field: Any | dict[str, Any] | None
-                if argparse.SUPPRESS not in wrapper.defaults:
+                if argparse.SUPPRESS not in dc_wrapper.defaults:
                     value_for_dataclass_field = _create_dataclass_instance(
-                        wrapper, constructor, constructor_args
+                        dc_wrapper, constructor, constructor_args
                     )
                 elif constructor_args == {}:
                     value_for_dataclass_field = None
@@ -820,13 +806,13 @@ class ArgumentParser(argparse.ArgumentParser):
                     # Don't create the dataclass instance. Instead, keep the value as a dict.
                     value_for_dataclass_field = constructor_args
 
-                if argparse.SUPPRESS in wrapper.defaults and value_for_dataclass_field is None:
+                if argparse.SUPPRESS in dc_wrapper.defaults and value_for_dataclass_field is None:
                     logger.debug(
                         f"Suppressing entire destination {destination} because none of its"
                         f"subattributes were specified on the command line."
                     )
 
-                elif wrapper.parent is not None:
+                elif dc_wrapper.parent is not None:
                     parent_key, attr = utils.split_dest(destination)
                     logger.debug(
                         f"Setting a value of {value_for_dataclass_field} at attribute {attr} in "
@@ -844,7 +830,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 else:
                     # There is a collision: namespace already has an entry at this destination.
                     existing = getattr(parsed_args, destination)
-                    if wrapper.dest in self._defaults:
+                    if dc_wrapper.dest in self._defaults:
                         logger.debug(
                             f"Overwriting defaults in the namespace at destination '{destination}' "
                             f"on the Namespace ({existing}) to a value of {value_for_dataclass_field}"
@@ -905,6 +891,7 @@ class ArgumentParser(argparse.ArgumentParser):
         constructor_arguments = initial_constructor_arguments.copy()
 
         parsed_arg_values = vars(parsed_args)
+        deleted_values: dict[str, Any] = {}
 
         for wrapper in wrappers:
             for field in wrapper.fields:
@@ -919,7 +906,13 @@ class ArgumentParser(argparse.ArgumentParser):
                 if not field.field.init:
                     # The field isn't an argument of the dataclass constructor.
                     continue
-                values = parsed_arg_values.get(field.dest, field.default)
+
+                # NOTE: If the field is reused (when using the ConflictResolution.ALWAYS_MERGE
+                # strategy), then we store the multiple values in the `dest` of the first field.
+                # They are they distributed in `constructor_arguments` using the
+                # `field.destinations`, which gives the destination for each value.
+                values = parsed_arg_values.pop(field.dest, field.default)
+                deleted_values[field.dest] = values
 
                 # call the "action" for the given attribute. This sets the right
                 # value in the `self.constructor_arguments` dictionary.
@@ -932,13 +925,6 @@ class ArgumentParser(argparse.ArgumentParser):
 
         # "Clean up" the Namespace by returning a new Namespace without the
         # consumed attributes.
-
-        deleted_values: dict[str, Any] = {}
-        for wrapper in wrappers:
-            for field in wrapper.fields:
-                value = parsed_arg_values.pop(field.dest, None)
-                deleted_values[field.dest] = value
-
         leftover_args = argparse.Namespace(**parsed_arg_values)
         if deleted_values:
             logger.debug(f"deleted values: {deleted_values}")

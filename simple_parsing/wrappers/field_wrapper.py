@@ -449,7 +449,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 f" but either 1 or {num_instances_to_parse} values were "
                 f"expected."
             )
-        return parsed_values
 
     def postprocess(self, raw_parsed_value: Any) -> Any:
         """Applies any conversions to the 'raw' parsed value before it is used
@@ -531,7 +530,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 return raw_parsed_value
 
         logger.debug(
-            f"field postprocessing for field of type '{self.type}' and with "
+            f"field postprocessing for field {self.name} of type '{self.type}' and with "
             f"value '{raw_parsed_value}'"
         )
         return raw_parsed_value

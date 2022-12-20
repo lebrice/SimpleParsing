@@ -115,6 +115,7 @@ class EnumsAsKeys(TestSetup):
     "dataclass_type, get_help_text_args, should_contain",
     [
         (AB, {}, ["--a_or_b {a,b}", "--a float"]),
+        (AB, {}, ["--a_or_b {a,b}       (default: a)", "--a float"]),
         (EnumsAsKeys, {}, ["--a_or_b {Color.red,Color.blue}", "--a float"]),
         (
             MultipleSubgroupsSameLevel,
