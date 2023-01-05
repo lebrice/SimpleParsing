@@ -7,7 +7,7 @@ import sys
 import typing
 from enum import Enum, auto
 from logging import getLogger
-from typing import Any, ClassVar, Hashable, Union, cast
+from typing import Any, ClassVar, Hashable, Literal, Union, cast
 
 from simple_parsing.help_formatter import TEMPORARY_TOKEN
 
@@ -740,7 +740,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 default = defaults[0]
             else:
                 default = defaults
-
+        # Try to get the default from the field, if possible.
         elif self.field.default is not dataclasses.MISSING:
             default = self.field.default
         elif self.field.default_factory is not dataclasses.MISSING:
@@ -763,10 +763,14 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         else:
             default = None
 
+        # If this field is being reused, then we package up the `default` in a list.
+        # TODO: Get rid of this. makes the code way uglier for no good reason.
         if self.is_reused and default is not None:
             n_destinations = len(self.destinations)
             assert n_destinations >= 1
-            if not isinstance(default, list) or len(default) != n_destinations:
+            # BUG: This second part (the `or` part) is weird. Probably only applies when using
+            # Lists of lists with the Reuse option, which is most likely not even supported..
+            if not isinstance(default, list) or len(default) == 1:
                 default = [default] * n_destinations
             assert len(default) == n_destinations, (
                 f"Not the same number of default values and destinations. "
@@ -783,6 +787,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     def required(self) -> bool:
         if self._required is not None:
             return self._required
+        if self.is_subgroup:
+            return self.subgroup_default in (None, dataclasses.MISSING)
         if self.action_str.startswith("store_"):
             # all the store_* actions do not require a value.
             return False
@@ -948,10 +954,10 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return self.field.metadata["subgroups"]
 
     @property
-    def subgroup_default(self) -> Hashable:
+    def subgroup_default(self) -> Hashable | Literal[dataclasses.MISSING] | None:
         if not self.is_subgroup:
             raise RuntimeError(f"Field {self.field} doesn't have subgroups! ")
-        return self.field.metadata["subgroup_default"]
+        return self.field.metadata.get("subgroup_default")
 
     @property
     def type_arguments(self) -> tuple[type, ...] | None:

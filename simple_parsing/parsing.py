@@ -535,18 +535,16 @@ class ArgumentParser(argparse.ArgumentParser):
             for dest, subgroup_field in unresolved_subgroups.items():
                 flags = subgroup_field.option_strings
                 argument_options = subgroup_field.arg_options
-                # FIXME: Here I'm manually overwriting the "default" entry, but it shouldn't be
-                # necessary! (This is necessary when using multiple subgroups at different levels,
-                # for some reason that I don't yet understand).
-                logger.debug(f"{dest=}, {subgroup_field=}")
-                if subgroup_field.subgroup_default is not dataclasses.MISSING:
-                    assert (
-                        argument_options["default"] == subgroup_field.subgroup_default
-                    ), argument_options["default"]
-                    argument_options["default"] = subgroup_field.subgroup_default
 
-                # TODO: Do we need to care about this "SUPPRESS" stuff here?
+                logger.debug(f"{dest=}, {subgroup_field=}")
+                if subgroup_field.subgroup_default is dataclasses.MISSING:
+                    assert argument_options["required"]
+                else:
+                    assert argument_options["default"] is subgroup_field.subgroup_default
+
+                # TODO: Do we really need to care about this "SUPPRESS" stuff here?
                 if argparse.SUPPRESS in subgroup_field.parent.defaults:
+                    assert argument_options["default"] is argparse.SUPPRESS
                     argument_options["default"] = argparse.SUPPRESS
                 logger.info(
                     f"Adding subgroup argument: add_argument(*{flags} **{str(argument_options)})"
