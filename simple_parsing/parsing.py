@@ -906,7 +906,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 # strategy), then we store the multiple values in the `dest` of the first field.
                 # They are they distributed in `constructor_arguments` using the
                 # `field.destinations`, which gives the destination for each value.
-                values = parsed_arg_values.pop(field.dest, field.default)
+                values = parsed_arg_values.pop(field.dest, field.defaults)
                 deleted_values[field.dest] = values
 
                 # call the "action" for the given attribute. This sets the right
