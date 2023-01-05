@@ -5,7 +5,9 @@ import dataclasses
 import sys
 from dataclasses import MISSING
 from logging import getLogger
-from typing import TypeVar, cast
+from typing import Any, TypeVar, cast
+
+from typing_extensions import Literal
 
 from .. import docstring, utils
 from ..utils import DataclassT
@@ -211,7 +213,7 @@ class DataclassWrapper(Wrapper[DataclassT]):
         return self._parent
 
     @property
-    def defaults(self) -> list[DataclassT]:
+    def defaults(self) -> list[DataclassT | dict[str, Any] | None | Literal[argparse.SUPPRESS]]:
         if self._defaults:
             return self._defaults
         if self._field is None:
@@ -239,20 +241,30 @@ class DataclassWrapper(Wrapper[DataclassT]):
     def default(self) -> DataclassT | None:
         return self._default
 
-    @default.setter
-    def default(self, value: DataclassT | dict):
-        if value is None:
-            self._default = value
+    # @default.setter
+    # def default(self, value: DataclassT) -> None:
+    #     self._default = value
+
+    def set_default(self, value: DataclassT | dict | None):
+        """Sets the default values for the arguments of the fields of this dataclass."""
+        if value is not None and not isinstance(value, dict):
+            field_default_values = dataclasses.asdict(value)
+        else:
+            field_default_values = value
+        self._default = value
+        if field_default_values is None:
             return
-        if not isinstance(value, dict):
-            self._default = value
-            value = dataclasses.asdict(value)
         for field_wrapper in self.fields:
-            if field_wrapper.name in value:
-                field_wrapper.default = value[field_wrapper.name]
+            if field_wrapper.name not in field_default_values:
+                continue
+            # Manually set the default value for this argument.
+            field_default_value = field_default_values[field_wrapper.name]
+            field_wrapper.set_default(field_default_value)
         for nested_dataclass_wrapper in self._children:
-            if nested_dataclass_wrapper.name in value:
-                nested_dataclass_wrapper.default = value[nested_dataclass_wrapper.name]
+            if nested_dataclass_wrapper.name not in field_default_values:
+                continue
+            field_default_value = field_default_values[nested_dataclass_wrapper.name]
+            nested_dataclass_wrapper.set_default(field_default_value)
 
     @property
     def title(self) -> str:
@@ -347,8 +359,10 @@ class DataclassWrapper(Wrapper[DataclassT]):
         logger.debug(f"destinations after merge: {self.destinations}")
         self.defaults.extend(other.defaults)
 
+        # Unset the default value for all fields.
+        # TODO: Shouldn't be needed anymore.
         for field_wrapper in self.fields:
-            field_wrapper.default = None
+            field_wrapper.set_default(None)
 
         for child, other_child in zip(self._children, other._children):
             child.merge(other_child)

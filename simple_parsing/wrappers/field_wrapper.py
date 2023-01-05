@@ -711,39 +711,57 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         2. the value of the corresponding attribute on the parent,
         if it has a default value
         """
+
         if self._default is not None:
-            return self._default
-
-        default: Any = utils.default_value(self.field)
-
-        if self.is_subgroup:
+            # If a default value was set manually from the outside (e.g. from the DataclassWrapper)
+            # then use that value.
+            default = self._default
+        elif self.is_subgroup:
             default = self.subgroup_default
-        if default is dataclasses.MISSING:
-            default = None
+        elif any(
+            parent_default not in (None, argparse.SUPPRESS)
+            for parent_default in self.parent.defaults
+        ):
+            # if the dataclass with this field has a default value - either when a value was
+            # passed for the `default` argument of `add_arguments` or when the parent is a nested
+            # dataclass field with a default factory - we use the corresponding attribute on that
+            # default instance.
+            def _get_value(dataclass_default: utils.Dataclass | dict, name: str) -> Any:
+                if isinstance(dataclass_default, dict):
+                    return dataclass_default[name]
+                return getattr(dataclass_default, name)
 
-        if self.action == "store_true" and default is None:
+            defaults = [
+                _get_value(parent_default, self.field.name)
+                for parent_default in self.parent.defaults
+                if parent_default not in (None, argparse.SUPPRESS)
+            ]
+            if len(self.parent.defaults) == 1:
+                default = defaults[0]
+            else:
+                default = defaults
+
+        elif self.field.default is not dataclasses.MISSING:
+            default = self.field.default
+        elif self.field.default_factory is not dataclasses.MISSING:
+            # Use the _default attribute to keep the result, so we can avoid calling the default
+            # factory another time.
+            # TODO: If the default factory is a function that returns None, it will still get
+            # called multiple times. We need to set a sentinel value as the initial value of the
+            # self._default attribute, so that we can correctly check whether we've already called
+            # the default_factory before.
+            if self._default is None:
+                self._default = self.field.default_factory()
+            default = self._default
+        # field doesn't have a default value set.
+        elif self.action == "store_true":
             default = False
-        if self.action == "store_false" and default is None:
+        elif self.action == "store_false":
+            # NOTE: The boolean parsing when default is `True` is really un-intuitive, and should
+            # change in the future. See https://github.com/lebrice/SimpleParsing/issues/68
             default = True
-
-        if self.parent.defaults:
-            # if the dataclass holding this field has a default value (either
-            # when passed  manually or by nesting), use the corresponding
-            # attribute on that default instance.
-
-            # TODO: When that default value is 'None' (even for a dataclass),
-            # then we need to.. ?
-
-            defaults = []
-            for default_dataclass_instance in self.parent.defaults:
-                if default_dataclass_instance in (None, argparse.SUPPRESS):
-                    default_value = default
-                elif isinstance(default_dataclass_instance, dict):
-                    default_value = default_dataclass_instance.get(self.name, default)
-                else:
-                    default_value = getattr(default_dataclass_instance, self.name)
-                defaults.append(default_value)
-            default = defaults[0] if len(defaults) == 1 else defaults
+        else:
+            default = None
 
         if self.is_reused and default is not None:
             n_destinations = len(self.destinations)
@@ -755,11 +773,10 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 f"(default: {default}, # of destinations: {n_destinations})"
             )
 
-        self._default = default
-        return self._default
+        return default
 
-    @default.setter
-    def default(self, value: Any):
+    def set_default(self, value: Any):
+        logger.debug(f"The field {self.name} has its default manually set to a value of {value}.")
         self._default = value
 
     @property

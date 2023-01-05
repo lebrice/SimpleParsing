@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import enum
 import itertools
 import shlex
 import sys
@@ -268,17 +269,19 @@ class ArgumentParser(argparse.ArgumentParser):
         )
 
         if new_wrapper.dest in self._defaults:
-            new_wrapper.default = self._defaults[new_wrapper.dest]
+            new_wrapper.set_default(self._defaults[new_wrapper.dest])
         if self.nested_mode == NestedMode.WITHOUT_ROOT and all(
             field.name in self._defaults for field in new_wrapper.fields
         ):
             # If we did .set_defaults before we knew what dataclass we're using, then we try to
             # still make use of those defaults:
-            new_wrapper.default = {
-                k: v
-                for k, v in self._defaults.items()
-                if k in [f.name for f in dataclasses.fields(new_wrapper.dataclass)]
-            }
+            new_wrapper.set_default(
+                {
+                    k: v
+                    for k, v in self._defaults.items()
+                    if k in [f.name for f in dataclasses.fields(new_wrapper.dataclass)]
+                }
+            )
 
         return new_wrapper
 
@@ -393,7 +396,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
                 # Set the .default attribute on the DataclassWrapper (which also updates the
                 # defaults of the fields and any nested dataclass fields).
-                wrapper.default = default_for_dataclass
+                wrapper.set_default(default_for_dataclass)
 
                 # It's impossible for multiple wrappers in kwargs to have the same destination.
                 assert wrapper.dest not in kwarg_defaults_set_in_dataclasses
@@ -481,9 +484,9 @@ class ArgumentParser(argparse.ArgumentParser):
     ) -> tuple[list[DataclassWrapper], dict[str, str]]:
         """Iteratively add and resolve all the choice of argument subgroups, if any.
 
-        This modifies the `wrappers` list in-place, by possibly adding children to the dataclasses
-        in the list.
-        Returns the modified list. (unsure if it's going to stay that way though.)
+        This modifies the wrappers in-place, by possibly adding children to the wrappers in the
+        list.
+        Returns a list with the modified wrappers.
 
         Each round does the following:
         1.  Resolve any conflicts using the conflict resolver. Two subgroups at the same nesting
@@ -515,6 +518,10 @@ class ArgumentParser(argparse.ArgumentParser):
             formatter_class=self.formatter_class,
             # add_config_path_arg=self.add_config_path_arg,
             # config_path=self.config_path,
+            # NOTE: We disallow abbreviations for subgroups for now. This prevents potential issues
+            # for example if you have —a_or_b and A has a field —a then it will error out if you
+            # pass —a=1 because 1 isn’t a choice for the a_or_b argument (because --a matches it
+            # with the abbreviation feature turned on).
             allow_abbrev=False,
         )
 
@@ -530,7 +537,8 @@ class ArgumentParser(argparse.ArgumentParser):
                 argument_options = subgroup_field.arg_options
                 # FIXME: Here I'm manually overwriting the "default" entry, but it shouldn't be
                 # necessary! (This is necessary when using multiple subgroups at different levels,
-                # for some reason).
+                # for some reason that I don't yet understand).
+                logger.debug(f"{dest=}, {subgroup_field=}")
                 if subgroup_field.subgroup_default is not dataclasses.MISSING:
                     assert (
                         argument_options["default"] == subgroup_field.subgroup_default
@@ -576,15 +584,17 @@ class ArgumentParser(argparse.ArgumentParser):
                 )
                 parent_dataclass_wrapper = subgroup_field.parent
                 # The default value for the subgroup field should be the value that was chosen:
-                subgroup_field.default = chosen_subgroup_key
+                assert isinstance(chosen_subgroup_key, (str, enum.Enum, int))
+                # Manually set the default value for this field.
+                subgroup_field.set_default(chosen_subgroup_key)
 
                 # NOTE: Here the `default` for the new argument group is `None`, because
                 # `subgroups` only allows using a dict[Hashable, callable], so we don't want to
                 # instantiate the dataclass twice.
                 default = None
                 name = dest.split(".")[-1]
-                # NOTE: Using the private variant of self.add_arguments, so it doesn't modify the
-                # `self._wrappers` list.
+                # NOTE: Using self._add_arguments so it returns the modified wrapper and doesn't
+                # affect the `self._wrappers` list.
                 new_wrapper = self._add_arguments(
                     dataclass=chosen_subgroup_type,
                     name=name,
