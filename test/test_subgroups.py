@@ -226,12 +226,26 @@ class TwoSubgroupsWithConflict(TestSetup):
     second: AB | GH = subgroups({"ab": AB, "gh": GH}, default_factory=GH)
 
 
-def test_two_subgroups_with_conflict():
-    # TODO: Really unsure about this one. The 'abbrv' feature might also cause some problems...
-    assert TwoSubgroupsWithConflict.setup(
-        "--first ab --first.a_or_b a --first.a_or_b.a 111 "
-        "--second ab --second.a_or_b b --second.a_or_b.b arwg"
-    ) == TwoSubgroupsWithConflict(first=AB(a_or_b=A(a=111), second=AB(a_or_b=B(b="arwg"))))
+@pytest.mark.parametrize(
+    "args_str, expected",
+    [
+        (
+            (
+                "--first ab --first.a_or_b a --first.a_or_b.a 111 "
+                "--second ab --second.a_or_b a --second.a_or_b.a 234"
+            ),
+            TwoSubgroupsWithConflict(first=AB(a_or_b=A(a=111)), second=AB(a_or_b=A(a=234))),
+        ),
+        (
+            # TODO: Unsure about this one. Also have to be careful about the abbrev feature of
+            # Argparse.
+            ("--first ab --first.a_or_b a --a 111 " "--second ab --second.a_or_b b --b arwg"),
+            TwoSubgroupsWithConflict(first=AB(a_or_b=A(a=111)), second=AB(a_or_b=B(b="arwg"))),
+        ),
+    ],
+)
+def test_two_subgroups_with_conflict(args_str: str, expected: TwoSubgroupsWithConflict):
+    assert TwoSubgroupsWithConflict.setup(args_str) == expected
 
 
 # def test_unrelated_arg_raises_error():
