@@ -7,7 +7,9 @@ import sys
 import typing
 from enum import Enum, auto
 from logging import getLogger
-from typing import Any, ClassVar, Hashable, Literal, Union, cast
+from typing import Any, ClassVar, Hashable, Union, cast
+
+from typing_extensions import Literal
 
 from simple_parsing.help_formatter import TEMPORARY_TOKEN
 
@@ -728,7 +730,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             # default instance.
             def _get_value(dataclass_default: utils.Dataclass | dict, name: str) -> Any:
                 if isinstance(dataclass_default, dict):
-                    return dataclass_default[name]
+                    return dataclass_default.get(name)
                 return getattr(dataclass_default, name)
 
             defaults = [
@@ -770,7 +772,10 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             assert n_destinations >= 1
             # BUG: This second part (the `or` part) is weird. Probably only applies when using
             # Lists of lists with the Reuse option, which is most likely not even supported..
-            if not isinstance(default, list) or len(default) == 1:
+            if utils.is_tuple_or_list(self.field.type) and len(default) != n_destinations:
+                # The field is of a list type field,
+                default = [default] * n_destinations
+            elif not isinstance(default, list):
                 default = [default] * n_destinations
             assert len(default) == n_destinations, (
                 f"Not the same number of default values and destinations. "

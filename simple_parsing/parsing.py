@@ -536,7 +536,6 @@ class ArgumentParser(argparse.ArgumentParser):
                 flags = subgroup_field.option_strings
                 argument_options = subgroup_field.arg_options
 
-                logger.debug(f"{dest=}, {subgroup_field=}")
                 if subgroup_field.subgroup_default is dataclasses.MISSING:
                     assert argument_options["required"]
                 else:

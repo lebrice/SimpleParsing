@@ -398,7 +398,7 @@ def subgroups(
         raise ValueError("Can't pass both default and default_factory!")
     if default is not MISSING and default not in subgroups:
         raise ValueError(
-            f"Subgroup default needs to be a key in the subgroups dict! ({default=}, {subgroups=})"
+            f"Subgroup default needs to be a key in the subgroups dict! ({default}, {subgroups})"
         )
     if default_factory is not MISSING and default_factory not in subgroups.values():
         raise ValueError("Subgroup default_factory needs to be a value in the subgroups dict!")
