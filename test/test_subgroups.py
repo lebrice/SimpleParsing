@@ -239,7 +239,7 @@ class TwoSubgroupsWithConflict(TestSetup):
         (
             # TODO: Unsure about this one. Also have to be careful about the abbrev feature of
             # Argparse.
-            ("--first ab --first.a_or_b a --a 111 " "--second ab --second.a_or_b b --b arwg"),
+            "--first ab --first.a_or_b a --a 111 --second ab --second.a_or_b b --b arwg",
             TwoSubgroupsWithConflict(first=AB(a_or_b=A(a=111)), second=AB(a_or_b=B(b="arwg"))),
         ),
     ],
