@@ -9,7 +9,7 @@ import enum
 import itertools
 import shlex
 import sys
-from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _, _HelpAction
+from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _
 from collections import defaultdict
 from logging import getLogger
 from pathlib import Path
@@ -654,18 +654,6 @@ class ArgumentParser(argparse.ArgumentParser):
             argument_default=argument_default or self.argument_default,
             conflict_handler=conflict_handler or self.conflict_handler,
         )
-
-    def _remove_help_action(self) -> None:
-        self.add_help = False
-        help_actions = [action for action in self._actions if isinstance(action, _HelpAction)]
-        if not help_actions:
-            return
-
-        help_action = help_actions[0]
-        self._remove_action(help_action)
-
-        for option_string in self._help_action.option_strings:
-            self._option_string_actions.pop(option_string)
 
     def _postprocessing(self, parsed_args: Namespace) -> Namespace:
         """Process the namespace by extract the fields and creating the objects.

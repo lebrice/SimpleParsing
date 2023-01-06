@@ -192,20 +192,6 @@ def test_subgroup_choice_is_saved_on_namespace():
     assert args.subgroups == {"config.a_or_b": "b"}
 
 
-def test_remove_help_action():
-    # Test that it's possible to remove the '--help' action from a parser that had add_help=True
-
-    parser = ArgumentParser(add_help=True)
-    parser.add_arguments(A, "a")
-    parser.add_arguments(B, "b")
-    parser._remove_help_action()
-
-    args, unused = parser.parse_known_args(shlex.split("--a 123 --b foo --help"))
-    assert unused == ["--help"]
-    assert args.a == A(a=123)
-    assert args.b == B(b="foo")
-
-
 @dataclass
 class RequiredSubgroup(TestSetup):
     a_or_b: A | B = subgroups({"a": A, "b": B})
