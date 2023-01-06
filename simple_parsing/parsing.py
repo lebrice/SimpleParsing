@@ -693,7 +693,7 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args = self._fill_constructor_arguments_with_fields(
             parsed_args, wrappers=wrappers, initial_constructor_arguments=constructor_arguments
         )
-        parsed_args = self._create_dataclasses(
+        parsed_args = self._instantiate_dataclasses(
             parsed_args, wrappers=wrappers, constructor_arguments=constructor_arguments
         )
         return parsed_args
@@ -716,7 +716,7 @@ class ArgumentParser(argparse.ArgumentParser):
             parsed_args.subgroups[dest] = chosen_value
             delattr(parsed_args, dest)
 
-    def _create_dataclasses(
+    def _instantiate_dataclasses(
         self,
         parsed_args: argparse.Namespace,
         wrappers: list[DataclassWrapper],
