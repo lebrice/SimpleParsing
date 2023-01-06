@@ -10,7 +10,7 @@ from collections import OrderedDict
 from dataclasses import _MISSING_TYPE, MISSING
 from enum import Enum
 from logging import getLogger
-from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
+from typing import Any, Callable, Hashable, Iterable, Mapping, TypeVar, overload
 
 from simple_parsing.utils import Dataclass, DataclassT, str2bool
 
@@ -319,20 +319,10 @@ def mutable_field(
 
 MutableField = mutable_field
 
-T = TypeVar("T")
-
 # TODO: Change this to a bound of Hashable.
 # It seems to consider `default`
 Key = TypeVar("Key", str, int, bool, Enum)
-
-
-@overload
-def subgroups(
-    subgroups: dict[Key, type[DataclassT]],
-    *args,
-    **kwargs,
-) -> DataclassT:
-    ...
+OtherDataclassT = TypeVar("OtherDataclassT", bound=Dataclass)
 
 
 @overload
@@ -340,6 +330,29 @@ def subgroups(
     subgroups: dict[Key, type[DataclassT]],
     *args,
     default: Key,
+    default_factory: _MISSING_TYPE = MISSING,
+    **kwargs,
+) -> DataclassT:
+    ...
+
+
+# TODO: Enable this overload if we make `subgroups` more flexible (see below).
+# @overload
+# def subgroups(
+#     subgroups: Mapping[Key, type[DataclassT]],
+#     *args,
+#     default_factory: Callable[[], OtherDataclassT],
+#     **kwargs,
+# ) -> DataclassT | OtherDataclassT:
+#     ...
+
+
+@overload
+def subgroups(
+    subgroups: dict[Key, type[DataclassT]],
+    *args,
+    default: _MISSING_TYPE = MISSING,
+    default_factory: type[DataclassT],
     **kwargs,
 ) -> DataclassT:
     ...
@@ -349,17 +362,18 @@ def subgroups(
 def subgroups(
     subgroups: dict[Key, type[DataclassT]],
     *args,
-    default_factory: Callable[[], DataclassT],
+    default: _MISSING_TYPE = MISSING,
+    default_factory: _MISSING_TYPE = MISSING,
     **kwargs,
 ) -> DataclassT:
     ...
 
 
 def subgroups(
-    subgroups: dict[Key, type[DataclassT]],
+    subgroups: Mapping[Key, type[DataclassT]],
     *args,
     default: Key | _MISSING_TYPE = MISSING,
-    default_factory: Callable[[], DataclassT] | _MISSING_TYPE = MISSING,
+    default_factory: type[DataclassT] | _MISSING_TYPE = MISSING,
     **kwargs,
 ) -> DataclassT:
     """Creates a field that will be a choice between different subgroups of arguments.
@@ -400,11 +414,11 @@ def subgroups(
     if default_factory is not MISSING and default is not MISSING:
         raise ValueError("Can't pass both default and default_factory!")
     if default is not MISSING and default not in subgroups:
-        raise ValueError(
-            f"Subgroup default needs to be a key in the subgroups dict! ({default}, {subgroups})"
-        )
+        raise ValueError("default must be a key in the subgroups dict!")
     if default_factory is not MISSING and default_factory not in subgroups.values():
-        raise ValueError("Subgroup default_factory needs to be a value in the subgroups dict!")
+        # TODO: This might a little bit too strict. We don't want to encourage people creating lots
+        # of classes just to change the default arguments.
+        raise ValueError("default_factory must be a value in the subgroups dict!")
 
     if default is not MISSING:
         assert default in subgroups.keys()

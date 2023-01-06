@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import shlex
 from dataclasses import dataclass, field
-from typing import TypeVar
+from functools import partial
+from typing import Callable, TypeVar
 
 import pytest
 
@@ -234,15 +235,105 @@ def test_two_subgroups_with_conflict(args_str: str, expected: TwoSubgroupsWithCo
     assert TwoSubgroupsWithConflict.setup(args_str) == expected
 
 
+def test_subgroups_with_key_default() -> None:
+
+    with pytest.raises(ValueError):
+        subgroups({"a": A, "b": B}, default_factory="a")
+
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups({"a": A, "b": B}, default="a")
+
+    assert Foo.setup() == Foo(a_or_b=A())
+    assert Foo.setup("--a_or_b a --a 445") == Foo(a_or_b=A(a=445))
+    assert Foo.setup("--a_or_b b") == Foo(a_or_b=B())
+    assert Foo.setup("--a_or_b b --b zodiak") == Foo(a_or_b=B(b="zodiak"))
+
+
+# IDEA: Make it possible to use a default factory that is a partial for a function, if that
+# function has a return annotation.
+# def some_a_factory(a: int = -1) -> A:
+#     return A(a=a)
+
+
+def test_subgroup_default_needs_to_be_key_in_dict():
+    with pytest.raises(ValueError, match="default must be a key in the subgroups dict"):
+        _ = subgroups({"a": B, "aa": A}, default="b")
+
+
+def test_subgroup_default_factory_needs_to_be_value_in_dict():
+    with pytest.raises(ValueError, match="default_factory must be a value in the subgroups dict"):
+        _ = subgroups({"a": B, "aa": A}, default_factory=C)
+
+
+simple_subgroups_for_now = pytest.mark.xfail(
+    reason=(
+        "TODO: Not implemented yet. Subgroups only currently allows having a dict with values"
+        " that are dataclasses."
+    )
+)
+
+
+@simple_subgroups_for_now
+@pytest.mark.parametrize(
+    "a_factory, b_factory",
+    [(A, B), (partial(A, a=321), partial(B, b="foobar")), (lambda: A(a=123), lambda: B(b="foooo"))],
+)
+def test_other_default_factories(a_factory: Callable[[], A], b_factory: Callable[[], B]):
+    """Test using other kinds of default factories (i.e. functools.partial or lambda expressions)"""
+
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups({"a": a_factory, "b": b_factory}, default="a")
+
+    assert Foo.setup() == Foo(a_or_b=a_factory())
+    assert Foo.setup("--a_or_b a --a 445") == Foo(a_or_b=A(a=445))
+    assert Foo.setup("--a_or_b b") == Foo(a_or_b=b_factory())
+
+
+@simple_subgroups_for_now
+@pytest.mark.parametrize(
+    "a_factory, b_factory",
+    [(A, B), (partial(A, a=321), partial(B, b="foobar")), (lambda: A(a=123), lambda: B(b="foooo"))],
+)
+def test_help_string_is_the_same_with_default_factories(
+    a_factory: Callable[[], A], b_factory: Callable[[], B]
+):
+    """The help string should be the same when using other kinds of default factories
+    (i.e. functools.partial or lambda expressions)
+    """
+    # NOTE: Here we need to return just A() and B() with these default factories, so the defaults
+    # for the fields are the same
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups({"a": A, "b": B}, default_factory=a_factory)
+
+    @dataclass
+    class FooWithDefaultFactories(TestSetup):
+        a_or_b: A | B = subgroups({"a": a_factory, "b": b_factory}, default_factory=a_factory)
+
+    help_with = FooWithDefaultFactories.get_help_text()
+    help_without = Foo.get_help_text()
+    assert (
+        help_with.replace("FooWithDefaultFactories", "Foo").replace(
+            "foo_with_default_factories", "foo"
+        )
+        == help_without
+    )
+
+
 def test_typing_of_subgroups_function():
 
     with pytest.raises(ValueError):
-        _ = subgroups({"a": A, "b": lambda: B()})
-
+        _ = subgroups(
+            {
+                "a": A,
+                "b": lambda: B(),
+            }
+        )
     # TODO: There should be a typing errors here. How do I check for it programmatically?
-    from typing_extensions import reveal_type
 
     # note: This should raise an error, ideally, since B isn't in the dict values.
     # Either that, or it should have a type of `A | B`.
-    bob = subgroups({"a": A, "aa": A}, default_factory=B)
-    reveal_type(bob)
+    # bob = subgroups({"a": B, "aa": A}, default_factory=C)
+    # reveal_type(bob)
