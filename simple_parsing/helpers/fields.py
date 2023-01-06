@@ -12,8 +12,6 @@ from enum import Enum
 from logging import getLogger
 from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 
-from typing_extensions import Literal
-
 from simple_parsing.utils import Dataclass, DataclassT, str2bool
 
 logger = getLogger(__name__)
@@ -343,7 +341,7 @@ def subgroups(
     *args,
     default: Key,
     **kwargs,
-) -> type[DataclassT]:
+) -> DataclassT:
     ...
 
 
@@ -351,19 +349,19 @@ def subgroups(
 def subgroups(
     subgroups: dict[Key, type[DataclassT]],
     *args,
-    default_factory: type[DataclassT],
+    default_factory: Callable[[], DataclassT],
     **kwargs,
-) -> type[DataclassT]:
+) -> DataclassT:
     ...
 
 
 def subgroups(
     subgroups: dict[Key, type[DataclassT]],
     *args,
-    default: Key | Literal[MISSING] = MISSING,
-    default_factory: type[DataclassT] | Literal[MISSING] = MISSING,
+    default: Key | _MISSING_TYPE = MISSING,
+    default_factory: Callable[[], DataclassT] | _MISSING_TYPE = MISSING,
     **kwargs,
-) -> T:
+) -> DataclassT:
     """Creates a field that will be a choice between different subgroups of arguments.
 
     This is different than adding a subparser action. There can only be one subparser action, while
@@ -385,8 +383,13 @@ def subgroups(
 
     Returns
     -------
-    a field whose type is the Union of the different possible subgroups.
+    A field whose type is the Union of the different possible subgroups.
     """
+    if not all(
+        inspect.isclass(subgroup) and dataclasses.is_dataclass(subgroup)
+        for subgroup in subgroups.values()
+    ):
+        raise ValueError("All values in the subgroups dict need to be dataclasses!")
     metadata = kwargs.setdefault("metadata", {})
     metadata["subgroups"] = subgroups
     metadata["subgroup_default"] = default
