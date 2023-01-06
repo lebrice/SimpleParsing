@@ -234,100 +234,15 @@ def test_two_subgroups_with_conflict(args_str: str, expected: TwoSubgroupsWithCo
     assert TwoSubgroupsWithConflict.setup(args_str) == expected
 
 
-# def test_unrelated_arg_raises_error():
-#     @dataclass
-#     class Bob(TestSetup):
-#         first: Union[AB, CD] = subgroups({"foo": AB, "bar": CD}, default=CD(d=3))
-#         second: Union[AB, GH] = subgroups({"foo": AB, "blop": GH}, default=GH())
+def test_typing_of_subgroups_function():
 
-#     with raises_unrecognized_args("--bblarga"):
-#         Bob.setup("--first foo --first.a 123 --second foo --second.a 456 --bblarga")
+    with pytest.raises(ValueError):
+        _ = subgroups({"a": A, "b": lambda: B()})
 
+    # TODO: There should be a typing errors here. How do I check for it programmatically?
+    from typing_extensions import reveal_type
 
-# @dataclass
-# class Person:
-#     age: int
-
-
-# @dataclass
-# class Daniel(Person):
-#     """Person named Bob."""
-
-#     age: int = 32
-#     cool: bool = True
-
-
-# @dataclass
-# class Alice(Person):
-#     """Person named Alice."""
-
-#     age: int = 13
-#     popular: bool = True
-
-
-# @dataclass
-# class NestedSubgroups(TestSetup):
-#     """Configuration dataclass."""
-
-#     person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
-
-
-# @dataclass
-# class HigherConfig(TestSetup):
-#     """Higher-level config."""
-
-#     a: NestedSubgroups = NestedSubgroups(person=Daniel())
-#     b: NestedSubgroups = NestedSubgroups(person=Alice())
-
-
-# def test_mixing_subwith_regular_dataclass():
-
-#     parser = ArgumentParser()
-#     parser.add_arguments(NestedSubgroups, dest="config")
-#     parser.add_arguments(AB, dest="foo")
-
-#     args = parser.parse_args([])
-#     assert args.config == NestedSubgroups(person=Daniel())
-#     assert args.foo == AB()
-
-#     # NOTE: Not sure if the parser can safely be reused twice.
-#     parser = ArgumentParser()
-#     parser.add_arguments(NestedSubgroups, dest="config")
-#     parser.add_arguments(AB, dest="foo")
-#     args = parser.parse_args(shlex.split("--person alice --person.age=33 --a 123"))
-#     assert args.config == NestedSubgroups(person=Alice(age=33))
-#     assert args.foo == AB(a=123)
-
-
-# def test_deeper_nesting_prefixing():
-#     """Test that the prefixing mechanism works for deeper nesting of subgroups."""
-
-#     assert "--a.person.cool" in HigherConfig.get_help_text(
-#         "--help",
-#         nested_mode=NestedMode.WITHOUT_ROOT,
-#         argument_generation_mode=ArgumentGenerationMode.NESTED,
-#     )
-
-#     assert "--a.person.popular" in HigherConfig.get_help_text(
-#         "--a.person alice --help",
-#         nested_mode=NestedMode.WITHOUT_ROOT,
-#         argument_generation_mode=ArgumentGenerationMode.NESTED,
-#     )
-
-#     assert HigherConfig.setup("") == HigherConfig()
-#     assert HigherConfig.setup("--a.person alice") == HigherConfig(a=NestedSubgroups(person=Alice()))
-#     assert HigherConfig.setup("--b.person daniel --b.person.age 54") == HigherConfig(
-#         b=NestedSubgroups(person=Daniel(age=54))
-#     )
-
-
-# def test_subgroups_dict_in_args():
-#     parser = ArgumentParser()
-#     parser.add_arguments(HigherConfig, "config")
-
-#     args = parser.parse_args([])
-#     assert args.config == HigherConfig()
-#     assert args.subgroups == {"config.a.person": "daniel", "config.b.person": "alice"}
-
-#     args = parser.parse_args(shlex.split("--a.person alice --b.person daniel --b.person.age 54"))
-#     assert args.subgroups == {"config.a.person": "alice", "config.b.person": "daniel"}
+    # note: This should raise an error, ideally, since B isn't in the dict values.
+    # Either that, or it should have a type of `A | B`.
+    bob = subgroups({"a": A, "aa": A}, default_factory=B)
+    reveal_type(bob)
