@@ -10,7 +10,7 @@ from collections import OrderedDict
 from dataclasses import _MISSING_TYPE, MISSING
 from enum import Enum
 from logging import getLogger
-from typing import Any, Callable, Hashable, Iterable, Mapping, TypeVar, overload
+from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 
 from simple_parsing.utils import Dataclass, DataclassT, str2bool
 
@@ -370,7 +370,7 @@ def subgroups(
 
 
 def subgroups(
-    subgroups: Mapping[Key, type[DataclassT]],
+    subgroups: dict[Key, type[DataclassT]],
     *args,
     default: Key | _MISSING_TYPE = MISSING,
     default_factory: type[DataclassT] | _MISSING_TYPE = MISSING,
