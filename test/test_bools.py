@@ -22,7 +22,7 @@ class Flags(TestSetup):
 
 
 @pytest.mark.parametrize(
-    "flag,f",
+    "flag,expected_f",
     [
         ("--a 5", False),
         ("--a 5 --f", True),
@@ -36,10 +36,8 @@ class Flags(TestSetup):
         ("--a 5 --f --f false", False),
     ],
 )
-def test_bool_base_work(flag, f):
-    ext = Base.setup(flag)
-    assert ext.f is f
-
+def test_bool_base_work(flag: str, expected_f: bool):
+    assert Base.setup(flag).f is expected_f
 
 @pytest.mark.parametrize(
     "flag,a,b,c",
