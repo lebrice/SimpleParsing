@@ -48,7 +48,7 @@ def test_bool_base_work(flag: str, expected_f: bool):
         ("--noa --b false --noc", False, False, False),
     ],
 )
-def test_bool_flags_work(flag, a, b, c):
+def test_bool_flags_work(flag: str, a: bool, b: bool, c: bool):
     flags = Flags.setup(flag)
     assert flags.a is a
     assert flags.b is b
