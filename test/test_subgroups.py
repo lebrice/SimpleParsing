@@ -355,5 +355,6 @@ def test_typing_of_subgroups_function() -> None:
     bob: A = subgroups({"a": A, "b": B})  # noqa: F841
     # reveal_type(bob)
 
-    other: A | B = subgroups({"a": A, "b": B}, default_factory=C)  # noqa: F841
+    with pytest.raises(ValueError):
+        other: A | B = subgroups({"a": A, "b": B}, default_factory=C)  # noqa: F841
     # reveal_type(other)
