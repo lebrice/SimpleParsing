@@ -34,38 +34,27 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal, Protocol, TypeGuard, get_args, runtime_checkable
+from typing_extensions import Literal, Protocol, TypeGuard, get_args, runtime_checkable, get_origin
 
-# from typing_inspect import get_origin, is_typevar, get_bound, is_forward_ref, get_forward_arg
-NEW_TYPING = sys.version_info[:3] >= (3, 7, 0)  # PEP 560
 
-if sys.version_info < (3, 9):
-    # TODO: Add 3.9 compatibility, remove typing_inspect dependency.
-    from typing_inspect import (
-        get_bound,
-        get_forward_arg,
-        get_origin,
-        is_forward_ref,
-        is_typevar,
-    )
-else:
-    from typing import get_origin
+# NOTE: Copied from typing_inspect.
+def is_typevar(t) -> bool:
+    return type(t) is TypeVar
 
-    # NOTE: Copied over from typing_inspect.
-    def is_typevar(t) -> bool:
-        return type(t) is TypeVar
 
-    def get_bound(t):
-        if is_typevar(t):
-            return getattr(t, "__bound__", None)
-        else:
-            raise TypeError(f"type is not a `TypeVar`: {t}")
+def get_bound(t):
+    if is_typevar(t):
+        return getattr(t, "__bound__", None)
+    else:
+        raise TypeError(f"type is not a `TypeVar`: {t}")
 
-    def is_forward_ref(t):
-        return isinstance(t, typing.ForwardRef)
 
-    def get_forward_arg(fr):
-        return getattr(fr, "__forward_arg__", None)
+def is_forward_ref(t):
+    return isinstance(t, typing.ForwardRef)
+
+
+def get_forward_arg(fr):
+    return getattr(fr, "__forward_arg__", None)
 
 
 logger = getLogger(__name__)

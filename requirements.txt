@@ -1,3 +1,2 @@
-typing_inspect;python_version<'3.9'
 typing_extensions
 docstring-parser~=0.15
