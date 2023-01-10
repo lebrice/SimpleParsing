@@ -62,25 +62,25 @@ def test_bool_flags_work(flag: str, a: bool, b: bool, c: bool):
         ("--a", '?', True),
         ("--noa", '?', False),
         ("--a true", '?', True),
-        ("--a true false", '?', SystemExit),
+        ("--a true false", '?', SystemExit('unrecognized arguments')),
         # `nargs=None` is like `nargs='?'`
         ("--a", None, True),
         ("--noa", None, False),
         ("--a true", None, True),
-        ("--a true false", None, SystemExit),
+        ("--a true false", None, SystemExit('unrecognized arguments')),
         # 1 argument explicitly required
-        ("--a", 1, SystemExit),
-        ("--noa", 1, SystemExit),
+        ("--a", 1, SystemExit('expected 1 argument')),
+        ("--noa", 1, SystemExit('the following arguments are required')),
         ("--a=true", 1, [True]),
-        ("--a true false", 1, SystemExit),
+        ("--a true false", 1, SystemExit('unrecognized arguments')),
         # 2 argument explicitly required
-        ("--a", 2, SystemExit),
-        ("--noa", 2, SystemExit),
-        ("--a=true", 2, SystemExit),
+        ("--a", 2, SystemExit('expected 2 argument')),
+        ("--noa", 2, SystemExit('the following arguments are required')),
+        ("--a=true", 2, SystemExit('expected 2 argument')),
         ("--a true false", 2, [True, False]),
         # 1+ argument explicitly required
-        ("--a", '+', SystemExit),
-        ("--noa", '+', SystemExit),
+        ("--a", '+', SystemExit('expected at least one argument')),
+        ("--noa", '+', SystemExit('the following arguments are required')),
         ("--a=true", '+', [True]),
         ("--a true false", '+', [True, False]),
         # 0 or 1+ argument explicitly required
@@ -90,15 +90,16 @@ def test_bool_flags_work(flag: str, a: bool, b: bool, c: bool):
         ("--a true false", '*', [True, False]),
     ],
 )
-def test_bool_nargs(flag, nargs, a):
+def test_bool_nargs(flag, nargs, a, capsys: pytest.CaptureFixture):
     @dataclass
     class MyClass(TestSetup):
         """Some extension of base-class `Base`"""
         a: bool = helpers.field(nargs=nargs)
 
-    if a == SystemExit:
+    if isinstance(a, SystemExit):
         with pytest.raises(SystemExit):
             MyClass.setup(flag)
+        assert str(a) in capsys.readouterr().err
     else:
         flags = MyClass.setup(flag)
         assert flags.a == a
