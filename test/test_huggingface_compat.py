@@ -1273,10 +1273,12 @@ def test_docstring_parse_works_with_hf_training_args():
 
 
 def test_entire_docstring_isnt_used_as_help():
-    assert (
-        "use_mps_device (`bool`, *optional*, defaults to `False`):"
-        not in TrainingArguments.get_help_text()
-    )
+    help_text = TrainingArguments.get_help_text()
+
+    help_from_field = "Whether to use Apple Silicon chip based `mps` device."
+    assert help_from_field in help_text
+    help_from_docstring = "use_mps_device (`bool`, *optional*, defaults to `False`):"
+    assert help_from_docstring not in help_text
 
 
 @pytest.mark.parametrize(
