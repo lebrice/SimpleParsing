@@ -461,9 +461,9 @@ extensions_to_loading_fn: dict[str, Callable[[IO], Any]] = {
     ".json": json.load,
     ".pkl": pickle.load,
 }
-extensions_to_read_mode: dict[str, str] = {}
+extensions_to_read_mode: dict[str, str] = {".pkl": "rb"}
 
-extensions_to_write_mode: dict[str, str] = {}
+extensions_to_write_mode: dict[str, str] = {".pkl": "wb"}
 extensions_to_dump_fn: dict[str, Callable[[Any, IO], None]] = {
     ".json": json.dump,
     ".pkl": pickle.dump,

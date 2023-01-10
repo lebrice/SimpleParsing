@@ -106,7 +106,9 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     # Controls how nested arguments are generated.
     nested_mode: ClassVar[NestedMode] = NestedMode.DEFAULT
 
-    def __init__(self, field: dataclasses.Field, parent: Any = None, prefix: str = ""):
+    def __init__(
+        self, field: dataclasses.Field, parent: DataclassWrapper | None = None, prefix: str = ""
+    ):
         super().__init__(wrapped=field, name=field.name)
         self.field: dataclasses.Field = field
         self.prefix: str = prefix
@@ -115,7 +117,15 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         # (could've used cached_property with Python 3.8).
         self._option_strings: set[str] | None = None
         self._required: bool | None = None
-        self._docstring: docstring.AttributeDocString = docstring.AttributeDocString()
+
+        try:
+            self._docstring = docstring.get_attribute_docstring(
+                self.parent.dataclass, self.field.name
+            )
+        except (SystemExit, Exception) as e:
+            logger.debug(f"Couldn't find attribute docstring for field {self.name}, {e}")
+            self._docstring = docstring.AttributeDocString()
+
         self._help: str | None = None
         self._metavar: str | None = None
         self._default: Any | list[Any] | None = None
@@ -850,8 +860,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     @property
     def choices(self) -> list | None:
         """The list of possible values that can be passed on the command-line for this field, or None."""
+
         if "choices" in self.custom_arg_options:
             return self.custom_arg_options["choices"]
+        if "choices" in self.field.metadata:
+            return list(self.field.metadata["choices"])
         if "choice_dict" in self.field.metadata:
             return list(self.field.metadata["choice_dict"].keys())
         if utils.is_literal(self.type):
@@ -878,13 +891,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     def help(self) -> str | None:
         if self._help:
             return self._help
-        try:
-            self._docstring = docstring.get_attribute_docstring(
-                self.parent.dataclass, self.field.name
-            )
-        except (SystemExit, Exception) as e:
-            logger.debug(f"Couldn't find attribute docstring for field {self.name}, {e}")
-            self._docstring = docstring.AttributeDocString()
+        if self.field.metadata.get("help"):
+            return self.field.metadata.get("help")
 
         self._help = (
             self._docstring.docstring_below
