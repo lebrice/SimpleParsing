@@ -200,3 +200,21 @@ def test_desc_from_cls_docstring():
         comment_inline="side",
         docstring_below="below",
     )
+
+
+def test_help_takes_value_from_docstring():
+    @dataclass
+    class Args(TestSetup):
+        """args.
+
+        Attributes:
+            user: Username
+            verbose: Display logs
+        """
+
+        user: str
+        verbose: bool = False
+
+    assert get_attribute_docstring(Args, "verbose") == AttributeDocString(
+        desc_from_cls_docstring="Display logs",
+    )
