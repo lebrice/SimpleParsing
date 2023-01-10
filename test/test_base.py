@@ -185,7 +185,6 @@ def test_passing_default_value(simple_attribute, silent):
         a: some_type = passed_value  # type: ignore
         """some docstring for attribute 'a' """
 
-    # parser = ArgumentParser()
     some_class = SomeClass.setup(default=SomeClass(expected_value))
     assert some_class.a == expected_value
 

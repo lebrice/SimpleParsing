@@ -24,6 +24,16 @@ class AttributeDocString:
     desc_from_cls_docstring: str = ""
     """ The description of this field from the class docstring. """
 
+    @property
+    def help_string(self) -> str:
+        """Returns the value that will be used for the "--help" string, using the contents of self."""
+        return (
+            self.docstring_below
+            or self.comment_above
+            or self.comment_inline
+            or self.desc_from_cls_docstring
+        )
+
 
 def get_attribute_docstring(
     dataclass: type, field_name: str, accumulate_from_bases: bool = True

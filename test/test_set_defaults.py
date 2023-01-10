@@ -94,17 +94,19 @@ def test_with_nested_field(tmp_path: Path, add_arguments_before: bool, with_root
     save_path = tmp_path / "temp.json"
     from simple_parsing.helpers.serialization import encode
 
+    saved_config = ConfigWithFoo(foo=Foo(a=456, b="BYE BYE"))
+
     if with_root:
-        save(encode({"config": ConfigWithFoo(foo=Foo(a=456, b="BYE BYE"))}), path=save_path)
+        save(encode({"config": saved_config}), path=save_path)
     else:
-        save(ConfigWithFoo(foo=Foo(a=456, b="BYE BYE")), path=save_path)
+        save(saved_config, path=save_path)
     parser.set_defaults(save_path)
 
     if not add_arguments_before:
         parser.add_arguments(ConfigWithFoo, dest="config")
 
     args = parser.parse_args("")
-    assert args.config == ConfigWithFoo(foo=Foo(a=456, b="BYE BYE"))
+    assert args.config == saved_config
 
     args = parser.parse_args("--a 111".split())
     assert args.config == ConfigWithFoo(foo=Foo(a=111, b="BYE BYE"))

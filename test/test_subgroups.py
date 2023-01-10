@@ -1,278 +1,360 @@
-import contextlib
+from __future__ import annotations
+
 import shlex
-from dataclasses import dataclass, is_dataclass
-from io import StringIO
-from typing import Union
+from dataclasses import dataclass, field
+from functools import partial
+from typing import Callable, TypeVar
 
 import pytest
 
 from simple_parsing import ArgumentParser, subgroups
-from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
-from .testutils import TestSetup, raises_missing_required_arg, raises_unrecognized_args
+from .test_choice import Color
+from .testutils import TestSetup, raises_missing_required_arg
 
-
-@dataclass
-class Foo:
-    a: int = 1
-    b: int = 2
+TestClass = TypeVar("TestClass", bound=TestSetup)
 
 
 @dataclass
-class Bar:
-    c: int = 1
-    d: int = 2
+class A:
+    a: float = 0.0
 
 
 @dataclass
-class Baz:
-    e: int = 1
-    f: bool = False
+class B:
+    b: str = "bar"
 
 
 @dataclass
-class Blop:
-    g: str = "arwg"
-    h: float = 1.2
+class AB(TestSetup):
+    a_or_b: A | B = subgroups({"a": A, "b": B}, default_factory=A)
 
 
 @dataclass
-class Bob(TestSetup):
-    thing: Union[Foo, Bar] = subgroups({"foo_thing": Foo, "bar_thing": Bar}, default=Bar(d=3))
+class C:
+    c: bool = False
 
 
-def test_remove_help_action():
-    # Test that it's possible to remove the '--help' action from a parser that had add_help=True
-
-    parser = ArgumentParser(add_help=True)
-    parser.add_arguments(Foo, "foo")
-    parser.add_arguments(Bar, "bar")
-    parser._remove_help_action()
-    import shlex
-
-    args, unused = parser.parse_known_args(shlex.split("--a 123 --c 456 --help"))
-    assert unused == ["--help"]
-    assert args.foo == Foo(a=123)
-    assert args.bar == Bar(c=456)
+@dataclass
+class D:
+    d: int = 0
 
 
-class TestSubgroup:
-    def test_subgroup(self):
-        parser = ArgumentParser()
-        parser.add_arguments(Bob, dest="bob")
-        args = parser.parse_args(shlex.split("--thing foo_thing --thing.a 123"))
-        bob = args.bob
-        thing = bob.thing
-        assert is_dataclass(thing)
-        assert thing == Foo(a=123)
+@dataclass
+class E:
+    e: bool = False
 
-    def test_help_action(self):
-        """Test that the arguments for the chosen subgroup are shown in the help string."""
 
-        # The default is of type Bar, so if the option isn't passed, it should show the help for
-        # the default argument choice.
-        assert "--thing.c" in Bob.get_help_text("--help")
+@dataclass
+class F:
+    f: str = "f_default"
 
-        assert "--thing.a" in Bob.get_help_text("--thing foo_thing --help")
-        assert "--thing.c" in Bob.get_help_text("--thing bar_thing --help")
 
-    def test_manual_help_action(self):
-        """Test without the use of `get_help_text` from TestSetup, just to be sure."""
-        parser = ArgumentParser()
-        parser.add_arguments(Bob, dest="bob")
+@dataclass
+class G:
+    g: int = 0
 
-        with StringIO() as f:
-            with contextlib.suppress(SystemExit), contextlib.redirect_stdout(f):
-                parser.parse_args(["--help"])
-            help_text = f.getvalue()
-        # print("\n" + help_text)
-        assert "--thing.c" in help_text
 
-    @pytest.mark.xfail(reason="TODO, doesn't quite work yet.")
-    def test_print_help(self):
-        parser = ArgumentParser()
-        parser.add_arguments(Bob, dest="bob")
+@dataclass
+class H:
+    h: bool = False
 
-        with StringIO() as f:
-            parser.print_help(f)
-            help_text = f.getvalue()
-            print(help_text)
-            assert "--thing.c" in help_text
+
+@dataclass
+class CD:
+    c_or_d: C | D = subgroups({"c": C, "d": D}, default_factory=C)
+    other_c_arg: str = "bob"
+
+
+@dataclass
+class EF:
+    e_or_f: E | F = subgroups({"e": E, "f": F}, default_factory=E)
+
+
+@dataclass
+class GH:
+    g_or_h: G | H = subgroups({"g": G, "h": H}, default_factory=G)
+
+
+@dataclass
+class ABCD(TestSetup):
+    ab_or_cd: AB | CD = subgroups({"ab": AB, "cd": CD}, default_factory=AB)
+
+
+@dataclass
+class EFGH:
+    ef_or_gh: EF | GH = subgroups({"ef": EF, "gh": GH}, default_factory=EF)
+
+
+@dataclass
+class ABCDEFGH(TestSetup):
+    """Dataclass with three levels of subgroup nesting."""
+
+    abc_or_efgh: ABCD | EFGH = subgroups({"abcd": ABCD, "efgh": EFGH}, default_factory=ABCD)
+
+
+@dataclass
+class MultipleSubgroupsSameLevel(TestSetup):
+    a_or_b: A | B = subgroups({"a": A, "b": B}, default_factory=A)
+    c_or_d: C | D = subgroups({"c": C, "d": D}, default_factory=D)
+
+
+@dataclass
+class MultipleSubgroupsDifferentLevel(TestSetup):
+    ab_or_cd: AB | CD = subgroups({"ab": AB, "cd": CD}, default_factory=CD)
+    ef: EF = field(default_factory=EF)
+
+
+@dataclass
+class EnumsAsKeys(TestSetup):
+    """Dataclass where the subgroup choices are keys."""
+
+    a_or_b: A | B = subgroups({Color.red: A, Color.blue: B}, default_factory=A)
+
+
+@pytest.mark.parametrize(
+    "dataclass_type, get_help_text_args, should_contain",
+    [
+        (AB, {}, ["--a_or_b {a,b}", "--a float"]),
+        (AB, {}, ["--a_or_b {a,b}       (default: a)", "--a float"]),
+        (EnumsAsKeys, {}, ["--a_or_b {Color.red,Color.blue}", "--a float"]),
+        (
+            MultipleSubgroupsSameLevel,
+            {},
+            ["--a_or_b {a,b}", "--a float", "--c_or_d {c,d}", "--d int"],
+        ),
+        (
+            MultipleSubgroupsDifferentLevel,
+            {},
+            ["--ab_or_cd {ab,cd}", "--c_or_d {c,d}", "--e_or_f {e,f}", "--e bool"],
+        ),
+    ],
+)
+def test_help_string(
+    dataclass_type: type[TestClass],
+    get_help_text_args: dict,
+    should_contain: list[str],
+):
+    """Test that the arguments for the chosen subgroup are shown in the help string."""
+    help_text = dataclass_type.get_help_text(*get_help_text_args)
+    for expected in should_contain:
+        assert expected in help_text
+
+
+@pytest.mark.parametrize(
+    "dataclass_type, args, expected",
+    [
+        (
+            AB,
+            "--a_or_b a --a 123",
+            AB(a_or_b=A(a=123)),
+        ),
+        (
+            AB,
+            "--a_or_b b --b foooo",
+            AB(a_or_b=B(b="foooo")),
+        ),
+        (
+            MultipleSubgroupsSameLevel,
+            "--a_or_b a --a 123 --d 456",
+            MultipleSubgroupsSameLevel(a_or_b=A(a=123), c_or_d=D(d=456)),
+        ),
+        (
+            MultipleSubgroupsSameLevel,
+            "--a_or_b b --b foooo",
+            MultipleSubgroupsSameLevel(a_or_b=B(b="foooo")),
+        ),
+        (
+            ABCD,
+            "--ab_or_cd ab --a_or_b a --a 123",
+            ABCD(ab_or_cd=AB(a_or_b=A(a=123))),
+        ),
+        (
+            ABCD,
+            "--ab_or_cd cd --c_or_d d --d 456",
+            ABCD(ab_or_cd=CD(c_or_d=D(d=456))),
+        ),
+    ],
+)
+def test_parse(dataclass_type: type[TestClass], args: str, expected: TestClass):
+    assert dataclass_type.setup(args) == expected
+
+
+def test_subgroup_choice_is_saved_on_namespace():
+    """test for https://github.com/lebrice/SimpleParsing/issues/139
+
+    Need to save the chosen subgroup name somewhere on the args.
+    """
+    parser = ArgumentParser()
+    parser.add_arguments(AB, dest="config")
+
+    args = parser.parse_args(shlex.split("--a_or_b b --b foobar"))
+    assert args.config == AB(a_or_b=B(b="foobar"))
+    assert args.subgroups == {"config.a_or_b": "b"}
+
+
+@dataclass
+class RequiredSubgroup(TestSetup):
+    a_or_b: A | B = subgroups({"a": A, "b": B})
 
 
 def test_required_subgroup():
     """Test when a subgroup doesn't have a default value, and is required."""
 
-    @dataclass
-    class Bob(TestSetup):
-        thing: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar})
-
     with raises_missing_required_arg():
-        assert Bob.setup("")
+        assert RequiredSubgroup.setup("")
 
-    assert Bob.setup("--thing foo") == Bob(thing=Foo())
+    assert RequiredSubgroup.setup("--a_or_b b") == RequiredSubgroup(a_or_b=B())
 
 
 @dataclass
-class WithRequiredArg:
-    some_required_arg: int
-    other_arg: int = 123
+class TwoSubgroupsWithConflict(TestSetup):
+    first: AB | CD = subgroups({"ab": AB, "cd": CD}, default_factory=CD)
+    second: AB | GH = subgroups({"ab": AB, "gh": GH}, default_factory=GH)
 
 
-def test_subgroup_with_required_argument():
-    """Test where a subgroup has a required argument."""
+@pytest.mark.parametrize(
+    "args_str, expected",
+    [
+        (
+            (
+                "--first ab --first.a_or_b a --first.a_or_b.a 111 "
+                "--second ab --second.a_or_b a --second.a_or_b.a 234"
+            ),
+            TwoSubgroupsWithConflict(first=AB(a_or_b=A(a=111)), second=AB(a_or_b=A(a=234))),
+        ),
+        (
+            # TODO: Unsure about this one. Also have to be careful about the abbrev feature of
+            # Argparse.
+            "--first ab --first.a_or_b a --a 111 --second ab --second.a_or_b b --b arwg",
+            TwoSubgroupsWithConflict(first=AB(a_or_b=A(a=111)), second=AB(a_or_b=B(b="arwg"))),
+        ),
+    ],
+)
+def test_two_subgroups_with_conflict(args_str: str, expected: TwoSubgroupsWithConflict):
+    assert TwoSubgroupsWithConflict.setup(args_str) == expected
+
+
+def test_subgroups_with_key_default() -> None:
+
+    with pytest.raises(ValueError):
+        subgroups({"a": A, "b": B}, default_factory="a")
 
     @dataclass
-    class Bob(TestSetup):
-        thing: Union[Foo, WithRequiredArg] = subgroups({"foo": Foo, "req": WithRequiredArg})
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups({"a": A, "b": B}, default="a")
 
-    assert Bob.setup("--thing foo --thing.a 44") == Bob(thing=Foo(a=44))
-    assert Bob.setup("--thing req --thing.some_required_arg 22") == Bob(
-        thing=WithRequiredArg(some_required_arg=22)
-    )
-    with raises_missing_required_arg():
-        assert Bob.setup("--thing req")
+    assert Foo.setup() == Foo(a_or_b=A())
+    assert Foo.setup("--a_or_b a --a 445") == Foo(a_or_b=A(a=445))
+    assert Foo.setup("--a_or_b b") == Foo(a_or_b=B())
+    assert Foo.setup("--a_or_b b --b zodiak") == Foo(a_or_b=B(b="zodiak"))
 
 
-def test_two_subgroups():
-    @dataclass
-    class Bob(TestSetup):
-        first: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar}, default=Bar(d=3))
-        second: Union[Baz, Blop] = subgroups({"baz": Baz, "blop": Blop}, default=Blop())
-
-    bob = Bob.setup("--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2")
-    assert bob == Bob(first=Foo(a=123), second=Blop(g="arwg", h=1.2))
+# IDEA: Make it possible to use a default factory that is a partial for a function, if that
+# function has a return annotation.
+# def some_a_factory(a: int = -1) -> A:
+#     return A(a=a)
 
 
-def test_two_subgroups_with_conflict():
-    @dataclass
-    class Bob(TestSetup):
-        first: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar}, default=Bar(d=3))
-        second: Union[Foo, Blop] = subgroups({"foo": Foo, "blop": Blop}, default=Blop())
-
-    assert Bob.setup(
-        "--first foo --first.a 123 --second blop --second.g arwg --second.h 1.2"
-    ) == Bob(first=Foo(a=123), second=Blop(g="arwg", h=1.2))
-
-    assert Bob.setup("--first foo --first.a 123 --second foo --second.a 456") == Bob(
-        first=Foo(a=123), second=Foo(a=456)
-    )
+def test_subgroup_default_needs_to_be_key_in_dict():
+    with pytest.raises(ValueError, match="default must be a key in the subgroups dict"):
+        _ = subgroups({"a": B, "aa": A}, default="b")
 
 
-def test_unrelated_arg_raises_error():
-    @dataclass
-    class Bob(TestSetup):
-        first: Union[Foo, Bar] = subgroups({"foo": Foo, "bar": Bar}, default=Bar(d=3))
-        second: Union[Foo, Blop] = subgroups({"foo": Foo, "blop": Blop}, default=Blop())
-
-    with raises_unrecognized_args("--bblarga"):
-        Bob.setup("--first foo --first.a 123 --second foo --second.a 456 --bblarga")
+def test_subgroup_default_factory_needs_to_be_value_in_dict():
+    with pytest.raises(ValueError, match="default_factory must be a value in the subgroups dict"):
+        _ = subgroups({"a": B, "aa": A}, default_factory=C)
 
 
-@dataclass
-class Person:
-    age: int
+simple_subgroups_for_now = pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "TODO: Not implemented yet. Subgroups only currently allows having a dict with values"
+        " that are dataclasses. Remove this once this works."
+    ),
+)
 
 
-@dataclass
-class Daniel(Person):
-    """Person named Bob."""
-
-    age: int = 32
-    cool: bool = True
-
-
-@dataclass
-class Alice(Person):
-    """Person named Alice."""
-
-    age: int = 13
-    popular: bool = True
-
-
-@dataclass
-class Config:
-    """Configuration dataclass."""
-
-    person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
+@simple_subgroups_for_now
+@pytest.mark.parametrize(
+    "a_factory, b_factory",
+    [
+        (partial(A), partial(B)),
+        (lambda: A(), lambda: B()),
+        (partial(A, a=321), partial(B, b="foobar")),
+        (lambda: A(a=123), lambda: B(b="foooo")),
+    ],
+)
+def test_other_default_factories(a_factory: Callable[[], A], b_factory: Callable[[], B]):
+    """Test using other kinds of default factories (i.e. functools.partial or lambda expressions)"""
 
     @dataclass
-    class Config:
-        """Configuration dataclass."""
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups({"a": a_factory, "b": b_factory}, default="a")
 
-        person: Person = subgroups({"daniel": Daniel, "alice": Alice}, default=Daniel)
-
-
-@dataclass
-class HigherConfig(TestSetup):
-    """Higher-level config."""
-
-    a: Config = Config(person=Daniel())
-    b: Config = Config(person=Alice())
+    assert Foo.setup() == Foo(a_or_b=a_factory())
+    assert Foo.setup("--a_or_b a --a 445") == Foo(a_or_b=A(a=445))
+    assert Foo.setup("--a_or_b b") == Foo(a_or_b=b_factory())
 
 
-def test_mixing_subgroup_with_regular_dataclass():
+@simple_subgroups_for_now
+@pytest.mark.parametrize(
+    "a_factory, b_factory",
+    [
+        (partial(A), partial(B)),
+        (lambda: A(), lambda: B()),
+        (partial(A, a=321), partial(B, b="foobar")),
+        (lambda: A(a=123), lambda: B(b="foooo")),
+    ],
+)
+def test_help_string_displays_default_factory_arguments(
+    a_factory: Callable[[], A], b_factory: Callable[[], B]
+):
+    """The help string should be basically the same when using a `partial` or a lambda that returns
+    a dataclass, as using just the class itself.
 
-    parser = ArgumentParser()
-    parser.add_arguments(Config, dest="config")
-    parser.add_arguments(Foo, dest="foo")
-
-    args = parser.parse_args([])
-    assert args.config == Config(person=Daniel())
-    assert args.foo == Foo()
-
-    # NOTE: Not sure if the parser can safely be reused twice.
-    parser = ArgumentParser()
-    parser.add_arguments(Config, dest="config")
-    parser.add_arguments(Foo, dest="foo")
-    args = parser.parse_args(shlex.split("--person alice --person.age=33 --a 123"))
-    assert args.config == Config(person=Alice(age=33))
-    assert args.foo == Foo(a=123)
-
-
-def test_issue_139():
-    """test for https://github.com/lebrice/SimpleParsing/issues/139
-
-    Need to save the chosen subgroup name somewhere on the args.
+    When using `functools.partial` or lambda expressions, we'd ideally also like the help text to
+    show the field values from inside the `partial` or lambda, if possible.
     """
+    # NOTE: Here we need to return just A() and B() with these default factories, so the defaults
+    # for the fields are the same
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups({"a": A, "b": B}, default_factory=a_factory)
 
-    parser = ArgumentParser()
-    parser.add_arguments(Config, dest="config")
+    @dataclass
+    class FooWithDefaultFactories(TestSetup):
+        a_or_b: A | B = subgroups({"a": a_factory, "b": b_factory}, default_factory=a_factory)
 
-    args = parser.parse_args([])
-    assert args.config == Config(person=Daniel())
-    assert args.subgroups == {"config.person": "daniel"}
-
-
-def test_deeper_nesting_prefixing():
-    """Test that the prefixing mechanism works for deeper nesting of subgroups."""
-
-    assert "--a.person.cool" in HigherConfig.get_help_text(
-        "--help",
-        nested_mode=NestedMode.WITHOUT_ROOT,
-        argument_generation_mode=ArgumentGenerationMode.NESTED,
-    )
-
-    assert "--a.person.popular" in HigherConfig.get_help_text(
-        "--a.person alice --help",
-        nested_mode=NestedMode.WITHOUT_ROOT,
-        argument_generation_mode=ArgumentGenerationMode.NESTED,
-    )
-
-    assert HigherConfig.setup("") == HigherConfig()
-    assert HigherConfig.setup("--a.person alice") == HigherConfig(a=Config(person=Alice()))
-    assert HigherConfig.setup("--b.person daniel --b.person.age 54") == HigherConfig(
-        b=Config(person=Daniel(age=54))
+    help_with = FooWithDefaultFactories.get_help_text()
+    help_without = Foo.get_help_text()
+    assert (
+        help_with.replace("FooWithDefaultFactories", "Foo").replace(
+            "foo_with_default_factories", "foo"
+        )
+        == help_without
     )
 
 
-def test_subgroups_dict_in_args():
-    parser = ArgumentParser()
-    parser.add_arguments(HigherConfig, "config")
+@pytest.mark.xfail(strict=True, reason="Not implemented yet. Remove this once it is.")
+def test_all_subgroups_are_in_help_string():
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups({"a": A, "b": B}, default_factory=B)
 
-    args = parser.parse_args([])
-    assert args.config == HigherConfig()
-    assert args.subgroups == {"config.a.person": "daniel", "config.b.person": "alice"}
+    help_text = Foo.get_help_text()
 
-    args = parser.parse_args(shlex.split("--a.person alice --b.person daniel --b.person.age 54"))
-    assert args.subgroups == {"config.a.person": "alice", "config.b.person": "daniel"}
+    assert "-a float, --a float  (default: 0.0)" in help_text
+    assert "-b str, --b str  (default: bar)" in help_text
+
+
+def test_typing_of_subgroups_function() -> None:
+    """TODO: There should be a typing errors here. Could we check for it programmatically?"""
+    # note: This should raise an error with the type checker:
+    # noqa: F841
+    bob: A = subgroups({"a": A, "b": B})  # noqa: F841
+    # reveal_type(bob)
+
+    with pytest.raises(ValueError):
+        other: A | B = subgroups({"a": A, "b": B}, default_factory=C)  # noqa: F841
+    # reveal_type(other)
