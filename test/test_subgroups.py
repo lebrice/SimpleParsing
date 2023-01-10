@@ -267,17 +267,23 @@ def test_subgroup_default_factory_needs_to_be_value_in_dict():
 
 
 simple_subgroups_for_now = pytest.mark.xfail(
+    strict=True,
     reason=(
         "TODO: Not implemented yet. Subgroups only currently allows having a dict with values"
-        " that are dataclasses."
-    )
+        " that are dataclasses. Remove this once this works."
+    ),
 )
 
 
 @simple_subgroups_for_now
 @pytest.mark.parametrize(
     "a_factory, b_factory",
-    [(A, B), (partial(A, a=321), partial(B, b="foobar")), (lambda: A(a=123), lambda: B(b="foooo"))],
+    [
+        (partial(A), partial(B)),
+        (lambda: A(), lambda: B()),
+        (partial(A, a=321), partial(B, b="foobar")),
+        (lambda: A(a=123), lambda: B(b="foooo")),
+    ],
 )
 def test_other_default_factories(a_factory: Callable[[], A], b_factory: Callable[[], B]):
     """Test using other kinds of default factories (i.e. functools.partial or lambda expressions)"""
@@ -294,13 +300,21 @@ def test_other_default_factories(a_factory: Callable[[], A], b_factory: Callable
 @simple_subgroups_for_now
 @pytest.mark.parametrize(
     "a_factory, b_factory",
-    [(A, B), (partial(A, a=321), partial(B, b="foobar")), (lambda: A(a=123), lambda: B(b="foooo"))],
+    [
+        (partial(A), partial(B)),
+        (lambda: A(), lambda: B()),
+        (partial(A, a=321), partial(B, b="foobar")),
+        (lambda: A(a=123), lambda: B(b="foooo")),
+    ],
 )
-def test_help_string_is_the_same_with_default_factories(
+def test_help_string_displays_default_factory_arguments(
     a_factory: Callable[[], A], b_factory: Callable[[], B]
 ):
-    """The help string should be the same when using other kinds of default factories
-    (i.e. functools.partial or lambda expressions)
+    """The help string should be basically the same when using a `partial` or a lambda that returns
+    a dataclass, as using just the class itself.
+
+    When using `functools.partial` or lambda expressions, we'd ideally also like the help text to
+    show the field values from inside the `partial` or lambda, if possible.
     """
     # NOTE: Here we need to return just A() and B() with these default factories, so the defaults
     # for the fields are the same
@@ -322,18 +336,24 @@ def test_help_string_is_the_same_with_default_factories(
     )
 
 
-def test_typing_of_subgroups_function():
+@pytest.mark.xfail(strict=True, reason="Not implemented yet. Remove this once it is.")
+def test_all_subgroups_are_in_help_string():
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups({"a": A, "b": B}, default_factory=B)
 
-    with pytest.raises(ValueError):
-        _ = subgroups(
-            {
-                "a": A,
-                "b": lambda: B(),
-            }
-        )
-    # TODO: There should be a typing errors here. How do I check for it programmatically?
+    help_text = Foo.get_help_text()
 
-    # note: This should raise an error, ideally, since B isn't in the dict values.
-    # Either that, or it should have a type of `A | B`.
-    # bob = subgroups({"a": B, "aa": A}, default_factory=C)
+    assert "-a float, --a float  (default: 0.0)" in help_text
+    assert "-b str, --b str  (default: bar)" in help_text
+
+
+def test_typing_of_subgroups_function() -> None:
+    """TODO: There should be a typing errors here. Could we check for it programmatically?"""
+    # note: This should raise an error with the type checker:
+    # noqa: F841
+    bob: A = subgroups({"a": A, "b": B})  # noqa: F841
     # reveal_type(bob)
+
+    other: A | B = subgroups({"a": A, "b": B}, default_factory=C)  # noqa: F841
+    # reveal_type(other)
