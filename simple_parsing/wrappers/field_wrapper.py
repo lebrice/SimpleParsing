@@ -7,7 +7,9 @@ import sys
 import typing
 from enum import Enum, auto
 from logging import getLogger
-from typing import Any, ClassVar, Union, cast
+from typing import Any, ClassVar, Hashable, Union, cast
+
+from typing_extensions import Literal
 
 from simple_parsing.help_formatter import TEMPORARY_TOKEN
 
@@ -172,6 +174,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
         values: Any,
+        constructor_arguments: dict[str, dict[str, Any]],
         option_string: str | None = None,
     ):
         """Immitates a custom Action, which sets the corresponding value from
@@ -185,6 +188,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             parser (argparse.ArgumentParser): the `simple_parsing.ArgumentParser` used.
             namespace (argparse.Namespace): (unused).
             values (Any): The parsed values for the argument.
+            constructor_arguments: The dict of constructor arguments for each dataclass.
             option_string (Optional[str], optional): (unused). Defaults to None.
         """
         from simple_parsing import ArgumentParser
@@ -200,16 +204,22 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         self._results = {}
 
         for destination, value in zip(self.destinations, values):
+
+            if self.is_subgroup:
+                logger.debug(f"Ignoring the FieldWrapper for subgroup at dest {self.dest}")
+                return
+
             parent_dest, attribute = utils.split_dest(destination)
             value = self.postprocess(value)
             self._results[destination] = value
 
-            parser.constructor_arguments[parent_dest][attribute] = value
-            logger.debug(
-                f"setting value of {value} in constructor arguments "
-                f"of parent at key '{parent_dest}' and attribute "
-                f"'{attribute}'"
-            )
+            # if destination.endswith(f"_{i}"):
+            #     attribute = attribute[:-2]
+            #     constructor_arguments[parent_dest][attribute] = value
+
+            logger.debug(f"constructor_arguments[{parent_dest}][{attribute}] = {value}")
+            constructor_arguments[parent_dest][attribute] = value
+
             if self.is_subgroup:
                 if not hasattr(namespace, "subgroups"):
                     namespace.subgroups = {}
@@ -441,7 +451,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 f" but either 1 or {num_instances_to_parse} values were "
                 f"expected."
             )
-        return parsed_values
 
     def postprocess(self, raw_parsed_value: Any) -> Any:
         """Applies any conversions to the 'raw' parsed value before it is used
@@ -523,7 +532,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 return raw_parsed_value
 
         logger.debug(
-            f"field postprocessing for field of type '{self.type}' and with "
+            f"field postprocessing for field {self.name} of type '{self.type}' and with "
             f"value '{raw_parsed_value}'"
         )
         return raw_parsed_value
@@ -714,59 +723,87 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         2. the value of the corresponding attribute on the parent,
         if it has a default value
         """
+
         if self._default is not None:
-            return self._default
+            # If a default value was set manually from the outside (e.g. from the DataclassWrapper)
+            # then use that value.
+            default = self._default
+        elif self.is_subgroup:
+            default = self.subgroup_default
+        elif any(
+            parent_default not in (None, argparse.SUPPRESS)
+            for parent_default in self.parent.defaults
+        ):
+            # if the dataclass with this field has a default value - either when a value was
+            # passed for the `default` argument of `add_arguments` or when the parent is a nested
+            # dataclass field with a default factory - we use the corresponding attribute on that
+            # default instance.
+            def _get_value(dataclass_default: utils.Dataclass | dict, name: str) -> Any:
+                if isinstance(dataclass_default, dict):
+                    return dataclass_default.get(name)
+                return getattr(dataclass_default, name)
 
-        default: Any = utils.default_value(self.field)
-
-        if default is dataclasses.MISSING:
+            defaults = [
+                _get_value(parent_default, self.field.name)
+                for parent_default in self.parent.defaults
+                if parent_default not in (None, argparse.SUPPRESS)
+            ]
+            if len(self.parent.defaults) == 1:
+                default = defaults[0]
+            else:
+                default = defaults
+        # Try to get the default from the field, if possible.
+        elif self.field.default is not dataclasses.MISSING:
+            default = self.field.default
+        elif self.field.default_factory is not dataclasses.MISSING:
+            # Use the _default attribute to keep the result, so we can avoid calling the default
+            # factory another time.
+            # TODO: If the default factory is a function that returns None, it will still get
+            # called multiple times. We need to set a sentinel value as the initial value of the
+            # self._default attribute, so that we can correctly check whether we've already called
+            # the default_factory before.
+            if self._default is None:
+                self._default = self.field.default_factory()
+            default = self._default
+        # field doesn't have a default value set.
+        elif self.action == "store_true":
+            default = False
+        elif self.action == "store_false":
+            # NOTE: The boolean parsing when default is `True` is really un-intuitive, and should
+            # change in the future. See https://github.com/lebrice/SimpleParsing/issues/68
+            default = True
+        else:
             default = None
 
-        if self.action == "store_true" and default is None:
-            default = False
-        if self.action == "store_false" and default is None:
-            default = True
-
-        if self.parent.defaults:
-            # if the dataclass holding this field has a default value (either
-            # when passed  manually or by nesting), use the corresponding
-            # attribute on that default instance.
-
-            # TODO: When that default value is 'None' (even for a dataclass),
-            # then we need to.. ?
-
-            defaults = []
-            for default_dataclass_instance in self.parent.defaults:
-                if default_dataclass_instance in (None, argparse.SUPPRESS):
-                    default_value = default
-                elif isinstance(default_dataclass_instance, dict):
-                    default_value = default_dataclass_instance.get(self.name, default)
-                else:
-                    default_value = getattr(default_dataclass_instance, self.name)
-                defaults.append(default_value)
-            default = defaults[0] if len(defaults) == 1 else defaults
-
+        # If this field is being reused, then we package up the `default` in a list.
+        # TODO: Get rid of this. makes the code way uglier for no good reason.
         if self.is_reused and default is not None:
             n_destinations = len(self.destinations)
             assert n_destinations >= 1
-            if not isinstance(default, list) or len(default) != n_destinations:
+            # BUG: This second part (the `or` part) is weird. Probably only applies when using
+            # Lists of lists with the Reuse option, which is most likely not even supported..
+            if utils.is_tuple_or_list(self.field.type) and len(default) != n_destinations:
+                # The field is of a list type field,
+                default = [default] * n_destinations
+            elif not isinstance(default, list):
                 default = [default] * n_destinations
             assert len(default) == n_destinations, (
                 f"Not the same number of default values and destinations. "
                 f"(default: {default}, # of destinations: {n_destinations})"
             )
 
-        self._default = default
-        return self._default
+        return default
 
-    @default.setter
-    def default(self, value: Any):
+    def set_default(self, value: Any):
+        logger.debug(f"The field {self.name} has its default manually set to a value of {value}.")
         self._default = value
 
     @property
     def required(self) -> bool:
         if self._required is not None:
             return self._required
+        if self.is_subgroup:
+            return self.subgroup_default in (None, dataclasses.MISSING)
         if self.action_str.startswith("store_"):
             # all the store_* actions do not require a value.
             return False
@@ -930,6 +967,12 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return self.field.metadata["subgroups"]
 
     @property
+    def subgroup_default(self) -> Hashable | Literal[dataclasses.MISSING] | None:
+        if not self.is_subgroup:
+            raise RuntimeError(f"Field {self.field} doesn't have subgroups! ")
+        return self.field.metadata.get("subgroup_default")
+
+    @property
     def type_arguments(self) -> tuple[type, ...] | None:
         return utils.get_type_arguments(self.type)
 
@@ -947,7 +990,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             return self.field.metadata["subparsers"]
         elif self.is_union:
             type_arguments = utils.get_type_arguments(self.field.type)
-            if type_arguments and any(map(utils.is_dataclass_type, type_arguments)):
+            if type_arguments and any(map(utils.is_dataclass_type_or_typevar, type_arguments)):
                 return {
                     utils.get_type_name(dataclass_type).lower(): dataclass_type
                     for dataclass_type in type_arguments

@@ -29,13 +29,12 @@ from typing import (
     MutableMapping,
     Set,
     Tuple,
-    Type,
     TypeVar,
     Union,
     overload,
 )
 
-from typing_extensions import Literal, get_args
+from typing_extensions import Literal, Protocol, TypeGuard, get_args, runtime_checkable
 
 # from typing_inspect import get_origin, is_typevar, get_bound, is_forward_ref, get_forward_arg
 NEW_TYPING = sys.version_info[:3] >= (3, 7, 0)  # PEP 560
@@ -81,8 +80,21 @@ U = TypeVar("U")
 V = TypeVar("V")
 W = TypeVar("W")
 
-Dataclass = TypeVar("Dataclass")
-DataclassType = Type[Dataclass]
+
+@runtime_checkable
+class Dataclass(Protocol):
+    __dataclass_fields__: dict[str, Field]
+
+
+def is_dataclass_instance(obj: Any) -> TypeGuard[Dataclass]:
+    return dataclasses.is_dataclass(obj) and dataclasses.is_dataclass(type(obj))
+
+
+def is_dataclass_type(obj: Any) -> TypeGuard[type[Dataclass]]:
+    return inspect.isclass(obj) and dataclasses.is_dataclass(obj)
+
+
+DataclassT = TypeVar("DataclassT", bound=Dataclass)
 
 SimpleValueType = Union[bool, int, float, str]
 SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]]
@@ -395,7 +407,7 @@ def is_set(t: type) -> bool:
     return set in _mro(t)
 
 
-def is_dataclass_type(t: type) -> bool:
+def is_dataclass_type_or_typevar(t: type) -> bool:
     """Returns whether t is a dataclass type or a TypeVar of a dataclass type.
 
     Args:
@@ -517,11 +529,11 @@ def is_optional(t: type) -> bool:
 
 
 def is_tuple_or_list_of_dataclasses(t: type) -> bool:
-    return is_tuple_or_list(t) and is_dataclass_type(get_item_type(t))
+    return is_tuple_or_list(t) and is_dataclass_type_or_typevar(get_item_type(t))
 
 
 def contains_dataclass_type_arg(t: type) -> bool:
-    if is_dataclass_type(t):
+    if is_dataclass_type_or_typevar(t):
         return True
     elif is_tuple_or_list_of_dataclasses(t):
         return True
@@ -533,7 +545,7 @@ def contains_dataclass_type_arg(t: type) -> bool:
 def get_dataclass_type_arg(t: type) -> type | None:
     if not contains_dataclass_type_arg(t):
         return None
-    if is_dataclass_type(t):
+    if is_dataclass_type_or_typevar(t):
         return t
     elif is_tuple_or_list(t) or is_union(t):
         return next(

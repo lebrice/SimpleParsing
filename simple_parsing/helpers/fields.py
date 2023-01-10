@@ -1,5 +1,7 @@
 """ Utility functions that simplify defining field of dataclasses.
 """
+from __future__ import annotations
+
 import dataclasses
 import functools
 import inspect
@@ -8,47 +10,34 @@ from collections import OrderedDict
 from dataclasses import _MISSING_TYPE, MISSING
 from enum import Enum
 from logging import getLogger
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    overload,
-)
+from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 
-from simple_parsing.utils import Dataclass, str2bool
+from simple_parsing.utils import Dataclass, DataclassT, str2bool
 
 logger = getLogger(__name__)
 
 E = TypeVar("E", bound=Enum)
-K = TypeVar("K")
+K = TypeVar("K", bound=Hashable)
 V = TypeVar("V")
 T = TypeVar("T")
 
 
 def field(
-    default: Union[T, _MISSING_TYPE] = MISSING,
-    alias: Optional[Union[str, List[str]]] = None,
+    default: T | _MISSING_TYPE = MISSING,
+    alias: str | list[str] | None = None,
     cmd: bool = True,
     positional: bool = False,
     *,
     to_dict: bool = True,
-    encoding_fn: Optional[Callable[[T], Any]] = None,
-    decoding_fn: Optional[Callable[[Any], T]] = None,
+    encoding_fn: Callable[[T], Any] | None = None,
+    decoding_fn: Callable[[Any], T] | None = None,
     # dataclasses.field arguments
-    default_factory: Union[Callable[[], T], _MISSING_TYPE] = MISSING,
+    default_factory: Callable[[], T] | _MISSING_TYPE = MISSING,
     init: bool = True,
     repr: bool = True,
-    hash: Optional[bool] = None,
+    hash: bool | None = None,
     compare: bool = True,
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
     **custom_argparse_args: Any,
 ) -> T:
     """Extension of the `dataclasses.field` function.
@@ -110,7 +99,7 @@ def field(
     T
         The value returned by the `dataclasses.field` function.
     """
-    _metadata: Dict[str, Any] = metadata if metadata is not None else {}
+    _metadata: dict[str, Any] = metadata if metadata is not None else {}
     if alias:
         _metadata["alias"] = alias if isinstance(alias, list) else [alias]
     _metadata.update(dict(to_dict=to_dict))
@@ -166,12 +155,12 @@ def field(
 
 
 @overload
-def choice(choices: Type[E], default: E, **kwargs) -> E:
+def choice(choices: type[E], default: E, **kwargs) -> E:
     pass
 
 
 @overload
-def choice(choices: Dict[K, V], default: K, **kwargs) -> V:
+def choice(choices: dict[K, V], default: K, **kwargs) -> V:
     pass
 
 
@@ -181,7 +170,7 @@ def choice(*choices: T, default: T, **kwargs) -> T:
 
 
 # TODO: Fix the signature for this.
-def choice(*choices: T, default: Union[T, _MISSING_TYPE] = MISSING, **kwargs: Any) -> T:
+def choice(*choices: T, default: T | _MISSING_TYPE = MISSING, **kwargs: Any) -> T:
     """Makes a field which can be chosen from the set of choices from the
     command-line.
 
@@ -208,7 +197,7 @@ def choice(*choices: T, default: Union[T, _MISSING_TYPE] = MISSING, **kwargs: An
         choices = choices[0]
         if inspect.isclass(choices) and issubclass(choices, Enum):
             # If given an enum, construct a mapping from names to values.
-            choice_enum: Type[Enum] = choices
+            choice_enum: type[Enum] = choices
             choices = OrderedDict((e.name, e) for e in choice_enum)
             if default is not MISSING and not isinstance(default, choice_enum):
                 if default in choices:
@@ -259,7 +248,7 @@ def choice(*choices: T, default: Union[T, _MISSING_TYPE] = MISSING, **kwargs: An
     return field(default=default, choices=choices, **kwargs)
 
 
-def list_field(*default_items: T, **kwargs) -> List[T]:
+def list_field(*default_items: T, **kwargs) -> list[T]:
     """shorthand function for setting a `list` attribute on a dataclass,
     so that every instance of the dataclass doesn't share the same list.
 
@@ -279,9 +268,7 @@ def list_field(*default_items: T, **kwargs) -> List[T]:
     return mutable_field(list, default_items, **kwargs)
 
 
-def dict_field(
-    default_items: Union[Dict[K, V], Iterable[Tuple[K, V]]] = None, **kwargs
-) -> Dict[K, V]:
+def dict_field(default_items: dict[K, V] | Iterable[tuple[K, V]] = None, **kwargs) -> dict[K, V]:
     """shorthand function for setting a `dict` attribute on a dataclass,
     so that every instance of the dataclass doesn't share the same `dict`.
 
@@ -303,18 +290,18 @@ def dict_field(
     return mutable_field(dict, default_items, **kwargs)
 
 
-def set_field(*default_items: T, **kwargs) -> Set[T]:
+def set_field(*default_items: T, **kwargs) -> set[T]:
     return mutable_field(set, default_items, **kwargs)
 
 
 def mutable_field(
-    _type: Type[T],
+    _type: type[T],
     *args,
     init: bool = True,
     repr: bool = True,
     hash: bool = None,
     compare: bool = True,
-    metadata: Dict[str, Any] = None,
+    metadata: dict[str, Any] = None,
     **kwargs,
 ) -> T:
     # TODO: Check whether some of the keyword arguments are destined for the `field` function, or for the partial?
@@ -332,46 +319,138 @@ def mutable_field(
 
 MutableField = mutable_field
 
-T = TypeVar("T")
+# TODO: Change this to a bound of Hashable.
+# It seems to consider `default`
+Key = TypeVar("Key", str, int, bool, Enum)
+OtherDataclassT = TypeVar("OtherDataclassT", bound=Dataclass)
+
+
+@overload
+def subgroups(
+    subgroups: dict[Key, type[DataclassT]],
+    *args,
+    default: Key,
+    default_factory: _MISSING_TYPE = MISSING,
+    **kwargs,
+) -> DataclassT:
+    ...
+
+
+# TODO: Enable this overload if we make `subgroups` more flexible (see below).
+# @overload
+# def subgroups(
+#     subgroups: Mapping[Key, type[DataclassT]],
+#     *args,
+#     default_factory: Callable[[], OtherDataclassT],
+#     **kwargs,
+# ) -> DataclassT | OtherDataclassT:
+#     ...
+
+
+@overload
+def subgroups(
+    subgroups: dict[Key, type[DataclassT]],
+    *args,
+    default: _MISSING_TYPE = MISSING,
+    default_factory: type[DataclassT],
+    **kwargs,
+) -> DataclassT:
+    ...
+
+
+@overload
+def subgroups(
+    subgroups: dict[Key, type[DataclassT]],
+    *args,
+    default: _MISSING_TYPE = MISSING,
+    default_factory: _MISSING_TYPE = MISSING,
+    **kwargs,
+) -> DataclassT:
+    ...
 
 
 def subgroups(
-    subgroups: Dict[str, Type[T]],
+    subgroups: dict[Key, type[DataclassT]],
     *args,
-    default: Union[T, Type[T], None] = None,
+    default: Key | _MISSING_TYPE = MISSING,
+    default_factory: type[DataclassT] | _MISSING_TYPE = MISSING,
     **kwargs,
-) -> T:
+) -> DataclassT:
     """Creates a field that will be a choice between different subgroups of arguments.
 
     This is different than adding a subparser action. There can only be one subparser action, while
-    there can be arbitrarily many subgroups.
+    there can be arbitrarily many subgroups. Subgroups can also be nested!
+
+    TODO: Support using functools.partial or maybe arbitrary callables (e.g. lambdas) in addition
+    to dataclass types.
 
     Parameters
     ----------
-    subgroups : Dict[str, Type[T]]
+    subgroups :
         Dictionary mapping from the subgroup name to the subgroup type.
-    default : Optional[T], optional
-        The default subgroup to use, by default None, in which case a subgroup has to be selected.
-        Can either be the type of subgroup, or an instance of the config class for the subgroup.
+    default :
+        The default subgroup to use, by default MISSING, in which case a subgroup has to be
+        selected. Needs to be a key in the subgroups dictionary.
+    default_factory :
+        The default_factory to use to create the subgroup. Needs to be a value of the `subgroups`
+        dictionary.
 
     Returns
     -------
-    a field whose type is the Union of the different possible subgroups.
+    A field whose type is the Union of the different possible subgroups.
     """
+    if not all(
+        inspect.isclass(subgroup) and dataclasses.is_dataclass(subgroup)
+        for subgroup in subgroups.values()
+    ):
+        raise ValueError("All values in the subgroups dict need to be dataclasses!")
     metadata = kwargs.setdefault("metadata", {})
     metadata["subgroups"] = subgroups
+    metadata["subgroup_default"] = default
+
     choices = subgroups.keys()
     kwargs["type"] = str
-    if default and inspect.isclass(default):
-        matching_keys = [k for k, v in subgroups.items() if v is default]
-        if len(matching_keys) != 1:
-            raise ValueError(f"Default subgroup {default} is not in the subgroups dict")
-        default = matching_keys[0]
-    return choice(*choices, *args, default=default, **kwargs)  # type: ignore
+
+    if default_factory is not MISSING and default is not MISSING:
+        raise ValueError("Can't pass both default and default_factory!")
+    if default is not MISSING and default not in subgroups:
+        raise ValueError("default must be a key in the subgroups dict!")
+    if default_factory is not MISSING and default_factory not in subgroups.values():
+        # TODO: This might a little bit too strict. We don't want to encourage people creating lots
+        # of classes just to change the default arguments.
+        raise ValueError("default_factory must be a value in the subgroups dict!")
+
+    if default is not MISSING:
+        assert default in subgroups.keys()
+        default_factory = subgroups[default]
+        metadata["subgroup_default"] = default
+        default = MISSING
+
+    elif default_factory is not MISSING:
+        assert default_factory in subgroups.values()
+        # default_factory passed, which is in the subgroups dict. Find the matching key.
+        matching_keys = [k for k, v in subgroups.items() if v is default_factory]
+        if not matching_keys:
+            # Use == instead of `is` this time.
+            matching_keys = [k for k, v in subgroups.items() if v == default_factory]
+
+        # We wouldn't get here if default_factory wasn't in the subgroups dict values.
+        assert matching_keys
+        if len(matching_keys) > 1:
+            raise ValueError(
+                f"Default subgroup {default} is found more than once in the subgroups dict?"
+            )
+        subgroup_default = matching_keys[0]
+        metadata["subgroup_default"] = subgroup_default
+    else:
+        # Store `MISSING` as the subgroup default.
+        metadata["subgroup_default"] = MISSING
+
+    return choice(choices, *args, default=default, default_factory=default_factory, **kwargs)  # type: ignore
 
 
 def subparsers(
-    subcommands: Dict[str, Type[Dataclass]], default: Dataclass = MISSING, **kwargs
+    subcommands: dict[str, type[Dataclass]], default: Dataclass = MISSING, **kwargs
 ) -> Any:
     return field(
         metadata={

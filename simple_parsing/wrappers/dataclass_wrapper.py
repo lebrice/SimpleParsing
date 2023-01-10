@@ -7,12 +7,13 @@ import sys
 import textwrap
 from dataclasses import MISSING
 from logging import getLogger
-from typing import cast
+from typing import Any, TypeVar, cast
 
 import docstring_parser as dp
+from typing_extensions import Literal
 
 from .. import docstring, utils
-from ..utils import Dataclass
+from ..utils import DataclassT
 from .field_wrapper import FieldWrapper
 from .wrapper import Wrapper
 
@@ -25,13 +26,15 @@ description. If fields don't have docstrings or help text, then this is not used
 docstring is used as the description of the argument group.
 """
 
+DataclassWrapperType = TypeVar("DataclassWrapperType", bound="DataclassWrapper")
 
-class DataclassWrapper(Wrapper[Dataclass]):
+
+class DataclassWrapper(Wrapper[DataclassT]):
     def __init__(
         self,
-        dataclass: type[Dataclass],
+        dataclass: type[DataclassT],
         name: str,
-        default: Dataclass | dict = None,
+        default: DataclassT | dict = None,
         prefix: str = "",
         parent: DataclassWrapper | None = None,
         _field: dataclasses.Field | None = None,
@@ -54,7 +57,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         self._field = _field
 
         # the default values
-        self._defaults: list[Dataclass] = []
+        self._defaults: list[DataclassT] = []
 
         if default:
             self.defaults = [default]
@@ -93,6 +96,11 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 field_type = get_field_type_from_annotations(self.dataclass, field.name)
                 # Modify the `type` of the Field object, in-place.
                 field.type = field_type
+
+            # TODO: Should we do anything different here for subgroups?
+            # if utils.is_subgroup_field(field):
+            #     wrapper = field_wrapper_class(field, parent=self, prefix=prefix)
+            #     self.fields.append(wrapper)
 
             if utils.is_subparser_field(field) or utils.is_choice(field):
                 wrapper = field_wrapper_class(field, parent=self, prefix=prefix)
@@ -151,20 +159,27 @@ class DataclassWrapper(Wrapper[Dataclass]):
                 logger.debug(f"Skipping field {wrapped_field.name} because it has cmd=False.")
                 continue
 
+            # NOTE: Not skipping subgroup fields, because even though they will have been resolved
+            # at this point, we still want them to show up in the --help message!
+            # TODO: However, perhaps we could check that the default was properly set to the
+            # chosen subgroup value?
+
             if wrapped_field.is_subparser:
                 wrapped_field.add_subparsers(parser)
+                continue
 
-            # if wrapped_field.is_subgroup:
-            #     pass  # What to do in that case? Just add it like a regular `choice` argument?
-            # wrapped_field.add_subparsers(parser)
+            arg_options = wrapped_field.arg_options
 
-            elif wrapped_field.arg_options:
-                options = wrapped_field.arg_options
-                if argparse.SUPPRESS in self.defaults:
-                    options["default"] = argparse.SUPPRESS
+            if argparse.SUPPRESS in self.defaults:
+                arg_options["default"] = argparse.SUPPRESS
+            if wrapped_field.is_subgroup:
+                logger.debug(
+                    f"Adding a subgroup field {wrapped_field.name} just so it shows up in the --help text."
+                )
+                assert wrapped_field.default in wrapped_field.subgroup_choices.keys()
 
-                logger.debug(f"Arg options for field '{wrapped_field.name}': {options}")
-                group.add_argument(*wrapped_field.option_strings, **options)
+            logger.info(f"group.add_argument(*{wrapped_field.option_strings}, **{arg_options})")
+            group.add_argument(*wrapped_field.option_strings, **arg_options)
 
     def equivalent_argparse_code(self, leading="group") -> str:
         code = ""
@@ -206,7 +221,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         return self._parent
 
     @property
-    def defaults(self) -> list[Dataclass]:
+    def defaults(self) -> list[DataclassT | dict[str, Any] | None | Literal[argparse.SUPPRESS]]:
         if self._defaults:
             return self._defaults
         if self._field is None:
@@ -227,27 +242,37 @@ class DataclassWrapper(Wrapper[Dataclass]):
         return self._defaults
 
     @defaults.setter
-    def defaults(self, value: list[Dataclass]):
+    def defaults(self, value: list[DataclassT]):
         self._defaults = value
 
     @property
-    def default(self) -> Dataclass | None:
+    def default(self) -> DataclassT | None:
         return self._default
 
-    @default.setter
-    def default(self, value: Dataclass | dict):
-        if value is None:
-            self._default = value
+    # @default.setter
+    # def default(self, value: DataclassT) -> None:
+    #     self._default = value
+
+    def set_default(self, value: DataclassT | dict | None):
+        """Sets the default values for the arguments of the fields of this dataclass."""
+        if value is not None and not isinstance(value, dict):
+            field_default_values = dataclasses.asdict(value)
+        else:
+            field_default_values = value
+        self._default = value
+        if field_default_values is None:
             return
-        if not isinstance(value, dict):
-            self._default = value
-            value = dataclasses.asdict(value)
         for field_wrapper in self.fields:
-            if field_wrapper.name in value:
-                field_wrapper.default = value[field_wrapper.name]
+            if field_wrapper.name not in field_default_values:
+                continue
+            # Manually set the default value for this argument.
+            field_default_value = field_default_values[field_wrapper.name]
+            field_wrapper.set_default(field_default_value)
         for nested_dataclass_wrapper in self._children:
-            if nested_dataclass_wrapper.name in value:
-                nested_dataclass_wrapper.default = value[nested_dataclass_wrapper.name]
+            if nested_dataclass_wrapper.name not in field_default_values:
+                continue
+            field_default_value = field_default_values[nested_dataclass_wrapper.name]
+            nested_dataclass_wrapper.set_default(field_default_value)
 
     @property
     def title(self) -> str:
@@ -338,7 +363,7 @@ class DataclassWrapper(Wrapper[Dataclass]):
         lineage = list(reversed(lineage))
         lineage.append(self.name)
         _dest = ".".join(lineage)
-        logger.debug(f"getting dest, returning {_dest}")
+        # logger.debug(f"getting dest, returning {_dest}")
         return _dest
 
     @property
@@ -370,8 +395,10 @@ class DataclassWrapper(Wrapper[Dataclass]):
         logger.debug(f"destinations after merge: {self.destinations}")
         self.defaults.extend(other.defaults)
 
+        # Unset the default value for all fields.
+        # TODO: Shouldn't be needed anymore.
         for field_wrapper in self.fields:
-            field_wrapper.default = None
+            field_wrapper.set_default(None)
 
         for child, other_child in zip(self._children, other._children):
             child.merge(other_child)
