@@ -131,8 +131,6 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
     elif is_enum(t):
         logger.debug(f"Parsing an Enum field of type {t}")
         return parse_enum(t)
-    # import typing_inspect as tpi
-    # from .serializable import get_dataclass_type_from_forward_ref, Serializable
 
     if is_forward_ref(t):
         forward_arg = get_forward_arg(t)
