@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import argparse
+from collections.abc import Callable, Iterable, Sequence
 import dataclasses
 import inspect
 import sys
@@ -1045,15 +1048,15 @@ class _BooleanOptionalAction(argparse.Action):
 
     def __init__(
         self,
-        option_strings,
-        dest,
-        default=None,
-        type=None,
-        choices=None,
-        required=False,
-        help=None,
-        metavar=None,
-        nargs=None,
+        option_strings: Sequence[str],
+        dest: str,
+        default: bool | None = None,
+        type: Callable[[str], Any] | argparse.FileType | None = None,
+        choices: Iterable[Any] | None = None,
+        required: bool = False,
+        help: str | None = None,
+        metavar: str | tuple[str, ...] | None = None,
+        nargs: int | str | None = '?',
     ):
         if nargs is None:
             nargs = '?'
@@ -1062,15 +1065,15 @@ class _BooleanOptionalAction(argparse.Action):
 
         # Do not add `--no` when `nargs >= 1`
         if nargs == '+' or (isinstance(nargs, int) and nargs >= 1):
-            new_option_strings = option_strings
+            new_option_strings = list(option_strings)
         else:
             new_option_strings = []
             for option_string in option_strings:
                 new_option_strings.append(option_string)
 
                 if option_string.startswith("--"):
-                    option_string = _BOOL_NO_PREFIX + option_string[2:]
-                    new_option_strings.append(option_string)
+                    negative_option_string = _BOOL_NO_PREFIX + option_string[2:]
+                    new_option_strings.append(negative_option_string)
 
         super().__init__(
             option_strings=new_option_strings,
@@ -1086,29 +1089,31 @@ class _BooleanOptionalAction(argparse.Action):
 
     def __call__(
         self,
-        parser: argparse.ArgumentParser,
+        parser: ArgumentParser,
         namespace: argparse.Namespace,
         values: Any,
-        option_string=None,
+        option_string: str | None = None,
     ):
-        if option_string in self.option_strings:
-            is_neg = option_string.startswith(_BOOL_NO_PREFIX)
-            if values is None:  # --my_flag / --nomy_flag
-                bool_value = not is_neg
-            elif values == []:  # --my_flag / --nomy_flag (with nargs='*')
-                bool_value = [not is_neg]
-            elif is_neg:
-                parser.exit(
-                    message=f"{_BOOL_NO_PREFIX} cannot be used with value (Got: {option_string}={values})"
-                )
-            elif isinstance(values, str):  # --my_flag true
-                bool_value = utils.str2bool(values)
-            elif isinstance(values, list):  # --my_flag true true false
-                bool_value = [utils.str2bool(v) for v in values]
-            else:
-                raise ValueError(f"Unsuported value for {option_string}: {values!r}")
+        if option_string not in self.option_strings:
+            return
 
-            setattr(namespace, self.dest, bool_value)
+        is_neg = option_string.startswith(_BOOL_NO_PREFIX)
+        if values is None:  # --my_flag / --nomy_flag
+            bool_value = not is_neg
+        elif values == []:  # --my_flag / --nomy_flag (with nargs='*')
+            bool_value = [not is_neg]
+        elif is_neg:  # Cannot set `--nomy_flag=True/False`
+            parser.exit(
+                message=f"{_BOOL_NO_PREFIX} cannot be used with value (Got: {option_string}={values})"
+            )
+        elif isinstance(values, str):  # --my_flag true
+            bool_value = utils.str2bool(values)
+        elif isinstance(values, list):  # --my_flag true true false
+            bool_value = [utils.str2bool(v) for v in values]
+        else:
+            raise ValueError(f"Unsuported value for {option_string}: {values!r}")
+
+        setattr(namespace, self.dest, bool_value)
 
     def format_usage(self):
         return " | ".join(self.option_strings)

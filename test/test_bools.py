@@ -59,6 +59,11 @@ def test_bool_flags_work(flag: str, a: bool, b: bool, c: bool):
     "flag, nargs, a",
     [
         # By default, support both --noflag and --flag=false
+        ("--a", '?', True),
+        ("--noa", '?', False),
+        ("--a true", '?', True),
+        ("--a true false", '?', SystemExit),
+        # `nargs=None` is like `nargs='?'`
         ("--a", None, True),
         ("--noa", None, False),
         ("--a true", None, True),
