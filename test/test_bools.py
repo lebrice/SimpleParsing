@@ -84,8 +84,8 @@ def test_bool_flags_work(flag: str, a: bool, b: bool, c: bool):
         ("--a=true", '+', [True]),
         ("--a true false", '+', [True, False]),
         # 0 or 1+ argument explicitly required
-        ("--a", '*', [True]),
-        ("--noa", '*', [False]),
+        ("--a", '*', []),
+        ("--noa", '*', SystemExit('unrecognized arguments')),
         ("--a=true", '*', [True]),
         ("--a true false", '*', [True, False]),
     ],

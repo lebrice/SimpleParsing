@@ -1064,7 +1064,7 @@ class _BooleanOptionalAction(argparse.Action):
             raise ValueError(f'nargs={nargs!r} not supported for bools')
 
         # Do not add `--no` when `nargs >= 1`
-        if nargs == '+' or (isinstance(nargs, int) and nargs >= 1):
+        if nargs in {'+', '*'} or (isinstance(nargs, int) and nargs >= 1):
             new_option_strings = list(option_strings)
         else:
             new_option_strings = []
@@ -1100,8 +1100,6 @@ class _BooleanOptionalAction(argparse.Action):
         is_neg = option_string.startswith(_BOOL_NO_PREFIX)
         if values is None:  # --my_flag / --nomy_flag
             bool_value = not is_neg
-        elif values == []:  # --my_flag / --nomy_flag (with nargs='*')
-            bool_value = [not is_neg]
         elif is_neg:  # Cannot set `--nomy_flag=True/False`
             parser.exit(
                 message=f"{_BOOL_NO_PREFIX} cannot be used with value (Got: {option_string}={values})"
