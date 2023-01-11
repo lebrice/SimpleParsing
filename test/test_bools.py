@@ -93,7 +93,7 @@ def test_bool_flags_work(flag: str, a: bool, b: bool, c: bool):
 def test_bool_nargs(flag, nargs, a, capsys: pytest.CaptureFixture):
     @dataclass
     class MyClass(TestSetup):
-        """Some extension of base-class `Base`"""
+        """Some test class"""
         a: bool = helpers.field(nargs=nargs)
 
     if isinstance(a, SystemExit):
