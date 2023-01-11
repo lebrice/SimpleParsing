@@ -12,7 +12,7 @@ def test_parser_preprocessing_steps():
     merged_wrappers = parser._conflict_resolver.resolve_and_flatten(wrappers)
     from simple_parsing.parsing import _unflatten_wrappers
 
-    assert merged_wrappers[1]._parent is merged_wrappers[0]
+    assert merged_wrappers[1].parent is merged_wrappers[0]
     assert merged_wrappers[1] in merged_wrappers[0]._children
 
     assert _unflatten_wrappers(merged_wrappers) == [merged_wrappers[0]]

@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
-import enum
 import itertools
 import shlex
 import sys
@@ -21,7 +20,7 @@ from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
 from .help_formatter import SimpleHelpFormatter
 from .helpers.serialization.serializable import read_file
-from .utils import Dataclass, dict_union
+from .utils import Dataclass, DataclassT, dict_union
 from .wrappers import DashVariant, DataclassWrapper, FieldWrapper
 from .wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
@@ -235,16 +234,17 @@ class ArgumentParser(argparse.ArgumentParser):
 
     def _add_arguments(
         self,
-        dataclass: type[Dataclass] | Dataclass,
+        dataclass: type[DataclassT] | DataclassT,
         name: str,
         *,
         prefix: str = "",
+        dataclass_fn: Callable[..., DataclassT] | None = None,
         default: Dataclass | None = None,
         dataclass_wrapper_class: type[DataclassWrapperType] = DataclassWrapper,
         parent: DataclassWrapper | None = None,
         _field: dataclasses.Field | None = None,
         field_wrapper_class: type[FieldWrapper] = FieldWrapper,
-    ) -> DataclassWrapper[Dataclass] | DataclassWrapperType:
+    ) -> DataclassWrapper[DataclassT] | DataclassWrapperType:
         for wrapper in self._wrappers:
             if wrapper.dest == name:
                 if wrapper.dataclass == dataclass:
@@ -255,8 +255,11 @@ class ArgumentParser(argparse.ArgumentParser):
                         f" are unique. (new dataclass type: {dataclass})",
                     )
         if not isinstance(dataclass, type):
-            default = dataclass if default is None else default
+            if default is None:
+                default = dataclass
             dataclass = type(dataclass)
+        if dataclass_fn is None:
+            dataclass_fn = dataclass
 
         new_wrapper = dataclass_wrapper_class(
             dataclass=dataclass,
@@ -265,6 +268,7 @@ class ArgumentParser(argparse.ArgumentParser):
             default=default,
             parent=parent,
             _field=_field,
+            dataclass_fn=dataclass_fn,
             field_wrapper_class=field_wrapper_class,
         )
 
@@ -565,35 +569,48 @@ class ArgumentParser(argparse.ArgumentParser):
                 assert hasattr(parsed_args, dest)
                 chosen_subgroup_key = getattr(parsed_args, dest)
                 assert chosen_subgroup_key in subgroup_field.subgroup_choices
-                chosen_subgroup_type = subgroup_field.subgroup_choices[chosen_subgroup_key]
-                # TODO: Currently we only support using dataclass types as subgroups. However we
-                # should also support callables (e.g. functools.Partial) if they return a
-                # dataclass. We'd have to figure out a way to pass the partially filled default
-                # arguments to self._add_arguments below.
-                assert dataclasses.is_dataclass(chosen_subgroup_type)
+                chosen_subgroup_dataclass_fn = subgroup_field.subgroup_choices[chosen_subgroup_key]
+                from simple_parsing.helpers.subgroups import (
+                    _get_dataclass_type_from_callable,
+                )
+
+                try:
+                    chosen_subgroup_dataclass_type = _get_dataclass_type_from_callable(
+                        chosen_subgroup_dataclass_fn
+                    )
+                except Exception as exc:
+                    raise NotImplementedError(
+                        f"We are unable to figure out the dataclass to use the selected subgroup "
+                        f"{subgroup_field.dest}, because the subgroup value is "
+                        f"{chosen_subgroup_dataclass_fn!r}, and we don't know what type of "
+                        f"dataclass it produces without invoking it!\n"
+                        "🙏 Please make an issue on GitHub! 🙏\n" + str(exc)
+                    ) from exc
+
+                assert dataclasses.is_dataclass(chosen_subgroup_dataclass_type)
 
                 resolved_subgroups[dest] = chosen_subgroup_key
 
                 logger.info(
                     f"resolved the subgroup at dest {dest} to a value of "
                     f"{chosen_subgroup_key}, which means to use the "
-                    f"{chosen_subgroup_type} dataclass"
+                    f"{chosen_subgroup_dataclass_type} dataclass"
                 )
                 parent_dataclass_wrapper = subgroup_field.parent
-                # The default value for the subgroup field should be the value that was chosen:
-                assert isinstance(chosen_subgroup_key, (str, enum.Enum, int))
+                # The default value for the subgroup field should be the value that was chosen.
                 # Manually set the default value for this field.
                 subgroup_field.set_default(chosen_subgroup_key)
 
                 # NOTE: Here the `default` for the new argument group is `None`, because
-                # `subgroups` only allows using a dict[Hashable, callable], so we don't want to
-                # instantiate the dataclass twice.
+                # `subgroups` only allows using a dict[Hashable, callable], and we want to avoid
+                # calling the callables unless we really need to.
                 default = None
                 name = dest.split(".")[-1]
                 # NOTE: Using self._add_arguments so it returns the modified wrapper and doesn't
                 # affect the `self._wrappers` list.
                 new_wrapper = self._add_arguments(
-                    dataclass=chosen_subgroup_type,
+                    dataclass=chosen_subgroup_dataclass_type,
+                    dataclass_fn=chosen_subgroup_dataclass_fn,
                     name=name,
                     default=default,
                     parent=parent_dataclass_wrapper,
@@ -690,7 +707,7 @@ class ArgumentParser(argparse.ArgumentParser):
             for destination in wrapper.destinations:
                 constructor_arguments.setdefault(destination, {})
 
-        parsed_args = self._fill_constructor_arguments_with_fields(
+        parsed_args, constructor_arguments = self._fill_constructor_arguments_with_fields(
             parsed_args, wrappers=wrappers, initial_constructor_arguments=constructor_arguments
         )
         parsed_args = self._instantiate_dataclasses(
@@ -773,21 +790,21 @@ class ArgumentParser(argparse.ArgumentParser):
                 logger.info(f"Instantiating the dataclass at destination {destination}")
                 # Instantiate the dataclass by passing the constructor arguments
                 # to the constructor.
-                constructor = dc_wrapper.dataclass
+                constructor = dc_wrapper.dataclass_fn
                 constructor_args = constructor_arguments.pop(destination)
                 # If the dataclass wrapper is marked as 'optional' and all the
                 # constructor args are None, then the instance is None.
-                # TODO: Refactor the SUPPRESS stuff.
                 value_for_dataclass_field: Any | dict[str, Any] | None
-                if argparse.SUPPRESS not in dc_wrapper.defaults:
+                if argparse.SUPPRESS in dc_wrapper.defaults:
+                    if constructor_args == {}:
+                        value_for_dataclass_field = None
+                    else:
+                        # Don't create the dataclass instance. Instead, keep the value as a dict.
+                        value_for_dataclass_field = constructor_args
+                else:
                     value_for_dataclass_field = _create_dataclass_instance(
                         dc_wrapper, constructor, constructor_args
                     )
-                elif constructor_args == {}:
-                    value_for_dataclass_field = None
-                else:
-                    # Don't create the dataclass instance. Instead, keep the value as a dict.
-                    value_for_dataclass_field = constructor_args
 
                 if argparse.SUPPRESS in dc_wrapper.defaults and value_for_dataclass_field is None:
                     logger.debug(
@@ -838,7 +855,7 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args: argparse.Namespace,
         wrappers: list[DataclassWrapper],
         initial_constructor_arguments: dict[str, dict[str, Any]],
-    ) -> argparse.Namespace:
+    ) -> tuple[argparse.Namespace, dict[str, dict[str, Any]]]:
         """Create the constructor arguments for each instance.
 
         Creates the arguments by consuming all the attributes from
@@ -898,7 +915,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 deleted_values[field.dest] = values
 
                 # call the "action" for the given attribute. This sets the right
-                # value in the `self.constructor_arguments` dictionary.
+                # value in the `constructor_arguments` dictionary.
                 field(
                     parser=self,
                     namespace=parsed_args,
@@ -913,7 +930,7 @@ class ArgumentParser(argparse.ArgumentParser):
             logger.debug(f"deleted values: {deleted_values}")
             logger.debug(f"leftover args: {leftover_args}")
 
-        return leftover_args
+        return leftover_args, constructor_arguments
 
 
 T = TypeVar("T")
@@ -1046,14 +1063,16 @@ def _unflatten_wrappers(wrappers: list[DataclassWrapper]) -> list[DataclassWrapp
 
 
 def _create_dataclass_instance(
-    wrapper: DataclassWrapper[Dataclass],
-    constructor: Callable[..., Dataclass],
+    wrapper: DataclassWrapper[DataclassT],
+    constructor: Callable[..., DataclassT],
     constructor_args: dict[str, Any],
-) -> Dataclass | None:
+) -> DataclassT | None:
 
     # Check if the dataclass annotation is marked as Optional.
     # In this case, if no arguments were passed, and the default value is None, then return
     # None.
+    # TODO: (BUG!) This doesn't distinguish the case where the defaults are passed via the
+    # command-line from the case where no arguments are passed at all!
     if wrapper.optional and wrapper.default is None:
         for field_wrapper in wrapper.fields:
 
@@ -1068,7 +1087,7 @@ def _create_dataclass_instance(
                 # Break, and return the instance.
                 break
         else:
-            logger.debug(f"All fields for {wrapper.dest} were either default or None.")
+            logger.debug(f"All fields for {wrapper.dest} were either at their default, or None.")
             return None
 
     return constructor(**constructor_args)
