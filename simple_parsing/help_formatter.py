@@ -49,9 +49,9 @@ class SimpleHelpFormatter(
             formats = ["%s" for _ in range(action.nargs)]
             result = " ".join(formats) % _get_metavar(action.nargs)
 
-        logger.debug(
-            f"action type: {action_type}, Result: {result}, nargs: {action.nargs}, default metavar: {default_metavar}"
-        )
+        # logger.debug(
+        #     f"action type: {action_type}, Result: {result}, nargs: {action.nargs}, default metavar: {default_metavar}"
+        # )
         return result
 
     def _get_default_metavar_for_optional(self, action: argparse.Action):

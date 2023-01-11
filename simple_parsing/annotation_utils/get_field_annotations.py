@@ -3,8 +3,10 @@ import inspect
 import sys
 import types
 import typing
+from contextlib import contextmanager
+from dataclasses import InitVar
 from logging import getLogger as get_logger
-from typing import Any, Dict, Optional, get_type_hints
+from typing import Any, Dict, Iterator, Optional, get_type_hints
 
 logger = get_logger(__name__)
 
@@ -17,6 +19,25 @@ forward_refs_to_types = {
     "list": typing.List,
     "type": typing.Type,
 }
+
+
+@contextmanager
+def _initvar_patcher() -> Iterator[None]:
+    """
+    Patch InitVar to not fail when annotations are postponed.
+
+    `TypeVar('Forward references must evaluate to types. Got dataclasses.InitVar[tp].')` is raised
+    when postponed annotations are enabled and `get_type_hints` is called
+    Bug is mentioned here https://github.com/python/cpython/issues/88962
+    In python 3.11 this is fixed, but backport fix is not planned for old releases
+
+    Workaround is mentioned here https://stackoverflow.com/q/70400639
+    """
+    if sys.version_info[:2] < (3, 11):
+        InitVar.__call__ = lambda *args: None
+    yield
+    if sys.version_info[:2] < (3, 11):
+        del InitVar.__call__
 
 
 def evaluate_string_annotation(annotation: str, containing_class: Optional[type] = None) -> type:
@@ -156,11 +177,17 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     # Get the local and global namespaces to pass to the `get_type_hints` function.
     local_ns: Dict[str, Any] = {"typing": typing, **vars(typing)}
     local_ns.update(forward_refs_to_types)
-    # Get the globals in the module where the class was defined.
-    global_ns = sys.modules[some_class.__module__].__dict__
+    # Get the global_ns in the module starting from the deepest base until the module where the field_name is defined.
+    global_ns = {}
+    for base_cls in reversed(some_class.mro()):
+        global_ns.update(sys.modules[base_cls.__module__].__dict__)
+        annotations = getattr(base_cls, "__annotations__", None)
+        if annotations and field_name in annotations:
+            break
 
     try:
-        annotations_dict = get_type_hints(some_class, localns=local_ns, globalns=global_ns)
+        with _initvar_patcher():
+            annotations_dict = get_type_hints(some_class, localns=local_ns, globalns=global_ns)
     except TypeError:
         annotations_dict = collections.ChainMap(
             *[getattr(cls, "__annotations__", {}) for cls in some_class.mro()]
@@ -197,7 +224,8 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
             pass
 
         Temp_.__annotations__ = {field_name: field_type}
-        annotations_dict = get_type_hints(Temp_, globalns=global_ns, localns=local_ns)
+        with _initvar_patcher():
+            annotations_dict = get_type_hints(Temp_, globalns=global_ns, localns=local_ns)
         field_type = annotations_dict[field_name]
     except Exception:
         logger.warning(

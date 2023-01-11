@@ -2,12 +2,17 @@
 (Could be seen as a kind of integration test.)
 
 """
+from __future__ import annotations
+
 import glob
+import os
+import runpy
 import shlex
 import sys
 from collections import Counter
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Sequence
 
 import pytest
 
@@ -71,31 +76,29 @@ def assert_equals_stdout(capsys):
 def test_running_example_outputs_expected(
     file_path: str,
     args: str,
-    set_prog_name: Callable[[str, Optional[str]], None],
+    set_prog_name: Callable[[str, str | None], None],
     assert_equals_stdout: Callable[[str, str], None],
 ):
     # set_prog_name(script, args)
-    file_path = Path(file_path).as_posix()
-    module_name = file_path.replace("/", ".").replace(".py", "")
-    try:
-        # programmatically import the example script, which also runs it.
-        # (Equivalent to executing "from <module_name> import expected")
-        import runpy
+    example_dir = Path(file_path).parent
 
+    file_path = Path(file_path).as_posix()
+    module_name = file_path.replace("/", ".")
+    if module_name.endswith(".py"):
+        module_name = module_name[:-3]
+    # programmatically import the example script, which also runs it.
+    # (Equivalent to executing "from <module_name> import expected")
+
+    # move to the example directory.
+    with temporarily_chdir(example_dir), temporarily_add_args(args):
         resulting_globals = runpy.run_module(
             module_name, init_globals=None, run_name="__main__", alter_sys=True
         )
-        # module = __import__(module_name, globals(), locals(), ["expected"], 0)
-        # resulting_globals = vars(module)
-        # get the 'expected'
-        # assert "expected" in resulting_globals
-        if "expected" not in resulting_globals:
-            pytest.xfail(reason="Example doesn't have an 'expected' global variable.")
-        expected = resulting_globals["expected"]
-        assert_equals_stdout(expected, file_path)
 
-    except SystemExit:
-        pytest.xfail(f"SystemExit in example {file_path}.")
+    if "expected" not in resulting_globals:
+        pytest.xfail(reason="Example doesn't have an 'expected' global variable.")
+    expected = resulting_globals["expected"]
+    assert_equals_stdout(expected, file_path)
 
 
 @pytest.mark.parametrize(
@@ -128,7 +131,33 @@ def test_running_example_outputs_expected(
 )
 def test_running_example_outputs_expected_without_arg(
     file_path: str,
-    set_prog_name: Callable[[str, Optional[str]], None],
+    set_prog_name: Callable[[str, str | None], None],
     assert_equals_stdout: Callable[[str, str], None],
 ):
     return test_running_example_outputs_expected(file_path, "", set_prog_name, assert_equals_stdout)
+
+
+@contextmanager
+def temporarily_chdir(new_dir: Path):
+    """Temporarily navigate to the given directory."""
+    start_dir = Path.cwd()
+    try:
+        os.chdir(new_dir)
+        yield
+    except OSError:
+        raise
+    finally:
+        os.chdir(start_dir)
+
+
+@contextmanager
+def temporarily_add_args(args: str | Sequence[str]):
+    """Temporarily adds the given arguments to sys.argv."""
+    if isinstance(args, str):
+        args = shlex.split(args)
+    start_argv = sys.argv.copy()
+    try:
+        sys.argv = start_argv + list(args)
+        yield
+    finally:
+        sys.argv = start_argv

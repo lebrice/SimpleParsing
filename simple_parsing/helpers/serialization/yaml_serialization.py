@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from logging import getLogger
 from pathlib import Path
-from typing import IO, Type, Union
+from typing import IO
 
 import yaml
 
@@ -26,22 +28,30 @@ class YamlSerializable(Serializable):
 
     @classmethod
     def load(
-        cls: Type[D],
-        path: Union[Path, str, IO[str]],
-        drop_extra_fields: bool = None,
+        cls: type[D],
+        path: Path | str | IO[str],
+        drop_extra_fields: bool | None = None,
         load_fn=yaml.safe_load,
-        **kwargs
+        **kwargs,
     ) -> D:
         return super().load(path, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
     @classmethod
     def loads(
-        cls: Type[D], s: str, drop_extra_fields: bool = None, load_fn=yaml.safe_load, **kwargs
+        cls: type[D],
+        s: str,
+        drop_extra_fields: bool | None = None,
+        load_fn=yaml.safe_load,
+        **kwargs,
     ) -> D:
         return super().loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
     @classmethod
     def _load(
-        cls: Type[D], fp: IO[str], drop_extra_fields: bool = None, load_fn=yaml.safe_load, **kwargs
+        cls: type[D],
+        fp: IO[str],
+        drop_extra_fields: bool | None = None,
+        load_fn=yaml.safe_load,
+        **kwargs,
     ) -> D:
         return super()._load(fp, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)

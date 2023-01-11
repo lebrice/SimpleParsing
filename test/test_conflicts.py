@@ -74,10 +74,10 @@ def test_parent_child_conflict():
         batch_size: int = 32
 
     @dataclass
-    class Parent(TestSetup):
+    class Parent2(TestSetup):
         batch_size: int = 48
         child: HParams = HParams()
 
-    p: Parent = Parent.setup()
+    p: Parent2 = Parent2.setup()
     assert p.child.batch_size == 32
     assert p.batch_size == 48

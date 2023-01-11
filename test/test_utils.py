@@ -1,10 +1,12 @@
 import enum
+import os
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple, Type
 
 import simple_parsing.utils as utils
 from simple_parsing import mutable_field
 from simple_parsing.helpers import dict_field, list_field, set_field
+from simple_parsing.utils import flatten_join, unflatten_split
 
 from .testutils import TestSetup, parametrize
 
@@ -99,9 +101,10 @@ def test_is_enum(t: Type):
     assert utils.is_enum(t)
 
 
-def test_json_serializable(HyperParameters, tmpdir):
+def test_json_serializable(tmpdir):
+    from .nesting.example_use_cases import HyperParameters
+
     hparams = HyperParameters()
-    import os
 
     filename = "hparams.json"
     hparams.save_json(os.path.join(tmpdir, filename))
@@ -167,3 +170,23 @@ def test_dict_field_without_args():
     a2 = A()
     assert a1.a == a2.a == default
     assert id(a1.a) != id(a2.a)
+
+
+def test_flatten():
+    """Test basic functionality of flatten"""
+    d = {"a": {"b": 2, "c": 3}, "c": {"d": 3, "e": 4}}
+    assert flatten_join(d) == {"a.b": 2, "a.c": 3, "c.d": 3, "c.e": 4}
+
+
+def test_flatten_double_ref():
+    """Test proper handling of double references in dicts"""
+    a = {"b": 2, "c": 3}
+    d = {"a": a, "d": {"e": a}}
+    assert flatten_join(d) == {"a.b": 2, "a.c": 3, "d.e.b": 2, "d.e.c": 3}
+
+
+def test_unflatten():
+    """Test than unflatten(flatten(x)) is idempotent"""
+    a = {"b": 2, "c": 3}
+    d = {"a": a, "d": {"e": a}}
+    assert unflatten_split(flatten_join(d)) == d

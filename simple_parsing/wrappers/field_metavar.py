@@ -19,7 +19,7 @@ def log_results(fn: Callable[[Type], str]):
     @functools.wraps(fn)
     def _wrapped(t: Type) -> str:
         result = fn(t)
-        logger.debug(f"Metavar for type {t}: {result}")
+        # logger.debug(f"Metavar for type {t}: {result}")
         return result
 
     return _wrapped

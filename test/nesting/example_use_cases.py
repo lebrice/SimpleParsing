@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import ClassVar, List
 
+from simple_parsing.helpers.serialization.serializable import Serializable
+
 from ..test_utils import TestSetup
 
 __all__ = [
@@ -97,7 +99,7 @@ class TaskHyperParameters(TestSetup):
 
 
 @dataclass
-class HyperParameters(TestSetup):
+class HyperParameters(TestSetup, Serializable):
     """Hyperparameters of our model."""
 
     # the batch size

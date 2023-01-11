@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import dataclasses
 import inspect
@@ -5,7 +7,9 @@ import sys
 import typing
 from enum import Enum, auto
 from logging import getLogger
-from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, Union, cast
+from typing import Any, ClassVar, Hashable, Union, cast
+
+from typing_extensions import Literal
 
 from simple_parsing.help_formatter import TEMPORARY_TOKEN
 
@@ -102,30 +106,40 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     # Controls how nested arguments are generated.
     nested_mode: ClassVar[NestedMode] = NestedMode.DEFAULT
 
-    def __init__(self, field: dataclasses.Field, parent: Any = None, prefix: str = ""):
+    def __init__(
+        self, field: dataclasses.Field, parent: DataclassWrapper | None = None, prefix: str = ""
+    ):
         super().__init__(wrapped=field, name=field.name)
         self.field: dataclasses.Field = field
         self.prefix: str = prefix
         self._parent: Any = parent
         # Holders used to 'cache' the properties.
         # (could've used cached_property with Python 3.8).
-        self._option_strings: Optional[Set[str]] = None
-        self._required: Optional[bool] = None
-        self._docstring: docstring.AttributeDocString = docstring.AttributeDocString()
-        self._help: Optional[str] = None
-        self._metavar: Optional[str] = None
-        self._default: Optional[Union[Any, List[Any]]] = None
-        self._dest: Optional[str] = None
+        self._option_strings: set[str] | None = None
+        self._required: bool | None = None
+
+        try:
+            self._docstring = docstring.get_attribute_docstring(
+                self.parent.dataclass, self.field.name
+            )
+        except (SystemExit, Exception) as e:
+            logger.debug(f"Couldn't find attribute docstring for field {self.name}, {e}")
+            self._docstring = docstring.AttributeDocString()
+
+        self._help: str | None = None
+        self._metavar: str | None = None
+        self._default: Any | list[Any] | None = None
+        self._dest: str | None = None
         # the argparse-related options:
-        self._arg_options: Dict[str, Any] = {}
-        self._dest_field: Optional["FieldWrapper"] = None
-        self._type: Optional[Type[Any]] = None
+        self._arg_options: dict[str, Any] = {}
+        self._dest_field: FieldWrapper | None = None
+        self._type: type[Any] | None = None
 
         # stores the resulting values for each of the destination attributes.
-        self._results: Dict[str, Any] = {}
+        self._results: dict[str, Any] = {}
 
     @property
-    def arg_options(self) -> Dict[str, Any]:
+    def arg_options(self) -> dict[str, Any]:
         """Dictionary of values to be passed to the `add_argument` method.
 
         The main feature of this package is to infer these arguments
@@ -160,7 +174,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         parser: argparse.ArgumentParser,
         namespace: argparse.Namespace,
         values: Any,
-        option_string: Optional[str] = None,
+        constructor_arguments: dict[str, dict[str, Any]],
+        option_string: str | None = None,
     ):
         """Immitates a custom Action, which sets the corresponding value from
         `values` at the right destination in the `constructor_arguments` of the
@@ -173,6 +188,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             parser (argparse.ArgumentParser): the `simple_parsing.ArgumentParser` used.
             namespace (argparse.Namespace): (unused).
             values (Any): The parsed values for the argument.
+            constructor_arguments: The dict of constructor arguments for each dataclass.
             option_string (Optional[str], optional): (unused). Defaults to None.
         """
         from simple_parsing import ArgumentParser
@@ -188,15 +204,22 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         self._results = {}
 
         for destination, value in zip(self.destinations, values):
+
+            if self.is_subgroup:
+                logger.debug(f"Ignoring the FieldWrapper for subgroup at dest {self.dest}")
+                return
+
             parent_dest, attribute = utils.split_dest(destination)
             value = self.postprocess(value)
             self._results[destination] = value
-            parser.constructor_arguments[parent_dest][attribute] = value
-            logger.debug(
-                f"setting value of {value} in constructor arguments "
-                f"of parent at key '{parent_dest}' and attribute "
-                f"'{attribute}'"
-            )
+
+            # if destination.endswith(f"_{i}"):
+            #     attribute = attribute[:-2]
+            #     constructor_arguments[parent_dest][attribute] = value
+
+            logger.debug(f"constructor_arguments[{parent_dest}][{attribute}] = {value}")
+            constructor_arguments[parent_dest][attribute] = value
+
             if self.is_subgroup:
                 if not hasattr(namespace, "subgroups"):
                     namespace.subgroups = {}
@@ -209,7 +232,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                     namespace.subgroups[self.dest] = value
                     logger.info(f"Chosen subgroup for '{self.dest}':  '{value}'")
 
-    def get_arg_options(self) -> Dict[str, Any]:
+    def get_arg_options(self) -> dict[str, Any]:
         """Create the `parser.add_arguments` kwargs for this field.
 
         TODO: Refactor this, following https://github.com/lebrice/SimpleParsing/issues/150
@@ -217,13 +240,17 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         if not self.field.init:
             # Don't add command-line arguments for fields that have `init=False`.
             return {}
-        _arg_options: Dict[str, Any] = {}
+        _arg_options: dict[str, Any] = {}
 
         # Not sure why, but argparse doesn't allow using a different dest for a positional arg.
         # _Appears_ trivial to support within argparse.
         if not self.field.metadata.get("positional"):
             _arg_options["required"] = self.required
             _arg_options["dest"] = self.dest
+        elif not self.required:
+            # For positional arguments that aren't required we need to set
+            # nargs='?' to make them optional.
+            _arg_options["nargs"] = "?"
         _arg_options["default"] = self.default
         _arg_options["metavar"] = get_metavar(self.type)
 
@@ -302,7 +329,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["type"] = get_parsing_fn(wrapped_type)
                 # TODO: Should the 'nargs' really be '?' here?
                 _arg_options["nargs"] = "?"
-                # assert False, (wrapped_type, utils.is_tuple(wrapped_type))
 
         elif self.is_union:
             logger.debug("Parsing a Union type!")
@@ -374,7 +400,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
         return _arg_options
 
-    def duplicate_if_needed(self, parsed_values: Any) -> List[Any]:
+    def duplicate_if_needed(self, parsed_values: Any) -> list[Any]:
         """Duplicates the passed argument values if needed, such that each instance gets a value.
 
         For example, if we expected 3 values for an argument, and a single value was passed,
@@ -409,7 +435,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 and len(parsed_values) == 1
                 and len(parsed_values[0]) == num_instances_to_parse
             ):
-                result: List = parsed_values[0]
+                result: list = parsed_values[0]
                 return result
 
         if not isinstance(parsed_values, (list, tuple)):
@@ -425,7 +451,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 f" but either 1 or {num_instances_to_parse} values were "
                 f"expected."
             )
-        return parsed_values
 
     def postprocess(self, raw_parsed_value: Any) -> Any:
         """Applies any conversions to the 'raw' parsed value before it is used
@@ -507,7 +532,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 return raw_parsed_value
 
         logger.debug(
-            f"field postprocessing for field of type '{self.type}' and with "
+            f"field postprocessing for field {self.name} of type '{self.type}' and with "
             f"value '{raw_parsed_value}'"
         )
         return raw_parsed_value
@@ -517,7 +542,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return len(self.destinations) > 1
 
     @property
-    def action(self) -> Union[str, Type[argparse.Action]]:
+    def action(self) -> str | type[argparse.Action]:
         """The `action` argument to be passed to `add_argument(...)`."""
         return self.custom_arg_options.get("action", "store")
 
@@ -528,7 +553,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return self.action.__name__
 
     @property
-    def custom_arg_options(self) -> Dict[str, Any]:
+    def custom_arg_options(self) -> dict[str, Any]:
         """Custom argparse options that overwrite those in `arg_options`.
 
         Can be set by using the `field` function, passing in a keyword argument
@@ -538,11 +563,11 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return self.field.metadata.get("custom_args", {})
 
     @property
-    def destinations(self) -> List[str]:
+    def destinations(self) -> list[str]:
         return [f"{parent_dest}.{self.name}" for parent_dest in self.parent.destinations]
 
     @property
-    def option_strings(self) -> List[str]:
+    def option_strings(self) -> list[str]:
         """Generates the `option_strings` argument to the `add_argument` call.
 
         `parser.add_argument(*name_or_flags, **arg_options)`
@@ -561,10 +586,10 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
         """
 
-        dashes: List[str] = []  # contains the leading dashes.
-        options: List[str] = []  # contains the name following the dashes.
+        dashes: list[str] = []  # contains the leading dashes.
+        options: list[str] = []  # contains the name following the dashes.
 
-        def add_args(dash: str, candidates: List[str]) -> None:
+        def add_args(dash: str, candidates: list[str]) -> None:
             for candidate in candidates:
                 options.append(candidate)
                 dashes.append(dash)
@@ -638,7 +663,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     #     return self._prefix
 
     @property
-    def aliases(self) -> List[str]:
+    def aliases(self) -> list[str]:
         return self.field.metadata.get("alias", [])
 
     @property
@@ -657,7 +682,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return self.dest_field is not None
 
     @property
-    def dest_field(self) -> Optional["FieldWrapper"]:
+    def dest_field(self) -> FieldWrapper | None:
         """Return the `FieldWrapper` for which `self` is a proxy (same dest).
         When a `dest` argument is passed to `field()`, and its value is a
         `Field`, that indicates that this Field is just a proxy for another.
@@ -670,7 +695,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             return self._dest_field
         custom_dest = self.custom_arg_options.get("dest")
         if isinstance(custom_dest, dataclasses.Field):
-            all_fields: List[FieldWrapper] = []
+            all_fields: list[FieldWrapper] = []
             for parent in self.lineage():
                 all_fields.extend(parent.fields)  # type: ignore
             for other_wrapper in all_fields:
@@ -698,59 +723,87 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         2. the value of the corresponding attribute on the parent,
         if it has a default value
         """
+
         if self._default is not None:
-            return self._default
+            # If a default value was set manually from the outside (e.g. from the DataclassWrapper)
+            # then use that value.
+            default = self._default
+        elif self.is_subgroup:
+            default = self.subgroup_default
+        elif any(
+            parent_default not in (None, argparse.SUPPRESS)
+            for parent_default in self.parent.defaults
+        ):
+            # if the dataclass with this field has a default value - either when a value was
+            # passed for the `default` argument of `add_arguments` or when the parent is a nested
+            # dataclass field with a default factory - we use the corresponding attribute on that
+            # default instance.
+            def _get_value(dataclass_default: utils.Dataclass | dict, name: str) -> Any:
+                if isinstance(dataclass_default, dict):
+                    return dataclass_default.get(name)
+                return getattr(dataclass_default, name)
 
-        default: Any = utils.default_value(self.field)
-
-        if default is dataclasses.MISSING:
+            defaults = [
+                _get_value(parent_default, self.field.name)
+                for parent_default in self.parent.defaults
+                if parent_default not in (None, argparse.SUPPRESS)
+            ]
+            if len(self.parent.defaults) == 1:
+                default = defaults[0]
+            else:
+                default = defaults
+        # Try to get the default from the field, if possible.
+        elif self.field.default is not dataclasses.MISSING:
+            default = self.field.default
+        elif self.field.default_factory is not dataclasses.MISSING:
+            # Use the _default attribute to keep the result, so we can avoid calling the default
+            # factory another time.
+            # TODO: If the default factory is a function that returns None, it will still get
+            # called multiple times. We need to set a sentinel value as the initial value of the
+            # self._default attribute, so that we can correctly check whether we've already called
+            # the default_factory before.
+            if self._default is None:
+                self._default = self.field.default_factory()
+            default = self._default
+        # field doesn't have a default value set.
+        elif self.action == "store_true":
+            default = False
+        elif self.action == "store_false":
+            # NOTE: The boolean parsing when default is `True` is really un-intuitive, and should
+            # change in the future. See https://github.com/lebrice/SimpleParsing/issues/68
+            default = True
+        else:
             default = None
 
-        if self.action == "store_true" and default is None:
-            default = False
-        if self.action == "store_false" and default is None:
-            default = True
-
-        if self.parent.defaults:
-            # if the dataclass holding this field has a default value (either
-            # when passed  manually or by nesting), use the corresponding
-            # attribute on that default instance.
-
-            # TODO: When that default value is 'None' (even for a dataclass),
-            # then we need to.. ?
-
-            defaults = []
-            for default_dataclass_instance in self.parent.defaults:
-                if default_dataclass_instance in (None, argparse.SUPPRESS):
-                    default_value = default
-                elif isinstance(default_dataclass_instance, dict):
-                    default_value = default_dataclass_instance.get(self.name, default)
-                else:
-                    default_value = getattr(default_dataclass_instance, self.name)
-                defaults.append(default_value)
-            default = defaults[0] if len(defaults) == 1 else defaults
-
+        # If this field is being reused, then we package up the `default` in a list.
+        # TODO: Get rid of this. makes the code way uglier for no good reason.
         if self.is_reused and default is not None:
             n_destinations = len(self.destinations)
             assert n_destinations >= 1
-            if not isinstance(default, list) or len(default) != n_destinations:
+            # BUG: This second part (the `or` part) is weird. Probably only applies when using
+            # Lists of lists with the Reuse option, which is most likely not even supported..
+            if utils.is_tuple_or_list(self.field.type) and len(default) != n_destinations:
+                # The field is of a list type field,
+                default = [default] * n_destinations
+            elif not isinstance(default, list):
                 default = [default] * n_destinations
             assert len(default) == n_destinations, (
                 f"Not the same number of default values and destinations. "
                 f"(default: {default}, # of destinations: {n_destinations})"
             )
 
-        self._default = default
-        return self._default
+        return default
 
-    @default.setter
-    def default(self, value: Any):
+    def set_default(self, value: Any):
+        logger.debug(f"The field {self.name} has its default manually set to a value of {value}.")
         self._default = value
 
     @property
     def required(self) -> bool:
         if self._required is not None:
             return self._required
+        if self.is_subgroup:
+            return self.subgroup_default in (None, dataclasses.MISSING)
         if self.action_str.startswith("store_"):
             # all the store_* actions do not require a value.
             return False
@@ -777,7 +830,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         self._required = value
 
     @property
-    def type(self) -> Type[Any]:
+    def type(self) -> type[Any]:
         """Returns the wrapped field's type annotation."""
         # TODO: Refactor this. Really ugly.
         if self._type is None:
@@ -793,6 +846,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
                 field_type = get_field_type_from_annotations(self.parent.dataclass, self.field.name)
                 self._type = field_type
+            elif isinstance(self._type, dataclasses.InitVar):
+                self._type = self._type.type
         return self._type
 
     def __str__(self):
@@ -803,10 +858,13 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return self.choices is not None
 
     @property
-    def choices(self) -> Optional[List]:
+    def choices(self) -> list | None:
         """The list of possible values that can be passed on the command-line for this field, or None."""
+
         if "choices" in self.custom_arg_options:
             return self.custom_arg_options["choices"]
+        if "choices" in self.field.metadata:
+            return list(self.field.metadata["choices"])
         if "choice_dict" in self.field.metadata:
             return list(self.field.metadata["choice_dict"].keys())
         if utils.is_literal(self.type):
@@ -818,7 +876,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return None
 
     @property
-    def choice_dict(self) -> Optional[Dict[str, Any]]:
+    def choice_dict(self) -> dict[str, Any] | None:
         if "choice_dict" in self.field.metadata:
             return self.field.metadata["choice_dict"]
         if utils.is_literal(self.type):
@@ -830,23 +888,22 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return None
 
     @property
-    def help(self) -> Optional[str]:
+    def help(self) -> str | None:
         if self._help:
             return self._help
-        try:
-            self._docstring = docstring.get_attribute_docstring(
-                self.parent.dataclass, self.field.name
-            )
-        except (SystemExit, Exception) as e:
-            logger.debug(f"Couldn't find attribute docstring for field {self.name}, {e}")
-            self._docstring = docstring.AttributeDocString()
+        if self.field.metadata.get("help"):
+            return self.field.metadata.get("help")
 
-        if self._docstring.docstring_below:
-            self._help = self._docstring.docstring_below
-        elif self._docstring.comment_above:
-            self._help = self._docstring.comment_above
-        elif self._docstring.comment_inline:
-            self._help = self._docstring.comment_inline
+        self._help = (
+            self._docstring.docstring_below
+            or self._docstring.comment_above
+            or self._docstring.comment_inline
+            or self._docstring.desc_from_cls_docstring
+        )
+        # NOTE: Need to make sure this doesn't interfere with the default value added to the help
+        # string.
+        if self._help == "":
+            self._help = None
         return self._help
 
     @help.setter
@@ -854,7 +911,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         self._help = value
 
     @property
-    def metavar(self) -> Optional[str]:
+    def metavar(self) -> str | None:
         """Returns the 'metavar' when set using one of the `field` functions,
         else None.
         """
@@ -904,21 +961,27 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return "subgroups" in self.field.metadata
 
     @property
-    def subgroup_choices(self) -> Dict[str, Type]:
+    def subgroup_choices(self) -> dict[str, type]:
         if not self.is_subgroup:
             raise RuntimeError(f"Field {self.field} doesn't have subgroups! ")
         return self.field.metadata["subgroups"]
 
     @property
-    def type_arguments(self) -> Optional[Tuple[Type, ...]]:
+    def subgroup_default(self) -> Hashable | Literal[dataclasses.MISSING] | None:
+        if not self.is_subgroup:
+            raise RuntimeError(f"Field {self.field} doesn't have subgroups! ")
+        return self.field.metadata.get("subgroup_default")
+
+    @property
+    def type_arguments(self) -> tuple[type, ...] | None:
         return utils.get_type_arguments(self.type)
 
     @property
-    def parent(self) -> "DataclassWrapper":
+    def parent(self) -> DataclassWrapper:
         return self._parent
 
     @property
-    def subparsers_dict(self) -> Optional[Dict[str, Type]]:
+    def subparsers_dict(self) -> dict[str, type] | None:
         """The dict of subparsers, which is created either when using a
         Union[<dataclass_1>, <dataclass_2>] type annotation, or when using the
         `subparsers()` function.
@@ -927,13 +990,13 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
             return self.field.metadata["subparsers"]
         elif self.is_union:
             type_arguments = utils.get_type_arguments(self.field.type)
-            if type_arguments and any(map(utils.is_dataclass_type, type_arguments)):
+            if type_arguments and any(map(utils.is_dataclass_type_or_typevar, type_arguments)):
                 return {
                     utils.get_type_name(dataclass_type).lower(): dataclass_type
                     for dataclass_type in type_arguments
                 }
 
-    def add_subparsers(self, parser: "ArgumentParser"):
+    def add_subparsers(self, parser: ArgumentParser):
         assert self.is_subparser
 
         # add subparsers for each dataclass type in the field.
@@ -975,7 +1038,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         return f"group.add_argument(*{self.option_strings}, **{arg_options_string})"
 
 
-def only_keep_action_args(options: Dict[str, Any], action: Union[str, Any]) -> Dict[str, Any]:
+def only_keep_action_args(options: dict[str, Any], action: str | Any) -> dict[str, Any]:
     """Remove all the arguments in `options` that aren't required by the Action.
 
     Parameters
@@ -992,7 +1055,7 @@ def only_keep_action_args(options: Dict[str, Any], action: Union[str, Any]) -> D
         [description]
     """
     # TODO: explicitly test these custom actions?
-    argparse_action_classes: Dict[str, Type[argparse.Action]] = {
+    argparse_action_classes: dict[str, type[argparse.Action]] = {
         "store": argparse._StoreAction,
         "store_const": argparse._StoreConstAction,
         "store_true": argparse._StoreTrueAction,

@@ -50,6 +50,16 @@ Options ['options']:
                         Help string for a float argument (default: 0.0001)
 ```
 
+### (*new*) Simplified API:
+
+For a simple use-case, where you only want to parse a single dataclass, you can use the `simple_parsing.parse` or `simple_parsing.parse_known_args` functions:
+
+```python
+options: Options = simple_parsing.parse(Options)
+# or:
+options, leftover_args = simple_parsing.parse_known_args(Options)
+```
+
 
 ## installation
 
@@ -95,6 +105,10 @@ Options ['options']:
 
     It's easy to choose between different argument groups of arguments, with the `subgroups`
     function!
+
+- ### [Setting defaults from Configuration files](https://github.com/lebrice/SimpleParsing/tree/master/examples/config_files/README.md)
+
+    Default values for command-line arguments can easily be read from many different formats, including json/yaml!
 
 - ### [**Easy serialization**](https://github.com/lebrice/SimpleParsing/tree/master/examples/serialization/README.md):
 
