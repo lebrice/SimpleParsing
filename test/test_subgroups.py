@@ -351,10 +351,51 @@ def test_all_subgroups_are_in_help_string():
 def test_typing_of_subgroups_function() -> None:
     """TODO: There should be a typing errors here. Could we check for it programmatically?"""
     # note: This should raise an error with the type checker:
-    # noqa: F841
     bob: A = subgroups({"a": A, "b": B})  # noqa: F841
     # reveal_type(bob)
 
     with pytest.raises(ValueError):
         other: A | B = subgroups({"a": A, "b": B}, default_factory=C)  # noqa: F841
     # reveal_type(other)
+
+
+@dataclass
+class ModelConfig:
+    ...
+
+
+@dataclass
+class ModelAConfig(ModelConfig):
+    lr: float = 3e-4
+    optimizer: str = "Adam"
+    betas: tuple[float, float] = (0.9, 0.999)
+
+
+@dataclass
+class ModelBConfig(ModelConfig):
+    lr: float = 1e-3
+    optimizer: str = "SGD"
+    momentum: float = 1.234
+
+
+@dataclass
+class Config:
+
+    # Which model to use
+    model: ModelConfig = subgroups(
+        {"model_a": ModelAConfig, "model_b": ModelBConfig},
+        default_factory=ModelAConfig,
+    )
+
+
+def test_destination_substring_of_other_destination_issue191():
+    """Test for https://github.com/lebrice/SimpleParsing/issues/191"""
+
+    parser = ArgumentParser()
+    parser.add_arguments(Config, dest="config")
+    parser.add_arguments(Config, dest="config2")  # this produces and exception
+    # parser.add_arguments(Config, dest="something") # this works as expected
+    args = parser.parse_args("")
+
+    config: Config = args.config
+    assert config.model == ModelAConfig()
