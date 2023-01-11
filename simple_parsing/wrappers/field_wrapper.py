@@ -379,7 +379,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
         elif utils.is_bool(self.type):
             _arg_options["action"] = _BooleanOptionalAction
-            _arg_options["metavar"] = "[bool]"
         else:
             # "Plain" / simple argument.
             # For the metavar, use a custom passed value, if present, else do
@@ -1135,7 +1134,11 @@ class _BooleanOptionalAction(argparse.Action):
             choices=choices,
             required=required,
             help=help,
-            metavar=metavar,
+            # TODO: Ideally, this should be depend on `nargs`:
+            # '?': `--a [bool]`
+            # 1: `--a bool` 
+            # '+': `--a bool [bool ...]`
+            metavar=metavar or "[bool]",
         )
 
     def __call__(
