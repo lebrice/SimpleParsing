@@ -381,6 +381,34 @@ def test_subgroups_with_functions():
     assert Foo.setup("--a_or_b make_b --b foo") == Foo(a_or_b=B(b="foo"))
 
 
+def test_subgroup_functions_receive_all_fields():
+    """TODO: Decide how we want to go about this.
+    Either the functions receive all the fields (the default values), or only the ones that are set
+    (harder to implement).
+    """
+
+    @dataclass
+    class Obj:
+        a: float = 0.0
+        b: str = "default from field"
+
+    def make_obj(**kwargs) -> Obj:
+        assert kwargs == {"a": 0.0, "b": "foo"}  # first case: receives all fields
+        assert kwargs == {"b": "foo"}  # second case: receive only set fields.
+        return Obj(**kwargs)
+
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: Obj = subgroups(
+            {
+                "make_obj": make_obj,
+            },
+            default_factory=make_obj,
+        )
+
+    Foo.setup("--a_or_b make_obj --b foo")
+
+
 lambdas_arent_supported_yet = functools.partial(
     pytest.param,
     marks=pytest.mark.xfail(
