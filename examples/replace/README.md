@@ -1,19 +1,22 @@
 # The extended `replace` for simple-parsing
 
-The replace function of the dataclasses module has the signature  of [`Dataclasses.replace(obj, /, **changes)`](https://docs.python.org/3/library/dataclasses.html#dataclasses.replace):
+The replace function of the dataclasses module has the signature of [`Dataclasses.replace(obj, /, **changes)`](https://docs.python.org/3/library/dataclasses.html#dataclasses.replace):
 - it creates a new object of the same type as `obj`, replacing fields with values from changes.
 - If obj is not a Data Class, raises TypeError. If values in changes do not specify fields, raises TypeError.
 
 However, the `Dataclass.replace` doesn't work with nested dataclasses, subgroups, and other features in `simple-parsing`. To solve this, the `simple_parsing.replace` should be supplemented as an extension to `dataclasses.replace`.
 
-# Parameters
+# The signature of `simple_parsing.replace`
+```def replace(obj: object, changes: Dict[str, Any]):```
 - obj: object
+
     If obj is not a dataclass instance, raises TypeError
 
 - changes: Dict[str, Any]
 
     The dictionary can be nested or flatten structure which is especially useful for frozen classes.
 
+# A Basic example
 ```python
 @dataclass
 class InnerClass:
