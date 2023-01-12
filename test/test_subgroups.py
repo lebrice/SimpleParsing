@@ -378,7 +378,7 @@ def test_subgroups_with_functions():
 
     assert Foo.setup("--a_or_b make_b") == Foo(a_or_b=B(b="default from make_b"))
     assert Foo.setup("--a_or_b make_b") == Foo(a_or_b=B(b="default from make_b"))
-    assert Foo.setup("--a_or_b make_b --b foo") == Foo(a_or_b=B(b="foo from make_b"))
+    assert Foo.setup("--a_or_b make_b --b foo") == Foo(a_or_b=B(b="foo"))
 
 
 lambdas_arent_supported_yet = functools.partial(
