@@ -2,10 +2,10 @@ from collections.abc import MutableMapping
 from typing import Any, Dict
 
 from . import ArgumentGenerationMode
-from .parsing import parse
+from .parsing import Dataclass, parse
 
 
-def flatten(d, parent_key="", sep="."):
+def flatten(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
     items = []
     for k, v in d.items():
         new_key = parent_key + sep + k if parent_key else k
@@ -16,7 +16,7 @@ def flatten(d, parent_key="", sep="."):
     return dict(items)
 
 
-def replace(obj: object, changes: Dict[str, Any]):
+def replace(obj: object, changes: Dict[str, Any]) -> Dataclass:
     """Return a new object replacing specified fields with new values.
 
     Parameters
