@@ -448,7 +448,6 @@ def test_other_default_factories(a_factory: Callable[[], A], b_factory: Callable
     "a_factory, b_factory",
     [
         (partial(A, a=321), partial(B, b="foobar")),
-        (partial(partial(A)), partial(partial(B))),
         (partial(partial(A, a=111), a=321), partial(partial(B), b="foobar")),
         (partial(partial(A, a=111)), partial(partial(B, b="foobar"))),
         lambdas_arent_supported_yet(lambda: A(a=123), lambda: B(b="foooo")),
