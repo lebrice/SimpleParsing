@@ -22,3 +22,5 @@
 - [Enums Example](enums/README.md)
 
 - [Subparsers Example](subparsers/README.md)
+
+- [Replace](replace/README.md)
