@@ -6,6 +6,34 @@ The replace function of the dataclasses module has the signature  of [`Dataclass
 
 However, the `Dataclass.replace` doesn't work with nested dataclasses, subgroups, and other features in `simple-parsing`. To solve this, the `simple_parsing.replace` should be supplemented as an extension to `dataclasses.replace`.
 
+# Parameters
+- obj: object
+    If obj is not a dataclass instance, raises TypeError
+
+- changes: Dict[str, Any]
+
+    The dictionary can be nested or flatten structure which is especially useful for frozen classes.
+
+```python
+@dataclass
+class InnerClass:
+    arg1: int = 0
+    arg2: str = "foo"
+
+@dataclass(frozen=True)
+class OuterClass:
+    outarg: int = 1
+    nested: InnerClass = InnerClass()
+
+changes_1 = {"outarg": 2, "nested.arg1": 1, "nested.arg2": "bar"}
+changes_2 = {"outarg": 2, "nested": {"arg1": 1, "arg2": "bar"}}
+c = OuterClass()
+c1 = replace(c, changes_1)
+c2 = replace(c, changes_2)
+assert c1 == c2
+```
+
+# A more complicated example
 ```python
 from __future__ import annotations
 from dataclasses import dataclass, field
@@ -47,8 +75,10 @@ new_config = sp.replace(
         'a_or_b': 'b',
         'a_or_b.b': 'test',
         'integer_in_string': '2',
-        'nested.str_arg': 'in_nested',
-        'nested.int_arg': 100,
+        "nested": {
+            "str_arg": "in_nested",
+            "int_arg": 100,
+        }
     }
 )
 
@@ -59,4 +89,5 @@ assert new_config.integer_only_by_post_init == 2
 assert new_config.nested.str_arg == 'in_nested'
 assert new_config.nested.int_arg == 100
 assert id(config) != id(new_config)
+
 ```

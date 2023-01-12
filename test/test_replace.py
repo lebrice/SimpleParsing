@@ -47,6 +47,19 @@ class CD(TestSetup):
     other_arg: str = "bob"
 
 
+@dataclass
+class NestedDataclasses:
+    nested_arg: str = "nested_arg"
+    arg1: int = 0
+    arg2: float = 0.0
+
+
+@dataclass
+class OuterDataclass(TestSetup):
+    some_arg: str = "some_arg"
+    nested: NestedDataclasses = NestedDataclasses()
+
+
 @pytest.mark.parametrize(
     ("config_cls", "args", "changes"),
     [
@@ -72,6 +85,16 @@ class CD(TestSetup):
             {},
             marks=pytest.mark.xfail(reason="Raise TypeError if obj is not dataclass instances"),
         ),
+        (
+            OuterDataclass,
+            "--some_arg some_arg_1 --nested_arg nested_arg_1",
+            {"some_arg": "some_arg_1", "nested.nested_arg": "nested_arg_1"},
+        ),
+        (
+            OuterDataclass,
+            "--nested_arg nested_arg_2 --arg1 1 --arg2 2.0",
+            {"nested": {"nested_arg": "nested_arg_2", "arg1": 1, "arg2": 2.0}},
+        ),
     ],
 )
 def test_replace_nested_dataclasses(config_cls: type, args: str, changes: dict):
@@ -79,3 +102,25 @@ def test_replace_nested_dataclasses(config_cls: type, args: str, changes: dict):
     config_replaced = sp.replace(config, changes)
     assert config.setup(args) == config_replaced
     assert id(config) != id(config_replaced)
+
+
+@dataclass
+class InnerClass:
+    arg1: int = 0
+    arg2: str = "foo"
+
+
+@dataclass(frozen=True)
+class OuterClass:
+    outarg: int = 1
+    nested: InnerClass = InnerClass()
+
+
+def test_replace_nested_dictionary():
+    changes_1 = {"outarg": 2, "nested.arg1": 1, "nested.arg2": "bar"}
+    changes_2 = {"outarg": 2, "nested": {"arg1": 1, "arg2": "bar"}}
+    c = OuterClass()
+    c1 = sp.replace(c, changes_1)
+    c2 = sp.replace(c, changes_2)
+    assert c1 == c2
+    assert id(c1) != id(c2)

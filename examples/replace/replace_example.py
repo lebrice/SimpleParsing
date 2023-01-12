@@ -7,6 +7,26 @@ from simple_parsing import subgroups
 
 
 @dataclass
+class InnerClass:
+    arg1: int = 0
+    arg2: str = "foo"
+
+
+@dataclass(frozen=True)
+class OuterClass:
+    outarg: int = 1
+    nested: InnerClass = InnerClass()
+
+
+changes_1 = {"outarg": 2, "nested.arg1": 1, "nested.arg2": "bar"}
+changes_2 = {"outarg": 2, "nested": {"arg1": 1, "arg2": "bar"}}
+c = OuterClass()
+c1 = sp.replace(c, changes_1)
+c2 = sp.replace(c, changes_2)
+assert c1 == c2
+
+
+@dataclass
 class A:
     a: float = 0.0
 
@@ -40,8 +60,10 @@ new_config = sp.replace(
         "a_or_b": "b",
         "a_or_b.b": "test",
         "integer_in_string": "2",
-        "nested.str_arg": "in_nested",
-        "nested.int_arg": 100,
+        "nested": {
+            "str_arg": "in_nested",
+            "int_arg": 100,
+        },
     },
 )
 

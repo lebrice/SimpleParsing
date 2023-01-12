@@ -1,7 +1,19 @@
+from collections.abc import MutableMapping
 from typing import Any, Dict
 
 from . import ArgumentGenerationMode
 from .parsing import parse
+
+
+def flatten(d, parent_key="", sep="."):
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, MutableMapping):
+            items.extend(flatten(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
 
 def replace(obj: object, changes: Dict[str, Any]):
@@ -14,6 +26,25 @@ def replace(obj: object, changes: Dict[str, Any]):
         If obj is not a dataclass instance, raises TypeError
 
     - changes: Dict[str, Any]
+
+        The dictionary can be nested or flatten structure which is especially useful for frozen classes. Example usage::
+
+        @dataclass
+        class InnerClass:
+            arg1: int = 0
+            arg2: str = "foo"
+
+        @dataclass(frozen=True)
+        class OuterClass:
+            outarg: int = 1
+            nested: InnerClass = InnerClass()
+
+        changes_1 = {"outarg": 2, "nested.arg1": 1, "nested.arg2": "bar"}
+        changes_2 = {"outarg": 2, "nested": {"arg1": 1, "arg2": "bar"}}
+        c = OuterClass()
+        c1 = replace(c, changes_1)
+        c2 = replace(c, changes_2)
+        assert c1 == c2
     """
 
     _FIELDS = "__dataclass_fields__"
@@ -21,8 +52,10 @@ def replace(obj: object, changes: Dict[str, Any]):
     if not hasattr(type(obj), _FIELDS):
         raise TypeError("replace() should be called on dataclass instances")
 
+    flatten_changes = flatten(changes)
+    print(flatten_changes)
     args = []
-    for k, v in changes.items():
+    for k, v in flatten_changes.items():
         args.extend([f"--{k}", str(v)])
 
     return parse(
