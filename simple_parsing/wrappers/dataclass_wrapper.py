@@ -108,7 +108,7 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
             elif isinstance(default, dict):
                 if field.name in default:
                     field_default = default[field.name]
-            elif default is not None:
+            elif default not in (None, argparse.SUPPRESS):
                 field_default = getattr(default, field.name)
 
             if utils.is_tuple_or_list_of_dataclasses(field_type):
