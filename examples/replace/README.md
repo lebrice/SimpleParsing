@@ -12,18 +12,22 @@ from dataclasses import dataclass, field
 from simple_parsing import subgroups
 import simple_parsing as sp
 
+
 @dataclass
 class A:
     a: float = 0.0
+
 
 @dataclass
 class B:
     b: str = "bar"
 
+
 @dataclass
 class NestedConfig:
-    nested_str: str = 'in_nested'
-    nested_int: int = 0
+    str_arg: str = 'default'
+    int_arg: int = 0
+
 
 @dataclass
 class AB:
@@ -34,18 +38,25 @@ class AB:
 
     def __post_init__(self):
         self.integer_only_by_post_init = int(self.integer_in_string)
-        
-config = AB(a_or_b='a')
+
+
+config = AB()
 new_config = sp.replace(
-    config, 
+    config,
     {
         'a_or_b': 'b',
         'a_or_b.b': 'test',
-        'integer_in_string': 2,
-        'nested.nested_str'
+        'integer_in_string': '2',
+        'nested.str_arg': 'in_nested',
+        'nested.int_arg': 100,
     }
 )
 
-assert config == new_config
+
+assert new_config.a_or_b.b == 'test'
+assert new_config.integer_in_string == '2'
+assert new_config.integer_only_by_post_init == 2
+assert new_config.nested.str_arg == 'in_nested'
+assert new_config.nested.int_arg == 100
 assert id(config) != id(new_config)
 ```

@@ -10,20 +10,24 @@ def replace(obj: object, changes: Dict[str, Any]):
     Parameters
     ----------
     - obj: object
-    
+
         If obj is not a dataclass instance, raises TypeError
 
     - changes: Dict[str, Any]
     """
 
-    _FIELDS = '__dataclass_fields__'
+    _FIELDS = "__dataclass_fields__"
 
     if not hasattr(type(obj), _FIELDS):
         raise TypeError("replace() should be called on dataclass instances")
 
     args = []
     for k, v in changes.items():
-        args.extend([f'--{k}', str(v)])
+        args.extend([f"--{k}", str(v)])
 
-    return parse(obj.__class__, args=args, default=obj,
-                 argument_generation_mode=ArgumentGenerationMode.NESTED)
+    return parse(
+        obj.__class__,
+        args=args,
+        default=obj,
+        argument_generation_mode=ArgumentGenerationMode.NESTED,
+    )
