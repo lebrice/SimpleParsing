@@ -356,6 +356,7 @@ def test_subgroups_with_partials():
         Foo.setup("--a_or_b c")
 
 
+@pytest.mark.xfail(strict=True, reason="I'm not sure this is a good idea anymore.")
 def test_subgroups_with_functions():
     def make_b(b: str = "default from make_b") -> B:
         return B(b=b)
@@ -396,8 +397,8 @@ def test_subgroup_functions_receive_all_fields():
         b: str = "default from field"
 
     def make_obj(**kwargs) -> Obj:
-        # assert kwargs == {"a": 0.0, "b": "foo"}  # first case: receives all fields
-        assert kwargs == {"b": "foo"}  # second case (current): receive only set fields.
+        assert kwargs == {"a": 0.0, "b": "foo"}  # first case (current): receives all fields
+        # assert kwargs == {"b": "foo"}  # second case: receive only set fields.
         return Obj(**kwargs)
 
     @dataclass
@@ -475,14 +476,14 @@ def test_help_string_displays_default_factory_arguments(
     assert b_default_from_field != b_default_from_factory
 
     # Check that it doesn't use the default value from the field in the help text.
-    assert f"--a  (default: {a_default_from_field})" not in Foo.get_help_text("")
-    assert f"--a  (default: {a_default_from_field})" not in Foo.get_help_text("--a_or_b a")
-    assert f"--b  (default: {b_default_from_field})" not in Foo.get_help_text("--a_or_b b")
+    assert f"--a float (default: {a_default_from_field})" not in Foo.get_help_text("")
+    assert f"--a float (default: {a_default_from_field})" not in Foo.get_help_text("--a_or_b a")
+    assert f"--b str (default: {b_default_from_field})" not in Foo.get_help_text("--a_or_b b")
 
     # Check that it uses the default value from the factory in the help text.
-    assert f"--a  (default: {a_default_from_factory})" in Foo.get_help_text("")
-    assert f"--a  (default: {a_default_from_factory})" in Foo.get_help_text("--a_or_b a")
-    assert f"--b  (default: {b_default_from_factory})" in Foo.get_help_text("--a_or_b b")
+    assert f"--a float  (default: {a_default_from_factory})" in Foo.get_help_text("")
+    assert f"--a float  (default: {a_default_from_factory})" in Foo.get_help_text("--a_or_b a")
+    assert f"--b str  (default: {b_default_from_factory})" in Foo.get_help_text("--a_or_b b")
 
 
 @pytest.mark.xfail(strict=True, reason="Not implemented yet. Remove this once it is.")

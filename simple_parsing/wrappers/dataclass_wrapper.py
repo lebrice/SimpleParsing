@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import functools
 import inspect
 import sys
 import textwrap
@@ -65,7 +66,6 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
         self._defaults: list[DataclassT] = [default] if default else []
 
         dataclass_fields: tuple[dataclasses.Field, ...] = _get_dataclass_fields(dataclass)
-
         # Create an object for each field, which is used to compute (and hold) the arguments that
         # will then be passed to `argument_group.add_argument` later.
         # This could eventually be refactored into a stateless thing. But for now it isn't.
@@ -87,38 +87,76 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
             else:
                 field_type = field.type
 
-            if utils.is_subparser_field(field) or utils.is_choice(field):
-                wrapper = self.field_wrapper_class(field, parent=self, prefix=prefix)
-                self.fields.append(wrapper)
+            # Manually overwrite the field default value with the corresponding attribute of the
+            # default for the parent.
+            field_default = dataclasses.MISSING
+            if isinstance(dataclass_fn, functools.partial) and field.name in dataclass_fn.keywords:
+                # NOTE: We need to override the default value of the field, because since the
+                # dataclass_fn is a partial, and we always set the defaults for all fields in the
+                # constructor arguments dict, those would be passed to the partial, and the value
+                # for that argument in the partial (e.g. `dataclass_fn = partial(A, a=123)`) would
+                # be unused when we call `dataclass_fn(**constructor_args[dataclass_dest])` later.
+                field_default = dataclass_fn.keywords[field.name]
+                # TODO: This is currently only really necessary in the case where the dataclass_fn
+                # is a `functools.partial` (e.g. when using subgroups). But the idea of specifying
+                # the default value and passing it here to the wrapper, rather than have the
+                # wrappers "fetch" it from their field or their parent, makes sense!
+                logger.debug(
+                    f"Got a default value of {field_default} for field {field.name} from "
+                    f"inspecting the dataclass function! ({dataclass_fn})"
+                )
+            elif isinstance(default, dict) and field.name in default:
+                field_default = default[field.name]
+            elif default is not None:
+                field_default = getattr(default, field.name)
 
-            elif utils.is_tuple_or_list_of_dataclasses(field_type):
+            if utils.is_tuple_or_list_of_dataclasses(field_type):
                 raise NotImplementedError(
                     f"Field {field.name} is of type {field_type}, which isn't "
                     f"supported yet. (container of a dataclass type)"
                 )
 
+            if utils.is_subparser_field(field) or utils.is_choice(field):
+                field_wrapper = self.field_wrapper_class(
+                    field,
+                    parent=self,
+                    prefix=prefix,
+                )
+                if field_default is not dataclasses.MISSING:
+                    field_wrapper.set_default(field_default)
+
+                self.fields.append(field_wrapper)
+
             elif dataclasses.is_dataclass(field_type) and field.default is not None:
+                # Non-optional dataclass field.
                 # handle a nested dataclass attribute
                 dataclass, name = field_type, field.name
-                nested_dataclass_default_value = getattr(default, field.name, None)
+                # todo: Figure out if this is still necessary, or if `field_default` can be handled
+                # the same way as above.
+                if field_default is dataclasses.MISSING:
+                    field_default = None
                 child_wrapper = DataclassWrapper(
                     dataclass,
                     name,
                     parent=self,
                     _field=field,
-                    default=nested_dataclass_default_value,
+                    default=field_default,
                 )
                 self._children.append(child_wrapper)
 
             elif utils.contains_dataclass_type_arg(field_type):
+                # Extract the dataclass type from the annotation of the field.
                 field_dataclass = utils.get_dataclass_type_arg(field_type)
-                nested_dataclass_default_value = getattr(default, field.name, None)
+                # todo: Figure out if this is still necessary, or if `field_default` can be handled
+                # the same way as above.
+                if field_default is dataclasses.MISSING:
+                    field_default = None
                 child_wrapper = DataclassWrapper(
                     field_dataclass,
                     name=field.name,
                     parent=self,
                     _field=field,
-                    default=nested_dataclass_default_value,
+                    default=field_default,
                 )
                 child_wrapper.required = False
                 child_wrapper.optional = True
@@ -130,6 +168,9 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                 logger.debug(
                     f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.default}"
                 )
+                if field_default is not dataclasses.MISSING:
+                    field_wrapper.set_default(field_default)
+
                 self.fields.append(field_wrapper)
 
         logger.debug(f"The dataclass at attribute {self.dest} has default values: {self.defaults}")

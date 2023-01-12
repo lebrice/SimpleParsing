@@ -98,20 +98,6 @@ def subgroups(
     if default is not MISSING and default not in subgroups:
         raise ValueError("default must be a key in the subgroups dict!")
 
-    metadata = kwargs.pop("metadata", {})
-    metadata["subgroups"] = subgroups
-    metadata["subgroup_default"] = default
-
-    for value in subgroups.values():
-        if is_lambda(value):
-            raise NotImplementedError(
-                f"Lambda expressions like {value!r} can't currently be used as subgroup values, "
-                "since we're unable to inspect which dataclass they return without invoking "
-                "them.\n"
-                "If you want to choose between different versions of a dataclass where arguments "
-                "change between subgroups, consider using a `functools.partial` instead. "
-            )
-
     if default_factory is not MISSING and default_factory not in list(subgroups.values()):
         # NOTE: This is because we need to have a "default key" to associate with the
         # default_factory (and we set that as the default value for the argument of this field).
@@ -122,34 +108,51 @@ def subgroups(
     # good way to allow lambda expressions as default factories yet. Perhaps I'm
     # overcomplicating things and it's actually very simple to do. I'll have to think about it.
 
+    metadata = kwargs.pop("metadata", {})
+    metadata["subgroups"] = subgroups
+    metadata["subgroup_default"] = default
+    metadata["subgroup_dataclass_types"] = {}
+
+    subgroup_dataclass_types: dict[Key, type[Dataclass]] = {}
     choices = subgroups.keys()
 
     # NOTE: Perhaps we could raise a warning if the default_factory is a Lambda, since we have to
     # instantiate that value in order to inspect the attributes and its values..
 
-    # FIXME: Still playing around with this a little bit. Need to get the right frame where the
-    # subgroups are set.
+    # NOTE: This needs to be the right frame where the subgroups are set.
     caller_frame = inspect.currentframe().f_back
-
-    subgroup_dataclasses = {}
-
     for subgroup_key, subgroup_value in subgroups.items():
-        try:
-            dataclass_type = _get_dataclass_type_from_callable(
-                subgroup_value, caller_frame=caller_frame
-            )
-            subgroup_dataclasses[subgroup_key] = dataclass_type
-        except Exception as exc:
+        if is_lambda(subgroup_value):
             raise NotImplementedError(
-                f"We are unable to figure out the dataclass to use for the selected subgroup "
-                f"{subgroup_key!r}, because the subgroup value is "
-                f"{subgroup_value!r}, and we don't know what type of "
-                f"dataclass it produces without invoking it!\n"
-                "🙏 Please make an issue on GitHub! 🙏\n"
-                f"Exception raised:\n" + str(exc)
-            ) from exc
+                f"Lambda expressions like {subgroup_value!r} can't currently be used as subgroup "
+                "values, since we're unable to inspect which dataclass they return without "
+                "invoking them.\n"
+                "If you want to choose between different versions of a dataclass where arguments "
+                "change between subgroups, consider using a `functools.partial` instead. "
+            )
 
-    metadata["subgroup_dataclass_types"] = subgroup_dataclasses
+        if is_dataclass_type(subgroup_value):
+            # all good! Just use that dataclass.
+            dataclass_type = subgroup_value
+        else:
+            try:
+                dataclass_type = _get_dataclass_type_from_callable(
+                    subgroup_value, caller_frame=caller_frame
+                )
+            except Exception as exc:
+                raise NotImplementedError(
+                    f"We are unable to figure out the dataclass to use for the selected subgroup "
+                    f"{subgroup_key!r}, because the subgroup value is "
+                    f"{subgroup_value!r}, and we don't know what type of "
+                    f"dataclass it produces without invoking it!\n"
+                    "🙏 Please make an issue on GitHub! 🙏\n"
+                    f"Exception raised:\n" + str(exc)
+                ) from exc
+
+        subgroup_dataclass_types[subgroup_key] = dataclass_type
+    metadata["subgroup_dataclass_types"] = subgroup_dataclass_types
+
+    # TODO: Show the default value from the default factory in the help text.
     # default_factory_dataclass = None
     # if default_factory is not MISSING:
     #     default_factory_dataclass = _get_dataclass_type_from_callable(default_factory)
@@ -222,6 +225,8 @@ def _get_dataclass_type_from_callable(
 
             while (
                 caller_frame.f_back is not None
+                # TODO: This will stop if it finds a variable with that name! But what if that
+                # isn't actually a dataclass ?
                 and signature.return_annotation not in caller_frame.f_locals
                 and signature.return_annotation not in caller_frame.f_globals
             ):
