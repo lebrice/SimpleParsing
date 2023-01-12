@@ -601,6 +601,41 @@ def test_destination_substring_of_other_destination_issue191():
     assert config.model == ModelAConfig()
 
 
+def test_subgroup_partial_with_nested_field():
+    """Test the case where a subgroup has a nested dataclass field, and that nested field is an
+    argument to the partial."""
+
+    @dataclass
+    class Obj:
+        a: int = 0
+
+    @dataclass
+    class Foo:
+        obj: Obj = field(default_factory=Obj)
+
+    @dataclass
+    class Config(TestSetup):
+        foo: Foo = subgroups(
+            {
+                "simple": Foo,
+                "default": partial(Foo, obj=Obj(a=123)),  # bad idea!
+            },
+            default="default",
+        )
+
+    first_config = Config()
+    first_object = first_config.foo.obj
+    second_config = Config()
+    # Bad idea! This is reusing the dataclass instance!
+    # TODO: Do we want to explicitly disallow this?
+    assert second_config.foo.obj is first_object
+
+    assert Config.setup("").foo.obj.a == 123
+    assert Config.setup("--foo=default").foo.obj.a == 123
+    assert Config.setup("--foo=simple").foo.obj.a == 0
+    assert "--a int       (default: 123)" in Config.get_help_text()
+
+
 class Model:
     def __init__(self, num_layers: int = 3, hidden_dim: int = 64):
         self.num_layers = num_layers
@@ -634,8 +669,8 @@ def test_annotated_as_subgroups():
     assert SmallModel() == Model()
     assert BigModel() == Model()
 
-    assert Config.setup("--model small").model == SmallModel()
-    assert Config.setup("--model big").model == BigModel()
+    assert Config.setup("--model small").model == Model(num_layers=1, hidden_dim=32)
+    assert Config.setup("--model big").model == Model(num_layers=12, hidden_dim=128)
     assert Config.setup("--num_layers 123").model == Model(num_layers=123, hidden_dim=32)
 
 
