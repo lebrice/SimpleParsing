@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import functools
 import inspect
-import types
+import typing
 from dataclasses import _MISSING_TYPE, MISSING
 from enum import Enum
 from logging import getLogger as get_logger
-from typing import Callable, TypeVar, overload
+from typing import Any, Callable, TypeVar, overload
 
 from simple_parsing.utils import Dataclass, DataclassT, is_dataclass_type
 
@@ -103,10 +103,11 @@ def subgroups(
     metadata["subgroup_default"] = default
 
     for value in subgroups.values():
-        if isinstance(value, types.LambdaType):
+        if is_lambda(value):
             raise NotImplementedError(
-                "Lambda expressions can't currently be used as subgroup values, since we're "
-                "unable to inspect which dataclass they return without invoking them.\n"
+                f"Lambda expressions like {value!r} can't currently be used as subgroup values, "
+                "since we're unable to inspect which dataclass they return without invoking "
+                "them.\n"
                 "If you want to choose between different versions of a dataclass where arguments "
                 "change between subgroups, consider using a `functools.partial` instead. "
             )
@@ -126,18 +127,24 @@ def subgroups(
     # NOTE: Perhaps we could raise a warning if the default_factory is a Lambda, since we have to
     # instantiate that value in order to inspect the attributes and its values..
 
-    # try:
-    #     subgroup_dataclasses = {
-    #         key: _get_dataclass_type_from_callable(value) for key, value in subgroups.items()
-    #     }
-    #     subgroup_dataclass_fns = subgroups.copy()
-    #     # IDEA: These here would be used to update the defaults in the help string.
-    #     subgroup_dataclass_defaults = {}
-    # except Exception as exc:
-    #     raise ValueError(
-    #         "We were unable to figure out the dataclasses to use for each subgroup!\n"
-    #         "Please make an issue on GitHub, and include the following traceback:\n" + str(exc)
-    #     ) from exc
+    caller_frame = inspect.currentframe().f_back
+    subgroup_dataclasses = {}
+
+    for subgroup_key, subgroup_value in subgroups.items():
+        try:
+            dataclass_type = _get_dataclass_type_from_callable(
+                subgroup_value, caller_frame=caller_frame
+            )
+            subgroup_dataclasses[subgroup_key] = dataclass_type
+        except Exception as exc:
+            raise NotImplementedError(
+                f"We are unable to figure out the dataclass to use for the selected subgroup "
+                f"{subgroup_key}, because the subgroup value is "
+                f"{subgroup_value!r}, and we don't know what type of "
+                f"dataclass it produces without invoking it!\n"
+                "🙏 Please make an issue on GitHub! 🙏\n" + str(exc)
+            ) from exc
+
     # default_factory_dataclass = None
     # if default_factory is not MISSING:
     #     default_factory_dataclass = _get_dataclass_type_from_callable(default_factory)
@@ -174,35 +181,58 @@ def subgroups(
     return choice(choices, *args, default=default, default_factory=default_factory, metadata=metadata, **kwargs)  # type: ignore
 
 
-def _get_dataclass_type_from_callable(dataclass_fn: Callable[..., DataclassT]) -> type[DataclassT]:
+def _get_dataclass_type_from_callable(
+    dataclass_fn: Callable[..., DataclassT], caller_frame: inspect.FrameType | None = None
+) -> type[DataclassT]:
     """Inspects and returns the type of dataclass that the given callable will return."""
     if is_dataclass_type(dataclass_fn):
         return dataclass_fn
+
+    signature = inspect.signature(dataclass_fn)
 
     if isinstance(dataclass_fn, functools.partial):
         if is_dataclass_type(dataclass_fn.func):
             return dataclass_fn.func
         # partial to a function that should return a dataclass. Hopefully it has a return type
         # annotation, otherwise we'd have to call the function just to know the return type!
-        signature = inspect.signature(dataclass_fn)
+        # NOTE: recurse here, so it also works with `partial(partial(...))` and `partial(some_function)`
+        return _get_dataclass_type_from_callable(
+            dataclass_fn=dataclass_fn.func, caller_frame=caller_frame
+        )
 
-        if signature.return_annotation is inspect.Signature.empty:
-            raise TypeError(
-                f"Unable to determine what type of dataclass would be returned by the callable "
-                f"{dataclass_fn!r}, because it doesn't have a return type annotation."
-            )
-        # NOTE: Could recurse here, so it also works with `partial(partial(...))` and
-        # `partial(some_function)`
+    if signature.return_annotation is inspect.Signature.empty:
+        raise TypeError(
+            f"Unable to determine what type of dataclass would be returned by the callable "
+            f"{dataclass_fn!r}, because it doesn't have a return type annotation, and we don't "
+            f"want to call it just to figure out what it produces."
+        )
+        # NOTE: recurse here, so it also works with `partial(partial(...))` and `partial(some_function)`
         # Recurse, so this also works with partial(partial(...)) (idk why you'd do that though.)
 
-        if isinstance(signature.return_annotation, str):
-            raise NotImplementedError(
-                f"TODO: Evaluate the annotation {signature.return_annotation!r} into a type and "
-                f"figure out the dataclass that corresponds to it using the function's namespace."
+    if isinstance(signature.return_annotation, str):
+
+        dataclass_fn_type = signature.return_annotation
+        if caller_frame is not None:
+            caller_locals = caller_frame.f_locals
+            caller_globals = caller_frame.f_globals
+            type_hints = typing.get_type_hints(
+                dataclass_fn, globalns=caller_globals, localns=caller_locals
             )
-        return _get_dataclass_type_from_callable(dataclass_fn=dataclass_fn.func)
-    # Lambda expression
-    if isinstance(dataclass_fn, types.LambdaType):
-        signature = inspect.signature(dataclass_fn)
-        # TODO: How can we check what the dataclass type is?
-        assert False, (dataclass_fn, signature.return_annotation, inspect.getsource(dataclass_fn))
+        else:
+            type_hints = typing.get_type_hints(dataclass_fn)
+        dataclass_fn_type = type_hints["return"]
+
+        # Recursing here would be a bit extra, let's be real. Might be good enough to just assume that
+        # the return annotation needs to be a dataclass.
+        # return _get_dataclass_type_from_callable(dataclass_fn_type, caller_frame=caller_frame)
+        assert is_dataclass_type(dataclass_fn_type)
+        return dataclass_fn_type
+
+
+def is_lambda(obj: Any) -> bool:
+    """Returns True if the given object is a lambda expression.
+
+    Taken from https://stackoverflow.com/questions/3655842/how-can-i-test-whether-a-variable-holds-a-lambda
+    """
+    LAMBDA = lambda: 0  # noqa: E731
+    return isinstance(obj, type(LAMBDA)) and obj.__name__ == LAMBDA.__name__

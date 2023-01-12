@@ -340,18 +340,6 @@ def test_subgroups_with_partials():
             default="a",
         )
 
-    # TODO: The issue is that the default value from the field is being set in the dict of
-    # constructor arguments, and even if the dataclass_fn is a partial(A, a=1.23), since it's being
-    # called like `dataclass_fn(**{"a": 0.0})` (from the field default), then the value of `a` is
-    # overwritten with the default value from the field. I think the solution is either:
-    # 1. Not populate the constructor arguments with the value for this field;
-    # 2. Change the default value to be the one from the partial, instead of the one from the
-    #    field.
-    # I think 1. makes more sense. For fields that aren't required (have a default value), then the
-    # constructor_arguments dict doesn't need to contain the default values. Calling the
-    # dataclass_fn (which is almost always just the dataclass type itself) will use the default
-    # values from the fields.
-
     assert Foo.setup() == Foo() == Foo(a_or_b=A())
     assert Foo.setup("--a_or_b a") == Foo(a_or_b=A())
     assert Foo.setup("--a_or_b a --a=6.66") == Foo(a_or_b=A(a=6.66))
@@ -363,6 +351,34 @@ def test_subgroups_with_partials():
 
     with raises_invalid_choice():
         Foo.setup("--a_or_b c")
+
+
+def test_subgroups_with_functions():
+    def make_b(b: str = "default from make_b") -> B:
+        return B(b=b)
+
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups(
+            {
+                "a": A,
+                "b": B,
+                "make_b": make_b,
+            },
+            default="a",
+        )
+
+    # TODO: decide if this is correct. In this case here, since the default value for `b` is the
+    # same as passed (i.e. arg isn't used), then the constructor args dict doesn't have an entry
+    # for `b`, and the default value from the function definition is used.
+    # This also means that `b` can't be a required argument in this function, since it won't be
+    # passed if it isn't different from the default value..
+    # TODO: Now that I think about it, it might make more sense to have the default values in the
+    # dictionary of constructor arguments, right? Not 100% sure.
+
+    assert Foo.setup("--a_or_b make_b") == Foo(a_or_b=B(b="default from make_b"))
+    assert Foo.setup("--a_or_b make_b") == Foo(a_or_b=B(b="default from make_b"))
+    assert Foo.setup("--a_or_b make_b --b foo") == Foo(a_or_b=B(b="foo from make_b"))
 
 
 lambdas_arent_supported_yet = functools.partial(

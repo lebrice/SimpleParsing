@@ -579,6 +579,7 @@ class ArgumentParser(argparse.ArgumentParser):
                         chosen_subgroup_dataclass_fn
                     )
                 except Exception as exc:
+                    # raise
                     raise NotImplementedError(
                         f"We are unable to figure out the dataclass to use the selected subgroup "
                         f"{subgroup_field.dest}, because the subgroup value is "
