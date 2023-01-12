@@ -182,7 +182,7 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     # and use it to get the correct type of the field, if it is a forward reference.
     frame = inspect.currentframe()
     # stack = []
-    while frame.f_back is not None and some_class.__name__ not in frame.f_locals.keys():
+    while frame.f_back is not None and frame.f_locals.get(some_class.__name__) is not some_class:
         # stack.append(frame)
         frame = frame.f_back
     # Found the frame with the dataclass definition. Update the locals. This makes it possible to
