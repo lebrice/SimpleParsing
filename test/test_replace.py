@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 import pytest
 
-from simple_parsing import ArgumentGenerationMode, parse, subgroups
+import simple_parsing as sp
+from simple_parsing import subgroups
 
 from .test_utils import TestSetup
 
@@ -47,37 +47,6 @@ class CD(TestSetup):
     other_arg: str = "bob"
 
 
-def replace(obj: object, changes: dict[str, Any]):
-    """Return a new object replacing specified fields with new values.
-
-    Parameters
-    ----------
-    - obj: object
-
-        If obj is not a dataclass instance, raises TypeError
-
-    - changes: Dict[str, Any]
-
-        changes
-    """
-
-    _FIELDS = "__dataclass_fields__"
-
-    if not hasattr(type(obj), _FIELDS):
-        raise TypeError("replace() should be called on dataclass instances")
-
-    args = []
-    for k, v in changes.items():
-        args.extend([f"--{k}", str(v)])
-
-    return parse(
-        obj.__class__,
-        args=args,
-        default=obj,
-        argument_generation_mode=ArgumentGenerationMode.NESTED,
-    )
-
-
 @pytest.mark.parametrize(
     ("config_cls", "args", "changes"),
     [
@@ -107,6 +76,6 @@ def replace(obj: object, changes: dict[str, Any]):
 )
 def test_replace_nested_dataclasses(config_cls: type, args: str, changes: dict):
     config = config_cls()
-    config_replaced = replace(config, changes)
+    config_replaced = sp.replace(config, changes)
     assert config.setup(args) == config_replaced
     assert id(config) != id(config_replaced)
