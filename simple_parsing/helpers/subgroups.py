@@ -127,7 +127,10 @@ def subgroups(
     # NOTE: Perhaps we could raise a warning if the default_factory is a Lambda, since we have to
     # instantiate that value in order to inspect the attributes and its values..
 
+    # FIXME: Still playing around with this a little bit. Need to get the right frame where the
+    # subgroups are set.
     caller_frame = inspect.currentframe().f_back
+
     subgroup_dataclasses = {}
 
     for subgroup_key, subgroup_value in subgroups.items():
@@ -139,12 +142,14 @@ def subgroups(
         except Exception as exc:
             raise NotImplementedError(
                 f"We are unable to figure out the dataclass to use for the selected subgroup "
-                f"{subgroup_key}, because the subgroup value is "
+                f"{subgroup_key!r}, because the subgroup value is "
                 f"{subgroup_value!r}, and we don't know what type of "
                 f"dataclass it produces without invoking it!\n"
-                "🙏 Please make an issue on GitHub! 🙏\n" + str(exc)
+                "🙏 Please make an issue on GitHub! 🙏\n"
+                f"Exception raised:\n" + str(exc)
             ) from exc
 
+    metadata["subgroup_dataclass_types"] = subgroup_dataclasses
     # default_factory_dataclass = None
     # if default_factory is not MISSING:
     #     default_factory_dataclass = _get_dataclass_type_from_callable(default_factory)
@@ -213,11 +218,26 @@ def _get_dataclass_type_from_callable(
 
         dataclass_fn_type = signature.return_annotation
         if caller_frame is not None:
+            # Travel up until we find the right frame where the subgroup is defined.
+
+            while (
+                caller_frame.f_back is not None
+                and signature.return_annotation not in caller_frame.f_locals
+                and signature.return_annotation not in caller_frame.f_globals
+            ):
+                caller_frame = caller_frame.f_back
+
             caller_locals = caller_frame.f_locals
             caller_globals = caller_frame.f_globals
-            type_hints = typing.get_type_hints(
-                dataclass_fn, globalns=caller_globals, localns=caller_locals
-            )
+
+            try:
+                # NOTE: This doesn't seem to be very often different than just calling `get_type_hints`
+                type_hints = typing.get_type_hints(
+                    dataclass_fn, globalns=caller_globals, localns=caller_locals
+                )
+            except NameError:
+                assert False, (caller_locals, caller_globals, caller_frame)
+            # assert type_hints == typing.get_type_hints(dataclass_fn)
         else:
             type_hints = typing.get_type_hints(dataclass_fn)
         dataclass_fn_type = type_hints["return"]

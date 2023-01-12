@@ -20,7 +20,7 @@ from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
 from .help_formatter import SimpleHelpFormatter
 from .helpers.serialization.serializable import read_file
-from .utils import Dataclass, DataclassT, dict_union
+from .utils import Dataclass, DataclassT, dict_union, is_dataclass_type
 from .wrappers import DashVariant, DataclassWrapper, FieldWrapper
 from .wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
@@ -569,26 +569,11 @@ class ArgumentParser(argparse.ArgumentParser):
                 assert hasattr(parsed_args, dest)
                 chosen_subgroup_key = getattr(parsed_args, dest)
                 assert chosen_subgroup_key in subgroup_field.subgroup_choices
+
                 chosen_subgroup_dataclass_fn = subgroup_field.subgroup_choices[chosen_subgroup_key]
-                from simple_parsing.helpers.subgroups import (
-                    _get_dataclass_type_from_callable,
-                )
-
-                try:
-                    chosen_subgroup_dataclass_type = _get_dataclass_type_from_callable(
-                        chosen_subgroup_dataclass_fn
-                    )
-                except Exception as exc:
-                    # raise
-                    raise NotImplementedError(
-                        f"We are unable to figure out the dataclass to use the selected subgroup "
-                        f"{subgroup_field.dest}, because the subgroup value is "
-                        f"{chosen_subgroup_dataclass_fn!r}, and we don't know what type of "
-                        f"dataclass it produces without invoking it!\n"
-                        "🙏 Please make an issue on GitHub! 🙏\n" + str(exc)
-                    ) from exc
-
-                assert dataclasses.is_dataclass(chosen_subgroup_dataclass_type)
+                dataclass_types = subgroup_field.field.metadata["subgroup_dataclass_types"]
+                chosen_subgroup_dataclass_type = dataclass_types[chosen_subgroup_key]
+                assert is_dataclass_type(chosen_subgroup_dataclass_type)
 
                 resolved_subgroups[dest] = chosen_subgroup_key
 

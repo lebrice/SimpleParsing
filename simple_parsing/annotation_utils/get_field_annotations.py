@@ -177,6 +177,19 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     # Get the local and global namespaces to pass to the `get_type_hints` function.
     local_ns: Dict[str, Any] = {"typing": typing, **vars(typing)}
     local_ns.update(forward_refs_to_types)
+
+    # NOTE: Get the local namespace of the calling function / module where this class is defined,
+    # and use it to get the correct type of the field, if it is a forward reference.
+    frame = inspect.currentframe()
+    # stack = []
+    while frame.f_back is not None and some_class.__name__ not in frame.f_locals.keys():
+        # stack.append(frame)
+        frame = frame.f_back
+    # Found the frame with the dataclass definition. Update the locals. This makes it possible to
+    # use dataclasses defined in local scopes!
+    if frame is not None:
+        local_ns.update(frame.f_locals)
+
     # Get the global_ns in the module starting from the deepest base until the module where the field_name is defined.
     global_ns = {}
     for base_cls in reversed(some_class.mro()):

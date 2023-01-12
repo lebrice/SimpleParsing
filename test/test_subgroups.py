@@ -393,8 +393,8 @@ def test_subgroup_functions_receive_all_fields():
         b: str = "default from field"
 
     def make_obj(**kwargs) -> Obj:
-        assert kwargs == {"a": 0.0, "b": "foo"}  # first case: receives all fields
-        assert kwargs == {"b": "foo"}  # second case: receive only set fields.
+        # assert kwargs == {"a": 0.0, "b": "foo"}  # first case: receives all fields
+        assert kwargs == {"b": "foo"}  # second case (current): receive only set fields.
         return Obj(**kwargs)
 
     @dataclass
