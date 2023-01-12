@@ -105,8 +105,9 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                     f"Got a default value of {field_default} for field {field.name} from "
                     f"inspecting the dataclass function! ({dataclass_fn})"
                 )
-            elif isinstance(default, dict) and field.name in default:
-                field_default = default[field.name]
+            elif isinstance(default, dict):
+                if field.name in default:
+                    field_default = default[field.name]
             elif default is not None:
                 field_default = getattr(default, field.name)
 
