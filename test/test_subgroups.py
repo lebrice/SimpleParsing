@@ -448,6 +448,9 @@ def test_other_default_factories(a_factory: Callable[[], A], b_factory: Callable
     "a_factory, b_factory",
     [
         (partial(A, a=321), partial(B, b="foobar")),
+        (partial(partial(A)), partial(partial(B))),
+        (partial(partial(A, a=111), a=321), partial(partial(B), b="foobar")),
+        (partial(partial(A, a=111)), partial(partial(B, b="foobar"))),
         lambdas_arent_supported_yet(lambda: A(a=123), lambda: B(b="foooo")),
     ],
 )
@@ -484,6 +487,54 @@ def test_help_string_displays_default_factory_arguments(
     assert f"--a float  (default: {a_default_from_factory})" in Foo.get_help_text("")
     assert f"--a float  (default: {a_default_from_factory})" in Foo.get_help_text("--a_or_b a")
     assert f"--b str  (default: {b_default_from_factory})" in Foo.get_help_text("--a_or_b b")
+
+
+def test_factory_is_only_called_once():
+    class_constructor_calls = 0
+    partial_calls = 0
+
+    class _partial(partial):
+        def __call__(self, *args, **kwargs):
+            nonlocal partial_calls
+            partial_calls += 1
+            return super().__call__(*args, **kwargs)
+
+    @dataclass
+    class SomeObj:
+        a: int = 0
+
+        def __post_init__(self):
+            nonlocal class_constructor_calls
+            class_constructor_calls += 1
+
+    @dataclass
+    class Config(TestSetup):
+        obj: SomeObj = subgroups(
+            {
+                "a": SomeObj,
+                "b": _partial(SomeObj, a=123),
+            },
+            default_factory=SomeObj,
+        )
+
+    assert class_constructor_calls == 0
+    Config()
+    assert class_constructor_calls == 1
+
+    config = Config.setup("")
+    assert class_constructor_calls == 2
+    assert config.obj.a == 0
+
+    config = Config.setup("--obj a --a 321")
+    assert class_constructor_calls == 3
+    assert config == Config(obj=SomeObj(a=321))
+    assert class_constructor_calls == 4
+
+    assert partial_calls == 0
+    config = Config.setup("--obj b")
+    assert partial_calls == 1
+    assert class_constructor_calls == 5
+    assert config.obj.a == 123
 
 
 @pytest.mark.xfail(strict=True, reason="Not implemented yet. Remove this once it is.")
