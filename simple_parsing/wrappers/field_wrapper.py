@@ -218,16 +218,9 @@ class FieldWrapper(Wrapper):
             #     attribute = attribute[:-2]
             #     constructor_arguments[parent_dest][attribute] = value
 
-            if value is self.default:
-                # TODO: Need to somehow check whether the argument was passed in the first place,
-                # in order not to cause any bugs when using an Optional dataclass field.
-                logger.debug(
-                    f"Not setting the entry at {destination} in the constructor arguments "
-                    f"dictionary since it's exactly the same as the default value."
-                )
-            else:
-                logger.debug(f"constructor_arguments[{parent_dest}][{attribute}] = {value}")
-                constructor_arguments[parent_dest][attribute] = value
+            # TODO: Need to decide which one to do here. Seems easier to always set all the values.
+            logger.debug(f"constructor_arguments[{parent_dest}][{attribute}] = {value}")
+            constructor_arguments[parent_dest][attribute] = value
 
             if self.is_subgroup:
                 if not hasattr(namespace, "subgroups"):

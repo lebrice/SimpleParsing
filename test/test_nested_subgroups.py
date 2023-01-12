@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from argparse import ArgumentParser, Namespace
+import argparse
+from argparse import Namespace
 from dataclasses import Field, dataclass, fields
 from logging import getLogger as get_logger
 from typing import Any, Sequence
 
 from simple_parsing import subgroups
+from simple_parsing.annotation_utils.get_field_annotations import (
+    get_field_type_from_annotations,
+)
 
 from .testutils import TestSetup
 
@@ -52,7 +56,7 @@ class Config(TestSetup):
     )
 
 
-class ParserForSubgroups(ArgumentParser):
+class ParserForSubgroups(argparse.ArgumentParser):
     def __init__(self) -> None:
         super().__init__()
         self.dataclasses: dict[str, type] = {}
@@ -81,7 +85,8 @@ class ParserForSubgroups(ArgumentParser):
             field_dest = f"{dest}.{field.name}"
 
             # Get the type to pass to `self.add_argument` from the dataclass field.
-            field_type = field.type
+            # field_type = field.type
+            field_type = str
             if "type" in field.metadata:
                 field_type = field.metadata["type"]
             elif "custom_args" in field.metadata and "type" in field.metadata["custom_args"]:
@@ -120,10 +125,6 @@ class ParserForSubgroups(ArgumentParser):
                 field_type = field.type
                 if isinstance(field.type, str):
                     # Need to evaluate the annotation.
-                    from simple_parsing.annotation_utils.get_field_annotations import (
-                        get_field_type_from_annotations,
-                    )
-
                     field_type = get_field_type_from_annotations(dataclass_type, field.name)
 
                 field_default = field.default

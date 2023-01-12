@@ -91,15 +91,15 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                 wrapper = self.field_wrapper_class(field, parent=self, prefix=prefix)
                 self.fields.append(wrapper)
 
-            elif utils.is_tuple_or_list_of_dataclasses(field.type):
+            elif utils.is_tuple_or_list_of_dataclasses(field_type):
                 raise NotImplementedError(
-                    f"Field {field.name} is of type {field.type}, which isn't "
+                    f"Field {field.name} is of type {field_type}, which isn't "
                     f"supported yet. (container of a dataclass type)"
                 )
 
-            elif dataclasses.is_dataclass(field.type) and field.default is not None:
+            elif dataclasses.is_dataclass(field_type) and field.default is not None:
                 # handle a nested dataclass attribute
-                dataclass, name = field.type, field.name
+                dataclass, name = field_type, field.name
                 nested_dataclass_default_value = getattr(default, field.name, None)
                 child_wrapper = DataclassWrapper(
                     dataclass,
@@ -110,8 +110,8 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                 )
                 self._children.append(child_wrapper)
 
-            elif utils.contains_dataclass_type_arg(field.type):
-                field_dataclass = utils.get_dataclass_type_arg(field.type)
+            elif utils.contains_dataclass_type_arg(field_type):
+                field_dataclass = utils.get_dataclass_type_arg(field_type)
                 nested_dataclass_default_value = getattr(default, field.name, None)
                 child_wrapper = DataclassWrapper(
                     field_dataclass,
@@ -125,7 +125,7 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                 self._children.append(child_wrapper)
 
             else:
-                # a normal attribute
+                # a "normal" attribute
                 field_wrapper = self.field_wrapper_class(field, parent=self, prefix=self.prefix)
                 logger.debug(
                     f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.default}"
