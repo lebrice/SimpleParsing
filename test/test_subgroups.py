@@ -297,7 +297,7 @@ def test_partials_new_args_overwrite_set_values():
     assert CustomA(a=default_a * 34) == A(a=default_a * 34)
 
 
-def test_debug_defaults_in_constructor_arguments():
+def test_defaults_from_partial():
     @dataclass
     class Foo(TestSetup):
         a_or_b: A | B = subgroups(
@@ -317,12 +317,15 @@ def test_debug_defaults_in_constructor_arguments():
     # overwritten with the default value from the field. I think the solution is either:
     # 1. Not populate the constructor arguments with the value for this field;
     # 2. Change the default value to be the one from the partial, instead of the one from the
-    #    field.
+    #    field. The partial would then be called with the same value.
     # I think 1. makes more sense. For fields that aren't required (have a default value), then the
     # constructor_arguments dict doesn't need to contain the default values. Calling the
     # dataclass_fn (which is almost always just the dataclass type itself) will use the default
     # values from the fields.
-    # parser = ArgumentParser()
+
+    # NOTE: Now I've changed my mind. Option 2 might be easiest for now, since I still don't have a
+    # complete grasp of how argparse works internally, and I feel like I could easily make it work
+    # quickly.
     assert Foo.setup("--a_or_b a_4.56") == Foo(a_or_b=A(a=4.56))
 
 
