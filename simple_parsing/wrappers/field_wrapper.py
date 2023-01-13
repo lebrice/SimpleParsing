@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable, Iterable, Sequence
 import dataclasses
 import inspect
 import sys
@@ -377,10 +378,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 _arg_options["type"] = type_fn
 
         elif utils.is_bool(self.type):
-            _arg_options["type"] = utils.str2bool
-            _arg_options["type"].__name__ = "bool"
-            _arg_options["nargs"] = "?"
-
+            _arg_options["action"] = _BooleanOptionalAction
         else:
             # "Plain" / simple argument.
             # For the metavar, use a custom passed value, if present, else do
@@ -489,16 +487,6 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
                 return tuple(raw_parsed_value)
 
         elif self.is_bool:
-            # print(self.name, raw_parsed_value)
-            if self.dest_field:
-                # TODO: This isn't used anywhere, what was the idea again?
-                # other_default = self.dest_field.field.metadata.get("_original_default")
-                pass
-                # print(other_default)
-
-            if raw_parsed_value is None and self.default is not None:
-                logger.debug("value is None, returning opposite of the default")
-                return not self.default
             return raw_parsed_value
 
         elif self.is_list:
@@ -1093,3 +1081,87 @@ def only_keep_action_args(options: dict[str, Any], action: str | Any) -> dict[st
         logger.debug(f"Kept options: \t{kept_options.keys()}")
         logger.debug(f"Removed options: \t{deleted_options.keys()}")
     return kept_options
+
+
+_BOOL_NO_PREFIX = "--no"
+
+
+class _BooleanOptionalAction(argparse.Action):
+    """Similar to `argparse.BooleanOptionalAction`.
+
+    * Support custom prefix (for `absl.flags` compatibility)
+    * Accept `--flag=true` value
+    * Support `nargs`
+    * Support Python 3.8
+
+    """
+
+    def __init__(
+        self,
+        option_strings: Sequence[str],
+        dest: str,
+        default: bool | None = None,
+        type: Callable[[str], Any] | argparse.FileType | None = None,
+        choices: Iterable[Any] | None = None,
+        required: bool = False,
+        help: str | None = None,
+        metavar: str | tuple[str, ...] | None = None,
+        nargs: int | str | None = '?',
+    ):
+        if nargs is None:
+            nargs = '?'
+        if not (isinstance(nargs, int) or nargs in {'?', '*', '+'}):
+            raise ValueError(f'nargs={nargs!r} not supported for bools')
+
+        # Do not add `--no` when `nargs >= 1`
+        if nargs in {'+', '*'} or (isinstance(nargs, int) and nargs >= 1):
+            new_option_strings = list(option_strings)
+        else:
+            new_option_strings = []
+            for option_string in option_strings:
+                new_option_strings.append(option_string)
+
+                if option_string.startswith("--"):
+                    negative_option_string = _BOOL_NO_PREFIX + option_string[2:]
+                    new_option_strings.append(negative_option_string)
+
+        super().__init__(
+            option_strings=new_option_strings,
+            dest=dest,
+            nargs=nargs,
+            default=default,
+            type=type,
+            choices=choices,
+            required=required,
+            help=help,
+            metavar=metavar or "bool",
+        )
+
+    def __call__(
+        self,
+        parser: ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ):
+        if option_string not in self.option_strings:
+            return
+
+        is_neg = option_string.startswith(_BOOL_NO_PREFIX)
+        if values is None:  # --my_flag / --nomy_flag
+            bool_value = not is_neg
+        elif is_neg:  # Cannot set `--nomy_flag=True/False`
+            parser.exit(
+                message=f"{_BOOL_NO_PREFIX} cannot be used with value (Got: {option_string}={values})"
+            )
+        elif isinstance(values, str):  # --my_flag true
+            bool_value = utils.str2bool(values)
+        elif isinstance(values, list):  # --my_flag true true false
+            bool_value = [utils.str2bool(v) for v in values]
+        else:
+            raise ValueError(f"Unsuported value for {option_string}: {values!r}")
+
+        setattr(namespace, self.dest, bool_value)
+
+    def format_usage(self):
+        return " | ".join(self.option_strings)
