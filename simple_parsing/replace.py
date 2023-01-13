@@ -47,9 +47,7 @@ def replace(obj: object, changes: Dict[str, Any]) -> Dataclass:
         assert c1 == c2
     """
 
-    _FIELDS = "__dataclass_fields__"
-
-    if not hasattr(type(obj), _FIELDS):
+    if not (dataclasses.is_dataclass(obj) and dataclasses.is_dataclass(type(obj)):
         raise TypeError("replace() should be called on dataclass instances")
 
     flatten_changes = flatten(changes)
