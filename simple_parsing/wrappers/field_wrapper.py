@@ -77,7 +77,7 @@ class DashVariant(Enum):
     DASH = "only"
 
 
-class FieldWrapper(Wrapper[dataclasses.Field]):
+class FieldWrapper(Wrapper):
     """
     The FieldWrapper class acts a bit like an 'argparse.Action' class, which
     essentially just creates the `option_strings` and `arg_options` that get
@@ -110,7 +110,7 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
     def __init__(
         self, field: dataclasses.Field, parent: DataclassWrapper | None = None, prefix: str = ""
     ):
-        super().__init__(wrapped=field, name=field.name)
+        super().__init__()
         self.field: dataclasses.Field = field
         self.prefix: str = prefix
         self._parent: Any = parent
@@ -182,8 +182,8 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
         `values` at the right destination in the `constructor_arguments` of the
         parser.
 
-        TODO: Could be simplified by removing unused arguments, if we decide
-        that there is no real value in implementing a CustomAction class.
+        TODO: Doesn't seem currently possible to check whether the argument was passed in the
+        first place.
 
         Args:
             parser (argparse.ArgumentParser): the `simple_parsing.ArgumentParser` used.
@@ -212,12 +212,14 @@ class FieldWrapper(Wrapper[dataclasses.Field]):
 
             parent_dest, attribute = utils.split_dest(destination)
             value = self.postprocess(value)
+
             self._results[destination] = value
 
             # if destination.endswith(f"_{i}"):
             #     attribute = attribute[:-2]
             #     constructor_arguments[parent_dest][attribute] = value
 
+            # TODO: Need to decide which one to do here. Seems easier to always set all the values.
             logger.debug(f"constructor_arguments[{parent_dest}][{attribute}] = {value}")
             constructor_arguments[parent_dest][attribute] = value
 
