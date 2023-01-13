@@ -119,40 +119,40 @@ usage: nesting_example.py [-h] [--batch_size int] [--optimizer str]
                           [--gender_loss_weight float]
                           [--age_loss_weight float]
                           [--max_number_of_likes int] [--embedding_dim int]
-                          [--shared_likes_embedding [str2bool]]
-                          [--use_custom_likes [str2bool]] [--gender.name str]
+                          [--shared_likes_embedding [bool]]
+                          [--use_custom_likes [bool]] [--gender.name str]
                           [--gender.num_layers int] [--gender.num_units int]
                           [--gender.activation str]
-                          [--gender.use_batchnorm [str2bool]]
-                          [--gender.use_dropout [str2bool]]
+                          [--gender.use_batchnorm [bool]]
+                          [--gender.use_dropout [bool]]
                           [--gender.dropout_rate float]
-                          [--gender.use_image_features [str2bool]]
-                          [--gender.use_likes [str2bool]]
+                          [--gender.use_image_features [bool]]
+                          [--gender.use_likes [bool]]
                           [--gender.l1_reg float] [--gender.l2_reg float]
-                          [--gender.embed_likes [str2bool]]
+                          [--gender.embed_likes [bool]]
                           [--age_group.name str] [--age_group.num_layers int]
                           [--age_group.num_units int]
                           [--age_group.activation str]
-                          [--age_group.use_batchnorm [str2bool]]
-                          [--age_group.use_dropout [str2bool]]
+                          [--age_group.use_batchnorm [bool]]
+                          [--age_group.use_dropout [bool]]
                           [--age_group.dropout_rate float]
-                          [--age_group.use_image_features [str2bool]]
-                          [--age_group.use_likes [str2bool]]
+                          [--age_group.use_image_features [bool]]
+                          [--age_group.use_likes [bool]]
                           [--age_group.l1_reg float]
                           [--age_group.l2_reg float]
-                          [--age_group.embed_likes [str2bool]]
+                          [--age_group.embed_likes [bool]]
                           [--personality.name str]
                           [--personality.num_layers int]
                           [--personality.num_units int]
                           [--personality.activation str]
-                          [--personality.use_batchnorm [str2bool]]
-                          [--personality.use_dropout [str2bool]]
+                          [--personality.use_batchnorm [bool]]
+                          [--personality.use_dropout [bool]]
                           [--personality.dropout_rate float]
-                          [--personality.use_image_features [str2bool]]
-                          [--personality.use_likes [str2bool]]
+                          [--personality.use_image_features [bool]]
+                          [--personality.use_likes [bool]]
                           [--personality.l1_reg float]
                           [--personality.l2_reg float]
-                          [--personality.embed_likes [str2bool]]
+                          [--personality.embed_likes [bool]]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -172,8 +172,8 @@ HyperParameters ['hparams']:
   --age_loss_weight float
   --max_number_of_likes int
   --embedding_dim int
-  --shared_likes_embedding [str2bool]
-  --use_custom_likes [str2bool]
+  --shared_likes_embedding [bool]
+  --use_custom_likes [bool]
                         Whether or not to use Rémi's better kept like pages
                         (default: True)
 
@@ -187,25 +187,25 @@ TaskHyperParameters ['hparams.gender']:
                         units per layer (default: 32)
   --gender.activation str
                         activation function (default: tanh)
-  --gender.use_batchnorm [str2bool]
+  --gender.use_batchnorm [bool]
                         whether or not to use batch normalization after each
                         dense layer (default: False)
-  --gender.use_dropout [str2bool]
+  --gender.use_dropout [bool]
                         whether or not to use dropout after each dense layer
                         (default: True)
   --gender.dropout_rate float
                         the dropout rate (default: 0.1)
-  --gender.use_image_features [str2bool]
+  --gender.use_image_features [bool]
                         whether or not image features should be used as input
                         (default: True)
-  --gender.use_likes [str2bool]
+  --gender.use_likes [bool]
                         whether or not 'likes' features should be used as input
                         (default: True)
   --gender.l1_reg float
                         L1 regularization coefficient (default: 0.005)
   --gender.l2_reg float
                         L2 regularization coefficient (default: 0.005)
-  --gender.embed_likes [str2bool]
+  --gender.embed_likes [bool]
                         Whether or not a task-specific Embedding layer should
                         be used on the 'likes' features. When set to 'True',
                         it is expected that there no shared embedding is used.
@@ -221,25 +221,25 @@ TaskHyperParameters ['hparams.age_group']:
                         units per layer (default: 64)
   --age_group.activation str
                         activation function (default: tanh)
-  --age_group.use_batchnorm [str2bool]
+  --age_group.use_batchnorm [bool]
                         whether or not to use batch normalization after each
                         dense layer (default: False)
-  --age_group.use_dropout [str2bool]
+  --age_group.use_dropout [bool]
                         whether or not to use dropout after each dense layer
                         (default: True)
   --age_group.dropout_rate float
                         the dropout rate (default: 0.1)
-  --age_group.use_image_features [str2bool]
+  --age_group.use_image_features [bool]
                         whether or not image features should be used as input
                         (default: True)
-  --age_group.use_likes [str2bool]
+  --age_group.use_likes [bool]
                         whether or not 'likes' features should be used as input
                         (default: True)
   --age_group.l1_reg float
                         L1 regularization coefficient (default: 0.005)
   --age_group.l2_reg float
                         L2 regularization coefficient (default: 0.005)
-  --age_group.embed_likes [str2bool]
+  --age_group.embed_likes [bool]
                         Whether or not a task-specific Embedding layer should
                         be used on the 'likes' features. When set to 'True',
                         it is expected that there no shared embedding is used.
@@ -256,25 +256,25 @@ TaskHyperParameters ['hparams.personality']:
                         units per layer (default: 8)
   --personality.activation str
                         activation function (default: tanh)
-  --personality.use_batchnorm [str2bool]
+  --personality.use_batchnorm [bool]
                         whether or not to use batch normalization after each
                         dense layer (default: False)
-  --personality.use_dropout [str2bool]
+  --personality.use_dropout [bool]
                         whether or not to use dropout after each dense layer
                         (default: True)
   --personality.dropout_rate float
                         the dropout rate (default: 0.1)
-  --personality.use_image_features [str2bool]
+  --personality.use_image_features [bool]
                         whether or not image features should be used as input
                         (default: False)
-  --personality.use_likes [str2bool]
+  --personality.use_likes [bool]
                         whether or not 'likes' features should be used as input
                         (default: False)
   --personality.l1_reg float
                         L1 regularization coefficient (default: 0.005)
   --personality.l2_reg float
                         L2 regularization coefficient (default: 0.005)
-  --personality.embed_likes [str2bool]
+  --personality.embed_likes [bool]
                         Whether or not a task-specific Embedding layer should
                         be used on the 'likes' features. When set to 'True',
                         it is expected that there no shared embedding is used.
