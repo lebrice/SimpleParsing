@@ -1134,11 +1134,7 @@ class _BooleanOptionalAction(argparse.Action):
             choices=choices,
             required=required,
             help=help,
-            # TODO: Ideally, this should be depend on `nargs`:
-            # '?': `--a [bool]`
-            # 1: `--a bool` 
-            # '+': `--a bool [bool ...]`
-            metavar=metavar or "[bool]",
+            metavar=metavar or "bool",
         )
 
     def __call__(

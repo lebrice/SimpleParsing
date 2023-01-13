@@ -126,7 +126,7 @@ class EnumsAsKeys(TestSetup):
         (
             MultipleSubgroupsDifferentLevel,
             {},
-            ["--ab_or_cd {ab,cd}", "--c_or_d {c,d}", "--e_or_f {e,f}", "--e [bool]"],
+            ["--ab_or_cd {ab,cd}", "--c_or_d {c,d}", "--e_or_f {e,f}", "--e bool"],
         ),
     ],
 )
