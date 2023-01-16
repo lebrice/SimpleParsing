@@ -14,6 +14,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, TypeVa
 
 from simple_parsing.annotation_utils.get_field_annotations import (
     evaluate_string_annotation,
+    get_field_type_from_annotations,
 )
 from simple_parsing.utils import (
     get_bound,
@@ -80,7 +81,7 @@ def decode_field(field: Field, raw_value: Any, containing_dataclass: Optional[ty
         return custom_decoding_fn(raw_value)
 
     if isinstance(field_type, str) and containing_dataclass:
-        field_type = evaluate_string_annotation(field_type, containing_dataclass)
+        field_type = get_field_type_from_annotations(containing_dataclass, name)
 
     return get_decoding_fn(field_type)(raw_value)
 
