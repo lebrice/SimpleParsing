@@ -8,14 +8,11 @@ from enum import Enum
 from logging import getLogger as get_logger
 from typing import Any, Callable, TypeVar, overload
 
-from simple_parsing.utils import Dataclass, DataclassT, is_dataclass_type
+from simple_parsing.utils import DataclassT, is_dataclass_type
 
 logger = get_logger(__name__)
 
-# TODO: Change this to a bound of Hashable.
-# It seems to consider `default`
 Key = TypeVar("Key", str, int, bool, Enum)
-OtherDataclassT = TypeVar("OtherDataclassT", bound=Dataclass)
 
 
 @overload
@@ -102,7 +99,7 @@ def subgroups(
     metadata["subgroup_default"] = default
     metadata["subgroup_dataclass_types"] = {}
 
-    subgroup_dataclass_types: dict[Key, type[Dataclass]] = {}
+    subgroup_dataclass_types: dict[Key, type[DataclassT]] = {}
     choices = subgroups.keys()
 
     # NOTE: Perhaps we could raise a warning if the default_factory is a Lambda, since we have to
