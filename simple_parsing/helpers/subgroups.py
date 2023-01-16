@@ -20,7 +20,7 @@ OtherDataclassT = TypeVar("OtherDataclassT", bound=Dataclass)
 
 @overload
 def subgroups(
-    subgroups: dict[Key, Callable[..., DataclassT]],
+    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
     *args,
     default: Key,
     default_factory: _MISSING_TYPE = MISSING,
@@ -29,23 +29,12 @@ def subgroups(
     ...
 
 
-# TODO: Enable this overload if we make `subgroups` more flexible (see below).
-# @overload
-# def subgroups(
-#     subgroups: Mapping[Key, type[DataclassT]],
-#     *args,
-#     default_factory: Callable[[], OtherDataclassT],
-#     **kwargs,
-# ) -> DataclassT | OtherDataclassT:
-#     ...
-
-
 @overload
 def subgroups(
-    subgroups: dict[Key, Callable[..., DataclassT]],
+    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
     *args,
     default: _MISSING_TYPE = MISSING,
-    default_factory: Callable[[], DataclassT],
+    default_factory: type[DataclassT] | functools.partial[DataclassT],
     **kwargs,
 ) -> DataclassT:
     ...
@@ -53,7 +42,7 @@ def subgroups(
 
 @overload
 def subgroups(
-    subgroups: dict[Key, Callable[..., DataclassT]],
+    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
     *args,
     default: _MISSING_TYPE = MISSING,
     default_factory: _MISSING_TYPE = MISSING,
@@ -63,10 +52,10 @@ def subgroups(
 
 
 def subgroups(
-    subgroups: dict[Key, Callable[..., DataclassT]],
+    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
     *args,
     default: Key | _MISSING_TYPE = MISSING,
-    default_factory: Callable[[], DataclassT] | _MISSING_TYPE = MISSING,
+    default_factory: type[DataclassT] | functools.partial[DataclassT] | _MISSING_TYPE = MISSING,
     **kwargs,
 ) -> DataclassT:
     """Creates a field that will be a choice between different subgroups of arguments.
