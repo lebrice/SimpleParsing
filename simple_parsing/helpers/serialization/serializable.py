@@ -10,7 +10,7 @@ from logging import getLogger
 from pathlib import Path
 from typing import IO, Any, Callable, ClassVar, TypeVar, Union
 
-from simple_parsing.utils import get_args, get_forward_arg, is_optional
+from simple_parsing.utils import DataclassT, get_args, get_forward_arg, is_optional
 
 from .decoding import decode_field, register_decoding_fn
 from .encoding import SimpleJsonEncoder, encode
@@ -673,8 +673,10 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
 
 
 def from_dict(
-    cls: type[Dataclass], d: dict[str, Any], drop_extra_fields: bool | None = None
-) -> Dataclass:
+    cls: type[DataclassT],
+    d: dict[str, Any] | DataclassT,
+    drop_extra_fields: bool | None = None,
+) -> DataclassT:
     """Parses an instance of the dataclass `cls` from the dict `d`.
 
     Args:
@@ -702,6 +704,8 @@ def from_dict(
     """
     if d is None:
         return None
+    if isinstance(d, cls):
+        return d
 
     obj_dict: dict[str, Any] = d.copy()
 

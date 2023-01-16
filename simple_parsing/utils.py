@@ -15,7 +15,7 @@ import typing
 from collections import OrderedDict
 from collections import abc as c_abc
 from collections import defaultdict
-from dataclasses import _MISSING_TYPE, MISSING, Field
+from dataclasses import _MISSING_TYPE, MISSING, Field, fields
 from enum import Enum
 from logging import getLogger
 from typing import (
@@ -34,7 +34,14 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal, Protocol, TypeGuard, get_args, runtime_checkable, get_origin
+from typing_extensions import (
+    Literal,
+    Protocol,
+    TypeGuard,
+    get_args,
+    get_origin,
+    runtime_checkable,
+)
 
 
 # NOTE: Copied from typing_inspect.
@@ -132,6 +139,67 @@ def str2bool(raw_value: str | bool) -> bool:
         raise argparse.ArgumentTypeError(
             f"Boolean value expected for argument, received '{raw_value}'"
         )
+
+
+def replace(
+    dataclass: DataclassT, new_values_dict: dict | None = None, **new_values: dict
+) -> DataclassT:
+    from simple_parsing.helpers.serialization.serializable import from_dict, to_dict
+
+    if new_values_dict:
+        new_values = dict(**new_values_dict, **new_values)
+
+    # TODO: Also encode the class to use for the subgroup fields here somehow.
+    dataclass_dict = to_dict(dataclass, recurse=True)
+    nested_field_types = dict(_nested_field_types(dataclass))
+
+    new_dataclass_dict = dict_union(dataclass_dict, new_values, recurse=True)
+    return _from_dict_with_nested_field_types(
+        type(dataclass), new_dataclass_dict, nested_field_types
+    )
+
+    return from_dict(type(dataclass), new_dataclass_dict, drop_extra_fields=True)
+
+
+def _from_dict_with_nested_field_types(
+    dataclass_type: type[DataclassT],
+    dataclass_dict: dict,
+    nested_field_types: dict[str, type[Dataclass]],
+    _prefix: str = "",
+) -> DataclassT:
+    """A version of `from_dict` that uses the prescribed types for nested dataclass fields."""
+    dataclass_kwargs = {}
+    for key, value in dataclass_dict.items():
+        field_prefix = (_prefix + "." if _prefix else "") + key
+        if is_dataclass_instance(value):
+            dataclass_kwargs[key] = value
+        elif field_prefix in nested_field_types:
+            dataclass_type_to_use = nested_field_types[field_prefix]
+            dataclass_kwargs[key] = _from_dict_with_nested_field_types(
+                dataclass_type_to_use, value, nested_field_types, _prefix=field_prefix
+            )
+        else:
+            dataclass_kwargs[key] = value
+    # note: We can now just call `from_dict` and pass a dataclass instance for a nested field, and
+    # it will just use that value.
+    from simple_parsing.helpers.serialization.serializable import from_dict
+
+    return from_dict(dataclass_type, dataclass_kwargs)
+
+
+def _nested_field_types(dataclass: Dataclass) -> Iterable[tuple[str, type[Dataclass]]]:
+    """Returns an iterator that yields the paths to dataclass fields and their types in a given
+    dataclass tree.
+    """
+    path = ""
+    for field in fields(dataclass):
+        value = getattr(dataclass, field.name)
+        if is_dataclass_instance(value):
+            prefix = path + "." if path else ""
+            yield prefix + field.name, type(value)
+
+            for nested_field_path, value in _nested_field_types(value):
+                yield prefix + field.name + "." + nested_field_path, value
 
 
 def get_item_type(container_type: type[Container[T]]) -> T:

@@ -1,5 +1,6 @@
 """ Functions for decoding dataclass fields from "raw" values (e.g. from json).
 """
+import functools
 import inspect
 import warnings
 from collections import OrderedDict
@@ -17,6 +18,7 @@ from simple_parsing.annotation_utils.get_field_annotations import (
 from simple_parsing.utils import (
     get_bound,
     get_type_arguments,
+    is_dataclass_type,
     is_dict,
     is_enum,
     is_forward_ref,
@@ -245,6 +247,11 @@ def get_decoding_fn(t: Type[T]) -> Callable[[Any], T]:
         if bound is not None:
             return get_decoding_fn(bound)
 
+    if is_dataclass_type(t):
+        from .serializable import from_dict
+
+        return functools.partial(from_dict, t)
+
     # Unknown type.
     warnings.warn(
         UserWarning(
@@ -439,7 +446,10 @@ def try_constructor(t: Type[T]) -> Callable[[Any], Union[T, Any]]:
     """
 
     def constructor(val):
-        if isinstance(val, Mapping):
+        # If the value is already of the right type, just return the value unchanged.
+        if isinstance(val, t):
+            return val
+        elif isinstance(val, Mapping):
             return t(**val)
         else:
             return t(val)
