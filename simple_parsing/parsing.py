@@ -363,6 +363,22 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args = self._postprocessing(parsed_args)
         return parsed_args, unparsed_args
 
+    def add_argument_group(
+        self,
+        title: str | None = None,
+        description: str | None = None,
+        prefix_chars=None,
+        argument_default=None,
+        conflict_handler=None,
+    ) -> argparse._ArgumentGroup:
+        return super().add_argument_group(
+            title=title,
+            description=description,
+            prefix_chars=prefix_chars or self.prefix_chars,
+            argument_default=argument_default or self.argument_default,
+            conflict_handler=conflict_handler or self.conflict_handler,
+        )
+
     def print_help(self, file=None, args: Sequence[str] | None = None):
         self._preprocessing(args=list(args) if args else [])
         return super().print_help(file)
@@ -442,9 +458,6 @@ class ArgumentParser(argparse.ArgumentParser):
         code += "print(args)\n"
         return code
 
-    def _resolve_conflicts(self) -> None:
-        self._wrappers = self._conflict_resolver.resolve_and_flatten(self._wrappers)
-
     def _preprocessing(self, args: Sequence[str] = (), namespace: Namespace | None = None) -> None:
         """Resolve potential conflicts, resolve subgroups, and add all the arguments."""
         logger.debug("\nPREPROCESSING\n")
@@ -479,6 +492,49 @@ class ArgumentParser(argparse.ArgumentParser):
         self._wrappers = wrapped_dataclasses
         # Save this so we don't re-add all the arguments.
         self._preprocessing_done = True
+
+    def _postprocessing(self, parsed_args: Namespace) -> Namespace:
+        """Process the namespace by extract the fields and creating the objects.
+
+        Instantiate the dataclasses from the parsed arguments and set them at
+        their destination attribute in the namespace.
+
+        Parameters
+        ----------
+        parsed_args : Namespace
+            the result of calling `super().parse_args(...)` or
+            `super().parse_known_args(...)`.
+            TODO: Try and maybe return a nicer, typed version of parsed_args.
+
+
+        Returns
+        -------
+        Namespace
+            The original Namespace, with all the arguments corresponding to the
+            dataclass fields removed, and with the added dataclass instances.
+            Also keeps whatever arguments were added in the traditional fashion,
+            i.e. with `parser.add_argument(...)`.
+        """
+        logger.debug("\nPOST PROCESSING\n")
+        logger.debug(f"(raw) parsed args: {parsed_args}")
+
+        self._remove_subgroups_from_namespace(parsed_args)
+        # create the constructor arguments for each instance by consuming all
+        # the relevant attributes from `parsed_args`
+        wrappers = _flatten_wrappers(self._wrappers)
+
+        constructor_arguments = self.constructor_arguments.copy()
+        for wrapper in wrappers:
+            for destination in wrapper.destinations:
+                constructor_arguments.setdefault(destination, {})
+
+        parsed_args, constructor_arguments = self._fill_constructor_arguments_with_fields(
+            parsed_args, wrappers=wrappers, initial_constructor_arguments=constructor_arguments
+        )
+        parsed_args = self._instantiate_dataclasses(
+            parsed_args, wrappers=wrappers, constructor_arguments=constructor_arguments
+        )
+        return parsed_args
 
     def _resolve_subgroups(
         self,
@@ -641,65 +697,6 @@ class ArgumentParser(argparse.ArgumentParser):
                     f"{len(unresolved_subgroups)} unresolved subgroup choices."
                 )
         return wrappers, resolved_subgroups
-
-    def add_argument_group(
-        self,
-        title: str | None = None,
-        description: str | None = None,
-        prefix_chars=None,
-        argument_default=None,
-        conflict_handler=None,
-    ) -> argparse._ArgumentGroup:
-        return super().add_argument_group(
-            title=title,
-            description=description,
-            prefix_chars=prefix_chars or self.prefix_chars,
-            argument_default=argument_default or self.argument_default,
-            conflict_handler=conflict_handler or self.conflict_handler,
-        )
-
-    def _postprocessing(self, parsed_args: Namespace) -> Namespace:
-        """Process the namespace by extract the fields and creating the objects.
-
-        Instantiate the dataclasses from the parsed arguments and set them at
-        their destination attribute in the namespace.
-
-        Parameters
-        ----------
-        parsed_args : Namespace
-            the result of calling `super().parse_args(...)` or
-            `super().parse_known_args(...)`.
-            TODO: Try and maybe return a nicer, typed version of parsed_args.
-
-
-        Returns
-        -------
-        Namespace
-            The original Namespace, with all the arguments corresponding to the
-            dataclass fields removed, and with the added dataclass instances.
-            Also keeps whatever arguments were added in the traditional fashion,
-            i.e. with `parser.add_argument(...)`.
-        """
-        logger.debug("\nPOST PROCESSING\n")
-        logger.debug(f"(raw) parsed args: {parsed_args}")
-
-        self._remove_subgroups_from_namespace(parsed_args)
-        # create the constructor arguments for each instance by consuming all
-        # the relevant attributes from `parsed_args`
-        wrappers = _flatten_wrappers(self._wrappers)
-
-        constructor_arguments = self.constructor_arguments.copy()
-        for wrapper in wrappers:
-            for destination in wrapper.destinations:
-                constructor_arguments.setdefault(destination, {})
-
-        parsed_args, constructor_arguments = self._fill_constructor_arguments_with_fields(
-            parsed_args, wrappers=wrappers, initial_constructor_arguments=constructor_arguments
-        )
-        parsed_args = self._instantiate_dataclasses(
-            parsed_args, wrappers=wrappers, constructor_arguments=constructor_arguments
-        )
-        return parsed_args
 
     def _remove_subgroups_from_namespace(self, parsed_args: argparse.Namespace) -> None:
         """Removes the subgroup choice results from the namespace.
