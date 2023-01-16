@@ -198,7 +198,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
         Parameters
         ----------
-        dataclass : Union[Dataclass, Type[Dataclass]]
+        dataclass : Union[Type[Dataclass], Dataclass]
             The dataclass whose fields are to be parsed from the command-line.
             If an instance of a dataclass is given, it is used as the default
             value if none is provided.
@@ -215,7 +215,8 @@ class ArgumentParser(argparse.ArgumentParser):
             default None
         dataclass_wrapper_class : Type[DataclassWrapper], optional
             The type of `DataclassWrapper` to use for this dataclass. This can be used to customize
-            how the arguments are generated.
+            how the arguments are generated. However, I'd suggest making a GitHub issue if you find
+            yourself using this often.
 
         Returns
         -------
@@ -230,63 +231,6 @@ class ArgumentParser(argparse.ArgumentParser):
             dataclass_wrapper_class=dataclass_wrapper_class,
         )
         self._wrappers.append(new_wrapper)
-        return new_wrapper
-
-    def _add_arguments(
-        self,
-        dataclass: type[DataclassT] | DataclassT,
-        name: str,
-        *,
-        prefix: str = "",
-        dataclass_fn: Callable[..., DataclassT] | None = None,
-        default: Dataclass | None = None,
-        dataclass_wrapper_class: type[DataclassWrapperType] = DataclassWrapper,
-        parent: DataclassWrapper | None = None,
-        _field: dataclasses.Field | None = None,
-        field_wrapper_class: type[FieldWrapper] = FieldWrapper,
-    ) -> DataclassWrapper[DataclassT] | DataclassWrapperType:
-        for wrapper in self._wrappers:
-            if wrapper.dest == name:
-                if wrapper.dataclass == dataclass:
-                    raise argparse.ArgumentError(
-                        argument=None,
-                        message=f"Destination attribute {name} is already used for "
-                        f"dataclass of type {dataclass}. Make sure all destinations"
-                        f" are unique. (new dataclass type: {dataclass})",
-                    )
-        if not isinstance(dataclass, type):
-            if default is None:
-                default = dataclass
-            dataclass = type(dataclass)
-
-        dataclass_fn = dataclass_fn or dataclass
-
-        new_wrapper = dataclass_wrapper_class(
-            dataclass=dataclass,
-            name=name,
-            prefix=prefix,
-            default=default,
-            parent=parent,
-            _field=_field,
-            dataclass_fn=dataclass_fn,
-            field_wrapper_class=field_wrapper_class,
-        )
-
-        if new_wrapper.dest in self._defaults:
-            new_wrapper.set_default(self._defaults[new_wrapper.dest])
-        if self.nested_mode == NestedMode.WITHOUT_ROOT and all(
-            field.name in self._defaults for field in new_wrapper.fields
-        ):
-            # If we did .set_defaults before we knew what dataclass we're using, then we try to
-            # still make use of those defaults:
-            new_wrapper.set_default(
-                {
-                    k: v
-                    for k, v in self._defaults.items()
-                    if k in [f.name for f in dataclasses.fields(new_wrapper.dataclass)]
-                }
-            )
-
         return new_wrapper
 
     def parse_known_args(
@@ -346,7 +290,6 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing(args=args, namespace=namespace)
 
         logger.debug(f"Parser {id(self)} is parsing args: {args}, namespace: {namespace}")
-
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
 
         if unparsed_args and self._subparsers and attempt_to_reorder:
@@ -458,6 +401,61 @@ class ArgumentParser(argparse.ArgumentParser):
         code += "print(args)\n"
         return code
 
+    def _add_arguments(
+        self,
+        dataclass: type[DataclassT] | DataclassT,
+        name: str,
+        *,
+        prefix: str = "",
+        dataclass_fn: Callable[..., DataclassT] | None = None,
+        default: Dataclass | None = None,
+        dataclass_wrapper_class: type[DataclassWrapperType] = DataclassWrapper,
+        parent: DataclassWrapper | None = None,
+    ) -> DataclassWrapper[DataclassT] | DataclassWrapperType:
+        for wrapper in self._wrappers:
+            if wrapper.dest == name:
+                if wrapper.dataclass == dataclass:
+                    raise argparse.ArgumentError(
+                        argument=None,
+                        message=f"Destination attribute {name} is already used for "
+                        f"dataclass of type {dataclass}. Make sure all destinations"
+                        f" are unique. (new dataclass type: {dataclass})",
+                    )
+        if not isinstance(dataclass, type):
+            if default is None:
+                default = dataclass
+            dataclass = type(dataclass)
+
+        dataclass_fn = dataclass_fn or dataclass
+
+        # Create this object that  holds the dataclass we will create arguments for and the
+        # arguments that were passed.
+        new_wrapper = dataclass_wrapper_class(
+            dataclass=dataclass,
+            name=name,
+            prefix=prefix,
+            default=default,
+            parent=parent,
+            dataclass_fn=dataclass_fn,
+        )
+
+        if new_wrapper.dest in self._defaults:
+            new_wrapper.set_default(self._defaults[new_wrapper.dest])
+        if self.nested_mode == NestedMode.WITHOUT_ROOT and all(
+            field.name in self._defaults for field in new_wrapper.fields
+        ):
+            # If we did .set_defaults before we knew what dataclass we're using, then we try to
+            # still make use of those defaults:
+            new_wrapper.set_default(
+                {
+                    k: v
+                    for k, v in self._defaults.items()
+                    if k in [f.name for f in dataclasses.fields(new_wrapper.dataclass)]
+                }
+            )
+
+        return new_wrapper
+
     def _preprocessing(self, args: Sequence[str] = (), namespace: Namespace | None = None) -> None:
         """Resolve potential conflicts, resolve subgroups, and add all the arguments."""
         logger.debug("\nPREPROCESSING\n")
@@ -471,8 +469,6 @@ class ArgumentParser(argparse.ArgumentParser):
         # Fix the potential conflicts between dataclass fields with the same names.
         wrapped_dataclasses = self._conflict_resolver.resolve_and_flatten(wrapped_dataclasses)
 
-        # TODO: We're using the `self._conflict_resolver` inside `self._resolve_subgroups`, but
-        # what if the resolver is the ALWAYS_MERGE one? Would that cause issues if used repeatedly?
         wrapped_dataclasses, chosen_subgroups = self._resolve_subgroups(
             wrappers=wrapped_dataclasses, args=args, namespace=namespace
         )
@@ -674,8 +670,8 @@ class ArgumentParser(argparse.ArgumentParser):
             # TODO: What if a name conflict occurs between a subgroup field and one of the new
             # fields below it? For example, something like --model model_a (and inside the `ModelA`
             # dataclass, there's a field called `model`. Then, this will cause a conflict!)
-            # For now, I'm just going to wait and see how this plays out. I'm thinking that the
-            # auto conflict resolution shouldn't run into any issues with this here.
+            # For now, I'm just going to wait and see how this plays out. I'm hoping that the
+            # auto conflict resolution shouldn't run into any issues in this case.
 
             wrappers = self._conflict_resolver.resolve(wrappers)
 
