@@ -18,6 +18,9 @@ However, the `Dataclass.replace` doesn't work with nested dataclasses, subgroups
 
 # A Basic example
 ```python
+from dataclasses import dataclass, field
+
+
 @dataclass
 class InnerClass:
     arg1: int = 0
@@ -26,7 +29,7 @@ class InnerClass:
 @dataclass(frozen=True)
 class OuterClass:
     outarg: int = 1
-    nested: InnerClass = dataclasses.field(default_factory=InnerClass)
+    nested: InnerClass = field(default_factory=InnerClass)
 
 changes_1 = {"outarg": 2, "nested.arg1": 1, "nested.arg2": "bar"}
 changes_2 = {"outarg": 2, "nested": {"arg1": 1, "arg2": "bar"}}
@@ -64,7 +67,7 @@ class NestedConfig:
 class AB:
     integer_only_by_post_init: int = field(init=False)
     integer_in_string: str = '1'
-    nested: NestedConfig = dataclasses.field(default_factory=NestedConfig)
+    nested: NestedConfig = field(default_factory=NestedConfig)
     a_or_b: A | B = subgroups({"a": A, "b": B}, default='a')
 
     def __post_init__(self):

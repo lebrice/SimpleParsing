@@ -539,6 +539,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 if subgroup_field.subgroup_default is dataclasses.MISSING:
                     assert argument_options["required"]
                 else:
+                    logger.info(f"{subgroup_field.subgroup_default} {argument_options['default']}")
                     assert argument_options["default"] is subgroup_field.subgroup_default
 
                 # TODO: Do we really need to care about this "SUPPRESS" stuff here?

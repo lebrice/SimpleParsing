@@ -1,64 +1,52 @@
-from collections.abc import MutableMapping
-from typing import Any, Dict
+from __future__ import annotations
 
-from . import ArgumentGenerationMode
-from .parsing import Dataclass, parse
+from dataclasses import fields
+from typing import Iterable
+import logging 
 
+from simple_parsing.helpers.serialization.serializable import from_dict, to_dict
 
-def flatten(d: Dict[str, Any], parent_key: str = "", sep: str = ".") -> Dict[str, Any]:
-    items = []
-    for k, v in d.items():
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, MutableMapping):
-            items.extend(flatten(v, new_key, sep=sep).items())
-        else:
-            items.append((new_key, v))
-    return dict(items)
+from .utils import (
+    Dataclass,
+    DataclassT,
+    dict_union,
+    is_dataclass_instance,
+    unflatten_split,
+)
 
+logger = logging.getLogger(__name__)
 
-def replace(obj: object, changes: Dict[str, Any]) -> Dataclass:
-    """Return a new object replacing specified fields with new values.
-
-    Parameters
-    ----------
-    - obj: object
-
-        If obj is not a dataclass instance, raises TypeError
-
-    - changes: Dict[str, Any]
-
-        The dictionary can be nested or flatten structure which is especially useful for frozen classes. Example usage::
-
-        @dataclass
-        class InnerClass:
-            arg1: int = 0
-            arg2: str = "foo"
-
-        @dataclass(frozen=True)
-        class OuterClass:
-            outarg: int = 1
-            nested: InnerClass = InnerClass()
-
-        changes_1 = {"outarg": 2, "nested.arg1": 1, "nested.arg2": "bar"}
-        changes_2 = {"outarg": 2, "nested": {"arg1": 1, "arg2": "bar"}}
-        c = OuterClass()
-        c1 = replace(c, changes_1)
-        c2 = replace(c, changes_2)
-        assert c1 == c2
+def replace(
+    dataclass: DataclassT, new_values_dict: dict | None = None, **new_values: dict
+) -> DataclassT:
+    """Replace some values in a dataclass. Also works with nested fields of the dataclass.
+    This is essentially an extension of `dataclasses.replace` that also allows changing the nested
+    fields of dataclasses.
+    ## Examples
+    ```python
+    from dataclasses import dataclass, field
+    from typing import Union
+    @dataclass
+    class A:
+        a: int = 0
+    @dataclass
+    class B:
+       b: str = "b"
+    @dataclass
+    class Config:
+       a_or_b: A | B = field(default_factory=A)
+    config = Config(a_or_b=A(a=1))
+    assert replace(config, {"a_or_b": {"a": 2}}) == Config(a_or_b=A(a=2))
+    assert replace(config, {"a_or_b.a": 2}) == Config(a_or_b=A(a=2))
+    assert replace(config, {"a_or_b": B(b="bob")}) == Config(a_or_b=B(b='bob'))
+    ```
     """
-
-    if not (dataclasses.is_dataclass(obj) and dataclasses.is_dataclass(type(obj)):
-        raise TypeError("replace() should be called on dataclass instances")
-
-    flatten_changes = flatten(changes)
-    print(flatten_changes)
-    args = []
-    for k, v in flatten_changes.items():
-        args.extend([f"--{k}", str(v)])
-
-    return parse(
-        obj.__class__,
-        args=args,
-        default=obj,
-        argument_generation_mode=ArgumentGenerationMode.NESTED,
-    )
+    if new_values_dict:
+        new_values = dict(**new_values_dict, **new_values)
+        
+    dataclass_dict = to_dict(dataclass, recurse=True)
+    logger.info(dataclass_dict)
+    unflatten_new_values = unflatten_split(new_values_dict)
+    new_dataclass_dict = dict_union(dataclass_dict, unflatten_new_values, recurse=True)
+    logger.info(new_dataclass_dict)
+    return from_dict(type(dataclass), new_dataclass_dict, drop_extra_fields=True)

@@ -652,6 +652,14 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
             d[name] = custom_encoding_fn(value)
             continue
 
+        ###### insert subgroups selected key
+        subgroups_dict = f.metadata.get('subgroups')
+        if subgroups_dict:
+            for g_name, g_cls in subgroups_dict.items():
+                if isinstance(value, g_cls):
+                    _target = f"__subgroups__@{name}"
+                    d[_target] = g_name
+
         encoding_fn = encode
         # TODO: Make a variant of the serialization tests that use the static functions everywhere.
         if is_dataclass(value) and recurse:
@@ -723,7 +731,7 @@ def from_dict(
     logger.debug(f"from_dict for {cls}, drop extra fields: {drop_extra_fields}")
     for field in fields(cls) if is_dataclass(cls) else []:
         name = field.name
-        if name not in obj_dict:
+        if name not in obj_dict and f"__subgroups__@{name}" not in obj_dict:
             if (
                 field.metadata.get("to_dict", True)
                 and field.default is MISSING
@@ -734,8 +742,30 @@ def from_dict(
                 )
             continue
 
-        raw_value = obj_dict.pop(name)
-        field_value = decode_field(field, raw_value, containing_dataclass=cls)
+        if field.metadata.get("subgroups", None):
+            # decode subgroups from dict
+            subgroups_dict = field.metadata.get("subgroups")
+            
+            _target = f"__subgroups__@{field.name}"
+            if _target in obj_dict:
+                _target_cls = subgroups_dict[obj_dict[_target]]
+                raw_value = obj_dict.pop(_target)
+            
+            if name in obj_dict:
+                raw_value = obj_dict.pop(name)
+            
+            if isinstance(raw_value, str):
+                field_value = subgroups_dict[raw_value]()
+            elif is_dataclass(raw_value):
+                field_value = raw_value
+            else: 
+                field_value = from_dict(_target_cls, raw_value, drop_extra_fields=True)
+        else:
+            raw_value = obj_dict.pop(name)
+            if is_dataclass(raw_value):
+                field_value = raw_value
+            else:
+                field_value = decode_field(field, raw_value, containing_dataclass=cls)
 
         if field.init:
             init_args[name] = field_value
@@ -792,6 +822,9 @@ def from_dict(
     for name, value in non_init_args.items():
         logger.debug(f"Setting non-init field '{name}' on the instance.")
         setattr(instance, name, value)
+    
+    if getattr(instance, '__post_init__', None):
+        instance.__post_init__()
     return instance
 
 

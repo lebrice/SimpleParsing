@@ -46,7 +46,7 @@ class NestedConfig:
 class AB:
     integer_only_by_post_init: int = field(init=False)
     integer_in_string: str = "1"
-    nested: NestedConfig = dataclasses.field(default_factory=NestedConfig)
+    nested: NestedConfig = field(default_factory=NestedConfig)
     a_or_b: A | B = subgroups({"a": A, "b": B}, default="a")
 
     def __post_init__(self):
@@ -57,7 +57,7 @@ config = AB()
 new_config = sp.replace(
     config,
     {
-        "a_or_b": "b",
+        "__subgroups__@a_or_b": "b",
         "a_or_b.b": "test",
         "integer_in_string": "2",
         "nested": {
