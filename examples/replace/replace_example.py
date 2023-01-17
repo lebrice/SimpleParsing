@@ -74,3 +74,41 @@ assert new_config.integer_only_by_post_init == 2
 assert new_config.nested.str_arg == "in_nested"
 assert new_config.nested.int_arg == 100
 assert id(config) != id(new_config)
+
+
+@dataclass
+class C:
+    c: bool = False
+
+
+@dataclass
+class D:
+    d: int = 0
+
+
+@dataclass(frozen=True)
+class CD():
+    c_or_d: C | D = subgroups({"c": C, "d": D}, default="c")
+
+    other_arg: str = "bob"
+
+@dataclass
+class Config():
+    ab_or_cd: AB | CD = subgroups(
+        {"ab": AB, "cd": CD},
+        default_factory=AB,
+    )
+
+assert Config(ab_or_cd=CD(c_or_d=D())) == \
+    sp.replace(
+        Config(),
+        {
+            "__subgroups__@ab_or_cd": "cd", 
+            "ab_or_cd.__subgroups__@c_or_d": "d"
+        })
+assert Config(ab_or_cd=CD(c_or_d=D())) == \
+    sp.replace(Config(),
+        {
+            "__subgroups__@ab_or_cd": "cd", 
+            "ab_or_cd.c_or_d": "d"
+        })

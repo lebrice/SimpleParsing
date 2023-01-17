@@ -128,6 +128,8 @@ options, leftover_args = simple_parsing.parse_known_args(Options)
 
 - ### [Enums support](https://github.com/lebrice/SimpleParsing/tree/master/examples/enums/README.md)
 
+- ### [Replace for nested dataclasses and subgroups](https://github.com/lebrice/SimpleParsing/tree/master/examples/replace/README.mdl):
+    The `simple-parsing.replace` is similar to `dataclasses.replace` with additional features that help us work on nested dataclasses and `subgroups`.
 - (More to come!)
 
 

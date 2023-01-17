@@ -93,7 +93,7 @@ class OuterDataclass(TestSetup):
     ],
 )
 def test_replace_nested_dict(config: object, changes: dict):
-    config_replaced = replace(config, changes)
+    config_replaced = replace(type(config)(), changes)
     logger.info(config_replaced)
     assert config == config_replaced
     assert id(config) != id(config_replaced)
@@ -113,7 +113,7 @@ def test_replace_nested_dict(config: object, changes: dict):
     ],
 )
 def test_replace_flatten_dict(config: object, changes: dict):
-    config_replaced = replace(config, changes)
+    config_replaced = replace(type(config)(), changes)
     assert config == config_replaced
     assert id(config) != id(config_replaced)
 
@@ -198,7 +198,7 @@ class Config(TestSetup):
     ],
 )
 def test_replace_nested_subgroups(config: object, changes: dict):
-    config_replaced = replace(config, changes)
+    config_replaced = replace(type(config)(), changes)
     assert config == config_replaced
     assert id(config) != id(config_replaced)
 

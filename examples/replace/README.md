@@ -97,3 +97,42 @@ assert new_config.nested.int_arg == 100
 assert id(config) != id(new_config)
 
 ```
+
+# Replace Nested Subgroups
+The pair `{"__subgroups__@[fieldname]": "[selected_key]"}` helps to indicate which subgroup is selected. When there is no conflict in dictionary, we could also use `{"[fieldname]": "[selected_key]"}` to indicate the selection.
+
+```python
+@dataclass
+class C:
+    c: bool = False
+
+
+@dataclass
+class D:
+    d: int = 0
+
+
+@dataclass(frozen=True)
+class CD():
+    c_or_d: C | D = subgroups({"c": C, "d": D}, default="c")
+
+    other_arg: str = "bob"
+
+@dataclass
+class Config():
+    ab_or_cd: AB | CD = subgroups(
+        {"ab": AB, "cd": CD},
+        default_factory=AB,
+    )
+
+assert Config(ab_or_cd=CD(c_or_d=D())) == sp.replace(
+    {
+        "__subgroups__@ab_or_cd": "cd", 
+        "ab_or_cd.__subgroups__@c_or_d": "d"
+    })
+assert Config(ab_or_cd=CD(c_or_d=D())) == sp.replace(
+    {
+        "__subgroups__@ab_or_cd": "cd", 
+        "ab_or_cd.c_or_d": "d"
+    })
+```
