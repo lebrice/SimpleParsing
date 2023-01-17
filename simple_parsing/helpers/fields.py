@@ -2,6 +2,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import dataclasses
 import functools
 import inspect
@@ -15,6 +16,7 @@ from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 from typing_extensions import Literal
 
 from simple_parsing.utils import Dataclass, str2bool
+from simple_parsing.wrappers._custom_actions import BooleanOptionalAction
 
 # NOTE: backward-compatibility import because it was moved to a different file.
 from .subgroups import subgroups  # noqa: F401
@@ -341,7 +343,19 @@ def subparsers(
 def flag(
     default: bool | _MISSING_TYPE = MISSING,
     default_factory: Callable[[], bool] | _MISSING_TYPE = MISSING,
-    nargs: Literal["?", 0] | None = ...,
+    nargs: Literal["?", 0, 1] | None = 1,
+    **kwargs,
+) -> bool:
+    ...
+
+
+@overload
+def flag(
+    default: bool | _MISSING_TYPE = MISSING,
+    default_factory: Callable[[], bool] | _MISSING_TYPE = MISSING,
+    nargs: Literal["?", 0, 1] | None = "?",
+    negative_prefix: str | None = "--no",
+    negative_option: str | None = None,
     **kwargs,
 ) -> bool:
     ...
@@ -360,9 +374,23 @@ def flag(
 def flag(
     default: bool | _MISSING_TYPE = MISSING,
     default_factory: Callable[[], bool] | Callable[[], list[bool]] | _MISSING_TYPE = MISSING,
-    nargs: Literal["?", "+", "*", 0] | int | None = "?",
+    nargs: Literal["?", "+", "*", 0, 1] | int | None = None,
+    negative_prefix: str | None = None,
+    negative_option: str | None = None,
+    action: str | type[argparse.Action] = BooleanOptionalAction,
     type: Callable[[str], bool] = str2bool,
     **kwargs,
 ) -> bool | list[bool]:
     """Creates a boolean field with a default value of `default` and nargs='?'."""
-    return field(default=default, default_factory=default_factory, nargs=nargs, type=type, **kwargs)
+    if nargs is None:
+        nargs = "?" if negative_prefix or negative_option else 1
+    return field(
+        default=default,
+        default_factory=default_factory,
+        nargs=nargs,
+        type=type,
+        action=action,
+        negative_option=negative_option,
+        negative_prefix=negative_prefix,
+        **kwargs,
+    )

@@ -37,7 +37,7 @@ class BooleanOptionalAction(argparse.Action):
         metavar: str | tuple[str, ...] | None = "bool",
         nargs: int | Literal["?", "*", "+"] | None = "?",
         negative_prefix: str = DEFAULT_NEGATIVE_PREFIX,
-        negative_alias: str | None = None,
+        negative_option: str | None = None,
     ):
         option_strings = list(option_strings)
         if nargs is None:
@@ -46,22 +46,22 @@ class BooleanOptionalAction(argparse.Action):
             raise ValueError(f"nargs={nargs!r} not supported for bools")
         self.negative_prefix = negative_prefix
 
-        if negative_alias is not None and not negative_alias.startswith("-"):
+        if negative_option is not None and not negative_option.startswith("-"):
             raise ValueError(
                 f"The negative alias for a field must start with at least one dash. "
-                f"Got {negative_alias!r}"
+                f"Got {negative_option!r}"
             )
-        self.negative_alias = negative_alias
+        self.negative_alias = negative_option
 
         self.negative_option_strings: list[str] = []
         # Do not add the negative prefix to the option strings when `nargs >= 1`
         if nargs in {"+", "*"} or (isinstance(nargs, int) and nargs >= 1):
             self.negative_option_strings = []
         elif self.negative_alias is not None:
-            assert nargs in ("?", 0)
+            assert nargs in ("?", 0, 1)
             self.negative_option_strings = [self.negative_alias]
         else:
-            assert nargs in ("?", 0)
+            assert nargs in ("?", 0, 1)
             self.negative_option_strings = []
             for option_string in option_strings:
                 if "." in option_string:
@@ -84,6 +84,9 @@ class BooleanOptionalAction(argparse.Action):
                 elif option_string.startswith("--"):
                     negative_option_string = self.negative_prefix + option_string[2:]
                     self.negative_option_strings.append(negative_option_string)
+
+        if help is not None and default is not None and default is not argparse.SUPPRESS:
+            help += " (default: %(default)s)"
 
         super().__init__(
             option_strings=option_strings + self.negative_option_strings,

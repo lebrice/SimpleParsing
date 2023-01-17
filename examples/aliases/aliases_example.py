@@ -25,7 +25,8 @@ Namespace(train=RunSettings(debug=False, verbose=False), valid=RunSettings(debug
 
 parser.print_help()
 expected += """\
-usage: aliases_example.py [-h] [-train.d bool] [-train.v] [-valid.d bool] [-valid.v]
+usage: aliases_example.py [-h] [-train.d bool] [-train.v] [-valid.d bool]
+                          [-valid.v]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -33,16 +34,20 @@ optional arguments:
 RunSettings ['train']:
   Parameters for a run.
 
-  -train.d bool, --train.debug bool, --notrain.debug bool
-                        whether or not to execute in debug mode. (default: False)
+  -train.d bool, --train.debug bool, --train.nod bool, --train.nodebug bool
+                        whether or not to execute in debug mode. (default:
+                        False)
   -train.v, --train.verbose
-                        whether or not to add a lot of logging information. (default: False)
+                        whether or not to add a lot of logging information.
+                        (default: False)
 
 RunSettings ['valid']:
   Parameters for a run.
 
-  -valid.d bool, --valid.debug bool, --novalid.debug bool
-                        whether or not to execute in debug mode. (default: False)
+  -valid.d bool, --valid.debug bool, --valid.nod bool, --valid.nodebug bool
+                        whether or not to execute in debug mode. (default:
+                        False)
   -valid.v, --valid.verbose
-                        whether or not to add a lot of logging information. (default: False)
+                        whether or not to add a lot of logging information.
+                        (default: False)
 """

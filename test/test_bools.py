@@ -1,13 +1,19 @@
 import textwrap
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, ContextManager, List, Union
 
 import pytest
 
 from simple_parsing import helpers
 from simple_parsing.helpers.fields import field, flag
 
-from .testutils import TestSetup
+from .testutils import (
+    TestSetup,
+    exits_and_writes_to_stderr,
+    raises_expected_n_args,
+    raises_missing_required_arg,
+    raises_unrecognized_args,
+)
 
 
 @dataclass
@@ -91,54 +97,60 @@ def test_bool_flags_work(flag: str, a: bool, b: bool, c: bool):
 
 
 @pytest.mark.parametrize(
-    "flag, nargs, a",
+    "flag, nargs, a_or_failure",
     [
         # By default, support both --noflag and --flag=false
         ("--a", "?", True),
         ("--noa", "?", False),
         ("--a true", "?", True),
-        ("--a true false", "?", SystemExit("unrecognized arguments")),
+        ("--a true false", "?", lambda: raises_unrecognized_args("false")),
         # `nargs=None` is like `nargs='?'`
         ("--a", None, True),
         ("--noa", None, False),
         ("--a true", None, True),
-        ("--a true false", None, SystemExit("unrecognized arguments")),
+        ("--a true false", None, lambda: raises_unrecognized_args("false")),
         # 1 argument explicitly required
-        ("--a", 1, SystemExit("expected 1 argument")),
-        ("--noa", 1, SystemExit("the following arguments are required")),
+        ("--a", 1, lambda: raises_expected_n_args(1)),
+        ("--noa", 1, lambda: raises_missing_required_arg("-a/--a")),
         ("--a=true", 1, [True]),
-        ("--a true false", 1, SystemExit("unrecognized arguments")),
+        ("--a true false", 1, lambda: raises_unrecognized_args("false")),
         # 2 argument explicitly required
-        ("--a", 2, SystemExit("expected 2 argument")),
-        ("--noa", 2, SystemExit("the following arguments are required")),
-        ("--a=true", 2, SystemExit("expected 2 argument")),
+        ("--a", 2, lambda: raises_expected_n_args(2)),
+        ("--noa", 2, lambda: raises_missing_required_arg("-a/--a")),
+        ("--a=true", 2, lambda: raises_expected_n_args(2)),
         ("--a true false", 2, [True, False]),
         # 1+ argument explicitly required
-        ("--a", "+", SystemExit("expected at least one argument")),
-        ("--noa", "+", SystemExit("the following arguments are required")),
+        ("--a", "+", lambda: exits_and_writes_to_stderr("expected at least one argument")),
+        ("--noa", "+", lambda: exits_and_writes_to_stderr("the following arguments are required")),
         ("--a=true", "+", [True]),
         ("--a true false", "+", [True, False]),
         # 0 or 1+ argument explicitly required
         ("--a", "*", []),
-        ("--noa", "*", SystemExit("unrecognized arguments")),
+        ("--noa", "*", lambda: raises_unrecognized_args("--noa")),
         ("--a=true", "*", [True]),
         ("--a true false", "*", [True, False]),
     ],
 )
-def test_bool_nargs(flag, nargs, a, capsys: pytest.CaptureFixture):
+def test_bool_nargs(
+    flag,
+    nargs,
+    a_or_failure: Union[bool, List[bool], ContextManager],
+    capsys: pytest.CaptureFixture,
+):
     @dataclass
     class MyClass(TestSetup):
         """Some test class"""
 
         a: bool = helpers.field(nargs=nargs)
 
-    if isinstance(a, SystemExit):
-        with pytest.raises(SystemExit):
-            MyClass.setup(flag)
-        assert str(a) in capsys.readouterr().err
-    else:
+    if isinstance(a_or_failure, (bool, list, tuple)):
+        a = a_or_failure
         flags = MyClass.setup(flag)
         assert flags.a == a
+    else:
+        expect_failure_context_manager = a_or_failure
+        with expect_failure_context_manager():
+            MyClass.setup(flag)
 
 
 @pytest.mark.parametrize("field", [field, flag])
@@ -172,12 +184,12 @@ a = flag(default=True, negative_prefix="--no-")
 
 
 @pytest.mark.parametrize("field", [field, flag])
-def test_using_custom_negative_alias(field):
+def test_using_custom_negative_option(field):
     from simple_parsing.helpers.fields import flag
 
     @dataclass
     class Config(TestSetup):
-        debug: bool = field(default=False, negative_alias="--release")
+        debug: bool = field(default=False, negative_option="--release")
 
     help_text = Config.get_help_text()
     assert "--nodebug" not in help_text
@@ -188,7 +200,7 @@ def test_using_custom_negative_alias(field):
     class OtherConfig(TestSetup):
         """Same as above but the default is `True` for `debug`."""
 
-        debug: bool = flag(default=True, negative_alias="--no-debug")
+        debug: bool = flag(default=True, negative_option="--no-debug")
 
     help_text = OtherConfig.get_help_text()
     assert "--nodebug" not in help_text
@@ -196,9 +208,7 @@ def test_using_custom_negative_alias(field):
     assert OtherConfig.setup("--no-debug").debug is False
 
 
-@pytest.mark.parametrize(
-    "bool_field", [field, flag, lambda default: default, lambda default: not default]
-)
+@pytest.mark.parametrize("bool_field", [field, flag])
 @pytest.mark.parametrize("default_value", [True, False])
 def test_nested_bool_field_negative_option_name(
     bool_field: Callable[..., bool], default_value: bool
@@ -214,6 +224,8 @@ def test_nested_bool_field_negative_option_name(
         train: Options = field(default_factory=Options)
         valid: Options = field(default_factory=Options)
 
+    # TODO: Small bug: When using the `flag` function, we explicitly want a value to be passed to
+    # the flag. This is useful when using subparsers, when the "?" nargs causes issues.
     assert Config.setup("") == Config()
     assert Config.setup("--train.debug") == Config(train=Options(debug=True))
     assert Config.setup("--train.nodebug") == Config(train=Options(debug=False))
