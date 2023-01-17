@@ -53,23 +53,40 @@ class BooleanOptionalAction(argparse.Action):
             )
         self.negative_alias = negative_alias
 
-        new_option_strings: list[str]
+        self.negative_option_strings: list[str] = []
         # Do not add the negative prefix to the option strings when `nargs >= 1`
         if nargs in {"+", "*"} or (isinstance(nargs, int) and nargs >= 1):
-            new_option_strings = []
+            self.negative_option_strings = []
         elif self.negative_alias is not None:
             assert nargs in ("?", 0)
-            new_option_strings = [self.negative_alias]
+            self.negative_option_strings = [self.negative_alias]
         else:
             assert nargs in ("?", 0)
-            new_option_strings = []
+            self.negative_option_strings = []
             for option_string in option_strings:
-                if option_string.startswith("--"):
+                if "." in option_string:
+                    parts = option_string.split(".")
+                    # NOTE: Need to be careful here.
+                    first, *middle, last = parts
+
+                    negative_prefix_without_leading_dashes = negative_prefix.lstrip("-")
+                    num_leading_dashes = len(negative_prefix) - len(
+                        negative_prefix_without_leading_dashes
+                    )
+                    first_without_leading_dashes = first.lstrip("-")
+
+                    first = "-" * num_leading_dashes + first_without_leading_dashes
+                    last = negative_prefix_without_leading_dashes + last
+
+                    negative_option_string = ".".join([first] + middle + [last])
+                    self.negative_option_strings.append(negative_option_string)
+
+                elif option_string.startswith("--"):
                     negative_option_string = self.negative_prefix + option_string[2:]
-                    new_option_strings.append(negative_option_string)
+                    self.negative_option_strings.append(negative_option_string)
 
         super().__init__(
-            option_strings=option_strings + new_option_strings,
+            option_strings=option_strings + self.negative_option_strings,
             dest=dest,
             nargs=nargs,
             default=default,
@@ -95,7 +112,7 @@ class BooleanOptionalAction(argparse.Action):
             is_neg = option_string == self.negative_alias
         else:
             assert option_string is not None
-            is_neg = option_string.startswith(self.negative_prefix)
+            is_neg = option_string in self.negative_option_strings
 
         if values is None:  # --my_flag / --nomy_flag
             bool_value = not is_neg

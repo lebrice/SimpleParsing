@@ -1,5 +1,6 @@
 import textwrap
 from dataclasses import dataclass
+from typing import Callable
 
 import pytest
 
@@ -193,3 +194,64 @@ def test_using_custom_negative_alias(field):
     assert "--nodebug" not in help_text
     assert "--no-debug" in help_text
     assert OtherConfig.setup("--no-debug").debug is False
+
+
+@pytest.mark.parametrize(
+    "bool_field", [field, flag, lambda default: default, lambda default: not default]
+)
+@pytest.mark.parametrize("default_value", [True, False])
+def test_nested_bool_field_negative_option_name(
+    bool_field: Callable[..., bool], default_value: bool
+):
+    """Test that we get --train.nodebug instead of --notrain.debug"""
+
+    @dataclass
+    class Options:
+        debug: bool = bool_field(default=default_value)
+
+    @dataclass
+    class Config(TestSetup):
+        train: Options = field(default_factory=Options)
+        valid: Options = field(default_factory=Options)
+
+    assert Config.setup("") == Config()
+    assert Config.setup("--train.debug") == Config(train=Options(debug=True))
+    assert Config.setup("--train.nodebug") == Config(train=Options(debug=False))
+
+    help_text = Config.get_help_text()
+    assert "--notrain.debug" not in help_text
+    assert "--novalid.debug" not in help_text
+    assert "--valid.nodebug" in help_text
+    assert "--train.nodebug" in help_text
+
+
+@pytest.mark.xfail(
+    reason=(
+        "TODO: When a field has a single letter name, we usually add `-{name}` and `--{name}`. "
+        "However, if a prefix gets added when there's a conflict, then we'd like to only generate "
+        "`--{prefix}.{name}`, and *not* `-{prefix}.{name}`."
+    ),
+    strict=True,
+    raises=AssertionError,
+)
+@pytest.mark.parametrize("bool_field", [field, flag])
+@pytest.mark.parametrize("default_value", [True, False])
+def test_bool_nested_field_when_conflict_has_two_dashes(
+    bool_field: Callable[..., bool], default_value: bool
+):
+    """TODO:"""
+    # Check that there isn't a "-train.d bool" argument generated here, only "--train.d bool"
+    @dataclass
+    class Options:
+
+        # whether or not to execute in debug mode.
+        d: bool = bool_field(default=default_value)
+
+    @dataclass
+    class Config(TestSetup):
+        train: Options = field(default_factory=Options)
+        valid: Options = field(default_factory=Options)
+
+    help_text = Config.get_help_text()
+    assert "--train.d bool" in help_text
+    assert " -train.d bool" not in help_text
