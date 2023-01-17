@@ -1,6 +1,6 @@
 # The extended `replace` for simple-parsing
 
-The replace function of the dataclasses module has the signature of [`Dataclasses.replace(obj, /, **changes)`](https://docs.python.org/3/library/dataclasses.html#dataclasses.replace):
+The replace function of the dataclasses module has the signature of [`dataclasses.replace(obj, /, **changes)`](https://docs.python.org/3/library/dataclasses.html#dataclasses.replace):
 - it creates a new object of the same type as `obj`, replacing fields with values from changes.
 - If obj is not a Data Class, raises TypeError. If values in changes do not specify fields, raises TypeError.
 
