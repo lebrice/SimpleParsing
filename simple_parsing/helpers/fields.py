@@ -12,6 +12,8 @@ from enum import Enum
 from logging import getLogger
 from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 
+from typing_extensions import Literal
+
 from simple_parsing.utils import Dataclass, str2bool
 
 # NOTE: backward-compatibility import because it was moved to a different file.
@@ -335,7 +337,32 @@ def subparsers(
     )
 
 
-def flag(default: bool, **kwargs):
+@overload
+def flag(
+    default: bool | _MISSING_TYPE = MISSING,
+    default_factory: Callable[[], bool] | _MISSING_TYPE = MISSING,
+    nargs: Literal["?", 0] | None = ...,
+    **kwargs,
+) -> bool:
+    ...
+
+
+@overload
+def flag(
+    default: _MISSING_TYPE = MISSING,
+    default_factory: Callable[[], list[bool]] | _MISSING_TYPE = MISSING,
+    nargs: Literal["*", "+"] | int = ...,
+    **kwargs,
+) -> list[bool]:
+    ...
+
+
+def flag(
+    default: bool | _MISSING_TYPE = MISSING,
+    default_factory: Callable[[], bool] | Callable[[], list[bool]] | _MISSING_TYPE = MISSING,
+    nargs: Literal["?", "+", "*", 0] | int | None = "?",
+    type: Callable[[str], bool] = str2bool,
+    **kwargs,
+) -> bool | list[bool]:
     """Creates a boolean field with a default value of `default` and nargs='?'."""
-    action = "store_true" if default is False else "store_false"
-    return field(default=default, nargs="?", action=action, type=str2bool, **kwargs)
+    return field(default=default, default_factory=default_factory, nargs=nargs, type=type, **kwargs)
