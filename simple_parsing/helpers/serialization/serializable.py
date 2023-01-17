@@ -102,7 +102,7 @@ class SerializableMixin:
         encode.register(cls, cls.to_dict)
         register_decoding_fn(cls, cls.from_dict)
 
-    def to_dict(self, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
+    def to_dict(self, dict_factory: type[dict] = dict, recurse: bool = True, add_selection=True) -> dict:
         """Serializes this dataclass to a dict.
 
         NOTE: This 'extends' the `asdict()` function from
@@ -110,10 +110,10 @@ class SerializableMixin:
         dict, or to perform some kind of custom encoding (for instance,
         detaching `Tensor` objects before serializing the dataclass to a dict).
         """
-        return to_dict(self, dict_factory=dict_factory, recurse=recurse)
+        return to_dict(self, dict_factory=dict_factory, recurse=recurse, add_selection=add_selection)
 
     @classmethod
-    def from_dict(cls: type[D], obj: dict, drop_extra_fields: bool | None = None) -> D:
+    def from_dict(cls: type[D], obj: dict, drop_extra_fields: bool | None = None, parse_selection=True) -> D:
         """Parses an instance of `cls` from the given dict.
 
         NOTE: If the `decode_into_subclasses` class attribute is set to True (or
@@ -128,7 +128,7 @@ class SerializableMixin:
         of `cls` and drop the extra keys in the dict.
         Passing `drop_extra_fields=False` forces the above-mentioned behaviour.
         """
-        return from_dict(cls, obj, drop_extra_fields=drop_extra_fields)
+        return from_dict(cls, obj, drop_extra_fields=drop_extra_fields, parse_selection=parse_selection)
 
     def dump(self, fp: IO[str], dump_fn: DumpFn = json.dump) -> None:
         dump(self, fp=fp, dump_fn=dump_fn)
@@ -773,6 +773,16 @@ def from_dict(
                     _target_cls, raw_value, drop_extra_fields=True, parse_selection=parse_selection
                 )
         else:
+            if name not in obj_dict:
+                if (
+                    field.metadata.get("to_dict", True)
+                    and field.default is MISSING
+                    and field.default_factory is MISSING
+                ):
+                    logger.warning(
+                        f"Couldn't find the field '{name}' in the dict with keys " f"{list(d.keys())}"
+                    )
+                continue
             raw_value = obj_dict.pop(name)
             if is_dataclass(raw_value):
                 field_value = raw_value
