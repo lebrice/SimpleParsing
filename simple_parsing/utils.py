@@ -34,7 +34,14 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal, Protocol, TypeGuard, get_args, runtime_checkable, get_origin
+from typing_extensions import (
+    Literal,
+    Protocol,
+    TypeGuard,
+    get_args,
+    get_origin,
+    runtime_checkable,
+)
 
 
 # NOTE: Copied from typing_inspect.

@@ -1,20 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import fields
-from typing import Iterable
-import logging 
+import logging
 
 from simple_parsing.helpers.serialization.serializable import from_dict, to_dict
 
 from .utils import (
-    Dataclass,
     DataclassT,
     dict_union,
-    is_dataclass_instance,
     unflatten_split,
 )
 
 logger = logging.getLogger(__name__)
+
 
 def replace(
     dataclass: DataclassT, new_values_dict: dict | None = None, **new_values: dict
@@ -43,7 +40,7 @@ def replace(
     """
     if new_values_dict:
         new_values = dict(**new_values_dict, **new_values)
-        
+
     dataclass_dict = to_dict(dataclass, recurse=True)
     logger.info(dataclass_dict)
     unflatten_new_values = unflatten_split(new_values_dict)

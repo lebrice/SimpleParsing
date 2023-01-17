@@ -653,7 +653,7 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
             continue
 
         ###### insert subgroups selected key
-        subgroups_dict = f.metadata.get('subgroups')
+        subgroups_dict = f.metadata.get("subgroups")
         if subgroups_dict:
             for g_name, g_cls in subgroups_dict.items():
                 if isinstance(value, g_cls):
@@ -745,20 +745,20 @@ def from_dict(
         if field.metadata.get("subgroups", None):
             # decode subgroups from dict
             subgroups_dict = field.metadata.get("subgroups")
-            
+
             _target = f"__subgroups__@{field.name}"
             if _target in obj_dict:
                 _target_cls = subgroups_dict[obj_dict[_target]]
                 raw_value = obj_dict.pop(_target)
-            
+
             if name in obj_dict:
                 raw_value = obj_dict.pop(name)
-            
+
             if isinstance(raw_value, str):
                 field_value = subgroups_dict[raw_value]()
             elif is_dataclass(raw_value):
                 field_value = raw_value
-            else: 
+            else:
                 field_value = from_dict(_target_cls, raw_value, drop_extra_fields=True)
         else:
             raw_value = obj_dict.pop(name)
@@ -822,8 +822,8 @@ def from_dict(
     for name, value in non_init_args.items():
         logger.debug(f"Setting non-init field '{name}' on the instance.")
         setattr(instance, name, value)
-    
-    if getattr(instance, '__post_init__', None):
+
+    if getattr(instance, "__post_init__", None):
         instance.__post_init__()
     return instance
 
