@@ -6,16 +6,6 @@ The replace function of the dataclasses module has the signature of [`Dataclasse
 
 However, the `Dataclass.replace` doesn't work with nested dataclasses, subgroups, and other features in `simple-parsing`. To solve this, the `simple_parsing.replace` should be supplemented as an extension to `dataclasses.replace`.
 
-# The signature of `simple_parsing.replace`
-```def replace(obj: object, changes: Dict[str, Any]):```
-- obj: object
-
-    If obj is not a dataclass instance, raises TypeError
-
-- changes: Dict[str, Any]
-
-    The dictionary can be nested or flatten structure which is especially useful for frozen classes.
-
 # A Basic example
 ```python
 from dataclasses import dataclass, field
