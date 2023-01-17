@@ -12,7 +12,10 @@ from enum import Enum
 from logging import getLogger
 from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 
-from simple_parsing.utils import Dataclass, DataclassT, str2bool
+from simple_parsing.utils import Dataclass, str2bool
+
+# NOTE: backward-compatibility import because it was moved to a different file.
+from .subgroups import subgroups  # noqa: F401
 
 logger = getLogger(__name__)
 
@@ -319,138 +322,9 @@ def mutable_field(
 
 MutableField = mutable_field
 
-# TODO: Change this to a bound of Hashable.
-# It seems to consider `default`
-Key = TypeVar("Key", str, int, bool, Enum)
-OtherDataclassT = TypeVar("OtherDataclassT", bound=Dataclass)
-
-
-@overload
-def subgroups(
-    subgroups: dict[Key, type[DataclassT]],
-    *args,
-    default: Key,
-    default_factory: _MISSING_TYPE = MISSING,
-    **kwargs,
-) -> DataclassT:
-    ...
-
-
-# TODO: Enable this overload if we make `subgroups` more flexible (see below).
-# @overload
-# def subgroups(
-#     subgroups: Mapping[Key, type[DataclassT]],
-#     *args,
-#     default_factory: Callable[[], OtherDataclassT],
-#     **kwargs,
-# ) -> DataclassT | OtherDataclassT:
-#     ...
-
-
-@overload
-def subgroups(
-    subgroups: dict[Key, type[DataclassT]],
-    *args,
-    default: _MISSING_TYPE = MISSING,
-    default_factory: type[DataclassT],
-    **kwargs,
-) -> DataclassT:
-    ...
-
-
-@overload
-def subgroups(
-    subgroups: dict[Key, type[DataclassT]],
-    *args,
-    default: _MISSING_TYPE = MISSING,
-    default_factory: _MISSING_TYPE = MISSING,
-    **kwargs,
-) -> DataclassT:
-    ...
-
-
-def subgroups(
-    subgroups: dict[Key, type[DataclassT]],
-    *args,
-    default: Key | _MISSING_TYPE = MISSING,
-    default_factory: type[DataclassT] | _MISSING_TYPE = MISSING,
-    **kwargs,
-) -> DataclassT:
-    """Creates a field that will be a choice between different subgroups of arguments.
-
-    This is different than adding a subparser action. There can only be one subparser action, while
-    there can be arbitrarily many subgroups. Subgroups can also be nested!
-
-    TODO: Support using functools.partial or maybe arbitrary callables (e.g. lambdas) in addition
-    to dataclass types.
-
-    Parameters
-    ----------
-    subgroups :
-        Dictionary mapping from the subgroup name to the subgroup type.
-    default :
-        The default subgroup to use, by default MISSING, in which case a subgroup has to be
-        selected. Needs to be a key in the subgroups dictionary.
-    default_factory :
-        The default_factory to use to create the subgroup. Needs to be a value of the `subgroups`
-        dictionary.
-
-    Returns
-    -------
-    A field whose type is the Union of the different possible subgroups.
-    """
-    if not all(
-        inspect.isclass(subgroup) and dataclasses.is_dataclass(subgroup)
-        for subgroup in subgroups.values()
-    ):
-        raise ValueError("All values in the subgroups dict need to be dataclasses!")
-    metadata = kwargs.setdefault("metadata", {})
-    metadata["subgroups"] = subgroups
-    metadata["subgroup_default"] = default
-
-    choices = subgroups.keys()
-    kwargs["type"] = str
-
-    if default_factory is not MISSING and default is not MISSING:
-        raise ValueError("Can't pass both default and default_factory!")
-    if default is not MISSING and default not in subgroups:
-        raise ValueError("default must be a key in the subgroups dict!")
-    if default_factory is not MISSING and default_factory not in subgroups.values():
-        # TODO: This might a little bit too strict. We don't want to encourage people creating lots
-        # of classes just to change the default arguments.
-        raise ValueError("default_factory must be a value in the subgroups dict!")
-
-    if default is not MISSING:
-        assert default in subgroups.keys()
-        default_factory = subgroups[default]
-        metadata["subgroup_default"] = default
-        default = MISSING
-
-    elif default_factory is not MISSING:
-        assert default_factory in subgroups.values()
-        # default_factory passed, which is in the subgroups dict. Find the matching key.
-        matching_keys = [k for k, v in subgroups.items() if v is default_factory]
-        if not matching_keys:
-            # Use == instead of `is` this time.
-            matching_keys = [k for k, v in subgroups.items() if v == default_factory]
-
-        # We wouldn't get here if default_factory wasn't in the subgroups dict values.
-        assert matching_keys
-        if len(matching_keys) > 1:
-            raise ValueError(
-                f"Default subgroup {default} is found more than once in the subgroups dict?"
-            )
-        subgroup_default = matching_keys[0]
-        metadata["subgroup_default"] = subgroup_default
-    else:
-        # Store `MISSING` as the subgroup default.
-        metadata["subgroup_default"] = MISSING
-
-    return choice(choices, *args, default=default, default_factory=default_factory, **kwargs)  # type: ignore
-
 
 def subparsers(
-    subcommands: dict[str, type[Dataclass]], default: Dataclass = MISSING, **kwargs
+    subcommands: dict[str, type[Dataclass]], default: Dataclass | _MISSING_TYPE = MISSING, **kwargs
 ) -> Any:
     return field(
         metadata={

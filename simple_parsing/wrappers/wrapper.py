@@ -1,14 +1,11 @@
 """Abstract Wrapper base-class for the FieldWrapper and DataclassWrapper."""
 
 from abc import ABC, abstractmethod
-from typing import Generic, List, Optional
-
-from ..utils import T
+from typing import List, Optional
 
 
-class Wrapper(Generic[T], ABC):
-    def __init__(self, wrapped: T, name: str):
-        self.wrapped = wrapped
+class Wrapper(ABC):
+    def __init__(self):
         self._dest: Optional[str] = None
 
     @abstractmethod
