@@ -1,16 +1,19 @@
 from __future__ import annotations
 
+import dataclasses
+import functools
 import shlex
 from dataclasses import dataclass, field
 from functools import partial
 from typing import Callable, TypeVar
 
 import pytest
+from typing_extensions import Annotated
 
 from simple_parsing import ArgumentParser, subgroups
 
 from .test_choice import Color
-from .testutils import TestSetup, raises_missing_required_arg
+from .testutils import TestSetup, raises_invalid_choice, raises_missing_required_arg
 
 TestClass = TypeVar("TestClass", bound=TestSetup)
 
@@ -131,7 +134,7 @@ class EnumsAsKeys(TestSetup):
     ],
 )
 def test_help_string(
-    dataclass_type: type[TestClass],
+    dataclass_type: type[TestSetup],
     get_help_text_args: dict,
     should_contain: list[str],
 ):
@@ -262,27 +265,171 @@ def test_subgroup_default_needs_to_be_key_in_dict():
 
 
 def test_subgroup_default_factory_needs_to_be_value_in_dict():
-    with pytest.raises(ValueError, match="default_factory must be a value in the subgroups dict"):
+    with pytest.raises(ValueError, match="`default_factory` must be a value in the subgroups dict"):
         _ = subgroups({"a": B, "aa": A}, default_factory=C)
 
 
-simple_subgroups_for_now = pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "TODO: Not implemented yet. Subgroups only currently allows having a dict with values"
-        " that are dataclasses. Remove this once this works."
+def test_lambdas_dont_return_same_instance():
+    """Slightly unrelated, but I just want to check if lambda expressions return the same object
+    instance when a default factory looks like `lambda: A()`. If so, then I won't encourage this.
+    """
+
+    @dataclass
+    class A:
+        a: int = 123
+
+    @dataclass
+    class Config(TestSetup):
+        a_config: A = dataclasses.field(default_factory=lambda: A())
+
+    assert Config().a_config is not Config().a_config
+
+
+def test_partials_new_args_overwrite_set_values():
+    """Double-check that functools.partial overwrites the keywords that are stored when it is
+    created with the ones that are passed when calling it.
+    """
+    # just to avoid the test passing if I were to hard-code the same value as the default by
+    # accident.
+    default_a = A().a
+    CustomA = functools.partial(A, a=default_a + 1)
+    assert CustomA() == A(a=default_a + 1)
+    assert CustomA(a=default_a * 34) == A(a=default_a * 34)
+
+
+def test_defaults_from_partial():
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups(
+            {
+                "a": A,
+                "a_1.23": functools.partial(A, a=1.23),
+                "a_4.56": functools.partial(A, a=4.56),
+                "b": B,
+                "b_bob": functools.partial(B, b="bob"),
+            },
+            default="a",
+        )
+
+    # TODO: The issue is that the default value from the field is being set in the dict of
+    # constructor arguments, and even if the dataclass_fn is a partial(A, a=1.23), since it's being
+    # called like `dataclass_fn(**{"a": 0.0})` (from the field default), then the value of `a` is
+    # overwritten with the default value from the field. I think the solution is either:
+    # 1. Not populate the constructor arguments with the value for this field;
+    # 2. Change the default value to be the one from the partial, instead of the one from the
+    #    field. The partial would then be called with the same value.
+    # I think 1. makes more sense. For fields that aren't required (have a default value), then the
+    # constructor_arguments dict doesn't need to contain the default values. Calling the
+    # dataclass_fn (which is almost always just the dataclass type itself) will use the default
+    # values from the fields.
+
+    # NOTE: Now I've changed my mind. Option 2 might be easiest for now, since I still don't have a
+    # complete grasp of how argparse works internally, and I feel like I could easily make it work
+    # quickly.
+    assert Foo.setup("--a_or_b a_4.56") == Foo(a_or_b=A(a=4.56))
+
+
+def test_subgroups_with_partials():
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups(
+            {
+                "a": A,
+                "a_1.23": functools.partial(A, a=1.23),
+                "a_4.56": functools.partial(A, a=4.56),
+                "b": B,
+                "b_bob": functools.partial(B, b="bob"),
+            },
+            default="a",
+        )
+
+    assert Foo.setup() == Foo() == Foo(a_or_b=A())
+    assert Foo.setup("--a_or_b a") == Foo(a_or_b=A())
+    assert Foo.setup("--a_or_b a --a=6.66") == Foo(a_or_b=A(a=6.66))
+    assert Foo.setup("--a_or_b a_1.23") == Foo(a_or_b=A(a=1.23))
+    assert Foo.setup("--a_or_b a_4.56") == Foo(a_or_b=A(a=4.56))
+    assert Foo.setup("--a_or_b b") == Foo(a_or_b=B())
+    assert Foo.setup("--a_or_b b --b fooo") == Foo(a_or_b=B(b="fooo"))
+    assert Foo.setup("--a_or_b b_bob") == Foo(a_or_b=B(b="bob"))
+
+    with raises_invalid_choice():
+        Foo.setup("--a_or_b c")
+
+
+@pytest.mark.xfail(strict=True, reason="I'm not sure this is a good idea anymore.")
+def test_subgroups_with_functions():
+    def make_b(b: str = "default from make_b") -> B:
+        return B(b=b)
+
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: A | B = subgroups(
+            {
+                "a": A,
+                "b": B,
+                "make_b": make_b,
+            },
+            default="a",
+        )
+
+    # TODO: decide if this is correct. In this case here, since the default value for `b` is the
+    # same as passed (i.e. arg isn't used), then the constructor args dict doesn't have an entry
+    # for `b`, and the default value from the function definition is used.
+    # This also means that `b` can't be a required argument in this function, since it won't be
+    # passed if it isn't different from the default value..
+    # TODO: Now that I think about it, it might make more sense to have the default values in the
+    # dictionary of constructor arguments, right? Not 100% sure.
+
+    assert Foo.setup("--a_or_b make_b") == Foo(a_or_b=B(b="default from make_b"))
+    assert Foo.setup("--a_or_b make_b") == Foo(a_or_b=B(b="default from make_b"))
+    assert Foo.setup("--a_or_b make_b --b foo") == Foo(a_or_b=B(b="foo"))
+
+
+def test_subgroup_functions_receive_all_fields():
+    """TODO: Decide how we want to go about this.
+    Either the functions receive all the fields (the default values), or only the ones that are set
+    (harder to implement).
+    """
+
+    @dataclass
+    class Obj:
+        a: float = 0.0
+        b: str = "default from field"
+
+    def make_obj(**kwargs) -> Obj:
+        assert kwargs == {"a": 0.0, "b": "foo"}  # first case (current): receives all fields
+        # assert kwargs == {"b": "foo"}  # second case: receive only set fields.
+        return Obj(**kwargs)
+
+    @dataclass
+    class Foo(TestSetup):
+        a_or_b: Obj = subgroups(
+            {
+                "make_obj": make_obj,
+            },
+            default_factory=make_obj,
+        )
+
+    Foo.setup("--a_or_b make_obj --b foo")
+
+
+lambdas_arent_supported_yet = functools.partial(
+    pytest.param,
+    marks=pytest.mark.xfail(
+        strict=True,
+        raises=NotImplementedError,
+        reason="Lambda expressions aren't allowed in the subgroup dict or default_factory at the moment.",
     ),
 )
 
 
-@simple_subgroups_for_now
 @pytest.mark.parametrize(
     "a_factory, b_factory",
     [
         (partial(A), partial(B)),
-        (lambda: A(), lambda: B()),
         (partial(A, a=321), partial(B, b="foobar")),
-        (lambda: A(a=123), lambda: B(b="foooo")),
+        lambdas_arent_supported_yet(lambda: A(), lambda: B()),
+        lambdas_arent_supported_yet(lambda: A(a=123), lambda: B(b="foooo")),
     ],
 )
 def test_other_default_factories(a_factory: Callable[[], A], b_factory: Callable[[], B]):
@@ -297,14 +444,13 @@ def test_other_default_factories(a_factory: Callable[[], A], b_factory: Callable
     assert Foo.setup("--a_or_b b") == Foo(a_or_b=b_factory())
 
 
-@simple_subgroups_for_now
 @pytest.mark.parametrize(
     "a_factory, b_factory",
     [
-        (partial(A), partial(B)),
-        (lambda: A(), lambda: B()),
         (partial(A, a=321), partial(B, b="foobar")),
-        (lambda: A(a=123), lambda: B(b="foooo")),
+        (partial(partial(A, a=111), a=321), partial(partial(B), b="foobar")),
+        (partial(partial(A, a=111)), partial(partial(B, b="foobar"))),
+        lambdas_arent_supported_yet(lambda: A(a=123), lambda: B(b="foooo")),
     ],
 )
 def test_help_string_displays_default_factory_arguments(
@@ -320,20 +466,74 @@ def test_help_string_displays_default_factory_arguments(
     # for the fields are the same
     @dataclass
     class Foo(TestSetup):
-        a_or_b: A | B = subgroups({"a": A, "b": B}, default_factory=a_factory)
+        a_or_b: A | B = subgroups({"a": a_factory, "b": b_factory}, default="a")
+
+    a_default_from_factory = a_factory().a
+    b_default_from_factory = b_factory().b
+    a_default_from_field = A().a
+    b_default_from_field = B().b
+
+    # Just to make sure that we're using a different value for the default.
+    assert a_default_from_field != a_default_from_factory
+    assert b_default_from_field != b_default_from_factory
+
+    # Check that it doesn't use the default value from the field in the help text.
+    assert f"--a float (default: {a_default_from_field})" not in Foo.get_help_text("")
+    assert f"--a float (default: {a_default_from_field})" not in Foo.get_help_text("--a_or_b a")
+    assert f"--b str (default: {b_default_from_field})" not in Foo.get_help_text("--a_or_b b")
+
+    # Check that it uses the default value from the factory in the help text.
+    assert f"--a float  (default: {a_default_from_factory})" in Foo.get_help_text("")
+    assert f"--a float  (default: {a_default_from_factory})" in Foo.get_help_text("--a_or_b a")
+    assert f"--b str  (default: {b_default_from_factory})" in Foo.get_help_text("--a_or_b b")
+
+
+def test_factory_is_only_called_once():
+    class_constructor_calls = 0
+    partial_calls = 0
+
+    class _partial(partial):
+        def __call__(self, *args, **kwargs):
+            nonlocal partial_calls
+            partial_calls += 1
+            return super().__call__(*args, **kwargs)
 
     @dataclass
-    class FooWithDefaultFactories(TestSetup):
-        a_or_b: A | B = subgroups({"a": a_factory, "b": b_factory}, default_factory=a_factory)
+    class SomeObj:
+        a: int = 0
 
-    help_with = FooWithDefaultFactories.get_help_text()
-    help_without = Foo.get_help_text()
-    assert (
-        help_with.replace("FooWithDefaultFactories", "Foo").replace(
-            "foo_with_default_factories", "foo"
+        def __post_init__(self):
+            nonlocal class_constructor_calls
+            class_constructor_calls += 1
+
+    @dataclass
+    class Config(TestSetup):
+        obj: SomeObj = subgroups(
+            {
+                "a": SomeObj,
+                "b": _partial(SomeObj, a=123),
+            },
+            default_factory=SomeObj,
         )
-        == help_without
-    )
+
+    assert class_constructor_calls == 0
+    Config()
+    assert class_constructor_calls == 1
+
+    config = Config.setup("")
+    assert class_constructor_calls == 2
+    assert config.obj.a == 0
+
+    config = Config.setup("--obj a --a 321")
+    assert class_constructor_calls == 3
+    assert config == Config(obj=SomeObj(a=321))
+    assert class_constructor_calls == 4
+
+    assert partial_calls == 0
+    config = Config.setup("--obj b")
+    assert partial_calls == 1
+    assert class_constructor_calls == 5
+    assert config.obj.a == 123
 
 
 @pytest.mark.xfail(strict=True, reason="Not implemented yet. Remove this once it is.")
@@ -399,3 +599,105 @@ def test_destination_substring_of_other_destination_issue191():
 
     config: Config = args.config
     assert config.model == ModelAConfig()
+
+
+def test_subgroup_partial_with_nested_field():
+    """Test the case where a subgroup has a nested dataclass field, and that nested field is an
+    argument to the partial."""
+
+    @dataclass
+    class Obj:
+        a: int = 0
+
+    @dataclass
+    class Foo:
+        obj: Obj = field(default_factory=Obj)
+
+    @dataclass
+    class Config(TestSetup):
+        foo: Foo = subgroups(
+            {
+                "simple": Foo,
+                "default": partial(Foo, obj=Obj(a=123)),  # bad idea!
+            },
+            default="default",
+        )
+
+    first_config = Config()
+    first_object = first_config.foo.obj
+    second_config = Config()
+    # Bad idea! This is reusing the dataclass instance!
+    # TODO: Do we want to explicitly disallow this?
+    assert second_config.foo.obj is first_object
+
+    assert Config.setup("").foo.obj.a == 123
+    assert Config.setup("--foo=default").foo.obj.a == 123
+    assert Config.setup("--foo=simple").foo.obj.a == 0
+    assert "--a int       (default: 123)" in Config.get_help_text()
+
+
+class Model:
+    def __init__(self, num_layers: int = 3, hidden_dim: int = 64):
+        self.num_layers = num_layers
+        self.hidden_dim = hidden_dim
+
+
+@dataclass
+class CustomAnnotation:
+    default_factory: Callable[[], Model]
+
+
+SmallModel = Annotated[
+    Model, CustomAnnotation(default_factory=partial(Model, num_layers=1, hidden_dim=32))
+]
+BigModel = Annotated[
+    Model, CustomAnnotation(default_factory=partial(Model, num_layers=12, hidden_dim=128))
+]
+
+
+@pytest.mark.xfail(strict=True, reason="Annotated isn't supported as an option yet.")
+def test_annotated_as_subgroups():
+    """Test using the new Annotated type to create variants of the same dataclass."""
+
+    @dataclasses.dataclass
+    class Config(TestSetup):
+        model: Model = subgroups({"small": SmallModel, "big": BigModel}, default_factory=SmallModel)
+
+    assert Config.setup().model == SmallModel()
+    # Hopefully this illustrates why Annotated aren't exactly great:
+    # At runtime, they are basically the same as the original dataclass when called.
+    assert SmallModel() == Model()
+    assert BigModel() == Model()
+
+    assert Config.setup("--model small").model == Model(num_layers=1, hidden_dim=32)
+    assert Config.setup("--model big").model == Model(num_layers=12, hidden_dim=128)
+    assert Config.setup("--num_layers 123").model == Model(num_layers=123, hidden_dim=32)
+
+
+# def test_subgroups_with_partials():
+#     class Model:
+#         def __init__(self, num_layers: int = 3, hidden_dim: int = 64):
+#             self.num_layers = num_layers
+#             self.hidden_dim = hidden_dim
+
+#     _ModelConfig: type[Partial[Model]] = config_dataclass_for(Model)
+
+#     ModelConfig = _ModelConfig()
+#     SmallModel = _ModelConfig(num_layers=1, hidden_dim=32)
+#     BigModel = _ModelConfig(num_layers=32, hidden_dim=128)
+
+#     @dataclasses.dataclass
+#     class Config(TestSetup):
+#         model: Model = subgroups({"small": SmallModel, "big": BigModel}, default_factory=SmallModel)
+
+#     assert Config.setup().model == SmallModel()
+#     # Hopefully this illustrates why Annotated aren't exactly great:
+#     # At runtime, they are basically the same as the original dataclass when called.
+#     assert SmallModel() != Model()
+#     assert SmallModel() == Model(num_layers=1, hidden_dim=32)
+#     assert BigModel() != Model()
+#     assert BigModel() == Model(num_layers=32, hidden_dim=128)
+
+#     assert Config.setup("--model small").model == SmallModel()
+#     assert Config.setup("--model big").model == BigModel()
+#     assert Config.setup("--num_layers 123").model == Model(num_layers=123, hidden_dim=32)
