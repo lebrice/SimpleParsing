@@ -4,11 +4,7 @@ import logging
 
 from simple_parsing.helpers.serialization.serializable import from_dict, to_dict
 
-from .utils import (
-    DataclassT,
-    dict_union,
-    unflatten_split,
-)
+from .utils import DataclassT, dict_union, unflatten_split
 
 logger = logging.getLogger(__name__)
 
@@ -41,9 +37,11 @@ def replace(
     if new_values_dict:
         new_values = dict(**new_values_dict, **new_values)
 
-    dataclass_dict = to_dict(dataclass, recurse=True)
+    dataclass_dict = to_dict(dataclass, recurse=True, add_selection=True)
     logger.info(dataclass_dict)
     unflatten_new_values = unflatten_split(new_values_dict)
     new_dataclass_dict = dict_union(dataclass_dict, unflatten_new_values, recurse=True)
     logger.info(new_dataclass_dict)
-    return from_dict(type(dataclass), new_dataclass_dict, drop_extra_fields=True)
+    return from_dict(
+        type(dataclass), new_dataclass_dict, drop_extra_fields=True, parse_selection=True
+    )

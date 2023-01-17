@@ -625,7 +625,9 @@ def dumps_yaml(dc, dump_fn: DumpsFn | None = None, **kwargs) -> str:
     return dumps(dc, dump_fn=partial(dump_fn, **kwargs))
 
 
-def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
+def to_dict(
+    dc, dict_factory: type[dict] = dict, recurse: bool = True, add_selection: bool = True
+) -> dict:
     """Serializes this dataclass to a dict.
 
     NOTE: This 'extends' the `asdict()` function from
@@ -652,21 +654,24 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
             d[name] = custom_encoding_fn(value)
             continue
 
-        ###### insert subgroups selected key
-        subgroups_dict = f.metadata.get("subgroups")
-        if subgroups_dict:
-            for g_name, g_cls in subgroups_dict.items():
-                if isinstance(value, g_cls):
-                    _target = f"__subgroups__@{name}"
-                    d[_target] = g_name
+        if add_selection:
+            ###### insert subgroups selected key
+            subgroups_dict = f.metadata.get("subgroups")
+            if subgroups_dict:
+                for g_name, g_cls in subgroups_dict.items():
+                    if isinstance(value, g_cls):
+                        _target = f"__subgroups__@{name}"
+                        d[_target] = g_name
 
         encoding_fn = encode
         # TODO: Make a variant of the serialization tests that use the static functions everywhere.
         if is_dataclass(value) and recurse:
             try:
-                encoded = to_dict(value, dict_factory=dict_factory, recurse=recurse)
+                encoded = to_dict(
+                    value, dict_factory=dict_factory, recurse=recurse, add_selection=add_selection
+                )
             except TypeError:
-                encoded = to_dict(value)
+                encoded = to_dict(value, add_selection=add_selection)
             logger.debug(f"Encoded dataclass field {name}: {encoded}")
         else:
             try:
@@ -681,7 +686,10 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
 
 
 def from_dict(
-    cls: type[Dataclass], d: dict[str, Any], drop_extra_fields: bool | None = None
+    cls: type[Dataclass],
+    d: dict[str, Any],
+    drop_extra_fields: bool | None = None,
+    parse_selection: bool = True,
 ) -> Dataclass:
     """Parses an instance of the dataclass `cls` from the dict `d`.
 
@@ -731,7 +739,9 @@ def from_dict(
     logger.debug(f"from_dict for {cls}, drop extra fields: {drop_extra_fields}")
     for field in fields(cls) if is_dataclass(cls) else []:
         name = field.name
-        if name not in obj_dict and f"__subgroups__@{name}" not in obj_dict:
+        if name not in obj_dict and (
+            f"__subgroups__@{name}" not in obj_dict and not parse_selection
+        ):
             if (
                 field.metadata.get("to_dict", True)
                 and field.default is MISSING
@@ -742,7 +752,7 @@ def from_dict(
                 )
             continue
 
-        if field.metadata.get("subgroups", None):
+        if field.metadata.get("subgroups", None) and parse_selection:
             # decode subgroups from dict
             subgroups_dict = field.metadata.get("subgroups")
 
@@ -759,7 +769,9 @@ def from_dict(
             elif is_dataclass(raw_value):
                 field_value = raw_value
             else:
-                field_value = from_dict(_target_cls, raw_value, drop_extra_fields=True)
+                field_value = from_dict(
+                    _target_cls, raw_value, drop_extra_fields=True, parse_selection=parse_selection
+                )
         else:
             raw_value = obj_dict.pop(name)
             if is_dataclass(raw_value):
@@ -808,7 +820,9 @@ def from_dict(
                 if child_init_field_names >= req_init_field_names:
                     # `child_class` is the first class with all required fields.
                     logger.debug(f"Using class {child_class} instead of {cls}")
-                    return from_dict(child_class, d, drop_extra_fields=False)
+                    return from_dict(
+                        child_class, d, drop_extra_fields=False, parse_selection=parse_selection
+                    )
 
     init_args.update(extra_args)
     try:
@@ -823,6 +837,7 @@ def from_dict(
         logger.debug(f"Setting non-init field '{name}' on the instance.")
         setattr(instance, name, value)
 
+    # Call __post_init__ method of the instance
     if getattr(instance, "__post_init__", None):
         instance.__post_init__()
     return instance
