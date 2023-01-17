@@ -15,7 +15,7 @@ class InnerClass:
 @dataclass(frozen=True)
 class OuterClass:
     outarg: int = 1
-    nested: InnerClass = InnerClass()
+    nested: InnerClass = field(default_factory=InnerClass)
 
 
 changes_1 = {"outarg": 2, "nested.arg1": 1, "nested.arg2": "bar"}
