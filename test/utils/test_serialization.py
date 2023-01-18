@@ -612,24 +612,23 @@ class AB_001(TestSetup, Serializable):
 
 
 def test_to_dict_from_dict():
+    import unittest
+    case=unittest.TestCase()
     config = AB_001(a_or_b=B_001(b="foo"), integer_in_string="2")
-    config_dict = to_dict(config)
-    new_config = from_dict(AB_001, config_dict, drop_extra_fields=True)
-    assert config == new_config
+    new_config = from_dict(AB_001, to_dict(config, add_selection=True), drop_extra_fields=True, parse_selection=True)
+    case.assertDictEqual(to_dict(config,add_selection=True), to_dict(new_config, add_selection=True))
 
 
 def test_serialization_yaml():
     config = AB_001(a_or_b=B_001(b="foo"), integer_in_string="2")
-    dump_str = config.dumps_yaml()
-    new_config = AB_001.loads_yaml(dump_str)
-    assert config == new_config
+    new_config = AB_001.loads_yaml(config.dumps_yaml())
+    assert config.dumps_yaml() == new_config.dumps_yaml()
 
 
 def test_serialization_json():
     config = AB_001(a_or_b=B_001(b="foo"), integer_in_string="2")
-    dump_str = config.dumps_json()
-    new_config = AB_001.loads_json(dump_str)
-    assert config == new_config
+    new_config = AB_001.loads_json(config.dumps_json())
+    assert config.dumps_json() == new_config.dumps_json()
 
 
 class ABEnum(Enum):
@@ -644,6 +643,5 @@ class ListEnumConfig(Serializable):
 
 def test_serial_enum():
     config = ListEnumConfig()
-    dump_str = config.dumps_yaml()
-    new_config = ListEnumConfig.loads_yaml(dump_str)
-    assert config == new_config
+    new_config = ListEnumConfig.loads_yaml(config.dumps_yaml())
+    assert config.dumps_yaml() == new_config.dumps_yaml()

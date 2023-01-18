@@ -753,7 +753,7 @@ def from_dict(
 
         if field.metadata.get("subgroups", None) and parse_selection:
             # decode subgroups from dict
-            subgroups_dict = field.metadata.get("subgroups")
+            subgroups_dict = field.metadata["subgroups"]
             logger.info(obj_dict)
             _target = f"__subgroups__@{field.name}"
             if _target in obj_dict:
