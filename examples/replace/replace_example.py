@@ -57,7 +57,7 @@ config = AB()
 new_config = sp.replace(
     config,
     {
-        "__subgroups__@a_or_b": "b",
+        "a_or_b": "b",
         "a_or_b.b": "test",
         "integer_in_string": "2",
         "nested": {

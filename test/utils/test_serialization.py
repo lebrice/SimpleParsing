@@ -5,11 +5,12 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from test.testutils import TestSetup, raises
-from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple
+from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple, Union
 
 import pytest
 
-from simple_parsing import field, mutable_field
+from simple_parsing import field, mutable_field, subgroups
+from simple_parsing.helpers.serialization import to_dict, from_dict
 from simple_parsing.helpers import FrozenSerializable, JsonSerializable, Serializable
 from simple_parsing.helpers.serialization.serializable import SerializableMixin
 
@@ -584,3 +585,65 @@ def test_path(frozen: bool):
     assert isinstance(d["path"], str)
     assert Foo.from_dict(d) == foo
     assert isinstance(Foo.from_dict(d).path, Path)
+
+
+@dataclass
+class A_001(TestSetup):
+    a: float = 0.0
+
+
+@dataclass
+class B_001(TestSetup):
+    b: str = "bar"
+    b_post_init: str = field(init=False)
+
+    def __post_init__(self):
+        self.b_post_init = self.b + "_post"
+
+
+@dataclass
+class AB_001(TestSetup, Serializable):
+    integer_only_by_post_init: int = field(init=False)
+    integer_in_string: str = "1"
+    a_or_b: Union[A_001 , B_001] = subgroups({"a": A_001, "b": B_001}, default="a")
+
+    def __post_init__(self):
+        self.integer_only_by_post_init = int(self.integer_in_string)
+
+
+def test_to_dict_from_dict():
+    config = AB_001(a_or_b=B_001(b="foo"), integer_in_string="2")
+    config_dict = to_dict(config)
+    new_config = from_dict(AB_001, config_dict, drop_extra_fields=True)
+    assert config == new_config
+
+
+def test_serialization_yaml():
+    config = AB_001(a_or_b=B_001(b="foo"), integer_in_string="2")
+    dump_str = config.dumps_yaml()
+    new_config = AB_001.loads_yaml(dump_str)
+    assert config == new_config
+
+
+def test_serialization_json():
+    config = AB_001(a_or_b=B_001(b="foo"), integer_in_string="2")
+    dump_str = config.dumps_json()
+    new_config = AB_001.loads_json(dump_str)
+    assert config == new_config
+
+
+class ABEnum(Enum):
+    A_01 = "a"
+    B_01 = "b"
+
+
+@dataclass
+class ListEnumConfig(Serializable):
+    enum_list: List[ABEnum] = field(default_factory=lambda: [ABEnum.A_01])
+
+
+def test_serial_enum():
+    config = ListEnumConfig()
+    dump_str = config.dumps_yaml()
+    new_config = ListEnumConfig.loads_yaml(dump_str)
+    assert config == new_config

@@ -4,8 +4,10 @@ import logging
 from dataclasses import dataclass, field
 
 import pytest
+import unittest
 
 from simple_parsing import replace, subgroups
+from typing import Type
 
 from .test_utils import TestSetup
 
@@ -102,7 +104,9 @@ def test_replace_nested_dict(config: object, changes: dict):
 @pytest.mark.parametrize(
     ("config", "changes"),
     [
+        (CD(c_or_d=D(d=1)), {"c_or_d": "d", "c_or_d.d": 1}),
         (CD(c_or_d=D(d=1)), {"__subgroups__@c_or_d": "d", "c_or_d.d": 1}),
+        (CD(c_or_d=C(c=True)), {"c_or_d": "c", "c_or_d.c": True}),
         (CD(c_or_d=C(c=True)), {"__subgroups__@c_or_d": "c", "c_or_d.c": True}),
         (
             OuterDataclass(
@@ -181,15 +185,7 @@ class Config(TestSetup):
     [
         (
             Config(ab_or_cd=CD(c_or_d=D())),
-            {"__subgroups__@ab_or_cd": "cd", "ab_or_cd.__subgroups__@c_or_d": "d"},
-        ),
-        (
-            Config(ab_or_cd=CD(c_or_d=D())),
-            {"__subgroups__@ab_or_cd": "cd", "ab_or_cd.c_or_d": "d"},
-        ),
-        (
-            Config(ab_or_cd=CD(c_or_d=D())),
-            {"__subgroups__@ab_or_cd": "cd", "ab_or_cd": {"__subgroups__@c_or_d": "d"}},
+            {"ab_or_cd": "cd", "ab_or_cd.c_or_d": "d"},
         ),
         (
             Config(ab_or_cd=CD(c_or_d=D())),
@@ -202,6 +198,34 @@ def test_replace_nested_subgroups(config: object, changes: dict):
     assert config == config_replaced
     assert id(config) != id(config_replaced)
 
+
+@pytest.mark.parametrize(
+    ("config_cls","flattened", "unflatten"), 
+    [
+        (   Config, 
+            {"ab_or_cd": "cd", "ab_or_cd.c_or_d": "d"}, 
+            {"__subgroups__@ab_or_cd": 'cd', 'ab_or_cd': {"__subgroups__@c_or_d": "d"}}
+        ),
+        (   Config, 
+            {"ab_or_cd.c_or_d": "d", "ab_or_cd": "cd", }, 
+            {"__subgroups__@ab_or_cd": 'cd', 'ab_or_cd': {"__subgroups__@c_or_d": "d"}}
+        ),
+        pytest.param(
+            Config,
+            {"ab_or_cd.c_or_d": "d"},
+            {"__subgroups__@ab_or_cd": 'cd', 'ab_or_cd': {"__subgroups__@c_or_d": "d"}},
+            marks=pytest.mark.xfail(reason="Raise ValueError for the choice of subgroups not provided"),
+        ),
+    ]
+)
+def test_unflatten_with_select(config_cls: type, flattened: Dict, unflatten: Dict):
+    from simple_parsing.replace import unflatten_with_selection
+    from simple_parsing.utils import unflatten_split
+    case = unittest.TestCase()
+    target = unflatten_with_selection(flattened, config_cls)
+    print(target)
+    print(unflatten)
+    case.assertDictEqual(target, unflatten)
 
 @dataclass
 class A:

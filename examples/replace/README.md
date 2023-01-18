@@ -115,14 +115,14 @@ class Config():
         default_factory=AB,
     )
 
-assert Config(ab_or_cd=CD(c_or_d=D())) == sp.replace(
+assert sp.replace(
     {
-        "__subgroups__@ab_or_cd": "cd", 
-        "ab_or_cd.__subgroups__@c_or_d": "d"
-    })
-assert Config(ab_or_cd=CD(c_or_d=D())) == sp.replace(
-    {
-        "__subgroups__@ab_or_cd": "cd", 
+        "ab_or_cd": "cd", 
         "ab_or_cd.c_or_d": "d"
-    })
+    }) == Config(ab_or_cd=CD(c_or_d=D()))
+assert sp.replace(
+    {
+        "__subgroups__@ab_or_cd": "cd", 
+        "ab_or_cd": {"c_or_d" : "d"},
+    }) == Config(ab_or_cd=CD(c_or_d=D()))
 ```
