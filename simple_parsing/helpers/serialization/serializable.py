@@ -654,14 +654,13 @@ def to_dict(
             d[name] = custom_encoding_fn(value)
             continue
 
-        if add_selection:
+        if add_selection and "subgroups" in f.metadata:
             ###### insert subgroups selected key
-            subgroups_dict = f.metadata.get("subgroups")
-            if subgroups_dict:
-                for g_name, g_cls in subgroups_dict.items():
-                    if isinstance(value, g_cls):
-                        _target = f"__subgroups__@{name}"
-                        d[_target] = g_name
+            subgroups_dict = f.metadata["subgroups"]
+            for g_name, g_cls in subgroups_dict.items():
+                if isinstance(value, g_cls):
+                    _target = f"__subgroups__@{name}"
+                    d[_target] = g_name
 
         encoding_fn = encode
         # TODO: Make a variant of the serialization tests that use the static functions everywhere.
