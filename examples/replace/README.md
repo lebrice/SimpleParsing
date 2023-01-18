@@ -117,12 +117,12 @@ class Config():
 
 assert sp.replace(
     {
-        "ab_or_cd": "cd", 
+        "ab_or_cd": "cd",
         "ab_or_cd.c_or_d": "d"
     }) == Config(ab_or_cd=CD(c_or_d=D()))
 assert sp.replace(
     {
-        "__subgroups__@ab_or_cd": "cd", 
+        "__subgroups__@ab_or_cd": "cd",
         "ab_or_cd": {"c_or_d" : "d"},
     }) == Config(ab_or_cd=CD(c_or_d=D()))
 ```

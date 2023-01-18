@@ -10,8 +10,8 @@ from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple, U
 import pytest
 
 from simple_parsing import field, mutable_field, subgroups
-from simple_parsing.helpers.serialization import to_dict, from_dict
 from simple_parsing.helpers import FrozenSerializable, JsonSerializable, Serializable
+from simple_parsing.helpers.serialization import from_dict, to_dict
 from simple_parsing.helpers.serialization.serializable import SerializableMixin
 
 # class TestSerializable:
@@ -605,7 +605,7 @@ class B_001(TestSetup):
 class AB_001(TestSetup, Serializable):
     integer_only_by_post_init: int = field(init=False)
     integer_in_string: str = "1"
-    a_or_b: Union[A_001 , B_001] = subgroups({"a": A_001, "b": B_001}, default="a")
+    a_or_b: Union[A_001, B_001] = subgroups({"a": A_001, "b": B_001}, default="a")
 
     def __post_init__(self):
         self.integer_only_by_post_init = int(self.integer_in_string)
@@ -613,10 +613,15 @@ class AB_001(TestSetup, Serializable):
 
 def test_to_dict_from_dict():
     import unittest
-    case=unittest.TestCase()
+
+    case = unittest.TestCase()
     config = AB_001(a_or_b=B_001(b="foo"), integer_in_string="2")
-    new_config = from_dict(AB_001, to_dict(config, add_selection=True), drop_extra_fields=True, parse_selection=True)
-    case.assertDictEqual(to_dict(config,add_selection=True), to_dict(new_config, add_selection=True))
+    new_config = from_dict(
+        AB_001, to_dict(config, add_selection=True), drop_extra_fields=True, parse_selection=True
+    )
+    case.assertDictEqual(
+        to_dict(config, add_selection=True), to_dict(new_config, add_selection=True)
+    )
 
 
 def test_serialization_yaml():

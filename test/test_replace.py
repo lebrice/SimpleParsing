@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import logging
+import unittest
 from dataclasses import dataclass, field
 
 import pytest
-import unittest
 
 from simple_parsing import replace, subgroups
-from typing import Type
 
 from .test_utils import TestSetup
 
@@ -126,6 +125,7 @@ def test_replace_flatten_dict(config: object, changes: dict):
 def test_replace_mix_with_dataclass():
     assert replace(CD(), c_or_d=D(d=1)) == CD(c_or_d=D(d=1))
 
+
 @dataclass
 class InnerClass:
     arg1: int = 0
@@ -204,32 +204,35 @@ def test_replace_nested_subgroups(config: object, changes: dict):
 
 
 @pytest.mark.parametrize(
-    ("config_cls","flattened", "unflatten"), 
+    ("config_cls", "flattened", "unflatten"),
     [
-        # (   Config, 
-        #     {"ab_or_cd": "cd", "ab_or_cd.c_or_d": "d"}, 
+        # (   Config,
+        #     {"ab_or_cd": "cd", "ab_or_cd.c_or_d": "d"},
         #     {"__subgroups__@ab_or_cd": 'cd', 'ab_or_cd': {"__subgroups__@c_or_d": "d"}}
         # ),
-        # (   Config, 
-        #     {"ab_or_cd.c_or_d": "d", "ab_or_cd": "cd", }, 
+        # (   Config,
+        #     {"ab_or_cd.c_or_d": "d", "ab_or_cd": "cd", },
         #     {"__subgroups__@ab_or_cd": 'cd', 'ab_or_cd': {"__subgroups__@c_or_d": "d"}}
         # ),
         pytest.param(
             Config,
             {"ab_or_cd.c_or_d": "d"},
-            {"__subgroups__@ab_or_cd": 'cd', 'ab_or_cd': {"c_or_d": "d"}},
-            marks=pytest.mark.xfail(reason="The default choice of subgroups conflicts with the actual"),
+            {"__subgroups__@ab_or_cd": "cd", "ab_or_cd": {"c_or_d": "d"}},
+            marks=pytest.mark.xfail(
+                reason="The default choice of subgroups conflicts with the actual"
+            ),
         ),
-    ]
+    ],
 )
 def test_unflatten_with_select(config_cls: type, flattened: Dict, unflatten: Dict):
     from simple_parsing.replace import unflatten_with_selection
-    from simple_parsing.utils import unflatten_split
+
     case = unittest.TestCase()
     target = unflatten_with_selection(flattened, config_cls)
     print(target)
     print(unflatten)
     case.assertDictEqual(target, unflatten)
+
 
 @dataclass
 class A:

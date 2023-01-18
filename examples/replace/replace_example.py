@@ -87,27 +87,24 @@ class D:
 
 
 @dataclass(frozen=True)
-class CD():
+class CD:
     c_or_d: C | D = subgroups({"c": C, "d": D}, default="c")
 
     other_arg: str = "bob"
 
+
 @dataclass
-class Config():
+class Config:
     ab_or_cd: AB | CD = subgroups(
         {"ab": AB, "cd": CD},
         default_factory=AB,
     )
 
-assert sp.replace(
-        Config(),
-        {
-            "ab_or_cd": "cd", 
-            "ab_or_cd.c_or_d": "d"
-        }) == Config(ab_or_cd=CD(c_or_d=D()))
 
-assert sp.replace(Config(),
-        {
-            "__subgroups__@ab_or_cd": "cd", 
-            "ab_or_cd.c_or_d": "d"
-        }) == Config(ab_or_cd=CD(c_or_d=D()))
+assert sp.replace(Config(), {"ab_or_cd": "cd", "ab_or_cd.c_or_d": "d"}) == Config(
+    ab_or_cd=CD(c_or_d=D())
+)
+
+assert sp.replace(Config(), {"__subgroups__@ab_or_cd": "cd", "ab_or_cd.c_or_d": "d"}) == Config(
+    ab_or_cd=CD(c_or_d=D())
+)
