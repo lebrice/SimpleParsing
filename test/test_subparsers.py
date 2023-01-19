@@ -195,7 +195,7 @@ def test_subparser_rest_of_args_go_to_parent():
     @dataclass
     class Parent(TestSetup):
         family: Union[Child, Pet]
-        foo: bool = simple_parsing.flag(False)
+        foo: bool = simple_parsing.field(False, action="store_true")
         income: float = 35_000.0
 
     p = Parent.setup(
