@@ -1,3 +1,4 @@
+import sys
 import textwrap
 from dataclasses import dataclass
 from typing import Callable, ContextManager, List, Union
@@ -51,9 +52,10 @@ def test_bool_base_work(flag: str, expected_f: bool):
 
 
 def test_bool_args_in_help():
+    prog = sys.argv[0].split("/")[-1]
     assert Flags.get_help_text() == textwrap.dedent(
-        """\
-        usage: pytest [-h] -a bool [-b bool] [-c bool]
+        f"""\
+        usage: {prog} [-h] -a bool [-b bool] [-c bool]
 
         optional arguments:
           -h, --help            show this help message and exit
@@ -182,7 +184,7 @@ def test_list_of_bools_nargs(
     class MyClass(TestSetup):
         """Some test class"""
 
-        a: list[bool] = helpers.field(nargs=nargs)
+        a: List[bool] = helpers.field(nargs=nargs)
 
     if isinstance(a_or_failure, (list, tuple)):
         a = a_or_failure
