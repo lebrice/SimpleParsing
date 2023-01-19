@@ -12,8 +12,6 @@ from enum import Enum
 from logging import getLogger
 from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 
-from typing_extensions import Literal
-
 from simple_parsing.utils import Dataclass, str2bool
 
 # NOTE: backward-compatibility import because it was moved to a different file.
@@ -160,7 +158,13 @@ def field(
 
 
 @overload
-def choice(choices: type[E], *, default: E, **kwargs) -> E:
+def choice(
+    choices: type[E],
+    *,
+    default: E,
+    default_factory: Callable[[], E] | _MISSING_TYPE = MISSING,
+    **kwargs,
+) -> E:
     ...
 
 
@@ -170,17 +174,12 @@ def choice(choices: dict[K, V], *, default: K, **kwargs) -> V:
 
 
 @overload
-def choice(*choices: T, default: T | _MISSING_TYPE = MISSING, **kwargs) -> T:
-    ...
-
-
-@overload
 def choice(
     *choices: T,
-    default_factory: Callable[[], list[T]] | _MISSING_TYPE = MISSING,
-    nargs: Literal["*", "+"] | int = ...,
+    default: T | _MISSING_TYPE = MISSING,
+    default_factory: Callable[[], T] | _MISSING_TYPE = MISSING,
     **kwargs,
-) -> list[T]:
+) -> T:
     ...
 
 
@@ -251,7 +250,7 @@ def choice(*choices, default=MISSING, **kwargs):
 
             kwargs.setdefault("encoding_fn", _encoding_fn)
 
-            def _decoding_fn(value: Any) -> str:
+            def _decoding_fn(value: Any) -> Any:
                 """Custom decoding function that will retrieve the value from the
                 stored key in the dictionary.
                 """
