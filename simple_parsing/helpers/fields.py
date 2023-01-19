@@ -341,8 +341,54 @@ def subparsers(
     )
 
 
+@overload
+def flag(
+    default: _MISSING_TYPE = MISSING,
+    *,
+    default_factory: _MISSING_TYPE = MISSING,
+    negative_prefix: str | None = DEFAULT_NEGATIVE_PREFIX,
+    negative_option: str | None = None,
+    nargs: Literal["?"] | None = None,
+    type: Callable[[str], bool] = str2bool,
+    action: type[BooleanOptionalAction] = BooleanOptionalAction,
+    **kwargs,
+) -> bool:
+    ...
+
+
+@overload
+def flag(
+    default: bool,
+    *,
+    default_factory: _MISSING_TYPE = MISSING,
+    negative_prefix: str | None = DEFAULT_NEGATIVE_PREFIX,
+    negative_option: str | None = None,
+    nargs: Literal["?"] | None = None,
+    type: Callable[[str], bool] = str2bool,
+    action: type[BooleanOptionalAction] = BooleanOptionalAction,
+    **kwargs,
+) -> bool:
+    ...
+
+
+@overload
+def flag(
+    default: _MISSING_TYPE = MISSING,
+    *,
+    default_factory: Callable[[], bool] = ...,
+    negative_prefix: str | None = DEFAULT_NEGATIVE_PREFIX,
+    negative_option: str | None = None,
+    nargs: Literal["?"] | None = None,
+    type: Callable[[str], bool] = str2bool,
+    action: type[BooleanOptionalAction] = BooleanOptionalAction,
+    **kwargs,
+) -> bool:
+    ...
+
+
 def flag(
     default: bool | _MISSING_TYPE = MISSING,
+    *,
     default_factory: Callable[[], bool] | _MISSING_TYPE = MISSING,
     negative_prefix: str | None = DEFAULT_NEGATIVE_PREFIX,
     negative_option: str | None = None,
