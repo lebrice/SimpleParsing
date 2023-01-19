@@ -21,6 +21,7 @@ from logging import getLogger
 from typing import (
     Any,
     Callable,
+    ClassVar,
     Container,
     Dict,
     Iterable,
@@ -34,7 +35,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal, Protocol, TypeGuard, get_args, runtime_checkable, get_origin
+from typing_extensions import Literal, Protocol, TypeGuard, get_args, get_origin
 
 
 # NOTE: Copied from typing_inspect.
@@ -70,9 +71,8 @@ V = TypeVar("V")
 W = TypeVar("W")
 
 
-@runtime_checkable
 class Dataclass(Protocol):
-    __dataclass_fields__: dict[str, Field]
+    __dataclass_fields__: ClassVar[dict[str, Field]]
 
 
 def is_dataclass_instance(obj: Any) -> TypeGuard[Dataclass]:
