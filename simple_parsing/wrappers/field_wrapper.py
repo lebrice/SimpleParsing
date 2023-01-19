@@ -380,13 +380,17 @@ class FieldWrapper(Wrapper):
                 _arg_options["type"] = type_fn
 
         elif utils.is_bool(self.type):
-            from functools import partial
+            if self.is_reused:
+                _arg_options["type"] = utils.str2bool
+                _arg_options["type"].__name__ = "bool"
+                _arg_options["metavar"] = "bool"
+                _arg_options["nargs"] = "?"
+            else:
+                # NOTE: also pass the prefix to the boolean optional action, because it needs to add it
+                # to the generated negative flags as well.
+                _arg_options["action"] = BooleanOptionalAction
+                _arg_options["_conflict_prefix"] = self.prefix
 
-            # NOTE: also pass the prefix to the boolean optional action, because it needs to add it
-            # to the generated negative flags as well.
-            _arg_options.setdefault(
-                "action", partial(BooleanOptionalAction, _conflict_prefix=self.prefix)
-            )
         else:
             # "Plain" / simple argument.
             # For the metavar, use a custom passed value, if present, else do
