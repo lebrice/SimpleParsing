@@ -12,6 +12,8 @@ from enum import Enum
 from logging import getLogger
 from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 
+from typing_extensions import Literal
+
 from simple_parsing.utils import Dataclass, str2bool
 
 # NOTE: backward-compatibility import because it was moved to a different file.
@@ -158,22 +160,31 @@ def field(
 
 
 @overload
-def choice(choices: type[E], default: E, **kwargs) -> E:
-    pass
+def choice(choices: type[E], *, default: E, **kwargs) -> E:
+    ...
 
 
 @overload
-def choice(choices: dict[K, V], default: K, **kwargs) -> V:
-    pass
+def choice(choices: dict[K, V], *, default: K, **kwargs) -> V:
+    ...
 
 
 @overload
-def choice(*choices: T, default: T, **kwargs) -> T:
-    pass
+def choice(*choices: T, default: T | _MISSING_TYPE = MISSING, **kwargs) -> T:
+    ...
 
 
-# TODO: Fix the signature for this.
-def choice(*choices: T, default: T | _MISSING_TYPE = MISSING, **kwargs: Any) -> T:
+@overload
+def choice(
+    *choices: T,
+    default_factory: Callable[[], list[T]] | _MISSING_TYPE = MISSING,
+    nargs: Literal["*", "+"] | int = ...,
+    **kwargs,
+) -> list[T]:
+    ...
+
+
+def choice(*choices, default=MISSING, **kwargs):
     """Makes a field which can be chosen from the set of choices from the
     command-line.
 
