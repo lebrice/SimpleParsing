@@ -14,7 +14,7 @@ from typing_extensions import Literal
 from simple_parsing.help_formatter import TEMPORARY_TOKEN
 
 from .. import docstring, utils
-from ._custom_actions import BooleanOptionalAction
+from ..helpers.custom_actions import BooleanOptionalAction
 from .field_metavar import get_metavar
 from .field_parsing import get_parsing_fn
 from .wrapper import Wrapper
@@ -380,7 +380,13 @@ class FieldWrapper(Wrapper):
                 _arg_options["type"] = type_fn
 
         elif utils.is_bool(self.type):
-            _arg_options["action"] = BooleanOptionalAction
+            from functools import partial
+
+            # NOTE: also pass the prefix to the boolean optional action, because it needs to add it
+            # to the generated negative flags as well.
+            _arg_options.setdefault(
+                "action", partial(BooleanOptionalAction, _conflict_prefix=self.prefix)
+            )
         else:
             # "Plain" / simple argument.
             # For the metavar, use a custom passed value, if present, else do

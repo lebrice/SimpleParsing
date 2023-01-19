@@ -2,7 +2,6 @@
 """
 from __future__ import annotations
 
-import argparse
 import dataclasses
 import functools
 import inspect
@@ -15,8 +14,11 @@ from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 
 from typing_extensions import Literal
 
+from simple_parsing.helpers.custom_actions import (
+    DEFAULT_NEGATIVE_PREFIX,
+    BooleanOptionalAction,
+)
 from simple_parsing.utils import Dataclass, str2bool
-from simple_parsing.wrappers._custom_actions import BooleanOptionalAction
 
 # NOTE: backward-compatibility import because it was moved to a different file.
 from .subgroups import subgroups  # noqa: F401
@@ -339,58 +341,50 @@ def subparsers(
     )
 
 
-@overload
 def flag(
     default: bool | _MISSING_TYPE = MISSING,
     default_factory: Callable[[], bool] | _MISSING_TYPE = MISSING,
-    nargs: Literal["?", 0, 1] | None = 1,
-    **kwargs,
-) -> bool:
-    ...
-
-
-@overload
-def flag(
-    default: bool | _MISSING_TYPE = MISSING,
-    default_factory: Callable[[], bool] | _MISSING_TYPE = MISSING,
-    nargs: Literal["?", 0, 1] | None = "?",
-    negative_prefix: str | None = "--no",
+    negative_prefix: str | None = DEFAULT_NEGATIVE_PREFIX,
     negative_option: str | None = None,
-    **kwargs,
-) -> bool:
-    ...
-
-
-@overload
-def flag(
-    default: _MISSING_TYPE = MISSING,
-    default_factory: Callable[[], list[bool]] | _MISSING_TYPE = MISSING,
-    nargs: Literal["*", "+"] | int = ...,
-    **kwargs,
-) -> list[bool]:
-    ...
-
-
-def flag(
-    default: bool | _MISSING_TYPE = MISSING,
-    default_factory: Callable[[], bool] | Callable[[], list[bool]] | _MISSING_TYPE = MISSING,
-    nargs: Literal["?", "+", "*", 0, 1] | int | None = None,
-    negative_prefix: str | None = None,
-    negative_option: str | None = None,
-    action: str | type[argparse.Action] = BooleanOptionalAction,
+    nargs: Literal["?"] | None = None,
     type: Callable[[str], bool] = str2bool,
+    action: type[BooleanOptionalAction] = BooleanOptionalAction,
     **kwargs,
-) -> bool | list[bool]:
-    """Creates a boolean field with a default value of `default` and nargs='?'."""
-    if nargs is None:
-        nargs = "?" if negative_prefix or negative_option else 1
+) -> bool:
+    """A boolean field with a positive and negative command-line argument.
+
+    If either `default` or `default_factory` are set, then both the field and the generated
+    command-line arguments are optional. Otherwise, both are required.
+
+    Negative flags are generated using `negative_prefix` and `negative_option`:
+    - When `negative_option` is passed, it is used to create the negative flag.
+    - Otherwise, `negative_prefix` is prepended to the field name to create the negative flag.
+
+    NOTE: The negative flags don't accept a value. (i.e. `--noverbose` works, but
+    `--noverbose=True` does not.)
+    The positive flags can be used either with or without a value.
+    """
     return field(
         default=default,
         default_factory=default_factory,
+        negative_prefix=negative_prefix,
+        negative_option=negative_option,
         nargs=nargs,
         type=type,
         action=action,
-        negative_option=negative_option,
-        negative_prefix=negative_prefix,
+        **kwargs,
+    )
+
+
+def flags(
+    default_factory: Callable[[], list[bool]] | _MISSING_TYPE = MISSING,
+    nargs: Literal["*", "+"] | int = "*",
+    type: Callable[[str], bool] = str2bool,
+    **kwargs,
+) -> list[bool]:
+    return field(
+        default_factory=default_factory,
+        nargs=nargs,
+        type=type,
         **kwargs,
     )

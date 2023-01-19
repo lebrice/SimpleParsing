@@ -96,6 +96,22 @@ def test_bool_flags_work(flag: str, a: bool, b: bool, c: bool):
     assert flags.c is c
 
 
+@pytest.mark.parametrize("invalid_nargs", [0, 1, "*", "+"])
+def test_bool_field_doesnt_accept_invalid_nargs(invalid_nargs: Union[int, str]):
+    """When using a `bool` annotation on a field, it doesn't accept `nargs` other than ? or None.
+
+    This is because in argparse, `nargs=0` means a list with no values, and `nargs=1` is a list
+    with one value (not just a required bool value).
+    """
+
+    @dataclass
+    class Options(TestSetup):
+        val: bool = field(default=True, nargs=invalid_nargs)
+
+    with pytest.raises(ValueError, match="Invalid nargs for bool field"):
+        Options.setup("")
+
+
 @pytest.mark.parametrize(
     "flag, nargs, a_or_failure",
     [
@@ -109,6 +125,32 @@ def test_bool_flags_work(flag: str, a: bool, b: bool, c: bool):
         ("--noa", None, False),
         ("--a true", None, True),
         ("--a true false", None, lambda: raises_unrecognized_args("false")),
+    ],
+)
+def test_bool_nargs(
+    flag,
+    nargs,
+    a_or_failure: Union[bool, Callable[[], ContextManager]],
+):
+    @dataclass
+    class MyClass(TestSetup):
+        """Some test class"""
+
+        a: bool = helpers.field(nargs=nargs)
+
+    if isinstance(a_or_failure, (bool, list, tuple)):
+        a = a_or_failure
+        flags = MyClass.setup(flag)
+        assert flags.a == a
+    else:
+        expect_failure_context_manager = a_or_failure
+        with expect_failure_context_manager():
+            MyClass.setup(flag)
+
+
+@pytest.mark.parametrize(
+    "flag, nargs, a_or_failure",
+    [
         # 1 argument explicitly required
         ("--a", 1, lambda: raises_expected_n_args(1)),
         ("--noa", 1, lambda: raises_missing_required_arg("-a/--a")),
@@ -131,19 +173,18 @@ def test_bool_flags_work(flag: str, a: bool, b: bool, c: bool):
         ("--a true false", "*", [True, False]),
     ],
 )
-def test_bool_nargs(
+def test_list_of_bools_nargs(
     flag,
     nargs,
-    a_or_failure: Union[bool, List[bool], ContextManager],
-    capsys: pytest.CaptureFixture,
+    a_or_failure: Union[List[bool], Callable[[], ContextManager]],
 ):
     @dataclass
     class MyClass(TestSetup):
         """Some test class"""
 
-        a: bool = helpers.field(nargs=nargs)
+        a: list[bool] = helpers.field(nargs=nargs)
 
-    if isinstance(a_or_failure, (bool, list, tuple)):
+    if isinstance(a_or_failure, (list, tuple)):
         a = a_or_failure
         flags = MyClass.setup(flag)
         assert flags.a == a
@@ -208,24 +249,19 @@ def test_using_custom_negative_option(field):
     assert OtherConfig.setup("--no-debug").debug is False
 
 
-@pytest.mark.parametrize("bool_field", [field, flag])
 @pytest.mark.parametrize("default_value", [True, False])
-def test_nested_bool_field_negative_option_name(
-    bool_field: Callable[..., bool], default_value: bool
-):
+def test_nested_bool_field_negative_args(default_value: bool):
     """Test that we get --train.nodebug instead of --notrain.debug"""
 
     @dataclass
     class Options:
-        debug: bool = bool_field(default=default_value)
+        debug: bool = default_value
 
     @dataclass
     class Config(TestSetup):
         train: Options = field(default_factory=Options)
         valid: Options = field(default_factory=Options)
 
-    # TODO: Small bug: When using the `flag` function, we explicitly want a value to be passed to
-    # the flag. This is useful when using subparsers, when the "?" nargs causes issues.
     assert Config.setup("") == Config()
     assert Config.setup("--train.debug") == Config(train=Options(debug=True))
     assert Config.setup("--train.nodebug") == Config(train=Options(debug=False))
@@ -235,6 +271,37 @@ def test_nested_bool_field_negative_option_name(
     assert "--novalid.debug" not in help_text
     assert "--valid.nodebug" in help_text
     assert "--train.nodebug" in help_text
+
+
+@pytest.mark.parametrize("default_value", [True, False])
+def test_using_abbrev_feature(default_value: bool):
+    @dataclass
+    class Options(TestSetup):
+        verbose: bool = field(default=default_value, negative_option="silent")
+
+    assert Options.setup("--verbose") == Options(verbose=True)
+    assert Options.setup("--verb") == Options(verbose=True)
+    assert Options.setup("--silent") == Options(verbose=False)
+    assert Options.setup("--sil") == Options(verbose=False)
+
+
+@pytest.mark.parametrize("default_value", [True, False])
+def test_nested_bool_field_negative_option_conflict(default_value: bool):
+    """Check that the negative option strings also get a prefix when there's a conflict."""
+
+    @dataclass
+    class Options:
+        verbose: bool = field(default=default_value, negative_option="silent")
+
+    @dataclass
+    class Config(TestSetup):
+        train: Options = field(default_factory=Options)
+        valid: Options = field(default_factory=Options)
+
+    help_text = Config.get_help_text()
+    assert "--train.silent" in help_text
+    assert "--valid.silent" in help_text
+    assert "--silent" not in help_text
 
 
 @pytest.mark.xfail(
