@@ -158,22 +158,32 @@ def field(
 
 
 @overload
-def choice(choices: type[E], default: E, **kwargs) -> E:
-    pass
+def choice(
+    choices: type[E],
+    *,
+    default: E,
+    default_factory: Callable[[], E] | _MISSING_TYPE = MISSING,
+    **kwargs,
+) -> E:
+    ...
 
 
 @overload
-def choice(choices: dict[K, V], default: K, **kwargs) -> V:
-    pass
+def choice(choices: dict[K, V], *, default: K, **kwargs) -> V:
+    ...
 
 
 @overload
-def choice(*choices: T, default: T, **kwargs) -> T:
-    pass
+def choice(
+    *choices: T,
+    default: T | _MISSING_TYPE = MISSING,
+    default_factory: Callable[[], T] | _MISSING_TYPE = MISSING,
+    **kwargs,
+) -> T:
+    ...
 
 
-# TODO: Fix the signature for this.
-def choice(*choices: T, default: T | _MISSING_TYPE = MISSING, **kwargs: Any) -> T:
+def choice(*choices, default=MISSING, **kwargs):
     """Makes a field which can be chosen from the set of choices from the
     command-line.
 
@@ -240,7 +250,7 @@ def choice(*choices: T, default: T | _MISSING_TYPE = MISSING, **kwargs: Any) -> 
 
             kwargs.setdefault("encoding_fn", _encoding_fn)
 
-            def _decoding_fn(value: Any) -> str:
+            def _decoding_fn(value: Any) -> Any:
                 """Custom decoding function that will retrieve the value from the
                 stored key in the dictionary.
                 """
