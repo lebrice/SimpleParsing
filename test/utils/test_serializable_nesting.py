@@ -59,7 +59,6 @@ class Level3:
 )
 def test_nested_dataclasses_serialization(config: object):
     config_dict = to_dict(config)
-    print(config_dict)
     new_config = from_dict(
         config.__class__,
         config_dict,

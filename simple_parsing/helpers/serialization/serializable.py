@@ -659,11 +659,7 @@ def to_dict(
         if add_selected_subgroups and "subgroups" in f.metadata:
             ###### insert subgroups selected key ######
             subgrp_datacls_types = f.metadata.get("subgroup_dataclass_types")
-            logger.info(subgrp_datacls_types)
-            logger.info(f)
             for _, grp_cls in subgrp_datacls_types.items():
-                logger.info(value)
-                logger.info(grp_cls)
                 if isinstance(value, grp_cls):
                     _subgroups_name = f"__subgroups__@{name}"
                     d[_subgroups_name] = grp_cls.__name__
