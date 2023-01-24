@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import functools
 import json
 import pickle
+import warnings
 from collections import OrderedDict
 from dataclasses import MISSING, Field, dataclass, fields, is_dataclass
 from functools import partial
@@ -9,8 +11,6 @@ from itertools import chain
 from logging import getLogger
 from pathlib import Path
 from typing import IO, Any, Callable, ClassVar, TypeVar, Union
-import warnings
-import functools
 
 from simple_parsing.utils import get_args, get_forward_arg, is_optional
 
@@ -627,7 +627,9 @@ def dumps_yaml(dc, dump_fn: DumpsFn | None = None, **kwargs) -> str:
     return dumps(dc, dump_fn=partial(dump_fn, **kwargs))
 
 
-def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True, add_selected_subgroups=False) -> dict:
+def to_dict(
+    dc, dict_factory: type[dict] = dict, recurse: bool = True, add_selected_subgroups=False
+) -> dict:
     """Serializes this dataclass to a dict.
 
     NOTE: This 'extends' the `asdict()` function from
@@ -670,7 +672,12 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True, add_selec
         # TODO: Make a variant of the serialization tests that use the static functions everywhere.
         if is_dataclass(value) and recurse:
             try:
-                encoded = to_dict(value, dict_factory=dict_factory, recurse=recurse, add_selected_subgroups=add_selected_subgroups)
+                encoded = to_dict(
+                    value,
+                    dict_factory=dict_factory,
+                    recurse=recurse,
+                    add_selected_subgroups=add_selected_subgroups,
+                )
             except TypeError:
                 encoded = to_dict(value, add_selected_subgroups=add_selected_subgroups)
             logger.debug(f"Encoded dataclass field {name}: {encoded}")
@@ -687,7 +694,10 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True, add_selec
 
 
 def from_dict(
-    cls: type[Dataclass], d: dict[str, Any], drop_extra_fields: bool | None = None, parse_selection: bool=False
+    cls: type[Dataclass],
+    d: dict[str, Any],
+    drop_extra_fields: bool | None = None,
+    parse_selection: bool = False,
 ) -> Dataclass:
     """Parses an instance of the dataclass `cls` from the dict `d`.
 
@@ -737,7 +747,9 @@ def from_dict(
     logger.debug(f"from_dict for {cls}, drop extra fields: {drop_extra_fields}")
     for field in fields(cls) if is_dataclass(cls) else []:
         name = field.name
-        if name not in obj_dict and (f"__subgroups__@{name}" not in obj_dict and not parse_selection):
+        if name not in obj_dict and (
+            f"__subgroups__@{name}" not in obj_dict and not parse_selection
+        ):
             if (
                 field.metadata.get("to_dict", True)
                 and field.default is MISSING
@@ -748,14 +760,13 @@ def from_dict(
                 )
             continue
 
-        
         if field.metadata.get("subgroups", None) and parse_selection:
             ##### decode subgroups via selected subgroup #####
             _subgroup_dataclass_types = field.metadata["subgroup_dataclass_types"]
             _subgroups_name = f"__subgroups__@{name}"
-            
+
             _subgroups_cls = None
-            
+
             if _subgroups_name in obj_dict:
                 for _, grp_cls in _subgroup_dataclass_types.items():
                     if obj_dict[_subgroups_name] == grp_cls.__name__:
@@ -765,11 +776,18 @@ def from_dict(
             else:
                 _subgrp_default_key = field.metadata.get("subgroup_default")
                 _subgroups_cls = _subgroup_dataclass_types[_subgrp_default_key]
-                warnings.warn(f"Subgroups selection is not specified for field '{field.name}'! We use default type {_subgroups_cls} to decode!")
-                
+                warnings.warn(
+                    f"Subgroups selection is not specified for field '{field.name}'! We use default type {_subgroups_cls} to decode!"
+                )
+
             raw_value = obj_dict.pop(name)
-            field_value = from_dict(_subgroups_cls, raw_value, drop_extra_fields=drop_extra_fields, parse_selection=parse_selection)
-            
+            field_value = from_dict(
+                _subgroups_cls,
+                raw_value,
+                drop_extra_fields=drop_extra_fields,
+                parse_selection=parse_selection,
+            )
+
         else:
             ##### decode the fields of all other types #####
             if name not in obj_dict:
@@ -785,13 +803,25 @@ def from_dict(
                 continue
             raw_value = obj_dict.pop(name)
             if is_dataclass(field.default_factory):
-                # decode the field recursively when default_factory is type of dataclass 
-                field_value = from_dict(field.default_factory, raw_value, drop_extra_fields=drop_extra_fields, parse_selection=parse_selection)
-            elif isinstance(field.default_factory, functools.partial) and is_dataclass(field.default_factory.func):
-                # decode the field recursively when the function type of the partial function of the default_factory is type of dataclass 
-                field_value = from_dict(field.default_factory.func, raw_value, drop_extra_fields=drop_extra_fields, parse_selection=parse_selection)
+                # decode the field recursively when default_factory is type of dataclass
+                field_value = from_dict(
+                    field.default_factory,
+                    raw_value,
+                    drop_extra_fields=drop_extra_fields,
+                    parse_selection=parse_selection,
+                )
+            elif isinstance(field.default_factory, functools.partial) and is_dataclass(
+                field.default_factory.func
+            ):
+                # decode the field recursively when the function type of the partial function of the default_factory is type of dataclass
+                field_value = from_dict(
+                    field.default_factory.func,
+                    raw_value,
+                    drop_extra_fields=drop_extra_fields,
+                    parse_selection=parse_selection,
+                )
             else:
-                # decode the field with decode_field function otherwise 
+                # decode the field with decode_field function otherwise
                 field_value = decode_field(field, raw_value, containing_dataclass=cls)
 
         if field.init:
@@ -835,7 +865,9 @@ def from_dict(
                 if child_init_field_names >= req_init_field_names:
                     # `child_class` is the first class with all required fields.
                     logger.debug(f"Using class {child_class} instead of {cls}")
-                    return from_dict(child_class, d, drop_extra_fields=False, parse_selection=parse_selection)
+                    return from_dict(
+                        child_class, d, drop_extra_fields=False, parse_selection=parse_selection
+                    )
 
     init_args.update(extra_args)
     try:
