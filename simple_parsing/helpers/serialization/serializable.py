@@ -9,7 +9,7 @@ from itertools import chain
 from logging import getLogger
 from pathlib import Path
 from typing import IO, Any, Callable, ClassVar, TypeVar, Union
-
+import warnings
 from simple_parsing.utils import get_args, get_forward_arg, is_optional
 
 from .decoding import decode_field, register_decoding_fn
@@ -625,7 +625,7 @@ def dumps_yaml(dc, dump_fn: DumpsFn | None = None, **kwargs) -> str:
     return dumps(dc, dump_fn=partial(dump_fn, **kwargs))
 
 
-def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
+def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True, add_selected_subgroups=False) -> dict:
     """Serializes this dataclass to a dict.
 
     NOTE: This 'extends' the `asdict()` function from
@@ -652,13 +652,25 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
             d[name] = custom_encoding_fn(value)
             continue
 
+        if add_selected_subgroups and "subgroups" in f.metadata:
+            ###### insert subgroups selected key ######
+            subgrp_datacls_types = f.metadata.get("subgroup_dataclass_types")
+            logger.info(subgrp_datacls_types)
+            logger.info(f)
+            for _, grp_cls in subgrp_datacls_types.items():
+                logger.info(value)
+                logger.info(grp_cls)
+                if isinstance(value, grp_cls):
+                    _subgroups_name = f"__subgroups__@{name}"
+                    d[_subgroups_name] = grp_cls.__name__
+
         encoding_fn = encode
         # TODO: Make a variant of the serialization tests that use the static functions everywhere.
         if is_dataclass(value) and recurse:
             try:
-                encoded = to_dict(value, dict_factory=dict_factory, recurse=recurse)
+                encoded = to_dict(value, dict_factory=dict_factory, recurse=recurse, add_selected_subgroups=add_selected_subgroups)
             except TypeError:
-                encoded = to_dict(value)
+                encoded = to_dict(value, add_selected_subgroups=add_selected_subgroups)
             logger.debug(f"Encoded dataclass field {name}: {encoded}")
         else:
             try:
@@ -673,7 +685,7 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
 
 
 def from_dict(
-    cls: type[Dataclass], d: dict[str, Any], drop_extra_fields: bool | None = None
+    cls: type[Dataclass], d: dict[str, Any], drop_extra_fields: bool | None = None, parse_selection: bool=False
 ) -> Dataclass:
     """Parses an instance of the dataclass `cls` from the dict `d`.
 
@@ -723,7 +735,7 @@ def from_dict(
     logger.debug(f"from_dict for {cls}, drop extra fields: {drop_extra_fields}")
     for field in fields(cls) if is_dataclass(cls) else []:
         name = field.name
-        if name not in obj_dict:
+        if name not in obj_dict and (f"__subgroups__@{name}" not in obj_dict and not parse_selection):
             if (
                 field.metadata.get("to_dict", True)
                 and field.default is MISSING
@@ -734,8 +746,43 @@ def from_dict(
                 )
             continue
 
-        raw_value = obj_dict.pop(name)
-        field_value = decode_field(field, raw_value, containing_dataclass=cls)
+        
+        if field.metadata.get("subgroups", None) and parse_selection:
+            ##### decode subgroups via selected subgroup #####
+            _subgroup_dataclass_types = field.metadata["subgroup_dataclass_types"]
+            _subgroups_name = f"__subgroups__@{name}"
+            
+            _subgroups_cls = None
+            
+            if _subgroups_name in obj_dict:
+                for _, grp_cls in _subgroup_dataclass_types.items():
+                    if obj_dict[_subgroups_name] == grp_cls.__name__:
+                        _subgroups_cls = grp_cls
+                        obj_dict.pop(_subgroups_name)
+                        break
+            else:
+                _subgrp_default_key = field.metadata.get("subgroup_default")
+                _subgroups_cls = _subgroup_dataclass_types[_subgrp_default_key]
+                warnings.warn(f"Subgroups selection is not specified for field '{field.name}'! We use default type {_subgroups_cls} to decode!")
+                
+            raw_value = obj_dict.pop(name)
+            field_value = from_dict(_subgroups_cls, raw_value, drop_extra_fields=drop_extra_fields, parse_selection=parse_selection)
+            
+        else:
+            ##### decode the fields of all other types #####
+            if name not in obj_dict:
+                if (
+                    field.metadata.get("to_dict", True)
+                    and field.default is MISSING
+                    and field.default_factory is MISSING
+                ):
+                    logger.warning(
+                        f"Couldn't find the field '{name}' in the dict with keys "
+                        f"{list(d.keys())}"
+                    )
+                continue
+            raw_value = obj_dict.pop(name)
+            field_value = decode_field(field, raw_value, containing_dataclass=cls)
 
         if field.init:
             init_args[name] = field_value
@@ -778,7 +825,7 @@ def from_dict(
                 if child_init_field_names >= req_init_field_names:
                     # `child_class` is the first class with all required fields.
                     logger.debug(f"Using class {child_class} instead of {cls}")
-                    return from_dict(child_class, d, drop_extra_fields=False)
+                    return from_dict(child_class, d, drop_extra_fields=False, parse_selection=parse_selection)
 
     init_args.update(extra_args)
     try:
