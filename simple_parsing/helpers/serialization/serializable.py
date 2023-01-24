@@ -10,6 +10,8 @@ from logging import getLogger
 from pathlib import Path
 from typing import IO, Any, Callable, ClassVar, TypeVar, Union
 import warnings
+import functools
+
 from simple_parsing.utils import get_args, get_forward_arg, is_optional
 
 from .decoding import decode_field, register_decoding_fn
@@ -782,7 +784,15 @@ def from_dict(
                     )
                 continue
             raw_value = obj_dict.pop(name)
-            field_value = decode_field(field, raw_value, containing_dataclass=cls)
+            if is_dataclass(field.default_factory):
+                # decode the field recursively when default_factory is type of dataclass 
+                field_value = from_dict(field.default_factory, raw_value, drop_extra_fields=drop_extra_fields, parse_selection=parse_selection)
+            elif isinstance(field.default_factory, functools.partial) and is_dataclass(field.default_factory.func):
+                # decode the field recursively when the function type of the partial function of the default_factory is type of dataclass 
+                field_value = from_dict(field.default_factory.func, raw_value, drop_extra_fields=drop_extra_fields, parse_selection=parse_selection)
+            else:
+                # decode the field with decode_field function otherwise 
+                field_value = decode_field(field, raw_value, containing_dataclass=cls)
 
         if field.init:
             init_args[name] = field_value
