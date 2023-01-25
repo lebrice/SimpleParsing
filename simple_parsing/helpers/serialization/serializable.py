@@ -662,6 +662,7 @@ def to_dict(
             for _, grp_cls in subgrp_datacls_types.items():
                 if isinstance(value, grp_cls):
                     _subgroups_name = f"__subgroups__@{name}"
+                    # The key of selected subgroups needs to be the class name of the dataclass
                     d[_subgroups_name] = grp_cls.__name__
 
         encoding_fn = encode
@@ -743,9 +744,7 @@ def from_dict(
     logger.debug(f"from_dict for {cls}, drop extra fields: {drop_extra_fields}")
     for field in fields(cls) if is_dataclass(cls) else []:
         name = field.name
-        if name not in obj_dict and (
-            f"__subgroups__@{name}" not in obj_dict and not parse_selection
-        ):
+        if name not in obj_dict:
             if (
                 field.metadata.get("to_dict", True)
                 and field.default is MISSING
@@ -755,51 +754,43 @@ def from_dict(
                     f"Couldn't find the field '{name}' in the dict with keys " f"{list(d.keys())}"
                 )
             continue
-
+            
         if field.metadata.get("subgroups", None) and parse_selection:
             ##### decode subgroups via selected subgroup #####
-            _subgroup_dataclass_types = field.metadata["subgroup_dataclass_types"]
-            _subgroups_name = f"__subgroups__@{name}"
+            subgroups_selection_key = f"__subgroups__@{name}"
+            subgroup_dataclass_types = field.metadata["subgroup_dataclass_types"]
+            subgroups_selected_type = None
 
-            _subgroups_cls = None
-
-            if _subgroups_name in obj_dict:
-                for _, grp_cls in _subgroup_dataclass_types.items():
-                    if obj_dict[_subgroups_name] == grp_cls.__name__:
-                        _subgroups_cls = grp_cls
-                        obj_dict.pop(_subgroups_name)
+            if subgroups_selection_key in obj_dict:
+                # When subgroups selection key is matched in an entry of obj_dict, we assign the selected type and pop the selection key.
+                for _, grp_cls in subgroup_dataclass_types.items():
+                    if obj_dict[subgroups_selection_key] == grp_cls.__name__:
+                        subgroups_selected_type = grp_cls
+                        obj_dict.pop(subgroups_selection_key)
                         break
             else:
-                _subgrp_default_key = field.metadata.get("subgroup_default")
-                _subgroups_cls = _subgroup_dataclass_types[_subgrp_default_key]
+                # When subgroups selection key doesn't exist in obj_dict, in some situation that happens, 
+                # we use the dataclass type of subgroup_default to decode it. This method doesn't guarantee 
+                # that the raw_value match the dataclass type. Therefore, we send warning here.
+                subgroup_default_selection = field.metadata.get("subgroup_default")
+                subgroups_selected_type = subgroup_dataclass_types[subgroup_default_selection]
                 warnings.warn(
-                    f"Subgroups selection is not specified for field '{field.name}'! We use default type {_subgroups_cls} to decode!"
+                    f"Subgroups selection is not specified for field '{field.name}'! We use default type {subgroups_selected_type} to decode!"
                 )
 
             raw_value = obj_dict.pop(name)
             field_value = from_dict(
-                _subgroups_cls,
+                subgroups_selected_type,
                 raw_value,
                 drop_extra_fields=drop_extra_fields,
                 parse_selection=parse_selection,
             )
 
         else:
-            ##### decode the fields of all other types #####
-            if name not in obj_dict:
-                if (
-                    field.metadata.get("to_dict", True)
-                    and field.default is MISSING
-                    and field.default_factory is MISSING
-                ):
-                    logger.warning(
-                        f"Couldn't find the field '{name}' in the dict with keys "
-                        f"{list(d.keys())}"
-                    )
-                continue
+            ##### Decode the fields for all other types #####
             raw_value = obj_dict.pop(name)
             if is_dataclass(field.default_factory):
-                # decode the field recursively when default_factory is type of dataclass
+                # Decode the field recursively when default_factory is type of dataclass
                 field_value = from_dict(
                     field.default_factory,
                     raw_value,
@@ -809,7 +800,8 @@ def from_dict(
             elif isinstance(field.default_factory, functools.partial) and is_dataclass(
                 field.default_factory.func
             ):
-                # decode the field recursively when the function type of the partial function of the default_factory is type of dataclass
+                # Decode the field recursively when the function type of the partial 
+                # function of the default_factory is type of dataclass
                 field_value = from_dict(
                     field.default_factory.func,
                     raw_value,
@@ -817,7 +809,7 @@ def from_dict(
                     parse_selection=parse_selection,
                 )
             else:
-                # decode the field with decode_field function otherwise
+                # Decode the field with decode_field function otherwise
                 field_value = decode_field(field, raw_value, containing_dataclass=cls)
 
         if field.init:

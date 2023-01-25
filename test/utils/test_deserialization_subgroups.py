@@ -80,7 +80,6 @@ def test_backward_compatibility_success_cases(config: object):
     new_config = from_dict(
         config.__class__,
         to_dict(config, add_selected_subgroups=False),
-        drop_extra_fields=True,
         parse_selection=False,
     )
     assert config == new_config
@@ -98,7 +97,6 @@ def test_backward_compatibility_failure_cases(config: object):
     new_config = from_dict(
         config.__class__,
         to_dict(config, add_selected_subgroups=False),
-        drop_extra_fields=True,
         parse_selection=False,
     )
     assert config != new_config
@@ -115,11 +113,10 @@ def test_backward_compatibility_failure_cases(config: object):
         (NestedSubgroups(ab_or_cd=CD(c_or_d=D()))),
     ],
 )
-def test_with_selection_info(config: object):
+def test_deserialization_with_subgroups_selection(config: object):
     new_config = from_dict(
         config.__class__,
         to_dict(config, add_selected_subgroups=True),
-        drop_extra_fields=True,
         parse_selection=True,
     )
     assert config == new_config
