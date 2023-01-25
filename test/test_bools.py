@@ -53,11 +53,12 @@ def test_bool_base_work(flag: str, expected_f: bool):
 
 def test_bool_args_in_help():
     prog = sys.argv[0].split("/")[-1]
+    options = "options" if sys.version_info >= (3, 10) else "optional arguments"
     assert Flags.get_help_text() == textwrap.dedent(
         f"""\
         usage: {prog} [-h] -a bool [-b bool] [-c bool]
 
-        optional arguments:
+        {options}:
           -h, --help            show this help message and exit
 
         Flags ['flags']:
