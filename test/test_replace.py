@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-
+import functools
 import pytest
 
 from simple_parsing import replace, subgroups
@@ -59,6 +59,24 @@ class NestedSubgroupsConfig:
     )
     
 @dataclass
+class Level1:
+    level: int = 1
+    name: str = "level1"
+
+@dataclass
+class Level2:
+    level: int = 2
+    name: str = "level2"
+    prev: Level1 = field(default_factory=Level1)
+    
+@dataclass
+class Level3:
+    level: int = 3
+    name: str = "level3"
+    prev: Level2 = field(default_factory=functools.partial(Level2, name="level2_foo"))
+    
+    
+@dataclass
 class InnerPostInit:
     in_arg: float = 1.0
     in_arg_post: str= field(init=False)
@@ -82,7 +100,9 @@ class OuterPostInit:
     ("dest_config", "src_config", "changes_dict"),
     [
         (A(a=2.0), A(), {"a": 2.0}),
+        (A(), A(a=2.0), {"a": 0.0}),
         (B(b="test"), B(), {"b": "test"}),
+        (B(), B(b="test1"), {"b": "bar"}),
     ]
 )
 def test_replace_plain_dataclass(dest_config: object, src_config: object, changes_dict: dict):
@@ -90,15 +110,54 @@ def test_replace_plain_dataclass(dest_config: object, src_config: object, change
     assert config_replaced == dest_config
     
 
-def test_replace_nested_dataclasses():
-    ...
+@pytest.mark.parametrize(
+    ("dest_config", "src_config", "changes_dict"),
+    [
+        (
+            Level1(name='level1_the_potato'), Level1(), {"name": "level1_the_potato"}
+        ),
+        (
+            Level2(name="level2_bar"), Level2(), {"name": "level2_bar"}
+        ),
+        (
+            Level2(name="level2_bar", prev=Level1(name="level1_good")), 
+            Level2(), 
+            {"name": "level2_bar", "prev": {"name": "level1_good"}}
+        ),
+        (
+            Level3(name='level3_greatest', prev=Level2(name="level2_greater", prev=Level1(name="level1_greate"))),
+            Level3(),
+            {"name": "level3_greatest", "prev": {"name": "level2_greater", "prev": {"name": "level1_greate"}}}
+        ),
+    ]
+)
+def test_replace_nested_dataclasses(dest_config: object, src_config: object, changes_dict: dict):
+    config_replaced = replace(src_config, changes_dict)
+    assert config_replaced == dest_config
     
-def test_replace_subgroups():
-    ...
-    
-def test_replace_nested_subgroups():
-    ...
-    
+@pytest.mark.parametrize(
+    ("dest_config", "src_config", "changes_dict"),
+    [
+        (
+            AB(a_or_b=A(a=1.0)), AB(), {"a_or_b": {"a": 1.0}}
+        ),
+        (
+            AB(a_or_b=B(b="foo")), AB(a_or_b=B()), {"a_or_b": {"b": "foo"}}
+        ),
+        (
+            AB(a_or_b=B(b="bob")), AB(), {"a_or_b": B(b="bob")}
+        ),
+        (
+            NestedSubgroupsConfig(ab_or_cd=AB(integer_in_string="2",a_or_b=B(b="bob"))),
+            NestedSubgroupsConfig(ab_or_cd=AB(a_or_b=B())),
+            {"ab_or_cd": {"integer_in_string": "2", "a_or_b": {"b": "bob"}}}
+        ),
+    ]
+)
+def test_replace_nested_subgroups(dest_config: object, src_config: object, changes_dict: dict):
+    config_replaced = replace(src_config, changes_dict)
+    assert config_replaced == dest_config
+
 
 @pytest.mark.parametrize(
     ("dest_config", "src_config", "changes_dict"),
@@ -117,8 +176,10 @@ def test_replace_post_init(dest_config: object, src_config: object, changes_dict
     config_replaced = replace(src_config, changes_dict)
     assert config_replaced == dest_config
     
-def test_replace_new_values_mixed():
-    ...
 
-def test_replace_raises():
-    ...
+# def test_replace_new_values_mixed():
+#     ...
+
+
+# def test_replace_raises():
+#     ...
