@@ -53,11 +53,11 @@ def replace(
     if new_values_dict:
         new_values = dict(**new_values_dict, **new_values)
 
-    dataclass_dict = to_dict(dataclass, recurse=True)
+    dataclass_dict = to_dict(dataclass, recurse=True, add_selected_subgroups=True)
     unflatten_new_values = unflatten_split(new_values)
     new_dataclass_dict = dict_union(dataclass_dict, unflatten_new_values, recurse=True)
     replaced_dataclass = from_dict(
-        type(dataclass), new_dataclass_dict, drop_extra_fields=True
+        type(dataclass), new_dataclass_dict, drop_extra_fields=True, parse_selection=True
     )
     invoke_post_init_inplace(replaced_dataclass)
     return replaced_dataclass
