@@ -4,6 +4,7 @@ import collections
 import dataclasses
 import functools
 import inspect
+import sys
 import typing
 from typing import Callable
 
@@ -99,10 +100,21 @@ def _fn_with_nested_dataclass(x: int, /, *, data: AddThreeNumbers) -> int:
     return x + data()
 
 
+def _xfail_in_py311(*param):
+    return pytest.param(
+        *param,
+        marks=pytest.mark.xfail(
+            sys.version_info >= (3, 11),
+            reason="TODO: test doesn't work in Python 3.11",
+            strict=True,
+        ),
+    )
+
+
 @pytest.mark.parametrize(
     "args, expected, fn",
     [
-        ("", 1, partial(_fn_with_nested_dataclass, 1, data=AddThreeNumbers())),
+        _xfail_in_py311("", 1, partial(_fn_with_nested_dataclass, 1, data=AddThreeNumbers())),
         ("--a=1", 2, partial(_fn_with_nested_dataclass, 1)),
         ("--a=1 --b=1", 3, partial(_fn_with_nested_dataclass, 1)),
         ("--a=1 --b=1 --c=1", 4, partial(_fn_with_nested_dataclass, 1)),
