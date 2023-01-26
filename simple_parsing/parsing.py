@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
-import enum
 import itertools
 import shlex
 import sys
@@ -21,7 +20,7 @@ from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
 from .help_formatter import SimpleHelpFormatter
 from .helpers.serialization.serializable import read_file
-from .utils import Dataclass, dict_union
+from .utils import Dataclass, DataclassT, dict_union, is_dataclass_type
 from .wrappers import DashVariant, DataclassWrapper, FieldWrapper
 from .wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
@@ -166,19 +165,19 @@ class ArgumentParser(argparse.ArgumentParser):
     @overload
     def add_arguments(
         self,
-        dataclass: type[Dataclass],
+        dataclass: type[DataclassT],
         dest: str,
         *,
         prefix: str = "",
-        default: Dataclass | None = None,
+        default: DataclassT | None = None,
         dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
-    ) -> DataclassWrapper[Dataclass]:
+    ) -> DataclassWrapper[DataclassT]:
         pass
 
     @overload
     def add_arguments(
         self,
-        dataclass: type,
+        dataclass: type[Dataclass],
         dest: str,
         *,
         prefix: str = "",
@@ -188,18 +187,18 @@ class ArgumentParser(argparse.ArgumentParser):
 
     def add_arguments(
         self,
-        dataclass: type[Dataclass] | Dataclass,
+        dataclass: type[DataclassT] | Dataclass,
         dest: str,
         *,
         prefix: str = "",
-        default: Dataclass = None,
+        default: DataclassT | None = None,
         dataclass_wrapper_class: type[DataclassWrapperType] = DataclassWrapper,
-    ) -> DataclassWrapper[Dataclass] | DataclassWrapperType:
+    ) -> DataclassWrapper[DataclassT] | DataclassWrapperType:
         """Adds command-line arguments for the fields of `dataclass`.
 
         Parameters
         ----------
-        dataclass : Union[Dataclass, Type[Dataclass]]
+        dataclass : Union[Type[Dataclass], Dataclass]
             The dataclass whose fields are to be parsed from the command-line.
             If an instance of a dataclass is given, it is used as the default
             value if none is provided.
@@ -216,7 +215,8 @@ class ArgumentParser(argparse.ArgumentParser):
             default None
         dataclass_wrapper_class : Type[DataclassWrapper], optional
             The type of `DataclassWrapper` to use for this dataclass. This can be used to customize
-            how the arguments are generated.
+            how the arguments are generated. However, I'd suggest making a GitHub issue if you find
+            yourself using this often.
 
         Returns
         -------
@@ -231,58 +231,6 @@ class ArgumentParser(argparse.ArgumentParser):
             dataclass_wrapper_class=dataclass_wrapper_class,
         )
         self._wrappers.append(new_wrapper)
-        return new_wrapper
-
-    def _add_arguments(
-        self,
-        dataclass: type[Dataclass] | Dataclass,
-        name: str,
-        *,
-        prefix: str = "",
-        default: Dataclass | None = None,
-        dataclass_wrapper_class: type[DataclassWrapperType] = DataclassWrapper,
-        parent: DataclassWrapper | None = None,
-        _field: dataclasses.Field | None = None,
-        field_wrapper_class: type[FieldWrapper] = FieldWrapper,
-    ) -> DataclassWrapper[Dataclass] | DataclassWrapperType:
-        for wrapper in self._wrappers:
-            if wrapper.dest == name:
-                if wrapper.dataclass == dataclass:
-                    raise argparse.ArgumentError(
-                        argument=None,
-                        message=f"Destination attribute {name} is already used for "
-                        f"dataclass of type {dataclass}. Make sure all destinations"
-                        f" are unique. (new dataclass type: {dataclass})",
-                    )
-        if not isinstance(dataclass, type):
-            default = dataclass if default is None else default
-            dataclass = type(dataclass)
-
-        new_wrapper = dataclass_wrapper_class(
-            dataclass=dataclass,
-            name=name,
-            prefix=prefix,
-            default=default,
-            parent=parent,
-            _field=_field,
-            field_wrapper_class=field_wrapper_class,
-        )
-
-        if new_wrapper.dest in self._defaults:
-            new_wrapper.set_default(self._defaults[new_wrapper.dest])
-        if self.nested_mode == NestedMode.WITHOUT_ROOT and all(
-            field.name in self._defaults for field in new_wrapper.fields
-        ):
-            # If we did .set_defaults before we knew what dataclass we're using, then we try to
-            # still make use of those defaults:
-            new_wrapper.set_default(
-                {
-                    k: v
-                    for k, v in self._defaults.items()
-                    if k in [f.name for f in dataclasses.fields(new_wrapper.dataclass)]
-                }
-            )
-
         return new_wrapper
 
     def parse_known_args(
@@ -342,7 +290,6 @@ class ArgumentParser(argparse.ArgumentParser):
         self._preprocessing(args=args, namespace=namespace)
 
         logger.debug(f"Parser {id(self)} is parsing args: {args}, namespace: {namespace}")
-
         parsed_args, unparsed_args = super().parse_known_args(args, namespace)
 
         if unparsed_args and self._subparsers and attempt_to_reorder:
@@ -358,6 +305,22 @@ class ArgumentParser(argparse.ArgumentParser):
 
         parsed_args = self._postprocessing(parsed_args)
         return parsed_args, unparsed_args
+
+    def add_argument_group(
+        self,
+        title: str | None = None,
+        description: str | None = None,
+        prefix_chars=None,
+        argument_default=None,
+        conflict_handler=None,
+    ) -> argparse._ArgumentGroup:
+        return super().add_argument_group(
+            title=title,
+            description=description,
+            prefix_chars=prefix_chars or self.prefix_chars,
+            argument_default=argument_default or self.argument_default,
+            conflict_handler=conflict_handler or self.conflict_handler,
+        )
 
     def print_help(self, file=None, args: Sequence[str] | None = None):
         self._preprocessing(args=list(args) if args else [])
@@ -438,8 +401,60 @@ class ArgumentParser(argparse.ArgumentParser):
         code += "print(args)\n"
         return code
 
-    def _resolve_conflicts(self) -> None:
-        self._wrappers = self._conflict_resolver.resolve_and_flatten(self._wrappers)
+    def _add_arguments(
+        self,
+        dataclass: type[DataclassT] | DataclassT,
+        name: str,
+        *,
+        prefix: str = "",
+        dataclass_fn: Callable[..., DataclassT] | None = None,
+        default: Dataclass | None = None,
+        dataclass_wrapper_class: type[DataclassWrapperType] = DataclassWrapper,
+        parent: DataclassWrapper | None = None,
+    ) -> DataclassWrapper[DataclassT] | DataclassWrapperType:
+        for wrapper in self._wrappers:
+            if wrapper.dest == name:
+                if wrapper.dataclass == dataclass:
+                    raise argparse.ArgumentError(
+                        argument=None,
+                        message=f"Destination attribute {name} is already used for "
+                        f"dataclass of type {dataclass}. Make sure all destinations"
+                        f" are unique. (new dataclass type: {dataclass})",
+                    )
+        if not isinstance(dataclass, type):
+            if default is None:
+                default = dataclass
+            dataclass = type(dataclass)
+
+        dataclass_fn = dataclass_fn or dataclass
+
+        # Create this object that  holds the dataclass we will create arguments for and the
+        # arguments that were passed.
+        new_wrapper = dataclass_wrapper_class(
+            dataclass=dataclass,
+            name=name,
+            prefix=prefix,
+            default=default,
+            parent=parent,
+            dataclass_fn=dataclass_fn,
+        )
+
+        if new_wrapper.dest in self._defaults:
+            new_wrapper.set_default(self._defaults[new_wrapper.dest])
+        if self.nested_mode == NestedMode.WITHOUT_ROOT and all(
+            field.name in self._defaults for field in new_wrapper.fields
+        ):
+            # If we did .set_defaults before we knew what dataclass we're using, then we try to
+            # still make use of those defaults:
+            new_wrapper.set_default(
+                {
+                    k: v
+                    for k, v in self._defaults.items()
+                    if k in [f.name for f in dataclasses.fields(new_wrapper.dataclass)]
+                }
+            )
+
+        return new_wrapper
 
     def _preprocessing(self, args: Sequence[str] = (), namespace: Namespace | None = None) -> None:
         """Resolve potential conflicts, resolve subgroups, and add all the arguments."""
@@ -454,8 +469,6 @@ class ArgumentParser(argparse.ArgumentParser):
         # Fix the potential conflicts between dataclass fields with the same names.
         wrapped_dataclasses = self._conflict_resolver.resolve_and_flatten(wrapped_dataclasses)
 
-        # TODO: We're using the `self._conflict_resolver` inside `self._resolve_subgroups`, but
-        # what if the resolver is the ALWAYS_MERGE one? Would that cause issues if used repeatedly?
         wrapped_dataclasses, chosen_subgroups = self._resolve_subgroups(
             wrappers=wrapped_dataclasses, args=args, namespace=namespace
         )
@@ -475,6 +488,49 @@ class ArgumentParser(argparse.ArgumentParser):
         self._wrappers = wrapped_dataclasses
         # Save this so we don't re-add all the arguments.
         self._preprocessing_done = True
+
+    def _postprocessing(self, parsed_args: Namespace) -> Namespace:
+        """Process the namespace by extract the fields and creating the objects.
+
+        Instantiate the dataclasses from the parsed arguments and set them at
+        their destination attribute in the namespace.
+
+        Parameters
+        ----------
+        parsed_args : Namespace
+            the result of calling `super().parse_args(...)` or
+            `super().parse_known_args(...)`.
+            TODO: Try and maybe return a nicer, typed version of parsed_args.
+
+
+        Returns
+        -------
+        Namespace
+            The original Namespace, with all the arguments corresponding to the
+            dataclass fields removed, and with the added dataclass instances.
+            Also keeps whatever arguments were added in the traditional fashion,
+            i.e. with `parser.add_argument(...)`.
+        """
+        logger.debug("\nPOST PROCESSING\n")
+        logger.debug(f"(raw) parsed args: {parsed_args}")
+
+        self._remove_subgroups_from_namespace(parsed_args)
+        # create the constructor arguments for each instance by consuming all
+        # the relevant attributes from `parsed_args`
+        wrappers = _flatten_wrappers(self._wrappers)
+
+        constructor_arguments = self.constructor_arguments.copy()
+        for wrapper in wrappers:
+            for destination in wrapper.destinations:
+                constructor_arguments.setdefault(destination, {})
+
+        parsed_args, constructor_arguments = self._fill_constructor_arguments_with_fields(
+            parsed_args, wrappers=wrappers, initial_constructor_arguments=constructor_arguments
+        )
+        parsed_args = self._instantiate_dataclasses(
+            parsed_args, wrappers=wrappers, constructor_arguments=constructor_arguments
+        )
+        return parsed_args
 
     def _resolve_subgroups(
         self,
@@ -565,35 +621,34 @@ class ArgumentParser(argparse.ArgumentParser):
                 assert hasattr(parsed_args, dest)
                 chosen_subgroup_key = getattr(parsed_args, dest)
                 assert chosen_subgroup_key in subgroup_field.subgroup_choices
-                chosen_subgroup_type = subgroup_field.subgroup_choices[chosen_subgroup_key]
-                # TODO: Currently we only support using dataclass types as subgroups. However we
-                # should also support callables (e.g. functools.Partial) if they return a
-                # dataclass. We'd have to figure out a way to pass the partially filled default
-                # arguments to self._add_arguments below.
-                assert dataclasses.is_dataclass(chosen_subgroup_type)
+
+                chosen_subgroup_dataclass_fn = subgroup_field.subgroup_choices[chosen_subgroup_key]
+                dataclass_types = subgroup_field.field.metadata["subgroup_dataclass_types"]
+                chosen_subgroup_dataclass_type = dataclass_types[chosen_subgroup_key]
+                assert is_dataclass_type(chosen_subgroup_dataclass_type)
 
                 resolved_subgroups[dest] = chosen_subgroup_key
 
                 logger.info(
                     f"resolved the subgroup at dest {dest} to a value of "
                     f"{chosen_subgroup_key}, which means to use the "
-                    f"{chosen_subgroup_type} dataclass"
+                    f"{chosen_subgroup_dataclass_type} dataclass"
                 )
                 parent_dataclass_wrapper = subgroup_field.parent
-                # The default value for the subgroup field should be the value that was chosen:
-                assert isinstance(chosen_subgroup_key, (str, enum.Enum, int))
+                # The default value for the subgroup field should be the value that was chosen.
                 # Manually set the default value for this field.
                 subgroup_field.set_default(chosen_subgroup_key)
 
                 # NOTE: Here the `default` for the new argument group is `None`, because
-                # `subgroups` only allows using a dict[Hashable, callable], so we don't want to
-                # instantiate the dataclass twice.
+                # `subgroups` only allows using a dict[Hashable, callable], and we want to avoid
+                # calling the callables unless we really need to.
                 default = None
                 name = dest.split(".")[-1]
                 # NOTE: Using self._add_arguments so it returns the modified wrapper and doesn't
                 # affect the `self._wrappers` list.
                 new_wrapper = self._add_arguments(
-                    dataclass=chosen_subgroup_type,
+                    dataclass=chosen_subgroup_dataclass_type,
+                    dataclass_fn=chosen_subgroup_dataclass_fn,
                     name=name,
                     default=default,
                     parent=parent_dataclass_wrapper,
@@ -615,8 +670,8 @@ class ArgumentParser(argparse.ArgumentParser):
             # TODO: What if a name conflict occurs between a subgroup field and one of the new
             # fields below it? For example, something like --model model_a (and inside the `ModelA`
             # dataclass, there's a field called `model`. Then, this will cause a conflict!)
-            # For now, I'm just going to wait and see how this plays out. I'm thinking that the
-            # auto conflict resolution shouldn't run into any issues with this here.
+            # For now, I'm just going to wait and see how this plays out. I'm hoping that the
+            # auto conflict resolution shouldn't run into any issues in this case.
 
             wrappers = self._conflict_resolver.resolve(wrappers)
 
@@ -638,65 +693,6 @@ class ArgumentParser(argparse.ArgumentParser):
                     f"{len(unresolved_subgroups)} unresolved subgroup choices."
                 )
         return wrappers, resolved_subgroups
-
-    def add_argument_group(
-        self,
-        title: str | None = None,
-        description: str | None = None,
-        prefix_chars=None,
-        argument_default=None,
-        conflict_handler=None,
-    ) -> argparse._ArgumentGroup:
-        return super().add_argument_group(
-            title=title,
-            description=description,
-            prefix_chars=prefix_chars or self.prefix_chars,
-            argument_default=argument_default or self.argument_default,
-            conflict_handler=conflict_handler or self.conflict_handler,
-        )
-
-    def _postprocessing(self, parsed_args: Namespace) -> Namespace:
-        """Process the namespace by extract the fields and creating the objects.
-
-        Instantiate the dataclasses from the parsed arguments and set them at
-        their destination attribute in the namespace.
-
-        Parameters
-        ----------
-        parsed_args : Namespace
-            the result of calling `super().parse_args(...)` or
-            `super().parse_known_args(...)`.
-            TODO: Try and maybe return a nicer, typed version of parsed_args.
-
-
-        Returns
-        -------
-        Namespace
-            The original Namespace, with all the arguments corresponding to the
-            dataclass fields removed, and with the added dataclass instances.
-            Also keeps whatever arguments were added in the traditional fashion,
-            i.e. with `parser.add_argument(...)`.
-        """
-        logger.debug("\nPOST PROCESSING\n")
-        logger.debug(f"(raw) parsed args: {parsed_args}")
-
-        self._remove_subgroups_from_namespace(parsed_args)
-        # create the constructor arguments for each instance by consuming all
-        # the relevant attributes from `parsed_args`
-        wrappers = _flatten_wrappers(self._wrappers)
-
-        constructor_arguments = self.constructor_arguments.copy()
-        for wrapper in wrappers:
-            for destination in wrapper.destinations:
-                constructor_arguments.setdefault(destination, {})
-
-        parsed_args = self._fill_constructor_arguments_with_fields(
-            parsed_args, wrappers=wrappers, initial_constructor_arguments=constructor_arguments
-        )
-        parsed_args = self._instantiate_dataclasses(
-            parsed_args, wrappers=wrappers, constructor_arguments=constructor_arguments
-        )
-        return parsed_args
 
     def _remove_subgroups_from_namespace(self, parsed_args: argparse.Namespace) -> None:
         """Removes the subgroup choice results from the namespace.
@@ -773,21 +769,21 @@ class ArgumentParser(argparse.ArgumentParser):
                 logger.info(f"Instantiating the dataclass at destination {destination}")
                 # Instantiate the dataclass by passing the constructor arguments
                 # to the constructor.
-                constructor = dc_wrapper.dataclass
+                constructor = dc_wrapper.dataclass_fn
                 constructor_args = constructor_arguments.pop(destination)
                 # If the dataclass wrapper is marked as 'optional' and all the
                 # constructor args are None, then the instance is None.
-                # TODO: Refactor the SUPPRESS stuff.
                 value_for_dataclass_field: Any | dict[str, Any] | None
-                if argparse.SUPPRESS not in dc_wrapper.defaults:
+                if argparse.SUPPRESS in dc_wrapper.defaults:
+                    if constructor_args == {}:
+                        value_for_dataclass_field = None
+                    else:
+                        # Don't create the dataclass instance. Instead, keep the value as a dict.
+                        value_for_dataclass_field = constructor_args
+                else:
                     value_for_dataclass_field = _create_dataclass_instance(
                         dc_wrapper, constructor, constructor_args
                     )
-                elif constructor_args == {}:
-                    value_for_dataclass_field = None
-                else:
-                    # Don't create the dataclass instance. Instead, keep the value as a dict.
-                    value_for_dataclass_field = constructor_args
 
                 if argparse.SUPPRESS in dc_wrapper.defaults and value_for_dataclass_field is None:
                     logger.debug(
@@ -838,7 +834,7 @@ class ArgumentParser(argparse.ArgumentParser):
         parsed_args: argparse.Namespace,
         wrappers: list[DataclassWrapper],
         initial_constructor_arguments: dict[str, dict[str, Any]],
-    ) -> argparse.Namespace:
+    ) -> tuple[argparse.Namespace, dict[str, dict[str, Any]]]:
         """Create the constructor arguments for each instance.
 
         Creates the arguments by consuming all the attributes from
@@ -898,7 +894,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 deleted_values[field.dest] = values
 
                 # call the "action" for the given attribute. This sets the right
-                # value in the `self.constructor_arguments` dictionary.
+                # value in the `constructor_arguments` dictionary.
                 field(
                     parser=self,
                     namespace=parsed_args,
@@ -913,7 +909,7 @@ class ArgumentParser(argparse.ArgumentParser):
             logger.debug(f"deleted values: {deleted_values}")
             logger.debug(f"leftover args: {leftover_args}")
 
-        return leftover_args
+        return leftover_args, constructor_arguments
 
 
 T = TypeVar("T")
@@ -1046,14 +1042,16 @@ def _unflatten_wrappers(wrappers: list[DataclassWrapper]) -> list[DataclassWrapp
 
 
 def _create_dataclass_instance(
-    wrapper: DataclassWrapper[Dataclass],
-    constructor: Callable[..., Dataclass],
+    wrapper: DataclassWrapper[DataclassT],
+    constructor: Callable[..., DataclassT],
     constructor_args: dict[str, Any],
-) -> Dataclass | None:
+) -> DataclassT | None:
 
     # Check if the dataclass annotation is marked as Optional.
     # In this case, if no arguments were passed, and the default value is None, then return
     # None.
+    # TODO: (BUG!) This doesn't distinguish the case where the defaults are passed via the
+    # command-line from the case where no arguments are passed at all!
     if wrapper.optional and wrapper.default is None:
         for field_wrapper in wrapper.fields:
 
@@ -1068,7 +1066,7 @@ def _create_dataclass_instance(
                 # Break, and return the instance.
                 break
         else:
-            logger.debug(f"All fields for {wrapper.dest} were either default or None.")
+            logger.debug(f"All fields for {wrapper.dest} were either at their default, or None.")
             return None
 
     return constructor(**constructor_args)

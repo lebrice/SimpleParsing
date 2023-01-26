@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from simple_parsing import ConflictResolution
 
 from .example_use_cases import HyperParameters

@@ -2,18 +2,19 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import functools
 import inspect
 import sys
 import textwrap
 from dataclasses import MISSING
 from logging import getLogger
-from typing import Any, TypeVar, cast
+from typing import Any, Callable, Generic, TypeVar, cast
 
 import docstring_parser as dp
 from typing_extensions import Literal
 
 from .. import docstring, utils
-from ..utils import DataclassT
+from ..utils import Dataclass, DataclassT
 from .field_wrapper import FieldWrapper
 from .wrapper import Wrapper
 
@@ -29,63 +30,50 @@ docstring is used as the description of the argument group.
 DataclassWrapperType = TypeVar("DataclassWrapperType", bound="DataclassWrapper")
 
 
-class DataclassWrapper(Wrapper[DataclassT]):
+class DataclassWrapper(Wrapper, Generic[DataclassT]):
     def __init__(
         self,
         dataclass: type[DataclassT],
         name: str,
-        default: DataclassT | dict = None,
+        default: DataclassT | dict | None = None,
         prefix: str = "",
         parent: DataclassWrapper | None = None,
         _field: dataclasses.Field | None = None,
         field_wrapper_class: type[FieldWrapper] = FieldWrapper,
+        dataclass_fn: Callable[..., DataclassT] | None = None,
     ):
-        # super().__init__(dataclass, name)
+        super().__init__()
         self.dataclass = dataclass
         self._name = name
+        self.dataclass_fn = dataclass_fn or dataclass
         self._default = default
         self.prefix = prefix
+        self._parent = parent
+        # the field of the parent, which contains this child dataclass.
+        self._field = _field
+        self.field_wrapper_class = field_wrapper_class
 
         self.fields: list[FieldWrapper] = []
+        self.optional: bool = False
+
         self._destinations: list[str] = []
         self._required: bool = False
         self._explicit: bool = False
         self._dest: str = ""
         self._children: list[DataclassWrapper] = []
-        self._parent = parent
-        # the field of the parent, which contains this child dataclass.
-        self._field = _field
+        # the default value(s).
+        # NOTE: This is a list only because of the `ConflictResolution.ALWAYS_MERGE` option.
+        self._defaults: list[DataclassT] = [default] if default else []
 
-        # the default values
-        self._defaults: list[DataclassT] = []
-
-        if default:
-            self.defaults = [default]
-        self.optional: bool = False
-
-        # NOTE: `dataclasses.fields` method retrieves only `dataclasses._FIELD`
-        # NOTE: but we also want to know about `dataclasses._FIELD_INITVAR`
-        # NOTE: therefore we partly copy-paste its implementation
-        if sys.version_info[:2] < (3, 8):
-            # Before 3.8 `InitVar[tp] is InitVar` so it's impossible to retrieve field type
-            # therefore we should skip it just to be fully backward compatible
-            dataclass_fields = dataclasses.fields(self.dataclass)
-        else:
-            try:
-                dataclass_fields_map = getattr(self.dataclass, dataclasses._FIELDS)
-            except AttributeError:
-                raise TypeError("must be called with a dataclass type or instance")
-            dataclass_fields = tuple(
-                field
-                for field in dataclass_fields_map.values()
-                if field._field_type in (dataclasses._FIELD, dataclasses._FIELD_INITVAR)
-            )
-
+        dataclass_fields: tuple[dataclasses.Field, ...] = _get_dataclass_fields(dataclass)
+        # Create an object for each field, which is used to compute (and hold) the arguments that
+        # will then be passed to `argument_group.add_argument` later.
+        # This could eventually be refactored into a stateless thing. But for now it isn't.
         for field in dataclass_fields:
             if not field.init or field.metadata.get("cmd", True) is False:
-                # Don't add arguments for these fields.
+                # Don't add arguments for this field.
                 continue
-            field_default = getattr(default, field.name, None)
+
             if isinstance(field.type, str):
                 # NOTE: Here we'd like to convert the fields type to an actual type, in case the
                 # `from __future__ import annotations` feature is used.
@@ -96,25 +84,58 @@ class DataclassWrapper(Wrapper[DataclassT]):
                 field_type = get_field_type_from_annotations(self.dataclass, field.name)
                 # Modify the `type` of the Field object, in-place.
                 field.type = field_type
+            else:
+                field_type = field.type
 
-            # TODO: Should we do anything different here for subgroups?
-            # if utils.is_subgroup_field(field):
-            #     wrapper = field_wrapper_class(field, parent=self, prefix=prefix)
-            #     self.fields.append(wrapper)
+            # Manually overwrite the field default value with the corresponding attribute of the
+            # default for the parent.
+            field_default = dataclasses.MISSING
+            if isinstance(dataclass_fn, functools.partial) and field.name in dataclass_fn.keywords:
+                # NOTE: We need to override the default value of the field, because since the
+                # dataclass_fn is a partial, and we always set the defaults for all fields in the
+                # constructor arguments dict, those would be passed to the partial, and the value
+                # for that argument in the partial (e.g. `dataclass_fn = partial(A, a=123)`) would
+                # be unused when we call `dataclass_fn(**constructor_args[dataclass_dest])` later.
+                field_default = dataclass_fn.keywords[field.name]
+                # TODO: This is currently only really necessary in the case where the dataclass_fn
+                # is a `functools.partial` (e.g. when using subgroups). But the idea of specifying
+                # the default value and passing it here to the wrapper, rather than have the
+                # wrappers "fetch" it from their field or their parent, makes sense!
+                logger.debug(
+                    f"Got a default value of {field_default} for field {field.name} from "
+                    f"inspecting the dataclass function! ({dataclass_fn})"
+                )
+            elif isinstance(default, dict):
+                if field.name in default:
+                    field_default = default[field.name]
+            elif default not in (None, argparse.SUPPRESS):
+                field_default = getattr(default, field.name)
 
-            if utils.is_subparser_field(field) or utils.is_choice(field):
-                wrapper = field_wrapper_class(field, parent=self, prefix=prefix)
-                self.fields.append(wrapper)
-
-            elif utils.is_tuple_or_list_of_dataclasses(field.type):
+            if utils.is_tuple_or_list_of_dataclasses(field_type):
                 raise NotImplementedError(
-                    f"Field {field.name} is of type {field.type}, which isn't "
+                    f"Field {field.name} is of type {field_type}, which isn't "
                     f"supported yet. (container of a dataclass type)"
                 )
 
-            elif dataclasses.is_dataclass(field.type) and field.default is not None:
+            if utils.is_subparser_field(field) or utils.is_choice(field):
+                field_wrapper = self.field_wrapper_class(
+                    field,
+                    parent=self,
+                    prefix=prefix,
+                )
+                if field_default is not dataclasses.MISSING:
+                    field_wrapper.set_default(field_default)
+
+                self.fields.append(field_wrapper)
+
+            elif dataclasses.is_dataclass(field_type) and field.default is not None:
+                # Non-optional dataclass field.
                 # handle a nested dataclass attribute
-                dataclass, name = field.type, field.name
+                dataclass, name = field_type, field.name
+                # todo: Figure out if this is still necessary, or if `field_default` can be handled
+                # the same way as above.
+                if field_default is dataclasses.MISSING:
+                    field_default = None
                 child_wrapper = DataclassWrapper(
                     dataclass,
                     name,
@@ -124,8 +145,13 @@ class DataclassWrapper(Wrapper[DataclassT]):
                 )
                 self._children.append(child_wrapper)
 
-            elif utils.contains_dataclass_type_arg(field.type):
-                field_dataclass = utils.get_dataclass_type_arg(field.type)
+            elif utils.contains_dataclass_type_arg(field_type):
+                # Extract the dataclass type from the annotation of the field.
+                field_dataclass = utils.get_dataclass_type_arg(field_type)
+                # todo: Figure out if this is still necessary, or if `field_default` can be handled
+                # the same way as above.
+                if field_default is dataclasses.MISSING:
+                    field_default = None
                 child_wrapper = DataclassWrapper(
                     field_dataclass,
                     name=field.name,
@@ -138,11 +164,14 @@ class DataclassWrapper(Wrapper[DataclassT]):
                 self._children.append(child_wrapper)
 
             else:
-                # a normal attribute
-                field_wrapper = field_wrapper_class(field, parent=self, prefix=self.prefix)
+                # a "normal" attribute
+                field_wrapper = self.field_wrapper_class(field, parent=self, prefix=self.prefix)
                 logger.debug(
                     f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.default}"
                 )
+                if field_default is not dataclasses.MISSING:
+                    field_wrapper.set_default(field_default)
+
                 self.fields.append(field_wrapper)
 
         logger.debug(f"The dataclass at attribute {self.dest} has default values: {self.defaults}")
@@ -155,14 +184,9 @@ class DataclassWrapper(Wrapper[DataclassT]):
         group = parser.add_argument_group(title=self.title, description=self.description)
 
         for wrapped_field in self.fields:
-            if not wrapped_field.field.metadata.get("cmd", True):
-                logger.debug(f"Skipping field {wrapped_field.name} because it has cmd=False.")
-                continue
-
-            # NOTE: Not skipping subgroup fields, because even though they will have been resolved
-            # at this point, we still want them to show up in the --help message!
-            # TODO: However, perhaps we could check that the default was properly set to the
-            # chosen subgroup value?
+            # Note: This should be true since we don't create a FieldWrapper for fields with
+            # `cmd=False`.
+            assert wrapped_field.field.metadata.get("cmd", True)
 
             if wrapped_field.is_subparser:
                 wrapped_field.add_subparsers(parser)
@@ -173,13 +197,19 @@ class DataclassWrapper(Wrapper[DataclassT]):
             if argparse.SUPPRESS in self.defaults:
                 arg_options["default"] = argparse.SUPPRESS
             if wrapped_field.is_subgroup:
+                # NOTE: Not skipping subgroup fields, because even though they will have been
+                # resolved at this point, we still want them to show up in the --help message!
                 logger.debug(
-                    f"Adding a subgroup field {wrapped_field.name} just so it shows up in the --help text."
+                    f"Adding a subgroup field {wrapped_field.name} just so it shows up in the "
+                    f"--help text."
                 )
+                # check that the default was properly set to the chosen subgroup value
                 assert wrapped_field.default in wrapped_field.subgroup_choices.keys()
 
             logger.info(f"group.add_argument(*{wrapped_field.option_strings}, **{arg_options})")
-            group.add_argument(*wrapped_field.option_strings, **arg_options)
+            # TODO: Perhaps we could hook into the `action` that is returned here to know if the
+            # flag was passed or not for a given field.
+            _ = group.add_argument(*wrapped_field.option_strings, **arg_options)
 
     def equivalent_argparse_code(self, leading="group") -> str:
         code = ""
@@ -402,3 +432,22 @@ class DataclassWrapper(Wrapper[DataclassT]):
 
         for child, other_child in zip(self._children, other._children):
             child.merge(other_child)
+
+
+def _get_dataclass_fields(dataclass: type[Dataclass]) -> tuple[dataclasses.Field, ...]:
+    # NOTE: `dataclasses.fields` method retrieves only `dataclasses._FIELD`
+    # NOTE: but we also want to know about `dataclasses._FIELD_INITVAR`
+    # NOTE: therefore we partly copy-paste its implementation
+    if sys.version_info[:2] < (3, 8):
+        # Before 3.8 `InitVar[tp] is InitVar` so it's impossible to retrieve field type
+        # therefore we should skip it just to be fully backward compatible
+        return dataclasses.fields(dataclass)
+    try:
+        dataclass_fields_map = getattr(dataclass, dataclasses._FIELDS)
+    except AttributeError:
+        raise TypeError("must be called with a dataclass type or instance")
+    return tuple(
+        field
+        for field in dataclass_fields_map.values()
+        if field._field_type in (dataclasses._FIELD, dataclasses._FIELD_INITVAR)
+    )

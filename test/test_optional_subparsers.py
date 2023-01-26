@@ -26,7 +26,9 @@ class B:
 class TestWithDefault:
     @dataclass
     class Options(TestSetup):
-        config: Union[A, B] = subparsers({"a": A, "b": B}, default=A(foo=0))
+        config: Union[A, B] = subparsers(
+            {"a": A, "b": B}, default_factory=functools.partial(A, foo=0)
+        )
 
     def test_default_is_used_when_no_args_passed(self):
         assert self.Options.setup("").config == A(foo=0)
@@ -68,7 +70,7 @@ class TestWithoutSubparsersFieldNoPartial:
     @dataclass
     class Options(TestSetup):
         config: Union[A, B] = field(
-            default=A(foo=0),
+            default_factory=functools.partial(A, foo=0),
         )
 
     def test_default_is_used_when_no_args_passed(self):
@@ -82,15 +84,19 @@ class TestWithoutSubparsersFieldNoPartial:
 def test_nesting_of_optional_subparsers():
     @dataclass
     class Bob:
-        config: Union[A, B] = subparsers({"a": A, "b": B}, default=A(foo=0))
+        config: Union[A, B] = subparsers(
+            {"a": A, "b": B}, default_factory=functools.partial(A, foo=0)
+        )
 
     @dataclass
     class Clarice:
-        config: Union[A, B] = subparsers({"a": A, "b": B}, default=A(foo=0))
+        config: Union[A, B] = subparsers(
+            {"a": A, "b": B}, default_factory=functools.partial(A, foo=0)
+        )
 
     @dataclass
     class NestedOptions(TestSetup):
-        friend: Union[Bob, Clarice] = Bob()
+        friend: Union[Bob, Clarice] = field(default_factory=Bob)
 
     assert NestedOptions.setup("") == NestedOptions()
     assert NestedOptions.setup("bob") == NestedOptions(friend=Bob())
