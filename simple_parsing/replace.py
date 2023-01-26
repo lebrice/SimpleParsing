@@ -61,13 +61,13 @@ def replace(
     if new_values_dict:
         new_values = dict(**new_values_dict, **new_values)
 
-    dataclass_dict = to_dict(dataclass, recurse=True, add_selected_subgroups=True)
+    dataclass_dict = to_dict(dataclass, recurse=True)
     unflatten_new_values = unflatten_split(new_values)
     new_dataclass_dict = dict_union(dataclass_dict, unflatten_new_values, recurse=True)
     # NOTE: The drop_extra_fields for from_dict set to true will hide unwanted error for users
     # Is there any case needs drop_extrac_fields to be True?
     replaced_dataclass = from_dict(
-        type(dataclass), new_dataclass_dict, drop_extra_fields=False, parse_selection=True
+        type(dataclass), new_dataclass_dict, drop_extra_fields=False
     )
     invoke_post_init_inplace(replaced_dataclass)
     return replaced_dataclass
