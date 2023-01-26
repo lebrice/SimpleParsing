@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import functools
 import logging
 from dataclasses import MISSING, fields, is_dataclass
-import functools
+
 from simple_parsing.helpers.serialization.serializable import from_dict, to_dict
 from simple_parsing.utils import unflatten_split
 
@@ -14,16 +15,16 @@ logger = logging.getLogger(__name__)
 def invoke_post_init_inplace(dataclass: DataclassT, recurse: bool = True) -> None:
     for f in fields(dataclass):
         if f.default_factory is not MISSING:
-            if is_dataclass(f.default_factory) or \
-                (
-                    isinstance(f.default_factory, functools.partial) and \
-                    is_dataclass(f.default_factory.func)
-                ):
-                    if recurse:
-                        invoke_post_init_inplace(getattr(dataclass, f.name), recurse=recurse)
-    
+            if is_dataclass(f.default_factory) or (
+                isinstance(f.default_factory, functools.partial)
+                and is_dataclass(f.default_factory.func)
+            ):
+                if recurse:
+                    invoke_post_init_inplace(getattr(dataclass, f.name), recurse=recurse)
+
     if getattr(dataclass, "__post_init__", None):
         dataclass.__post_init__()
+
 
 def replace(
     dataclass: DataclassT, new_values_dict: dict | None = None, **new_values: dict
@@ -50,14 +51,23 @@ def replace(
     assert replace(config, {"a_or_b": B(b="bob")}) == Config(a_or_b=B(b='bob'))
     ```
     """
+    if new_values:
+        # Make sure entries of nwe_values are unflattened
+        for k in new_values.keys():
+            v = new_values[k]
+            if isinstance(v, dict):
+                new_values[k] = unflatten_split(v)
+
     if new_values_dict:
         new_values = dict(**new_values_dict, **new_values)
 
     dataclass_dict = to_dict(dataclass, recurse=True, add_selected_subgroups=True)
     unflatten_new_values = unflatten_split(new_values)
     new_dataclass_dict = dict_union(dataclass_dict, unflatten_new_values, recurse=True)
+    # NOTE: The drop_extra_fields for from_dict set to true will hide unwanted error for users
+    # Is there any case needs drop_extrac_fields to be True?
     replaced_dataclass = from_dict(
-        type(dataclass), new_dataclass_dict, drop_extra_fields=True, parse_selection=True
+        type(dataclass), new_dataclass_dict, drop_extra_fields=False, parse_selection=True
     )
     invoke_post_init_inplace(replaced_dataclass)
     return replaced_dataclass
