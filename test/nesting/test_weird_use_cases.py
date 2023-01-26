@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+import functools
+from dataclasses import dataclass, field
 from test.testutils import T, TestSetup
 from typing import Callable, Type
 
@@ -26,23 +27,31 @@ def simple_tree_structure(some_type: Type[T], default_value_function: Callable[[
 
     @dataclass
     class AB:
-        child_a: A = A(default_value_function("AB_a"))
-        child_b: B = B(default_value_function("AB_b"))
+        child_a: A = field(default_factory=functools.partial(A, default_value_function("AB_a")))
+        child_b: B = field(default_factory=functools.partial(B, default_value_function("AB_b")))
 
     @dataclass
     class CD:
-        child_c: C = C(default_value_function("CD_c"))
-        child_d: D = D(default_value_function("CD_c"))
+        child_c: C = field(default_factory=functools.partial(C, default_value_function("CD_c")))
+        child_d: D = field(default_factory=functools.partial(D, default_value_function("CD_c")))
 
     @dataclass
     class ABCD(TestSetup):
-        child_ab: AB = AB(
-            A(default_value_function("ABCD_AB_a")),
-            B(default_value_function("ABCD_AB_b")),
+        # TODO: Making a nested dataclass with `functools.partial` probably actually doesn't work
+        # for nested fields!
+        child_ab: AB = field(
+            default_factory=functools.partial(
+                AB,
+                A(default_value_function("ABCD_AB_a")),
+                B(default_value_function("ABCD_AB_b")),
+            )
         )
-        child_cd: CD = CD(
-            C(default_value_function("ABCD_CD_c")),
-            D(default_value_function("ABCD_CD_d")),
+        child_cd: CD = field(
+            default_factory=functools.partial(
+                CD,
+                C(default_value_function("ABCD_CD_c")),
+                D(default_value_function("ABCD_CD_d")),
+            )
         )
 
     return ABCD
@@ -87,84 +96,112 @@ def tree_structure_with_repetitions(some_type: Type[T], default_value_function: 
     class AA:
         """Weird AA Class"""
 
-        a1: A = A(default_value_function("A_1"))
-        a2: A = A(default_value_function("A_2"))
+        a1: A = field(default_factory=functools.partial(A, default_value_function("A_1")))
+        a2: A = field(default_factory=functools.partial(A, default_value_function("A_2")))
 
     @dataclass
     class BB:
         """Weird BB Class"""
 
-        b1: B = B(default_value_function("B_1"))
-        b2: B = B(default_value_function("B_2"))
+        b1: B = field(default_factory=functools.partial(B, default_value_function("B_1")))
+        b2: B = field(default_factory=functools.partial(B, default_value_function("B_2")))
 
     @dataclass
     class CC:
         """Weird CC Class"""
 
-        c1: C = C(default_value_function("C_1"))
-        c2: C = C(default_value_function("C_2"))
+        c1: C = field(default_factory=functools.partial(C, default_value_function("C_1")))
+        c2: C = field(default_factory=functools.partial(C, default_value_function("C_2")))
 
     @dataclass
     class DD:
         """Weird DD Class"""
 
-        d1: D = D(default_value_function("D_1"))
-        d2: D = D(default_value_function("D_2"))
+        d1: D = field(default_factory=functools.partial(D, default_value_function("D_1")))
+        d2: D = field(default_factory=functools.partial(D, default_value_function("D_2")))
 
     @dataclass
     class AABB:
         """Weird AABB Class"""
 
-        aa: AA = AA(A(default_value_function("aa_a_1")), A(default_value_function("aa_a_2")))
-        bb: BB = BB(B(default_value_function("bb_b_1")), B(default_value_function("bb_b_2")))
+        aa: AA = field(
+            default_factory=functools.partial(
+                AA, A(default_value_function("aa_a_1")), A(default_value_function("aa_a_2"))
+            )
+        )
+        bb: BB = field(
+            default_factory=functools.partial(
+                BB, B(default_value_function("bb_b_1")), B(default_value_function("bb_b_2"))
+            )
+        )
 
     @dataclass
     class CCDD:
         """Weird CCDD Class"""
 
-        cc: CC = CC(C(default_value_function("cc_c_1")), C(default_value_function("cc_c_2")))
-        dd: DD = DD(D(default_value_function("dd_d_1")), D(default_value_function("dd_d_2")))
+        cc: CC = field(
+            default_factory=functools.partial(
+                CC, C(default_value_function("cc_c_1")), C(default_value_function("cc_c_2"))
+            )
+        )
+        dd: DD = field(
+            default_factory=functools.partial(
+                DD, D(default_value_function("dd_d_1")), D(default_value_function("dd_d_2"))
+            )
+        )
 
     @dataclass
     class AABBCCDD(TestSetup):
         """Weird AABBCCDD Class"""
 
-        aabb: AABB = AABB(
-            AA(
-                A(default_value_function("aabb_aa_a_1")),
-                A(default_value_function("aabb_aa_a_2")),
-            ),
-            BB(
-                B(default_value_function("aabb_bb_b_1")),
-                B(default_value_function("aabb_bb_b_2")),
-            ),
+        aabb: AABB = field(
+            default_factory=functools.partial(
+                AABB,
+                AA(
+                    A(default_value_function("aabb_aa_a_1")),
+                    A(default_value_function("aabb_aa_a_2")),
+                ),
+                BB(
+                    B(default_value_function("aabb_bb_b_1")),
+                    B(default_value_function("aabb_bb_b_2")),
+                ),
+            )
         )
-        ccdd: CCDD = CCDD(
-            CC(
-                C(default_value_function("ccdd_cc_c_1")),
-                C(default_value_function("ccdd_cc_c_2")),
-            ),
-            DD(
-                D(default_value_function("ccdd_dd_d_1")),
-                D(default_value_function("ccdd_dd_d_2")),
-            ),
+        ccdd: CCDD = field(
+            default_factory=functools.partial(
+                CCDD,
+                CC(
+                    C(default_value_function("ccdd_cc_c_1")),
+                    C(default_value_function("ccdd_cc_c_2")),
+                ),
+                DD(
+                    D(default_value_function("ccdd_dd_d_1")),
+                    D(default_value_function("ccdd_dd_d_2")),
+                ),
+            )
         )
 
     @dataclass
     class AABBCCDDWeird(TestSetup):
         """Weird AABBCCDDWeird Class"""
 
-        a: A = A("a")
-        b: B = B("b")
-        c: C = C("c")
-        d: D = D("d")
-        aabb: AABB = AABB(
-            AA(A("aabb_aa_a_1"), A("aabb_aa_a_2")),
-            BB(B("aabb_bb_b_1"), B("aabb_bb_b_2")),
+        a: A = field(default_factory=functools.partial(A, "a"))
+        b: B = field(default_factory=functools.partial(B, "b"))
+        c: C = field(default_factory=functools.partial(C, "c"))
+        d: D = field(default_factory=functools.partial(D, "d"))
+        aabb: AABB = field(
+            default_factory=functools.partial(
+                AABB,
+                AA(A("aabb_aa_a_1"), A("aabb_aa_a_2")),
+                BB(B("aabb_bb_b_1"), B("aabb_bb_b_2")),
+            )
         )
-        ccdd: CCDD = CCDD(
-            CC(C("ccdd_cc_c_1"), C("ccdd_cc_c_2")),
-            DD(D("ccdd_dd_d_1"), D("ccdd_dd_d_2")),
+        ccdd: CCDD = field(
+            default_factory=functools.partial(
+                CCDD,
+                CC(C("ccdd_cc_c_1"), C("ccdd_cc_c_2")),
+                DD(D("ccdd_dd_d_1"), D("ccdd_dd_d_2")),
+            )
         )
 
     return AABBCCDD, AABBCCDDWeird

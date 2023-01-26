@@ -1,5 +1,6 @@
 import enum
 import os
+import sys
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple, Type
 
@@ -65,15 +66,16 @@ class A:
 class B:
     # # shared_list: List = [] # not allowed.
     # different_list: List = field(default_factory=list)
-    shared: A = A()
+    if sys.version_info < (3, 11):
+        shared: A = A()
     different: A = mutable_field(A, a="123")
 
 
 def test_mutable_field():
     b1 = B()
     b2 = B()
-
-    assert id(b1.shared) == id(b2.shared), f"{b1.shared} should have the same id as {b2.shared}"
+    if sys.version_info < (3, 11):
+        assert id(b1.shared) == id(b2.shared), f"{b1.shared} should have the same id as {b2.shared}"
     assert id(b1.different) != id(b2.different), f"{b1.different} has the same id."
 
 

@@ -28,15 +28,15 @@ class ClassC:
 @dataclass
 class Container1(TestSetup):
     v1: int = 0
-    class_a: ClassA = ClassA()
-    class_b: ClassB = ClassB()
+    class_a: ClassA = field(default_factory=ClassA)
+    class_b: ClassB = field(default_factory=ClassB)
 
 
 @dataclass
 class Container2(TestSetup):
     v2: int = 0
-    class_a: ClassA = ClassA()
-    class_b: ClassB = ClassB()
+    class_a: ClassA = field(default_factory=ClassA)
+    class_b: ClassB = field(default_factory=ClassB)
 
 
 @dataclass
