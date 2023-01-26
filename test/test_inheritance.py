@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from simple_parsing.helpers import Serializable, choice, list_field
 
@@ -24,8 +24,8 @@ class ExtendedC(Base, TestSetup):
 
 @dataclass
 class Inheritance(TestSetup):
-    ext_b: ExtendedB = ExtendedB()
-    ext_c: ExtendedC = ExtendedC()
+    ext_b: ExtendedB = field(default_factory=ExtendedB)
+    ext_c: ExtendedC = field(default_factory=ExtendedC)
 
 
 def test_simple_subclassing_no_args():
@@ -96,14 +96,14 @@ def test_weird_structure():
     class GeneratorHParams(ConvBlock):
         """Settings of the Generator model"""
 
-        conv: ConvBlock = ConvBlock()
+        conv: ConvBlock = field(default_factory=ConvBlock)
         optimizer: str = choice("ADAM", "RMSPROP", "SGD", default="ADAM")
 
     @dataclass
     class DiscriminatorHParams(ConvBlock):
         """Settings of the Discriminator model"""
 
-        conv: ConvBlock = ConvBlock()
+        conv: ConvBlock = field(default_factory=ConvBlock)
         optimizer: str = choice("ADAM", "RMSPROP", "SGD", default="ADAM")
 
     @dataclass

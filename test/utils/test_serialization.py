@@ -87,7 +87,7 @@ def Parent(frozen: bool, Child):
     @dataclass(frozen=frozen)
     class Parent(FrozenSerializable if frozen else Serializable):
         name: str = "Consuela"
-        children: Dict[str, Child] = mutable_field(OrderedDict)
+        children: Dict[str, Child] = field(default_factory=OrderedDict)
 
     return Parent
 
@@ -97,7 +97,7 @@ def ParentWithOptionalChildren(Parent, Child):
     @dataclass(frozen=issubclass(Parent, FrozenSerializable))
     class ParentWithOptionalChildren(Parent):
         name: str = "Consuela"
-        children: Dict[str, Optional[Child]] = mutable_field(OrderedDict)
+        children: Dict[str, Optional[Child]] = field(default_factory=OrderedDict)
 
     return ParentWithOptionalChildren
 

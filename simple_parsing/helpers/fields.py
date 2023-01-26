@@ -12,7 +12,7 @@ from enum import Enum
 from logging import getLogger
 from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 
-from typing_extensions import Literal
+from typing_extensions import Literal, ParamSpec
 
 from simple_parsing.helpers.custom_actions import (
     DEFAULT_NEGATIVE_PREFIX,
@@ -164,22 +164,32 @@ def field(
 
 
 @overload
-def choice(choices: type[E], default: E, **kwargs) -> E:
-    pass
+def choice(
+    choices: type[E],
+    *,
+    default: E,
+    default_factory: Callable[[], E] | _MISSING_TYPE = MISSING,
+    **kwargs,
+) -> E:
+    ...
 
 
 @overload
-def choice(choices: dict[K, V], default: K, **kwargs) -> V:
-    pass
+def choice(choices: dict[K, V], *, default: K, **kwargs) -> V:
+    ...
 
 
 @overload
-def choice(*choices: T, default: T, **kwargs) -> T:
-    pass
+def choice(
+    *choices: T,
+    default: T | _MISSING_TYPE = MISSING,
+    default_factory: Callable[[], T] | _MISSING_TYPE = MISSING,
+    **kwargs,
+) -> T:
+    ...
 
 
-# TODO: Fix the signature for this.
-def choice(*choices: T, default: T | _MISSING_TYPE = MISSING, **kwargs: Any) -> T:
+def choice(*choices, default=MISSING, **kwargs):
     """Makes a field which can be chosen from the set of choices from the
     command-line.
 
@@ -246,7 +256,7 @@ def choice(*choices: T, default: T | _MISSING_TYPE = MISSING, **kwargs: Any) -> 
 
             kwargs.setdefault("encoding_fn", _encoding_fn)
 
-            def _decoding_fn(value: Any) -> str:
+            def _decoding_fn(value: Any) -> Any:
                 """Custom decoding function that will retrieve the value from the
                 stored key in the dictionary.
                 """
@@ -266,18 +276,21 @@ def list_field(*default_items: T, **kwargs) -> list[T]:
     Returns:
         List[T]: a `dataclasses.field` of type `list`, containing the `default_items`.
     """
-    default = kwargs.pop("default", None)
-    if isinstance(default, list):
+    if "default" in kwargs and isinstance(kwargs["default"], list):
+        assert not default_items
         # can't have that. field wants a default_factory.
         # we just give back a copy of the list as a default factory,
         # but this should be discouraged.
         from copy import deepcopy
 
-        kwargs["default_factory"] = lambda: deepcopy(default)
-    return mutable_field(list, default_items, **kwargs)
+        default_factory = functools.partial(deepcopy, kwargs.pop("default"))
+    else:
+        default_factory = functools.partial(list, default_items)
+
+    return field(default_factory=default_factory, **kwargs)
 
 
-def dict_field(default_items: dict[K, V] | Iterable[tuple[K, V]] = None, **kwargs) -> dict[K, V]:
+def dict_field(default_items: dict[K, V] | Iterable[tuple[K, V]] = (), **kwargs) -> dict[K, V]:
     """shorthand function for setting a `dict` attribute on a dataclass,
     so that every instance of the dataclass doesn't share the same `dict`.
 
@@ -292,41 +305,42 @@ def dict_field(default_items: dict[K, V] | Iterable[tuple[K, V]] = None, **kwarg
     Returns:
         Dict[K, V]: a `dataclasses.Field` of type `Dict[K, V]`, containing the `default_items`.
     """
-    if default_items is None:
-        default_items = {}
-    elif isinstance(default_items, dict):
-        default_items = default_items.items()
-    return mutable_field(dict, default_items, **kwargs)
+    return field(default_factory=functools.partial(dict, default_items), **kwargs)
 
 
 def set_field(*default_items: T, **kwargs) -> set[T]:
-    return mutable_field(set, default_items, **kwargs)
+    return field(default_factory=functools.partial(set, default_items), **kwargs)
+
+
+P = ParamSpec("P")
 
 
 def mutable_field(
-    _type: type[T],
-    *args,
+    fn: Callable[P, T],
     init: bool = True,
     repr: bool = True,
-    hash: bool = None,
+    hash: bool | None = None,
     compare: bool = True,
-    metadata: dict[str, Any] = None,
-    **kwargs,
+    metadata: dict[str, Any] | None = None,
+    *fn_args: P.args,
+    **fn_kwargs: P.kwargs,
 ) -> T:
-    # TODO: Check whether some of the keyword arguments are destined for the `field` function, or for the partial?
-    default_factory = kwargs.pop("default_factory", functools.partial(_type, *args))
-    return field(
+    """Shorthand for `dataclasses.field(default_factory=functools.partial(fn, *fn_args, **fn_kwargs))`.
+
+    NOTE: The *fn_args and **fn_kwargs here are passed to `fn`, and are never used by the argparse
+    Action!
+    """
+    # TODO: Use this 'smart' partial to make it easier to define nested fields.
+    # from simple_parsing.helpers.nested_partial import npartial
+    default_factory = functools.partial(fn, *fn_args, **fn_kwargs)
+    return dataclasses.field(
         default_factory=default_factory,
         init=init,
         repr=repr,
         hash=hash,
         compare=compare,
         metadata=metadata,
-        **kwargs,
     )
-
-
-MutableField = mutable_field
 
 
 def subparsers(

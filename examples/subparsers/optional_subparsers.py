@@ -17,7 +17,9 @@ class BConfig:
 
 @dataclass
 class Options:
-    config: Union[AConfig, BConfig] = subparsers({"a": AConfig, "b": BConfig}, default=AConfig())
+    config: Union[AConfig, BConfig] = subparsers(
+        {"a": AConfig, "b": BConfig}, default_factory=AConfig
+    )
 
 
 def main():
