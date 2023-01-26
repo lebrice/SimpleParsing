@@ -75,8 +75,8 @@ def test_mutable_field():
     b1 = B()
     b2 = B()
     if sys.version_info < (3, 11):
-        assert id(b1.shared) == id(b2.shared), f"{b1.shared} should have the same id as {b2.shared}"
-    assert id(b1.different) != id(b2.different), f"{b1.different} has the same id."
+        assert b1.shared is b2.shared
+    assert b1.different is not b2.different
 
 
 class Color(enum.Enum):
