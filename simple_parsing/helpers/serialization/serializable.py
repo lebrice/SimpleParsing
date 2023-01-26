@@ -761,6 +761,7 @@ def from_dict(
             subgroups_selection_key = f"__subgroups__@{name}"
             subgroup_dataclass_types = field.metadata["subgroup_dataclass_types"]
             subgroups_selected_type = None
+            subgroups = field.metadata["subgroups"]
 
             if subgroups_selection_key in obj_dict:
                 # When subgroups selection key is matched in an entry of obj_dict, we assign the selected type and pop the selection key.
@@ -784,7 +785,10 @@ def from_dict(
             if is_dataclass(raw_value):
                 # If raw_value is a dataclass instead of a dictionary, we set the field_value to raw_value
                 # This happens when we pass dataclass instance manuelly to from_dict function.
-                field_value = raw_value
+                if raw_value.__class__ in list(subgroups.values()):
+                    field_value = raw_value
+                else:
+                    raise ValueError(f"`raw_value` {raw_value} must be a value in the subgroups dict {subgroups.values()}.")
             else:
                 field_value = from_dict(
                     subgroups_selected_type,
@@ -822,8 +826,14 @@ def from_dict(
                 if is_dataclass(raw_value):
                     # If raw_value is a dataclass instead of a dictionary, we set the field_value to raw_value
                     # This happens when we pass dataclass instance manuelly to from_dict function.
-                    # TODO: Or we move this to decode_field?
-                    field_value = raw_value
+                    # TODO: Do we allow this way?
+                    raise NotImplementedError(
+                        f"Assign nested dataclass with dictionary is current not allowed.\n"
+                        "🙏 Please make an issue on GitHub! 🙏\n"
+                    )
+                    # assert factory_fn is not None
+                    # if isinstance(raw_value, factory_fn):
+                    #     field_value = raw_value
 
                 elif factory_fn is not None and is_dataclass(factory_fn):
                     # Decode the field recursively when factory_fn is dataclass type
