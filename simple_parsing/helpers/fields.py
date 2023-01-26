@@ -272,15 +272,18 @@ def list_field(*default_items: T, **kwargs) -> list[T]:
     Returns:
         List[T]: a `dataclasses.field` of type `list`, containing the `default_items`.
     """
-    default = kwargs.pop("default", None)
-    if isinstance(default, list):
+    if "default" in kwargs and isinstance(kwargs["default"], list):
+        assert not default_items
         # can't have that. field wants a default_factory.
         # we just give back a copy of the list as a default factory,
         # but this should be discouraged.
         from copy import deepcopy
 
-        kwargs["default_factory"] = lambda: deepcopy(default)
-    return field(default_factory=functools.partial(list, default_items), **kwargs)
+        default_factory = functools.partial(deepcopy, kwargs.pop("default"))
+    else:
+        default_factory = functools.partial(list, default_items)
+
+    return field(default_factory=default_factory, **kwargs)
 
 
 def dict_field(default_items: dict[K, V] | Iterable[tuple[K, V]] = (), **kwargs) -> dict[K, V]:
