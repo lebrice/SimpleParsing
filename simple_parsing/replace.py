@@ -34,8 +34,8 @@ def replace(
     fields of dataclasses.
     ## Examples
     ```python
+    from __future__ import annotations
     from dataclasses import dataclass, field
-    from typing import Union
     @dataclass
     class A:
         a: int = 0
