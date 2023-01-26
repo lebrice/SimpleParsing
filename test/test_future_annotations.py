@@ -221,8 +221,8 @@ class Opts2(Serializable):
 
 @dataclass
 class Wrapper(Serializable):
-    opts1: Opts1 = Opts1()
-    opts2: Opts2 = Opts2()
+    opts1: Opts1 = field(default_factory=Opts1)
+    opts2: Opts2 = field(default_factory=Opts2)
 
 
 def test_serialization_deserialization():

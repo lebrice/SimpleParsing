@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 
 from simple_parsing import ArgumentParser, choice
@@ -76,9 +76,8 @@ class WGanGPHParams(WGanHParams):
     """Coefficient from the progan authors which penalizes critic outputs for having a large magnitude."""
     gp_coefficient: float = 10.0
     """Multiplying coefficient for the gradient penalty term of the loss equation. (10.0 is the default value, and was used by the PROGAN authors.)"""
-    disc: CriticHParams = (
-        CriticHParams()
-    )  # overwrite the usual 'disc' field of the WGanHParams dataclass.
+    disc: CriticHParams = field(default_factory=CriticHParams)
+    # overwrite the usual 'disc' field of the WGanHParams dataclass.
     """ Parameters of the Critic. """
 
 

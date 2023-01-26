@@ -1,3 +1,4 @@
+import functools
 from dataclasses import dataclass, field
 from typing import ClassVar, List
 
@@ -42,7 +43,7 @@ class RunConfig(TestSetup):
     """
 
     # the set of hyperparameters for this run.
-    hparams: HParams = HParams()
+    hparams: HParams = field(default_factory=HParams)
     log_dir: str = "logs"  # The logging directory where
     checkpoint_dir: str = field(init=False)
 
@@ -60,9 +61,9 @@ class TrainConfig(TestSetup):
     """
 
     # run config to be used during training
-    train: RunConfig = RunConfig(log_dir="train")
+    train: RunConfig = field(default_factory=functools.partial(RunConfig, log_dir="train"))
     # run config to be used during validation.
-    valid: RunConfig = RunConfig(log_dir="valid")
+    valid: RunConfig = field(default_factory=functools.partial(RunConfig, log_dir="valid"))
 
 
 @dataclass
@@ -128,37 +129,46 @@ class HyperParameters(TestSetup, Serializable):
     use_custom_likes: bool = True
 
     # Gender model settings:
-    gender: TaskHyperParameters = TaskHyperParameters(
-        "gender",
-        num_layers=1,
-        num_units=32,
-        use_batchnorm=False,
-        use_dropout=True,
-        dropout_rate=0.1,
-        use_image_features=True,
-        use_likes=True,
+    gender: TaskHyperParameters = field(
+        default_factory=functools.partial(
+            TaskHyperParameters,
+            "gender",
+            num_layers=1,
+            num_units=32,
+            use_batchnorm=False,
+            use_dropout=True,
+            dropout_rate=0.1,
+            use_image_features=True,
+            use_likes=True,
+        )
     )
 
     # Age Group Model settings:
-    age_group: TaskHyperParameters = TaskHyperParameters(
-        "age_group",
-        num_layers=2,
-        num_units=64,
-        use_batchnorm=False,
-        use_dropout=True,
-        dropout_rate=0.1,
-        use_image_features=True,
-        use_likes=True,
+    age_group: TaskHyperParameters = field(
+        default_factory=functools.partial(
+            TaskHyperParameters,
+            "age_group",
+            num_layers=2,
+            num_units=64,
+            use_batchnorm=False,
+            use_dropout=True,
+            dropout_rate=0.1,
+            use_image_features=True,
+            use_likes=True,
+        )
     )
 
     # Personality Model(s) settings:
-    personality: TaskHyperParameters = TaskHyperParameters(
-        "personality",
-        num_layers=1,
-        num_units=8,
-        use_batchnorm=False,
-        use_dropout=True,
-        dropout_rate=0.1,
-        use_image_features=False,
-        use_likes=False,
+    personality: TaskHyperParameters = field(
+        default_factory=functools.partial(
+            TaskHyperParameters,
+            "personality",
+            num_layers=1,
+            num_units=8,
+            use_batchnorm=False,
+            use_dropout=True,
+            dropout_rate=0.1,
+            use_image_features=False,
+            use_likes=False,
+        )
     )

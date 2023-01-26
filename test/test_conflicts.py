@@ -1,7 +1,8 @@
 """Tests for weird conflicts.
 """
 import argparse
-from dataclasses import dataclass
+import functools
+from dataclasses import dataclass, field
 
 from simple_parsing import ArgumentParser
 
@@ -27,8 +28,8 @@ def test_arg_and_dataclass_with_same_name_after_prefixing(silent):
 
     @dataclass
     class Parent:
-        pre: SomeClass = SomeClass()
-        bla: SomeClass = SomeClass()
+        pre: SomeClass = field(default_factory=lambda: SomeClass)
+        bla: SomeClass = field(default_factory=lambda: SomeClass)
 
     parser = ArgumentParser()
     parser.add_argument("--pre.a", default=123, type=int)
@@ -56,13 +57,13 @@ def test_weird_hierarchy():
 
     @dataclass
     class Options:
-        a: A = A(0.1)
-        b: B = B(0.2)
+        a: A = field(default_factory=functools.partial(A, 0.1))
+        b: B = field(default_factory=functools.partial(B, 0.2))
 
     @dataclass
     class Settings(TestSetup):
-        opt: Options = Options()
-        c: Base = C(0.3)
+        opt: Options = field(default_factory=Options)
+        c: Base = field(default_factory=functools.partial(C, 0.3))
 
     opt = Settings.setup("")
     print(opt)
@@ -76,7 +77,7 @@ def test_parent_child_conflict():
     @dataclass
     class Parent2(TestSetup):
         batch_size: int = 48
-        child: HParams = HParams()
+        child: HParams = field(default_factory=HParams)
 
     p: Parent2 = Parent2.setup()
     assert p.child.batch_size == 32
