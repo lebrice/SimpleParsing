@@ -5,7 +5,7 @@
 # import torch.nn.parallel
 # import torch.backends.cudnn as cudnn
 # import torch.utils.data
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar, Optional, Tuple
 
 import simple_parsing
@@ -191,17 +191,17 @@ class Parameters:
     """base options."""
 
     # Dataset parameters.
-    dataset: DatasetParams = DatasetParams()
+    dataset: DatasetParams = field(default_factory=DatasetParams)
     # Set of parameters related to the optimizer.
-    optimizer: OptimizerParams = OptimizerParams()
+    optimizer: OptimizerParams = field(default_factory=OptimizerParams)
     # GAN Settings
-    gan: GanParams = GanParams()
+    gan: GanParams = field(default_factory=GanParams)
     # Camera settings
-    camera: CameraParams = CameraParams()
+    camera: CameraParams = field(default_factory=CameraParams)
     # Rendering-related settings
-    rendering: RenderingParams = RenderingParams()
+    rendering: RenderingParams = field(default_factory=RenderingParams)
     # other (misc) settings
-    other: OtherParams = OtherParams()
+    other: OtherParams = field(default_factory=OtherParams)
 
     def __post_init__(self):
         """Post-initialization code"""

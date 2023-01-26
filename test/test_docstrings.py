@@ -173,7 +173,7 @@ def test_getdocstring_bug():
     @dataclass
     class Parent(TestSetup):
         batch_size: int = 48
-        child: HParams = HParams()
+        child: HParams = field(default_factory=lambda: HParams())
 
     assert get_attribute_docstring(Parent, "child") == AttributeDocString()
 
