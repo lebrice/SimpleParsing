@@ -786,6 +786,7 @@ def from_dict(
                 # If raw_value is a dataclass instead of a dictionary, we set the field_value to raw_value
                 # This happens when we pass dataclass instance manuelly to from_dict function.
                 if raw_value.__class__ in list(subgroups.values()):
+                    # Restrict the type of raw_value to be one of subgroups
                     field_value = raw_value
                 else:
                     raise ValueError(f"`raw_value` {raw_value} must be a value in the subgroups dict {subgroups.values()}.")
@@ -820,7 +821,7 @@ def from_dict(
                 elif isinstance(field.default_factory, functools.partial) and is_dataclass(
                     field.default_factory.func
                 ):
-                    # # Set factory_fn to default_factory.func when default_factory partial is dataclass type
+                    # Set factory_fn to default_factory.func when default_factory partial is dataclass type
                     factory_fn = field.default_factory.func
 
                 if is_dataclass(raw_value):
