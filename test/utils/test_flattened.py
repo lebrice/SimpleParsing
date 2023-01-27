@@ -1,5 +1,6 @@
 """Adds typed dataclasses for the "config" yaml files.
 """
+import functools
 from dataclasses import dataclass, field
 from test.testutils import pytest, raises
 from typing import Any, Dict, Optional, Tuple
@@ -29,7 +30,7 @@ class DatasetConfig:
     eval_batch_size: int = 256
     eval_num_workers: int = 4
 
-    label_offset: LabelOffset = LabelOffset(mnist=0)
+    label_offset: LabelOffset = field(default_factory=functools.partial(LabelOffset, mnist=0))
 
 
 @dataclass
@@ -90,9 +91,17 @@ class TrainConfig:
 
     weight_decay: float = 0.00001
     implicit_lr_decay: bool = False
-    optimizer_g: ObjectConfig = ObjectConfig(type="Adam", lr=0.0003)
-    lr_scheduler_g: ObjectConfig = ObjectConfig(type="MultiStepLR", milestones=[1], gamma=0.003)
-    clip_grad: ObjectConfig = ObjectConfig(type="value", clip_value=0.5)
+    optimizer_g: ObjectConfig = field(
+        default_factory=functools.partial(ObjectConfig, type="Adam", lr=0.0003)
+    )
+    lr_scheduler_g: ObjectConfig = field(
+        default_factory=functools.partial(
+            ObjectConfig, type="MultiStepLR", milestones=[1], gamma=0.003
+        )
+    )
+    clip_grad: ObjectConfig = field(
+        default_factory=functools.partial(ObjectConfig, type="value", clip_value=0.5)
+    )
 
 
 @dataclass

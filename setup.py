@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 
 import setuptools
@@ -12,6 +14,12 @@ print(sys.version_info)
 
 with open("requirements.txt") as req_file:
     install_requires = req_file.read().splitlines(keepends=False)
+
+extras_require: dict[str, list[str]] = {
+    "test": ["pytest", "pytest-xdist"],
+    "yaml": ["pyyaml"],
+}
+extras_require["all"] = list(set(sum(extras_require.values(), [])))
 
 
 setuptools.setup(
@@ -33,5 +41,6 @@ setuptools.setup(
     ],
     python_requires=">=3.7",
     install_requires=install_requires,
+    extras_require=extras_require,
     setup_requires=["pre-commit"],
 )

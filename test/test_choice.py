@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Union
 
@@ -103,7 +103,7 @@ def test_choice_with_default_instance():
 
     @dataclass
     class Parent(TestSetup):
-        d: D = D(option=AA("parent"))
+        d: D = field(default_factory=lambda: D(option=AA("parent")))
 
     p = Parent.setup("")
     assert p.d.option == AA("parent")

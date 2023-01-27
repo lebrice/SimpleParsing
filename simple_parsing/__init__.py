@@ -6,7 +6,6 @@ from .conflicts import ConflictResolution
 from .decorators import main
 from .help_formatter import SimpleHelpFormatter
 from .helpers import (
-    MutableField,
     Serializable,
     choice,
     field,
@@ -41,7 +40,6 @@ __all__ = [
     "list_field",
     "main",
     "mutable_field",
-    "MutableField",
     "NestedMode",
     "parse_known_args",
     "parse",
