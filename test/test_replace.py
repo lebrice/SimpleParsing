@@ -221,7 +221,7 @@ def test_replace_failure_cases(dest_config: object, src_config: object, changes_
         assert config_replaced != dest_config
 
 
-def test_replace_new_values_mixed():
+def test_replace_mixed_flatten_and_nested_dict():
     dest_config = Level3(name="PhD", prev=Level2(name="Master", prev=Level1(name="Undergrad")))
     src_config = Level3()
 
@@ -239,3 +239,11 @@ def test_replace_new_values_mixed():
         src_config, name="PhD", prev={"name": "Master", "prev.name": "Undergrad"}
     )
     assert replaced_config3 == dest_config
+
+
+@pytest.mark.xfail(reason="not implemented for this")
+def test_replace_mixed_flatten_and_nested_dict_not_implemented():
+    replaced_config1 = replace(
+        src_config, {"name": "PhD", "prev": {"name": "Master", "prev.name": "Undergrad"}}
+    )
+    assert replaced_config1 == dest_config
