@@ -5,9 +5,8 @@ import logging
 from dataclasses import MISSING, fields, is_dataclass
 
 from simple_parsing.helpers.serialization.serializable import from_dict, to_dict
-from simple_parsing.utils import unflatten_split
+from simple_parsing.utils import unflatten_split, DataclassT, dict_union
 
-from .utils import DataclassT, dict_union
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +50,9 @@ def replace(
     assert replace(config, {"a_or_b": B(b="bob")}) == Config(a_or_b=B(b='bob'))
     ```
     """
+    if not is_dataclass(dataclass):
+        raise TypeError("replace() should be called on dataclass instances")
+    
     if new_values:
         # Make sure entries of nwe_values are unflattened
         for k in new_values.keys():
