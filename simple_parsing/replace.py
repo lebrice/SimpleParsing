@@ -18,7 +18,7 @@ def invoke_post_init_inplace(dataclass: DataclassT, recurse: bool = True) -> Non
                 isinstance(f.default_factory, functools.partial)
                 and is_dataclass(f.default_factory.func)
             ):
-                if recurse:
+                if recurse and is_dataclass(getattr(dataclass, f.name)):
                     invoke_post_init_inplace(getattr(dataclass, f.name), recurse=recurse)
 
     if getattr(dataclass, "__post_init__", None):

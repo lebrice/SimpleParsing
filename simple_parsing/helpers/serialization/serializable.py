@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import functools
 import json
 import pickle
-import warnings
 from collections import OrderedDict
 from dataclasses import MISSING, Field, dataclass, fields, is_dataclass
 from functools import partial
@@ -12,7 +10,6 @@ from logging import getLogger
 from pathlib import Path
 from typing import IO, Any, Callable, ClassVar, TypeVar, Union
 
-from simple_parsing.helpers.subgroups import is_lambda
 from simple_parsing.utils import get_args, get_forward_arg, is_optional
 
 from .decoding import decode_field, register_decoding_fn
@@ -628,9 +625,7 @@ def dumps_yaml(dc, dump_fn: DumpsFn | None = None, **kwargs) -> str:
     return dumps(dc, dump_fn=partial(dump_fn, **kwargs))
 
 
-def to_dict(
-    dc, dict_factory: type[dict] = dict, recurse: bool = True, add_selected_subgroups=False
-) -> dict:
+def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
     """Serializes this dataclass to a dict.
 
     NOTE: This 'extends' the `asdict()` function from
@@ -657,27 +652,13 @@ def to_dict(
             d[name] = custom_encoding_fn(value)
             continue
 
-        if add_selected_subgroups and "subgroups" in f.metadata:
-            ###### insert subgroups selected key ######
-            subgrp_datacls_types = f.metadata.get("subgroup_dataclass_types")
-            for _, grp_cls in subgrp_datacls_types.items():
-                if isinstance(value, grp_cls):
-                    _subgroups_name = f"__subgroups__@{name}"
-                    # The key of selected subgroups needs to be the class name of the dataclass
-                    d[_subgroups_name] = grp_cls.__name__
-
         encoding_fn = encode
         # TODO: Make a variant of the serialization tests that use the static functions everywhere.
         if is_dataclass(value) and recurse:
             try:
-                encoded = to_dict(
-                    value,
-                    dict_factory=dict_factory,
-                    recurse=recurse,
-                    add_selected_subgroups=add_selected_subgroups,
-                )
+                encoded = to_dict(value, dict_factory=dict_factory, recurse=recurse)
             except TypeError:
-                encoded = to_dict(value, add_selected_subgroups=add_selected_subgroups)
+                encoded = to_dict(value)
             logger.debug(f"Encoded dataclass field {name}: {encoded}")
         else:
             try:
@@ -692,10 +673,7 @@ def to_dict(
 
 
 def from_dict(
-    cls: type[Dataclass],
-    d: dict[str, Any],
-    drop_extra_fields: bool | None = None,
-    parse_selection: bool = False,
+    cls: type[Dataclass], d: dict[str, Any], drop_extra_fields: bool | None = None
 ) -> Dataclass:
     """Parses an instance of the dataclass `cls` from the dict `d`.
 
@@ -756,98 +734,8 @@ def from_dict(
                 )
             continue
 
-        if field.metadata.get("subgroups", None) and parse_selection:
-            ##### decode subgroups via selected subgroup #####
-            subgroups_selection_key = f"__subgroups__@{name}"
-            subgroup_dataclass_types = field.metadata["subgroup_dataclass_types"]
-            subgroups_selected_type = None
-            subgroups = field.metadata["subgroups"]
-
-            if subgroups_selection_key in obj_dict:
-                # When subgroups selection key is matched in an entry of obj_dict, we assign the selected type and pop the selection key.
-                for _, grp_cls in subgroup_dataclass_types.items():
-                    if obj_dict[subgroups_selection_key] == grp_cls.__name__:
-                        subgroups_selected_type = grp_cls
-                        obj_dict.pop(subgroups_selection_key)
-                        break
-            else:
-                # When subgroups selection key doesn't exist in obj_dict, in some situation that happens,
-                # we use the dataclass type of subgroup_default to decode it. This method doesn't guarantee
-                # that the raw_value match the dataclass type. Therefore, we send warning here.
-                subgroup_default_selection = field.metadata.get("subgroup_default")
-                subgroups_selected_type = subgroup_dataclass_types[subgroup_default_selection]
-                warnings.warn(
-                    f"Subgroups selection is not specified for field '{field.name}'! We use default type {subgroups_selected_type} to decode!"
-                )
-
-            raw_value = obj_dict.pop(name)
-            
-            if is_dataclass(raw_value):
-                # If raw_value is a dataclass instead of a dictionary, we set the field_value to raw_value
-                # This happens when we pass dataclass instance manuelly to from_dict function.
-                if raw_value.__class__ in list(subgroups.values()):
-                    # Restrict the type of raw_value to be one of subgroups
-                    field_value = raw_value
-                else:
-                    raise ValueError(f"`raw_value` {raw_value} must be a value in the subgroups dict {subgroups.values()}.")
-            else:
-                field_value = from_dict(
-                    subgroups_selected_type,
-                    raw_value,
-                    drop_extra_fields=drop_extra_fields,
-                    parse_selection=parse_selection,
-                )
-
-        else:
-            ##### Decode the fields for all other types #####
-            raw_value = obj_dict.pop(name)
-            field_value = None
-
-            if field.default_factory is not MISSING:
-                factory_fn = None
-
-                if is_lambda(field.default_factory):
-                    raise NotImplementedError(
-                        f"Lambda expressions like {field.default_factory!r} can't currently be used as subgroup "
-                        "values, since we're unable to inspect which dataclass they return without "
-                        "invoking them.\n"
-                        "If you want to choose between different versions of a dataclass where arguments "
-                        "change between subgroups, consider using a `functools.partial` instead. "
-                    )
-
-                if is_dataclass(field.default_factory):
-                    # Set factory_fn to default_factory when default_factory is dataclass type
-                    factory_fn = field.default_factory
-                elif isinstance(field.default_factory, functools.partial) and is_dataclass(
-                    field.default_factory.func
-                ):
-                    # Set factory_fn to default_factory.func when default_factory partial is dataclass type
-                    factory_fn = field.default_factory.func
-
-                if is_dataclass(raw_value):
-                    # If raw_value is a dataclass instead of a dictionary, we set the field_value to raw_value
-                    # This happens when we pass dataclass instance manuelly to from_dict function.
-                    # TODO: Do we allow this way?
-                    raise NotImplementedError(
-                        f"Assign nested dataclass with dictionary is current not allowed.\n"
-                        "🙏 Please make an issue on GitHub! 🙏\n"
-                    )
-                    # assert factory_fn is not None
-                    # if isinstance(raw_value, factory_fn):
-                    #     field_value = raw_value
-
-                elif factory_fn is not None and is_dataclass(factory_fn):
-                    # Decode the field recursively when factory_fn is dataclass type
-                    field_value = from_dict(
-                        factory_fn,
-                        raw_value,
-                        drop_extra_fields=drop_extra_fields,
-                        parse_selection=parse_selection,
-                    )
-
-            if field_value is None:
-                # Decode the field with decode_field function otherwise
-                field_value = decode_field(field, raw_value, containing_dataclass=cls)
+        raw_value = obj_dict.pop(name)
+        field_value = decode_field(field, raw_value, containing_dataclass=cls)
 
         if field.init:
             init_args[name] = field_value
@@ -890,9 +778,7 @@ def from_dict(
                 if child_init_field_names >= req_init_field_names:
                     # `child_class` is the first class with all required fields.
                     logger.debug(f"Using class {child_class} instead of {cls}")
-                    return from_dict(
-                        child_class, d, drop_extra_fields=False, parse_selection=parse_selection
-                    )
+                    return from_dict(child_class, d, drop_extra_fields=False)
 
     init_args.update(extra_args)
     try:
