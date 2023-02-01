@@ -3,10 +3,11 @@ from __future__ import annotations
 import functools
 import logging
 from dataclasses import dataclass, field
+from typing import Union
 
 import pytest
 
-from simple_parsing import replace, subgroups
+from simple_parsing import replace
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,11 @@ class B:
 
 
 @dataclass
+class UnionConfig:
+    a_or_b: Union[A, B] = field(default_factory=A)
+
+
+@dataclass
 class Level1:
     level: int = 1
     name: str = "level1"
@@ -42,7 +48,8 @@ class Level2:
 class Level3:
     level: int = 3
     name: str = "level3"
-    prev: Level2 = field(default_factory=functools.partial(Level2, name="level2_foo"))
+    prev: Level2 = field(
+        default_factory=functools.partial(Level2, name="level2_foo"))
 
 
 @dataclass
@@ -81,11 +88,11 @@ def test_replace_plain_dataclass(dest_config: object, src_config: object, change
     assert config_replaced == dest_config
 
 
-@pytest.mark.skip(reason='issue_nested_dataclass')
 @pytest.mark.parametrize(
     ("dest_config", "src_config", "changes_dict"),
     [
-        (Level1(name="level1_the_potato"), Level1(), {"name": "level1_the_potato"}),
+        (Level1(name="level1_the_potato"),
+         Level1(), {"name": "level1_the_potato"}),
         (Level2(name="level2_bar"), Level2(), {"name": "level2_bar"}),
         (
             Level2(name="level2_bar", prev=Level1(name="level1_good")),
@@ -100,7 +107,8 @@ def test_replace_plain_dataclass(dest_config: object, src_config: object, change
         (
             Level3(
                 name="level3_greatest",
-                prev=Level2(name="level2_greater", prev=Level1(name="level1_greate")),
+                prev=Level2(name="level2_greater",
+                            prev=Level1(name="level1_greate")),
             ),
             Level3(),
             {
@@ -111,7 +119,8 @@ def test_replace_plain_dataclass(dest_config: object, src_config: object, change
         (
             Level3(
                 name="level3_greatest",
-                prev=Level2(name="level2_greater", prev=Level1(name="level1_greate")),
+                prev=Level2(name="level2_greater",
+                            prev=Level1(name="level1_greate")),
             ),
             Level3(),
             {
@@ -131,17 +140,17 @@ def test_replace_nested_dataclasses(dest_config: object, src_config: object, cha
     ("dest_config", "src_config", "changes_dict"),
     [
         (InnerPostInit(in_arg=2.0), InnerPostInit(), {"in_arg": 2.0}),
-        pytest.param(
-            OuterPostInit(out_arg=2, inner=(InnerPostInit(3.0, for_outer_post="bar"))),
+        (
+            OuterPostInit(out_arg=2, inner=(
+                InnerPostInit(3.0, for_outer_post="bar"))),
             OuterPostInit(),
             {"out_arg": 2, "inner": {"in_arg": 3.0, "for_outer_post": "bar"}},
-            marks=pytest.mark.xfail(reason='issue_nested_dataclass')
         ),
-        pytest.param(
-            OuterPostInit(out_arg=2, inner=(InnerPostInit(3.0, for_outer_post="bar"))),
+        (
+            OuterPostInit(out_arg=2, inner=(
+                InnerPostInit(3.0, for_outer_post="bar"))),
             OuterPostInit(),
             {"out_arg": 2, "inner.in_arg": 3.0, "inner.for_outer_post": "bar"},
-            marks=pytest.mark.xfail(reason='issue_nested_dataclass')
         ),
     ],
 )
@@ -150,22 +159,21 @@ def test_replace_post_init(dest_config: object, src_config: object, changes_dict
     assert config_replaced == dest_config
 
 
-@pytest.mark.xfail(reason='issue_nested_dataclass')
-def test_replace_mixed_flatten_and_nested_dict():
-    dest_config = Level3(name="PhD", prev=Level2(name="Master", prev=Level1(name="Undergrad")))
-    src_config = Level3()
-
-    replaced_config1 = replace(
-        src_config, {"prev": {"name": "Master", "prev": {"name": "Undergrad"}}}, name="PhD"
-    )
-    assert replaced_config1 == dest_config
-
-    replaced_config2 = replace(
-        src_config, name="PhD", prev={"name": "Master", "prev": {"name": "Undergrad"}}
-    )
-    assert replaced_config2 == dest_config
-
-    replaced_config3 = replace(
-        src_config, name="PhD", prev={"name": "Master", "prev.name": "Undergrad"}
-    )
-    assert replaced_config3 == dest_config
+@pytest.mark.parametrize(
+    ("dest_config", "src_config", "changes_dict"),
+    [
+        (
+            UnionConfig(a_or_b=B(b='bob')),
+            UnionConfig(a_or_b=A(a=1.0)),
+            {'a_or_b': B(b='bob')}
+        ),
+        (
+            UnionConfig(a_or_b=A(a=2.0)),
+            UnionConfig(a_or_b=A(a=1.0)),
+            {'a_or_b.a': 2.0}
+        ),
+    ]
+)
+def test_replace_union_dataclass(dest_config: object, src_config: object, changes_dict: dict):
+    config_replaced = replace(src_config, changes_dict)
+    assert config_replaced == dest_config

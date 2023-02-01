@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-from __future__ import annotations
 import dataclasses
-
 from typing import Any, overload
-from simple_parsing.utils import (
-    unflatten_split,
-    is_dataclass_instance,
-    DataclassT,
-)
+
+from simple_parsing.utils import (DataclassT, is_dataclass_instance,
+                                  unflatten_split)
 
 
 @overload
@@ -63,7 +59,8 @@ def replace(obj: DataclassT, changes_dict: dict[str, Any] | None = None, **chang
         if field.name not in changes:
             continue
         if not field.init:
-            raise ValueError(f"Cannot replace value of non-init field {field.name}.")
+            raise ValueError(
+                f"Cannot replace value of non-init field {field.name}.")
 
         field_value = getattr(obj, field.name)
 
