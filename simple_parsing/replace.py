@@ -3,8 +3,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, overload
 
-from simple_parsing.utils import (DataclassT, is_dataclass_instance,
-                                  unflatten_split)
+from simple_parsing.utils import DataclassT, is_dataclass_instance, unflatten_split
 
 
 @overload
