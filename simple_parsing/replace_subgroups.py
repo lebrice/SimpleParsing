@@ -22,6 +22,8 @@ def replace_subgroups(obj: DataclassT, changes_dict: dict[str, Any] | None = Non
     # changes can be given in a 'flat' format in `changes_dict`, e.g. {"a.b.c": 123}.
     # Unflatten them back to a nested dict (e.g. {"a": {"b": {"c": 123}}})
     changes = unflatten_split(changes)
+    if subgroup_changes:
+        subgroup_changes = unflatten_split(subgroup_changes)
 
     replace_kwargs = {}
     for field in dataclasses.fields(obj):
@@ -36,11 +38,12 @@ def replace_subgroups(obj: DataclassT, changes_dict: dict[str, Any] | None = Non
         if is_dataclass_instance(field_value):
             if field.metadata.get('subgroups', None) and subgroup_changes is not None:
                 field_value = field.metadata['subgroups'][subgroup_changes[field.name]]()
+                
+            if isinstance(changes[field.name], dict):
                 field_changes = changes[field.name]
                 new_value = replace_subgroups(field_value, field_changes, subgroup_changes)
-            elif isinstance(changes[field.name], dict):
-                field_changes = changes[field.name]
-                new_value = replace_subgroups(field_value, field_changes, subgroup_changes)
+            else:
+                new_value = changes[field.name]
         else:
             new_value = changes[field.name]
         replace_kwargs[field.name] = new_value
