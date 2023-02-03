@@ -920,8 +920,21 @@ def flatten_join(nested: PossiblyNestedMapping[str, V], sep: str = ".") -> dict[
     return {sep.join(keys): value for keys, value in flatten(nested).items()}
 
 
-def unflatten_split(flattened: Mapping[str, V], sep: str = ".") -> PossiblyNestedDict[str, V]:
-    """Unflatten a dict into a possibly nested dict. Keys are split using `sep`.,"""
+def unflatten_split(
+    flattened: Mapping[str, V], sep: str = ".", recursive: bool = False
+) -> PossiblyNestedDict[str, V]:
+    """Unflatten a dict into a possibly nested dict. Keys are split using `sep`.
+
+    >>> unflatten_split({'a.b': 2, 'a.c': 3, 'c.d': 3, 'c.e': 4})
+    {'a': {'b': 2, 'c': 3}, 'c': {'d': 3, 'e': 4}}
+
+    >>> unflatten_split({'a': 2, 'b.c': 3})
+    {'a': 2, 'b': {'c': 3}}
+
+    NOTE: This function expects the input to be flat. It does *not* unflatten nested dicts:
+    >>> unflatten_split({"a": {"b.c": 2}})
+    {'a': {'b.c': 2}}
+    """
     return unflatten({tuple(key.split(sep)): value for key, value in flattened.items()})
 
 
