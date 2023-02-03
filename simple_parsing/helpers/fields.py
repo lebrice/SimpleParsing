@@ -12,8 +12,12 @@ from enum import Enum
 from logging import getLogger
 from typing import Any, Callable, Hashable, Iterable, TypeVar, overload
 
-from typing_extensions import ParamSpec
+from typing_extensions import Literal, ParamSpec
 
+from simple_parsing.helpers.custom_actions import (
+    DEFAULT_NEGATIVE_PREFIX,
+    BooleanOptionalAction,
+)
 from simple_parsing.utils import Dataclass, str2bool
 
 # NOTE: backward-compatibility import because it was moved to a different file.
@@ -351,7 +355,96 @@ def subparsers(
     )
 
 
-def flag(default: bool, **kwargs):
-    """Creates a boolean field with a default value of `default` and nargs='?'."""
-    action = "store_true" if default is False else "store_false"
-    return field(default=default, nargs="?", action=action, type=str2bool, **kwargs)
+@overload
+def flag(
+    default: _MISSING_TYPE = MISSING,
+    *,
+    default_factory: _MISSING_TYPE = MISSING,
+    negative_prefix: str | None = DEFAULT_NEGATIVE_PREFIX,
+    negative_option: str | None = None,
+    nargs: Literal["?"] | None = None,
+    type: Callable[[str], bool] = str2bool,
+    action: type[BooleanOptionalAction] = BooleanOptionalAction,
+    **kwargs,
+) -> bool:
+    ...
+
+
+@overload
+def flag(
+    default: bool,
+    *,
+    default_factory: _MISSING_TYPE = MISSING,
+    negative_prefix: str | None = DEFAULT_NEGATIVE_PREFIX,
+    negative_option: str | None = None,
+    nargs: Literal["?"] | None = None,
+    type: Callable[[str], bool] = str2bool,
+    action: type[BooleanOptionalAction] = BooleanOptionalAction,
+    **kwargs,
+) -> bool:
+    ...
+
+
+@overload
+def flag(
+    default: _MISSING_TYPE = MISSING,
+    *,
+    default_factory: Callable[[], bool] = ...,
+    negative_prefix: str | None = DEFAULT_NEGATIVE_PREFIX,
+    negative_option: str | None = None,
+    nargs: Literal["?"] | None = None,
+    type: Callable[[str], bool] = str2bool,
+    action: type[BooleanOptionalAction] = BooleanOptionalAction,
+    **kwargs,
+) -> bool:
+    ...
+
+
+def flag(
+    default: bool | _MISSING_TYPE = MISSING,
+    *,
+    default_factory: Callable[[], bool] | _MISSING_TYPE = MISSING,
+    negative_prefix: str | None = DEFAULT_NEGATIVE_PREFIX,
+    negative_option: str | None = None,
+    nargs: Literal["?"] | None = None,
+    type: Callable[[str], bool] = str2bool,
+    action: type[BooleanOptionalAction] = BooleanOptionalAction,
+    **kwargs,
+) -> bool:
+    """A boolean field with a positive and negative command-line argument.
+
+    If either `default` or `default_factory` are set, then both the field and the generated
+    command-line arguments are optional. Otherwise, both are required.
+
+    Negative flags are generated using `negative_prefix` and `negative_option`:
+    - When `negative_option` is passed, it is used to create the negative flag.
+    - Otherwise, `negative_prefix` is prepended to the field name to create the negative flag.
+
+    NOTE: The negative flags don't accept a value. (i.e. `--noverbose` works, but
+    `--noverbose=True` does not.)
+    The positive flags can be used either with or without a value.
+    """
+    return field(
+        default=default,
+        default_factory=default_factory,
+        negative_prefix=negative_prefix,
+        negative_option=negative_option,
+        nargs=nargs,
+        type=type,
+        action=action,
+        **kwargs,
+    )
+
+
+def flags(
+    default_factory: Callable[[], list[bool]] | _MISSING_TYPE = MISSING,
+    nargs: Literal["*", "+"] | int = "*",
+    type: Callable[[str], bool] = str2bool,
+    **kwargs,
+) -> list[bool]:
+    return field(
+        default_factory=default_factory,
+        nargs=nargs,
+        type=type,
+        **kwargs,
+    )
