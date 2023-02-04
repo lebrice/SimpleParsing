@@ -195,25 +195,25 @@ def test_subparser_rest_of_args_go_to_parent():
     @dataclass
     class Parent(TestSetup):
         family: Union[Child, Pet]
-        foo: bool = simple_parsing.flag(False)
+        foo: bool = False
         income: float = 35_000.0
 
     p = Parent.setup(
-        "pet --kind fish --foo --income 10_000",
+        "pet --kind fish --foo=true --income 10_000",
         parse_known_args=True,
         attempt_to_reorder=True,
     )
     assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
 
     p = Parent.setup(
-        "--income 10_000 pet --kind fish --foo",
+        "--income 10_000 pet --kind fish --foo=true",
         parse_known_args=True,
         attempt_to_reorder=True,
     )
     assert p == Parent(family=Pet(kind="fish"), foo=True, income=10_000.0)
 
     p = Parent.setup(
-        "--income 10_000 --foo pet --kind fish",
+        "--income 10_000 --foo=true pet --kind fish",
         parse_known_args=True,
         attempt_to_reorder=True,
     )
