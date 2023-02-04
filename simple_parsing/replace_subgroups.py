@@ -75,8 +75,6 @@ def replace_subgroups(obj: DataclassT, changes_dict: dict[str, Any] | None = Non
                 field_value = getattr(obj, field.name)
                 new_value = replace_subgroups(field_value, None, sub_subgroup_changes)
             replace_kwargs[field.name] = new_value
-        else:
-            continue
                 
     # note: there may be some leftover values in `changes` that are not fields of this dataclass.
     # we still pass those.
