@@ -3,11 +3,11 @@ from __future__ import annotations
 import functools
 import logging
 from dataclasses import dataclass, field
-from typing import Union
 
 import pytest
 
 from simple_parsing import replace_subgroups, subgroups
+from simple_parsing.utils import Dataclass, DataclassT
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,11 @@ class B():
 
     def __post_init__(self):
         self.b_post_init = self.b + "_post"
+
+
+@dataclass
+class WithOptional:
+    optional_a: A | None = None
 
 
 @dataclass
@@ -67,35 +72,71 @@ class NestedSubgroupsConfig:
         {"ab": AB, "cd": CD},
         default_factory=AB,
     )
-    
-    
+
+
 @pytest.mark.parametrize(
-    ("dest_config", "src_config", "changes_dict", "subgroup_changes"),
+    ("start", "changes", "subgroup_changes", "expected"),
     [
-        (AB(a_or_b=A(a=1.0)), AB(), {"a_or_b": {"a": 1.0}}, None),
-        (AB(a_or_b=B(b="foo")), AB(a_or_b=B()), {"a_or_b": {"b": "foo"}}, None),
-        (AB(a_or_b=B(b="bob")), AB(), {"a_or_b": B(b="bob")}, None),
         (
-            NestedSubgroupsConfig(ab_or_cd=AB(integer_in_string="2", a_or_b=B(b="bob"))),
+            AB(),
+            {"a_or_b": {"a": 1.0}},
+            None,
+            AB(a_or_b=A(a=1.0)), 
+        ),
+        (
+            AB(a_or_b=B()),
+            {"a_or_b": {"b": "foo"}}, 
+            None, 
+            AB(a_or_b=B(b="foo"))
+        ), 
+        (
+            AB(),
+            {"a_or_b": {"b": "foo"}}, 
+            {"a_or_b": "b"}, 
+            AB(a_or_b=B(b="foo"))
+        ), 
+        (
+            AB(),
+            {"a_or_b": B(b="bob")},
+            None,
+            AB(a_or_b=B(b="bob")), 
+        ),
+        (
             NestedSubgroupsConfig(ab_or_cd=AB(a_or_b=B())),
             {"ab_or_cd": {"integer_in_string": "2", "a_or_b": {"b": "bob"}}},
-            None
+            None,
+            NestedSubgroupsConfig(ab_or_cd=AB(
+                integer_in_string="2", a_or_b=B(b="bob"))),
         ),
         (
-            NestedSubgroupsConfig(ab_or_cd=AB(integer_in_string="2", a_or_b=B(b="bob"))),
             NestedSubgroupsConfig(ab_or_cd=AB(a_or_b=B())),
             {"ab_or_cd.integer_in_string": "2", "ab_or_cd.a_or_b.b": "bob"},
-            None
+            None,
+            NestedSubgroupsConfig(ab_or_cd=AB(
+                integer_in_string="2", a_or_b=B(b="bob"))),
         ),
         (
-            NestedSubgroupsConfig(ab_or_cd=AB(integer_in_string="2", a_or_b=B(b="bob"))),
             NestedSubgroupsConfig(),
             {"ab_or_cd.integer_in_string": "2", "ab_or_cd.a_or_b.b": "bob"},
             {"ab_or_cd": 'ab', "ab_or_cd.a_or_b": 'b'},
+            NestedSubgroupsConfig(ab_or_cd=AB(
+                integer_in_string="2", a_or_b=B(b="bob"))),
+        ),
+        (
+            NestedSubgroupsConfig(),
+            None,
+            {"ab_or_cd": 'cd', "ab_or_cd.c_or_d": 'd'},
+            NestedSubgroupsConfig(ab_or_cd=CD(c_or_d=D())),
+        ),
+        (
+            NestedSubgroupsConfig(),
+            {"ab_or_cd.c_or_d.d": 1},
+            {"ab_or_cd": 'cd', "ab_or_cd.c_or_d": 'd'},
+            NestedSubgroupsConfig(ab_or_cd=CD(c_or_d=D(d=1))),
         ),
     ],
 )
-def test_replace_nested_subgroups(dest_config: object, src_config: object, changes_dict: dict, subgroup_changes: dict):
-    config_replaced = replace_subgroups(src_config, changes_dict, subgroup_changes)
-    assert config_replaced == dest_config
-
+def test_replace_subgroups(start: DataclassT, changes: dict, subgroup_changes: dict, expected: DataclassT):
+    actual = replace_subgroups(
+        start, changes, subgroup_changes)
+    assert actual == expected
