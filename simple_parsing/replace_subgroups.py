@@ -6,6 +6,10 @@ from simple_parsing.helpers.subgroups import Key
 
 
 def unflatten_subgroup_changes(subgroup_changes: dict[str, Key]):
+    """
+    This function convert subgroup_changes = {"ab_or_cd": "cd", "ab_or_cd.c_or_d": "d"}
+    into {"ab_or_cd": {"__key__": "cd", "c_or_d": {"__key__": "d"}}}
+    """
     dc = {}
     for k, v in subgroup_changes.items():
         if '__key__' != k and '.' not in k:
@@ -35,6 +39,7 @@ def replace_subgroups(obj: DataclassT, changes_dict: dict[str, Any] | None = Non
     changes = unflatten_split(changes)
 
     if subgroup_changes:
+        # subgroup_changes is in a flat format, e.g. {"ab_or_cd": 'cd', "ab_or_cd.c_or_d": 'd'}
         subgroup_changes = unflatten_subgroup_changes(subgroup_changes)
         
     replace_kwargs = {}
