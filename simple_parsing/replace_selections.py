@@ -107,7 +107,7 @@ def replace_selections(
     ## Examples
     >>> import dataclasses
     >>> from simple_parsing import replace_selections, subgroups
-    >>> from typing import Union
+    >>> from typing import Union, Optional
     >>> @dataclasses.dataclass
     ... class A:
     ...     a: int = 0
@@ -118,17 +118,23 @@ def replace_selections(
     ... class Config:
     ...     a_or_b: Union[A, B] = subgroups({'a': A, 'b': B}, default_factory=A)
     ...     a_or_b_union: Union[A, B] = dataclasses.field(default_factory=A)
-    ...     a_optional: Union[A, None] = None
+    ...     a_optional: Optional[A] = None
 
     >>> base_config = Config(a_or_b=A(a=1))
+    
+    Replace subgroups field by subgroup `Key`, dataclass type, or dataclass instance
     >>> replace_selections(base_config, {"a_or_b.b": "bob"}, {"a_or_b": "b"})
     Config(a_or_b=B(b='bob'), a_or_b_union=A(a=0), a_optional=None)
-
+    >>> replace_selections(base_config, {"a_or_b.b": "bob"}, {"a_or_b": B})
+    Config(a_or_b=B(b='bob'), a_or_b_union=A(a=0), a_optional=None)
+    >>> replace_selections(base_config, {}, {"a_or_b": B(b="bob")})
+    Config(a_or_b=B(b='bob'), a_or_b_union=A(a=0), a_optional=None)
+    
+    Replace union of dataclasses and optional dataclass
     >>> replace_selections(base_config, {"a_or_b_union.b": "bob"}, {"a_or_b_union": B})
     Config(a_or_b=A(a=1), a_or_b_union=B(b='bob'), a_optional=None)
-
-    >>> replace_selections(base_config, {"a_optional.a": 2}, {"a_optional": A})
-    Config(a_or_b=A(a=1), a_or_b_union=A(a=0), a_optional=A(a=2))
+    >>> replace_selections(base_config, {"a_optional.a": 10}, {"a_optional": A})
+    Config(a_or_b=A(a=1), a_or_b_union=A(a=0), a_optional=A(a=10))
     """
     if selections:
         obj = replace_selected_dataclass(obj, selections)
