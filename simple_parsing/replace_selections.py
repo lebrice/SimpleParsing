@@ -80,8 +80,7 @@ def replace_selected_dataclass(
                 field_value = None
                 logger.debug("key is None")
             else:
-                logger.warn("Not Implemented")
-                raise TypeError(f"Not Implemented for field {field.name}!")
+                raise ValueError(f"invalid selection key '{key}' for field '{field.name}'")
 
             if child_selections:
                 new_value = replace_selected_dataclass(field_value, child_selections)
@@ -104,7 +103,7 @@ def replace_selections(
     """Replace some values in a dataclass and replace dataclass type in nested union of dataclasses or subgroups.
 
     Compared to `simple_replace.replace`, this calls `replace_selected_dataclass` before calling `simple_parsing.replace`.
-    
+
     ## Examples
     >>> import dataclasses
     >>> from simple_parsing import replace_selections, subgroups
@@ -120,14 +119,14 @@ def replace_selections(
     ...     a_or_b: Union[A, B] = subgroups({'a': A, 'b': B}, default_factory=A)
     ...     a_or_b_union: Union[A, B] = dataclasses.field(default_factory=A)
     ...     a_optional: Union[A, None] = None
-    
+
     >>> base_config = Config(a_or_b=A(a=1))
     >>> replace_selections(base_config, {"a_or_b.b": "bob"}, {"a_or_b": "b"})
     Config(a_or_b=B(b='bob'), a_or_b_union=A(a=0), a_optional=None)
-    
+
     >>> replace_selections(base_config, {"a_or_b_union.b": "bob"}, {"a_or_b_union": B})
     Config(a_or_b=A(a=1), a_or_b_union=B(b='bob'), a_optional=None)
-    
+
     >>> replace_selections(base_config, {"a_optional.a": 2}, {"a_optional": A})
     Config(a_or_b=A(a=1), a_or_b_union=A(a=0), a_optional=A(a=2))
     """

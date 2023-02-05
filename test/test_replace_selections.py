@@ -106,6 +106,7 @@ class AllTypes:
         default="a",
     )
     arg_optional: A | None = None
+    arg_optional_1: A | None = None
     arg_union_dataclass: A | B = field(default_factory=A)
     arg_union_dataclass_init_false: A | B = field(init=False)
 
@@ -168,10 +169,21 @@ class AllTypes:
         ),
     ],
 )
+@pytest.mark.parametrize("pass_dict_as_kwargs", [True, False])
 def test_replace_selections(
-    start: DataclassT, changes: dict, selections: dict, expected: DataclassT
+    start: DataclassT,
+    changes: dict,
+    selections: dict,
+    expected: DataclassT,
+    pass_dict_as_kwargs: bool,
 ):
-    actual = replace_selections(start, changes, selections)
+    if pass_dict_as_kwargs:
+        if changes is not None:
+            actual = replace_selections(start, selections=selections, **changes)
+        else:
+            actual = replace_selections(start, selections=selections)
+    else:
+        actual = replace_selections(start, changes, selections)
     assert actual == expected
 
 
@@ -195,6 +207,7 @@ def test_replace_selections(
         ),
         (AllTypes(arg_optional=A(a=1.0)), {"arg_optional": A}, AllTypes(arg_optional=A())),
         (AllTypes(arg_optional=None), {"arg_optional": A(a=1.2)}, AllTypes(arg_optional=A(a=1.2))),
+        (AllTypes(arg_optional_1=A(a=1.0)), {"arg_optional_1": A}, AllTypes(arg_optional_1=A())),
         (AllTypes(arg_subgroups=A(a=1.0)), {"arg_subgroups": "a"}, AllTypes(arg_subgroups=A())),
         (AllTypes(arg_subgroups=A(a=1.0)), None, AllTypes(arg_subgroups=A(a=1.0))),
         (AllTypes(arg_subgroups=A(a=1.0)), {}, AllTypes(arg_subgroups=A(a=1.0))),
@@ -209,3 +222,22 @@ def test_replace_union_dataclasses(
     start: DataclassT, changes: dict[str, Key | DataclassT], expected: DataclassT
 ):
     assert replace_selected_dataclass(start, changes) == expected
+
+
+@pytest.mark.parametrize(
+    ("start", "changes", "selections", "exception_type", "match"),
+    [
+        (
+            AllTypes(arg_union_dataclass=A(a=1.0)),
+            {},
+            {"arg_union_dataclass": "b"},
+            ValueError,
+            "invalid selection key 'b' for field 'arg_union_dataclass'",
+        ),
+    ],
+)
+def test_replace_selection_invalid(
+    start: DataclassT, changes: dict, selections: dict, exception_type: type[Exception], match: str
+):
+    with pytest.raises(exception_type, match=match):
+        replace_selections(start, changes, selections)
