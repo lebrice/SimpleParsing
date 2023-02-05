@@ -946,11 +946,14 @@ def unflatten_keyword(
     into the nested dict 
     differentiating by the `keyword`.
     
-    >>> unflatten_keyword({"ab_or_cd": "cd", "ab_or_cd.c_or_d": "d"})
-    {"ab_or_cd": {"__key__": "cd", "c_or_d": {"__key__": "d"}}}
+    >>> unflatten_keyword({'ab_or_cd': 'cd', 'ab_or_cd.c_or_d': 'd'})
+    {'ab_or_cd': {'__key__': 'cd', 'c_or_d': 'd'}}
     
     >>> unflatten_keyword({"a": 1, "b": 2})
-    {"a": {"__key__": 1}, "b": {"__key__": 2}}
+    {'a': {'__key__': 1}, 'b': {'__key__': 2}}
+    
+    NOTE: This function expects the input to be flat. It does *not* unflatten nested dicts:
+    
     """
     dc = {}
     for k, v in flattened.items():
