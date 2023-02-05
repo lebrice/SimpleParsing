@@ -952,7 +952,7 @@ def unflatten_keyword(
     >>> unflatten_keyword({"a": 1, "b": 2})
     {'a': {'__key__': 1}, 'b': {'__key__': 2}}
 
-    NOTE: This function expects the input to be flat. It does *not* unflatten nested dicts:
+    NOTE: This function expects the input to be flat. It does *not* unflatten and add keyword more than one level:
     """
     dc = {}
     for k, v in flattened.items():
