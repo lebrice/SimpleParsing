@@ -938,6 +938,30 @@ def unflatten_split(
     return unflatten({tuple(key.split(sep)): value for key, value in flattened.items()})
 
 
+def unflatten_keyword(
+    flattened: Mapping[str, V], keyword: str = "__key__", sep='.'
+) -> PossiblyNestedDict[str, V]:
+    """
+    This function convert flattened = 
+    into the nested dict 
+    differentiating by the `keyword`.
+    
+    >>> unflatten_keyword({"ab_or_cd": "cd", "ab_or_cd.c_or_d": "d"})
+    {"ab_or_cd": {"__key__": "cd", "c_or_d": {"__key__": "d"}}}
+    
+    >>> unflatten_keyword({"a": 1, "b": 2})
+    {"a": {"__key__": 1}, "b": {"__key__": 2}}
+    """
+    dc = {}
+    for k, v in flattened.items():
+        if keyword != k and sep not in k:
+            dc[k+sep+keyword] = v
+        else:
+            dc[k] = v
+    
+    return unflatten_split(dc)
+
+
 @overload
 def getitem_recursive(d: PossiblyNestedDict[K, V], keys: Iterable[K]) -> V:
     ...

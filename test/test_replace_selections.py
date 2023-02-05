@@ -1,18 +1,19 @@
 from __future__ import annotations
 
+import copy
 import functools
 import logging
 from dataclasses import dataclass, field, fields
-
-import pytest
-
-from simple_parsing import replace_subgroups, subgroups
-from simple_parsing.replace_subgroups import replace_union_dataclasses
-from simple_parsing.utils import Dataclass, DataclassT
 from enum import Enum
 from pathlib import Path
 from typing import Tuple
+
+import pytest
+
+from simple_parsing import replace_selections, subgroups
 from simple_parsing.helpers.subgroups import Key
+from simple_parsing.replace_selections import replace_selected_dataclass
+from simple_parsing.utils import DataclassT
 
 logger = logging.getLogger(__name__)
 
@@ -104,9 +105,15 @@ class AllTypes:
         default="a",
     )
     arg_optional: A | None = None
+    arg_union_dataclass: A | B = field(default_factory=A)
+    arg_union_dataclass_init_false: A | B = field(init=False)
+    
+    def __post_init__(self):
+        self.arg_union_dataclass_init_false = copy.copy(self.arg_union_dataclass)
+        
 
 @pytest.mark.parametrize(
-    ("start", "changes", "subgroup_changes", "expected"),
+    ("start", "changes", "selections", "expected"),
     [
         (
             AB(),
@@ -173,9 +180,9 @@ class AllTypes:
         ),
     ],
 )
-def test_replace_subgroups(start: DataclassT, changes: dict, subgroup_changes: dict, expected: DataclassT):
-    actual = replace_subgroups(
-        start, changes, subgroup_changes)
+def test_replace_selections(start: DataclassT, changes: dict, selections: dict, expected: DataclassT):
+    actual = replace_selections(
+        start, changes, selections)
     assert actual == expected
 
 
@@ -230,4 +237,4 @@ def test_replace_subgroups(start: DataclassT, changes: dict, subgroup_changes: d
     ]
 )
 def test_replace_union_dataclasses(start: DataclassT, changes:dict[str, Key|DataclassT], expected: DataclassT):
-    assert replace_union_dataclasses(start, changes) == expected
+    assert replace_selected_dataclass(start, changes) == expected
