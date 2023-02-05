@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import functools
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 import pytest
 
 from simple_parsing import replace_subgroups, subgroups
+from simple_parsing.replace_subgroups import replace_union_dataclasses
 from simple_parsing.utils import Dataclass, DataclassT
+from enum import Enum
+from pathlib import Path
+from typing import Tuple
+from simple_parsing.helpers.subgroups import Key
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +78,32 @@ class NestedSubgroupsConfig:
         default_factory=AB,
     )
 
+class Color(Enum):
+    RED = 1
+    GREEN = 2
+    BLUE = 3
+
+@dataclass
+class AllTypes:
+    arg_int : int = 0
+    arg_float: float = 1.0
+    arg_str: str = 'foo'
+    arg_list: list = field(default_factory= lambda: [1,2])
+    arg_dict : dict = field(default_factory=lambda : {"a":1 , "b": 2})
+    arg_union: str| Path = './'
+    arg_tuple: Tuple[int, int] = (1,1)
+    arg_enum: Color = Color.BLUE
+    arg_dataclass: A = field(default_factory=A)
+    arg_subgroups: A | B = subgroups(
+        {
+            "a": A,
+            "a_1.23": functools.partial(A, a=1.23),
+            "b": B,
+            "b_bob": functools.partial(B, b="bob"),
+        },
+        default="a",
+    )
+    arg_optional: A | None = None
 
 @pytest.mark.parametrize(
     ("start", "changes", "subgroup_changes", "expected"),
@@ -134,9 +165,69 @@ class NestedSubgroupsConfig:
             {"ab_or_cd": 'cd', "ab_or_cd.c_or_d": 'd'},
             NestedSubgroupsConfig(ab_or_cd=CD(c_or_d=D(d=1))),
         ),
+        (
+            AllTypes(),
+            {"arg_subgroups.b": "foo","arg_optional.a": 1.0},
+            {"arg_subgroups": "b", "arg_optional": A},
+            AllTypes(arg_subgroups=B(b="foo"), arg_optional=A(a=1.0))
+        ),
     ],
 )
 def test_replace_subgroups(start: DataclassT, changes: dict, subgroup_changes: dict, expected: DataclassT):
     actual = replace_subgroups(
         start, changes, subgroup_changes)
     assert actual == expected
+
+
+@pytest.mark.parametrize(
+    ('start', 'changes', 'expected'),
+    [
+        (
+            AllTypes(), 
+            {'arg_subgroups':'b',"arg_optional": A},
+            AllTypes(arg_subgroups=B(), arg_optional=A())
+        ),
+        (
+            AllTypes(), 
+            {'arg_subgroups': B,"arg_optional": A},
+            AllTypes(arg_subgroups=B(), arg_optional=A())
+        ),
+        (
+            AllTypes(arg_optional=A()), 
+            {'arg_subgroups': B,"arg_optional": None},
+            AllTypes(arg_subgroups=B(), arg_optional=None)
+        ),
+        (
+            AllTypes(arg_optional=A(a=1.0)), 
+            {"arg_optional": A},
+            AllTypes(arg_optional=A())
+        ),
+        (
+            AllTypes(arg_optional=None), 
+            {"arg_optional": A(a=1.2)},
+            AllTypes(arg_optional=A(a=1.2))
+        ),
+        (
+            AllTypes(arg_subgroups=A(a=1.0)), 
+            {'arg_subgroups': 'a'},
+            AllTypes(arg_subgroups=A())
+        ),
+        (
+            AllTypes(arg_subgroups=A(a=1.0)), 
+            None,
+            AllTypes(arg_subgroups=A(a=1.0))
+        ),
+        (
+            AllTypes(arg_subgroups=A(a=1.0)), 
+            {},
+            AllTypes(arg_subgroups=A(a=1.0))
+        ),
+        (
+            NestedSubgroupsConfig(),
+            {"ab_or_cd": 'cd', "ab_or_cd.c_or_d": 'd'},
+            NestedSubgroupsConfig(ab_or_cd=CD(c_or_d=D()))
+        ),
+    ]
+)
+def test_replace_union_dataclasses(start: DataclassT, changes:dict[str, Key|DataclassT], expected: DataclassT):
+    assert replace_union_dataclasses(start, changes) == expected
