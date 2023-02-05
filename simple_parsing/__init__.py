@@ -24,8 +24,8 @@ from .parsing import (
     parse,
     parse_known_args,
 )
-from .replace_selections import replace_selections
 from .replace import replace
+from .replace_selections import replace_selections
 from .utils import InconsistentArgumentError
 
 __all__ = [
@@ -45,8 +45,8 @@ __all__ = [
     "parse_known_args",
     "parse",
     "ParsingError",
-    "replace_selections",
     "replace",
+    "replace_selections",
     "Serializable",
     "SimpleHelpFormatter",
     "subgroups",

@@ -939,29 +939,28 @@ def unflatten_split(
 
 
 def unflatten_keyword(
-    flattened: Mapping[str, V], keyword: str = "__key__", sep='.'
+    flattened: Mapping[str, V], keyword: str = "__key__", sep="."
 ) -> PossiblyNestedDict[str, V]:
     """
-    This function convert flattened = 
-    into the nested dict 
+    This function convert flattened =
+    into the nested dict
     differentiating by the `keyword`.
-    
+
     >>> unflatten_keyword({'ab_or_cd': 'cd', 'ab_or_cd.c_or_d': 'd'})
     {'ab_or_cd': {'__key__': 'cd', 'c_or_d': 'd'}}
-    
+
     >>> unflatten_keyword({"a": 1, "b": 2})
     {'a': {'__key__': 1}, 'b': {'__key__': 2}}
-    
+
     NOTE: This function expects the input to be flat. It does *not* unflatten nested dicts:
-    
     """
     dc = {}
     for k, v in flattened.items():
         if keyword != k and sep not in k:
-            dc[k+sep+keyword] = v
+            dc[k + sep + keyword] = v
         else:
             dc[k] = v
-    
+
     return unflatten_split(dc)
 
 
