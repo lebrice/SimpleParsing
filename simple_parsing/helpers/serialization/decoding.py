@@ -117,7 +117,7 @@ def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
     """
     from .serializable import from_dict
 
-    logger.debug(f"Getting the decoding function for {type_annotation=!r}")
+    logger.debug(f"Getting the decoding function for {type_annotation!r}")
 
     if isinstance(type_annotation, str):
         # Check first if there are any matching registered decoding functions.
@@ -152,7 +152,7 @@ def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
     else:
         t = type_annotation
 
-    logger.debug(f"{type_annotation=!r} -> {t=!r}")
+    logger.debug(f"{type_annotation!r} -> {t!r}")
 
     # T should now be a type or one of the objects from the typing module.
 
