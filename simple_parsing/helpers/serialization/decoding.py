@@ -117,38 +117,48 @@ def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
     """
     from .serializable import from_dict
 
+    logger.debug(f"Getting the decoding function for {type_annotation=!r}")
+
     if isinstance(type_annotation, str):
-        t = evaluate_string_annotation(type_annotation)
+        # Check first if there are any matching registered decoding functions.
+        # TODO: Might be better to actually use the scope of the field, right?
+        matching_entries = {
+            key: decoding_fn
+            for key, decoding_fn in _decoding_fns.items()
+            if (inspect.isclass(key) and key.__name__ == type_annotation)
+        }
+        if len(matching_entries) == 1:
+            _, decoding_fn = matching_entries.popitem()
+            return decoding_fn
+        elif len(matching_entries) > 1:
+            # Multiple decoding functions match the type. Can't tell.
+            logger.warning(
+                RuntimeWarning(
+                    f"More than one potential decoding functions were found for types that match "
+                    f"the string annotation {type_annotation!r}. This will simply try each one "
+                    f"and return the first one that works."
+                )
+            )
+            return try_functions(*(decoding_fn for _, decoding_fn in matching_entries.items()))
+        else:
+            # Try to evaluate the string annotation.
+            t = evaluate_string_annotation(type_annotation)
+
+    elif is_forward_ref(type_annotation):
+        forward_arg: str = get_forward_arg(type_annotation)
+        # Recurse until we've resolved the forward reference.
+        return get_decoding_fn(forward_arg)
+
     else:
         t = type_annotation
 
-    if is_forward_ref(t):
-        t = get_forward_arg(t)
-        if isinstance(t, str):
-            t = evaluate_string_annotation(t)
+    logger.debug(f"{type_annotation=!r} -> {t=!r}")
 
     # T should now be a type or one of the objects from the typing module.
 
     if t in _decoding_fns:
         # The type has a dedicated decoding function.
         return _decoding_fns[t]
-    matching_entries = {
-        key: decoding_fn
-        for key, decoding_fn in _decoding_fns.items()
-        if inspect.isclass(key) and inspect.isclass(t) and key.__qualname__ == t.__qualname__
-    }
-    if len(matching_entries) == 1:
-        return matching_entries.popitem()[1]
-    elif len(matching_entries) > 1:
-        # Multiple decoding functions match the type. Can't tell.
-        logger.warning(
-            RuntimeWarning(
-                f"More than one potential decoding functions were found with keys that match the "
-                f"{t!r} type annotation. This will simply try each one, and return the "
-                f"first one that works."
-            )
-        )
-        return try_functions(*(decoding_fn for key, decoding_fn in matching_entries.items()))
 
     if is_dataclass_type(t):
         return partial(from_dict, t)
