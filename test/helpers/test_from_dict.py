@@ -72,13 +72,18 @@ class Level3:
 @pytest.mark.parametrize(
     ("config"),
     [
-        (OuterConfig1()),
-        (OuterConfig2()),
-        (Level2()),
-        (Level3()),
+        OuterConfig1(),
+        OuterConfig2(),
+        Level1(arg=2),
+        Level2(arg=2, prev=Level1(arg=3)),
+        Level2(),
+        Level3(),
     ],
 )
 def test_issue_210_nested_dataclasses_serialization(config: Dataclass):
     _from_dict = functools.partial(from_dict, type(config))
     assert _from_dict(to_dict(config)) == config
     assert _from_dict(to_dict(config), drop_extra_fields=True) == config
+    # More 'intense' comparisons, to make sure that the serialization is reversible:
+    assert to_dict(_from_dict(to_dict(config))) == to_dict(config)
+    assert _from_dict(to_dict(_from_dict(to_dict(config)))) == _from_dict(to_dict(config))
