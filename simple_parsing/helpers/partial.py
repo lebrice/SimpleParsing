@@ -294,7 +294,12 @@ class Partial(functools.partial, Generic[_T], metaclass=_Partial):
         return super().__new__(cls, _func, *args, **kwargs)
 
     def __call__(self: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T:
-        constructor_kwargs = dataclasses.asdict(self)
+        # BUG: This serializes the nested attributes to dict, but we don't want that.
+        constructor_kwargs = {
+            field.name: getattr(self, field.name) for field in dataclasses.fields(self)
+        }
         constructor_kwargs.update(**kwargs)
+        # TODO: Use `nested_partial` as a base class? (to instantiate all the partials inside as
+        # well?)
         self = cast(Partial, self)
         return type(self)._target_(*args, **constructor_kwargs)

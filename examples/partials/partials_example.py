@@ -66,7 +66,7 @@ class Config:
             "sgd": SGDConfig,
             "adam": AdamConfig,
         },
-        default=AdamConfig(lr=3e-4),
+        default_factory=AdamConfig,
     )
 
 
