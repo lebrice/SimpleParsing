@@ -22,7 +22,6 @@ def test_issue_46(assert_equals_stdout):
     parser.add_arguments(JBuildRelease, dest="jbuild", prefix="jbuild")
 
     s = StringIO()
-    parser.print_help
     parser.print_help(s)
     s.seek(0)
     output = str(s.read())
