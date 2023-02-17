@@ -1,8 +1,9 @@
 import sys
 from dataclasses import dataclass
-from typing import Generic, NamedTuple
+from typing import Generic, Type
 
 import pytest
+from typing_extensions import NamedTuple  # For Generic NamedTuples
 
 from simple_parsing import mutable_field
 
@@ -33,7 +34,7 @@ def test_mutable_field_sharing():
 
 
 class SimpleAttributeWithTwoDefaults(NamedTuple, Generic[T]):
-    field_type: type[T]
+    field_type: Type[T]
     passed_cmdline_value: str
     expected_value: T
     default_value: T

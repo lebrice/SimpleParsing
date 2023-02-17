@@ -5,9 +5,10 @@ import os
 import pathlib
 import sys
 from logging import getLogger as get_logger
-from typing import Any, Generic, NamedTuple, TypeVar
+from typing import Any, Generic, TypeVar
 
 import pytest
+from typing_extensions import NamedTuple  # For Generic NamedTuples
 from typing_extensions import Literal
 
 pytest.register_assert_rewrite("test.testutils")
