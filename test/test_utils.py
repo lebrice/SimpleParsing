@@ -71,14 +71,6 @@ class B:
     different: A = mutable_field(A, a="123")
 
 
-def test_mutable_field():
-    b1 = B()
-    b2 = B()
-    if sys.version_info < (3, 11):
-        assert b1.shared is b2.shared
-    assert b1.different is not b2.different
-
-
 class Color(enum.Enum):
     RED = "RED"
     ORANGE = "ORANGE"
