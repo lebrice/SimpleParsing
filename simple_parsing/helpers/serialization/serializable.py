@@ -338,9 +338,10 @@ class SimpleSerializable(SerializableMixin, decode_into_subclasses=True):
 S = TypeVar("S", bound=SerializableMixin)
 
 
-def get_dataclass_types_from_forward_ref(
+def get_serializable_dataclass_types_from_forward_ref(
     forward_ref: type, serializable_base_class: type[S] = SerializableMixin
 ) -> list[type[S]]:
+    """Gets all the subclasses of `serializable_base_class` that have the same name as the argument of this forward reference annotation."""
     arg = get_forward_arg(forward_ref)
     potential_classes: list[type] = []
     for serializable_class in serializable_base_class.subclasses:

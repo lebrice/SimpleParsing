@@ -24,6 +24,7 @@ from typing import (
     ClassVar,
     Container,
     Dict,
+    ForwardRef,
     Iterable,
     List,
     Mapping,
@@ -50,12 +51,12 @@ def get_bound(t):
         raise TypeError(f"type is not a `TypeVar`: {t}")
 
 
-def is_forward_ref(t):
+def is_forward_ref(t) -> TypeGuard[typing.ForwardRef]:
     return isinstance(t, typing.ForwardRef)
 
 
-def get_forward_arg(fr):
-    return getattr(fr, "__forward_arg__", None)
+def get_forward_arg(fr: ForwardRef) -> str:
+    return getattr(fr, "__forward_arg__")
 
 
 logger = getLogger(__name__)
