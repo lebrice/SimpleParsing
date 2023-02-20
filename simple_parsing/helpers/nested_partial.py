@@ -1,10 +1,10 @@
 import functools
-from typing import Any, TypeVar
+from typing import Any, Generic, TypeVar
 
 _T = TypeVar("_T")
 
 
-class npartial(functools.partial[_T]):
+class npartial(functools.partial, Generic[_T]):
     """Partial that also invokes partials in args and kwargs before feeding them to the function.
 
     Useful for creating nested partials, e.g.:
