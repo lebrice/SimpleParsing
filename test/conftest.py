@@ -5,9 +5,10 @@ import os
 import pathlib
 import sys
 from logging import getLogger as get_logger
-from typing import Any, NamedTuple
+from typing import Any, Generic, TypeVar
 
 import pytest
+from typing_extensions import NamedTuple  # For Generic NamedTuples
 from typing_extensions import Literal
 
 pytest.register_assert_rewrite("test.testutils")
@@ -42,7 +43,7 @@ simple_arguments: list[tuple[type, Any, Any]] = [
 
 class SimpleAttributeTuple(NamedTuple):
     field_type: type
-    passed_value: str
+    passed_cmdline_value: str
     expected_value: Any
 
 
@@ -54,8 +55,33 @@ def simple_attribute(request):
         f"Attribute type: {some_type}, passed value: '{passed_value}', expected: '{expected_value}'"
     )
     return SimpleAttributeTuple(
-        field_type=some_type, passed_value=passed_value, expected_value=expected_value
+        field_type=some_type, passed_cmdline_value=passed_value, expected_value=expected_value
     )
+
+
+T = TypeVar("T")
+
+
+class SimpleAttributeWithDefault(NamedTuple, Generic[T]):
+    field_type: type[T]
+    passed_cmdline_value: str
+    expected_value: T
+    default_value: T
+
+
+# TODO: Also add something like `[Optional[t] for t in simple_arguments]`!
+default_values_for_type = {int: [0, -111], str: ["bob", ""], float: [0.0, 1e2], bool: [True, False]}
+
+
+@pytest.fixture(
+    params=[
+        SimpleAttributeWithDefault(some_type, passed_value, expected_value, default_value)
+        for some_type, passed_value, expected_value in simple_arguments
+        for default_value in default_values_for_type[some_type]
+    ]
+)
+def simple_attribute_with_default(request: pytest.FixtureRequest):
+    return request.param
 
 
 @pytest.fixture(autouse=True, params=["simple", "verbose"])
