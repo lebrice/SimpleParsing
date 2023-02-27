@@ -11,7 +11,7 @@ from enum import Enum
 from functools import lru_cache, partial
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, Literal, TypeVar
 
 from simple_parsing.annotation_utils.get_field_annotations import (
     evaluate_string_annotation,
@@ -25,6 +25,7 @@ from simple_parsing.utils import (
     is_enum,
     is_forward_ref,
     is_list,
+    is_literal,
     is_set,
     is_tuple,
     is_typevar,
@@ -210,6 +211,11 @@ def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
         logger.debug(f"Decoding a typevar: {t}, bound type is {bound}.")
         if bound is not None:
             return get_decoding_fn(bound)
+    
+    if is_literal(t):
+        logger.debug(f"Decoding a Literal field: {t}")
+        possible_vals = get_type_arguments(t)
+        return decode_literal(*possible_vals)
 
     # Unknown type.
     warnings.warn(
@@ -380,6 +386,26 @@ def decode_enum(item_type: type[Enum]) -> Callable[[str], Enum]:
         return item_type[val]
 
     return _decode_enum
+
+
+def decode_literal(*possible_vals: Any) -> Callable[[Any], Any]:
+    """Creates a decoding function for a Literal type.
+
+    Args:
+        *possible_vals (Any): The permissible values for the Literal type.
+
+    Returns:
+        Callable[[Any], Any]: A function that checks if a given value is one of the
+            permissible values for the Literal. If not, raises a TypeError.
+    """
+
+    def _decode_literal(val: Any) -> Any:
+        if val not in possible_vals:
+            raise TypeError(f"Expected one of {possible_vals} for Literal, got {val}")
+
+        return val
+
+    return _decode_literal
 
 
 def no_op(v: T) -> T:
