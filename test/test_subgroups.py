@@ -674,6 +674,27 @@ def test_annotated_as_subgroups():
     assert Config.setup("--num_layers 123").model == Model(num_layers=123, hidden_dim=32)
 
 
+@dataclasses.dataclass(frozen=True)
+class FrozenConfig:
+    a: int = 1
+    b: str = "bob"
+
+
+def test_subgroups_supports_frozen_instances():
+    odd = FrozenConfig(a=1)
+    even = FrozenConfig(a=2)
+
+    @dataclasses.dataclass
+    class Config(TestSetup):
+        conf: FrozenConfig = subgroups({"odd": odd, "even": even}, default=odd)
+
+    assert Config.setup() == Config(odd)
+    assert Config.setup("--conf=odd") == Config(odd)
+    assert Config.setup("--conf=even") == Config(even)
+    assert Config.setup("--conf=odd --a 123") == Config(dataclasses.replace(odd, a=123))
+    assert Config.setup("--conf=even --a 100") == Config(dataclasses.replace(even, a=100))
+
+
 # def test_subgroups_with_partials():
 #     class Model:
 #         def __init__(self, num_layers: int = 3, hidden_dim: int = 64):
