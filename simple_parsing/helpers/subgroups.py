@@ -60,9 +60,6 @@ def subgroups(
     This is different than adding a subparser action. There can only be one subparser action, while
     there can be arbitrarily many subgroups. Subgroups can also be nested!
 
-    TODO: We don't yet inspect the default values for the fields of each subgroup, when the
-    subgroup values aren't classes (e.g. `functools.partial`s). The help text is therefore slightly
-    wrong: it shows the field defaults from the class definition, not those of the subgroup.
 
     Parameters
     ----------
@@ -162,6 +159,8 @@ def subgroups(
     if default is not MISSING:
         if is_dataclass_instance(default):
             metadata["subgroup_default"] = default
+            subgroup_key = [k for k, v in subgroups.items() if v is default][0]
+            default = subgroup_key
         else:
             assert default in subgroups.keys()
             default_factory = subgroups[default]
