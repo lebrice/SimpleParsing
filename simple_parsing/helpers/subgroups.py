@@ -17,9 +17,9 @@ Key = TypeVar("Key", str, int, bool, Enum)
 
 @overload
 def subgroups(
-    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
+    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
     *args,
-    default: Key,
+    default: Key | DataclassT,
     default_factory: _MISSING_TYPE = MISSING,
     **kwargs,
 ) -> DataclassT:
@@ -28,7 +28,7 @@ def subgroups(
 
 @overload
 def subgroups(
-    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
+    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
     *args,
     default: _MISSING_TYPE = MISSING,
     default_factory: type[DataclassT] | functools.partial[DataclassT],
@@ -39,7 +39,7 @@ def subgroups(
 
 @overload
 def subgroups(
-    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
+    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
     *args,
     default: _MISSING_TYPE = MISSING,
     default_factory: _MISSING_TYPE = MISSING,
@@ -49,9 +49,9 @@ def subgroups(
 
 
 def subgroups(
-    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
+    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
     *args,
-    default: Key | _MISSING_TYPE = MISSING,
+    default: Key | DataclassT | _MISSING_TYPE = MISSING,
     default_factory: type[DataclassT] | functools.partial[DataclassT] | _MISSING_TYPE = MISSING,
     **kwargs,
 ) -> DataclassT:
