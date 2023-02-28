@@ -10,6 +10,7 @@ import shlex
 import sys
 from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _
 from collections import defaultdict
+from functools import partial
 from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, Sequence, TypeVar, overload
@@ -619,25 +620,34 @@ class ArgumentParser(argparse.ArgumentParser):
                 # namespace. This is because we added all the subgroup arguments before we get
                 # here.
                 assert hasattr(parsed_args, dest)
-                chosen_subgroup_key = getattr(parsed_args, dest)
-                assert chosen_subgroup_key in subgroup_field.subgroup_choices
+                chosen_subgroup = getattr(parsed_args, dest)
 
-                chosen_subgroup_dataclass_fn = subgroup_field.subgroup_choices[chosen_subgroup_key]
-                dataclass_types = subgroup_field.field.metadata["subgroup_dataclass_types"]
-                chosen_subgroup_dataclass_type = dataclass_types[chosen_subgroup_key]
+                if chosen_subgroup in subgroup_field.subgroup_choices:
+                    chosen_subgroup_key = chosen_subgroup
+                    chosen_subgroup_dataclass_fn = subgroup_field.subgroup_choices[
+                        chosen_subgroup_key
+                    ]
+                    dataclass_types = subgroup_field.field.metadata["subgroup_dataclass_types"]
+                    chosen_subgroup_dataclass_type = dataclass_types[chosen_subgroup]
+                    subgroup_field_default = chosen_subgroup_key
+                else:
+                    chosen_subgroup_dataclass_fn = partial(dataclasses.replace, chosen_subgroup)
+                    chosen_subgroup_dataclass_type = type(chosen_subgroup)
+                    subgroup_field_default = chosen_subgroup
+
                 assert is_dataclass_type(chosen_subgroup_dataclass_type)
 
-                resolved_subgroups[dest] = chosen_subgroup_key
+                resolved_subgroups[dest] = chosen_subgroup
 
                 logger.info(
                     f"resolved the subgroup at dest {dest} to a value of "
-                    f"{chosen_subgroup_key}, which means to use the "
+                    f"{chosen_subgroup}, which means to use the "
                     f"{chosen_subgroup_dataclass_type} dataclass"
                 )
                 parent_dataclass_wrapper = subgroup_field.parent
                 # The default value for the subgroup field should be the value that was chosen.
                 # Manually set the default value for this field.
-                subgroup_field.set_default(chosen_subgroup_key)
+                subgroup_field.set_default(subgroup_field_default)
 
                 # NOTE: Here the `default` for the new argument group is `None`, because
                 # `subgroups` only allows using a dict[Hashable, callable], and we want to avoid

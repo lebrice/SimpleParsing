@@ -680,6 +680,20 @@ class FrozenConfig:
     b: str = "bob"
 
 
+def test_subgroups_doesnt_support_nonfrozen_instances():
+    with pytest.raises(
+        ValueError,
+        match="'default' can either be a key of the subgroups dict or a hashable",
+    ):
+        _ = subgroups({"a": A, "b": B}, default=A(a=1.0))
+
+    with pytest.raises(
+        ValueError,
+        match="'default' can either be a key of the subgroups dict or a hashable",
+    ):
+        _ = subgroups({"a": A(a=1.0), "b": B}, default=A(a=1.0))
+
+
 def test_subgroups_supports_frozen_instances():
     odd = FrozenConfig(a=1)
     even = FrozenConfig(a=2)
