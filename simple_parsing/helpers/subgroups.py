@@ -6,11 +6,15 @@ import typing
 from dataclasses import _MISSING_TYPE, MISSING
 from enum import Enum
 from logging import getLogger as get_logger
-from typing import Any, Callable, TypeVar, overload
+from typing import Any, Callable, TypeVar, Union, overload
+
+from typing_extensions import TypeAlias
 
 from simple_parsing.utils import DataclassT, is_dataclass_instance, is_dataclass_type
 
 logger = get_logger(__name__)
+
+SubgroupKey: TypeAlias = Union[str, int, bool, Enum]
 
 Key = TypeVar("Key", str, int, bool, Enum)
 

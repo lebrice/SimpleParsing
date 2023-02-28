@@ -694,19 +694,27 @@ def test_subgroups_doesnt_support_nonfrozen_instances():
         _ = subgroups({"a": A(a=1.0), "b": B}, default=A(a=1.0))
 
 
-def test_subgroups_supports_frozen_instances():
-    odd = FrozenConfig(a=1, b="odd")
-    even = FrozenConfig(a=2, b="even")
+odd = FrozenConfig(a=1, b="odd")
+even = FrozenConfig(a=2, b="even")
 
-    @dataclasses.dataclass
-    class Config(TestSetup):
-        conf: FrozenConfig = subgroups({"odd": odd, "even": even}, default=odd)
 
-    assert Config.setup() == Config(odd)
-    assert Config.setup("--conf=odd") == Config(odd)
-    assert Config.setup("--conf=even") == Config(even)
-    assert Config.setup("--conf=odd --a 123") == Config(dataclasses.replace(odd, a=123))
-    assert Config.setup("--conf=even --a 100") == Config(dataclasses.replace(even, a=100))
+@dataclasses.dataclass
+class ConfigWithFrozen(TestSetup):
+    conf: FrozenConfig = subgroups({"odd": odd, "even": even}, default=odd)
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        ("", ConfigWithFrozen(odd)),
+        ("--conf=odd", ConfigWithFrozen(odd)),
+        ("--conf=even", ConfigWithFrozen(even)),
+        ("--conf=odd --a 123", ConfigWithFrozen(dataclasses.replace(odd, a=123))),
+        ("--conf=even --a 100", ConfigWithFrozen(dataclasses.replace(even, a=100))),
+    ],
+)
+def test_subgroups_supports_frozen_instances(command: str, expected: ConfigWithFrozen):
+    assert ConfigWithFrozen.setup(command) == expected
 
 
 # def test_subgroups_with_partials():

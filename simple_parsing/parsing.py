@@ -5,16 +5,17 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import functools
 import itertools
 import shlex
 import sys
 from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _
 from collections import defaultdict
-from functools import partial
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Callable, Hashable, Sequence, TypeVar, overload
+from typing import Any, Callable, Sequence, TypeVar, overload
 
+from simple_parsing.helpers.subgroups import SubgroupKey
 from simple_parsing.wrappers.dataclass_wrapper import DataclassWrapperType
 
 from . import utils
@@ -588,7 +589,7 @@ class ArgumentParser(argparse.ArgumentParser):
         unresolved_subgroups = _get_subgroup_fields(wrappers)
         # Dictionary of the subgroup choices that were resolved (key: subgroup dest, value: chosen
         # subgroup name).
-        resolved_subgroups: dict[str, str] = {}
+        resolved_subgroups: dict[str, SubgroupKey] = {}
 
         if not unresolved_subgroups:
             # No subgroups to parse.
@@ -615,7 +616,7 @@ class ArgumentParser(argparse.ArgumentParser):
         for current_nesting_level in itertools.count():
             # Do rounds of parsing with just the subgroup arguments, until all the subgroups
             # are resolved to a dataclass type.
-            logger.info(
+            logger.debug(
                 f"Starting subgroup parsing round {current_nesting_level}: {list(unresolved_subgroups.keys())}"
             )
             # Add all the unresolved subgroups arguments.
@@ -633,7 +634,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 if argparse.SUPPRESS in subgroup_field.parent.defaults:
                     assert argument_options["default"] is argparse.SUPPRESS
                     argument_options["default"] = argparse.SUPPRESS
-                logger.info(
+                logger.debug(
                     f"Adding subgroup argument: add_argument(*{flags} **{str(argument_options)})"
                 )
                 subgroup_choice_parser.add_argument(*flags, **argument_options)
@@ -650,54 +651,55 @@ class ArgumentParser(argparse.ArgumentParser):
                 # NOTE: There should always be a parsed value for the subgroup argument on the
                 # namespace. This is because we added all the subgroup arguments before we get
                 # here.
-                assert hasattr(parsed_args, dest)
-                chosen_subgroup_key: Hashable = getattr(parsed_args, dest)
-                assert chosen_subgroup_key in subgroup_field.subgroup_choices
-                chosen_subgroup_dataclass_or_fn = subgroup_field.subgroup_choices[
-                    chosen_subgroup_key
-                ]
-                chosen_subgroup_dataclass_type = subgroup_field.field.metadata[
-                    "subgroup_dataclass_types"
-                ][chosen_subgroup_key]
-                subgroup_field_default = subgroup_field.subgroup_default
-                if is_dataclass_instance(chosen_subgroup_dataclass_or_fn):
-                    chosen_subgroup_dataclass_fn = partial(
-                        dataclasses.replace, chosen_subgroup_dataclass_or_fn
-                    )
-                else:
-                    chosen_subgroup_dataclass_fn = chosen_subgroup_dataclass_type
+                # TODO: Refactor this here.
+                subgroup_dict = subgroup_field.subgroup_choices
+                chosen_subgroup_key: SubgroupKey = getattr(parsed_args, dest)
+                assert chosen_subgroup_key in subgroup_dict
 
-                assert is_dataclass_type(chosen_subgroup_dataclass_type)
-
-                resolved_subgroups[dest] = chosen_subgroup_key
-
-                logger.info(
-                    f"resolved the subgroup at dest {dest} to a value of "
-                    f"{chosen_subgroup_key}, which means to use the "
-                    f"{chosen_subgroup_dataclass_type} dataclass"
+                # Changing the default value of the (now parsed) field for the subgroup, just so it
+                # shows (default: {chosen_subgroup_key}) on the command-line.
+                subgroup_field.set_default(chosen_subgroup_key)
+                logger.debug(
+                    f"resolved the subgroup at {dest!r}: will use the subgroup at key "
+                    f"{chosen_subgroup_key!r}"
                 )
-                # The default value for the subgroup field should be the value that was chosen.
-                # Manually set the default value for this field.
-                subgroup_field.set_default(subgroup_field_default)
 
-                # NOTE: Here the `default` for the new argument group is `None`, because
-                # `subgroups` only allows using a dict[Hashable, callable], and we want to avoid
-                # calling the callables unless we really need to.
-                default = None
+                default_or_dataclass_fn = subgroup_dict[chosen_subgroup_key]
+                if is_dataclass_instance(default_or_dataclass_fn):
+                    # The chosen value in the subgroup dict is a frozen dataclass instance.
+                    default = default_or_dataclass_fn
+                    dataclass_fn = functools.partial(dataclasses.replace, default)
+                    dataclass_type = type(default)
+                else:
+                    default = None
+                    dataclass_fn = default_or_dataclass_fn
+                    dataclass_type = subgroup_field.field.metadata["subgroup_dataclass_types"][
+                        chosen_subgroup_key
+                    ]
+
+                assert default is None or is_dataclass_instance(default)
+                assert callable(dataclass_fn)
+                assert is_dataclass_type(dataclass_type)
+
                 name = dest.split(".")[-1]
+                parent_dataclass_wrapper = subgroup_field.parent
                 # NOTE: Using self._add_arguments so it returns the modified wrapper and doesn't
                 # affect the `self._wrappers` list.
-                assert callable(chosen_subgroup_dataclass_fn)
-                parent_dataclass_wrapper = subgroup_field.parent
-
+                # logger.debug(
+                #     f"self._add_arguments("
+                #     f"dataclass_type={dataclass_type}, "
+                #     f"name={name}, "
+                #     f"dataclass_fn={dataclass_fn}, "
+                #     f"default={default}, "
+                #     f"parent={parent_dataclass_wrapper})"
+                # )
                 new_wrapper = self._add_arguments(
-                    dataclass_type=chosen_subgroup_dataclass_type,
-                    dataclass_fn=chosen_subgroup_dataclass_fn,
+                    dataclass_type=dataclass_type,
                     name=name,
+                    dataclass_fn=dataclass_fn,
                     default=default,
                     parent=parent_dataclass_wrapper,
                 )
-
                 # Make the new wrapper a child of the class which contains the field.
                 # - it isn't already a child
                 # - it's parent is the parent dataclass wrapper
@@ -708,7 +710,11 @@ class ArgumentParser(argparse.ArgumentParser):
                 assert parent_dataclass_wrapper in _flatten_wrappers(wrappers)
                 assert new_wrapper in _flatten_wrappers(wrappers)
 
+                # Mark this subgroup as resolved.
                 unresolved_subgroups.pop(dest)
+                resolved_subgroups[dest] = chosen_subgroup_key
+                # TODO: Should we remove the FieldWrapper for the subgroups now that it's been
+                # resolved?
 
             # Find the new subgroup fields that weren't resolved before.
             # TODO: What if a name conflict occurs between a subgroup field and one of the new
@@ -723,15 +729,15 @@ class ArgumentParser(argparse.ArgumentParser):
             unresolved_subgroups = {
                 k: v for k, v in all_subgroup_fields.items() if k not in resolved_subgroups
             }
-            logger.info(f"All subgroups: {list(all_subgroup_fields.keys())}")
-            logger.info(f"Resolved subgroups: {resolved_subgroups}")
-            logger.info(f"Unresolved subgroups: {list(unresolved_subgroups.keys())}")
+            logger.debug(f"All subgroups: {list(all_subgroup_fields.keys())}")
+            logger.debug(f"Resolved subgroups: {resolved_subgroups}")
+            logger.debug(f"Unresolved subgroups: {list(unresolved_subgroups.keys())}")
 
             if not unresolved_subgroups:
-                logger.info("Done parsing all the subgroups!")
+                logger.debug("Done parsing all the subgroups!")
                 break
             else:
-                logger.info(
+                logger.debug(
                     f"Done parsing a round of subparsers at nesting level "
                     f"{current_nesting_level}. Moving to the next round which has "
                     f"{len(unresolved_subgroups)} unresolved subgroup choices."
@@ -922,7 +928,7 @@ class ArgumentParser(argparse.ArgumentParser):
                     continue
 
                 if field.is_subgroup:
-                    # Skip the subgroup fields.
+                    # Skip the subgroup fields, since we added a child DataclassWrapper for them.
                     logger.debug(f"Not calling the subgroup FieldWrapper for dest {field.dest}")
                     continue
 
