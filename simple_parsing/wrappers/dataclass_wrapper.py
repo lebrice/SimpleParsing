@@ -14,7 +14,7 @@ import docstring_parser as dp
 from typing_extensions import Literal
 
 from .. import docstring, utils
-from ..utils import Dataclass, DataclassT
+from ..utils import Dataclass, DataclassT, is_dataclass_instance, is_dataclass_type
 from .field_wrapper import FieldWrapper
 from .wrapper import Wrapper
 
@@ -45,7 +45,12 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
         super().__init__()
         self.dataclass = dataclass
         self._name = name
+        assert is_dataclass_type(dataclass)  # FIXME: Remove
+        if dataclass_fn:
+            assert callable(dataclass_fn), dataclass_fn
         self.dataclass_fn = dataclass_fn or dataclass
+        assert not is_dataclass_instance(self.dataclass_fn)  # FIXME: Remove
+
         self._default = default
         self.prefix = prefix
         self._parent = parent
@@ -204,7 +209,7 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                     f"--help text."
                 )
                 # check that the default was properly set to the chosen subgroup value
-                # assert wrapped_field.default in wrapped_field.subgroup_choices.keys()
+                assert wrapped_field.default in wrapped_field.subgroup_choices.keys()
 
             logger.info(f"group.add_argument(*{wrapped_field.option_strings}, **{arg_options})")
             # TODO: Perhaps we could hook into the `action` that is returned here to know if the

@@ -695,8 +695,8 @@ def test_subgroups_doesnt_support_nonfrozen_instances():
 
 
 def test_subgroups_supports_frozen_instances():
-    odd = FrozenConfig(a=1)
-    even = FrozenConfig(a=2)
+    odd = FrozenConfig(a=1, b="odd")
+    even = FrozenConfig(a=2, b="even")
 
     @dataclasses.dataclass
     class Config(TestSetup):

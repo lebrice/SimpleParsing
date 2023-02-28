@@ -158,8 +158,9 @@ def subgroups(
 
     if default is not MISSING:
         if is_dataclass_instance(default):
-            metadata["subgroup_default"] = default
+            assert default in subgroups.values()
             subgroup_key = [k for k, v in subgroups.items() if v is default][0]
+            metadata["subgroup_default"] = subgroup_key
             default = subgroup_key
         else:
             assert default in subgroups.keys()
