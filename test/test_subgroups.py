@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import dataclasses
 import functools
+import inspect
 import shlex
+import sys
 from dataclasses import dataclass, field
 from functools import partial
+from pathlib import Path
 from typing import Callable, TypeVar
 
 import pytest
+from pytest_regressions.file_regression import FileRegressionFixture
 from typing_extensions import Annotated
 
 from simple_parsing import ArgumentParser, subgroups
@@ -579,7 +583,7 @@ class ModelBConfig(ModelConfig):
 
 
 @dataclass
-class Config:
+class Config(TestSetup):
 
     # Which model to use
     model: ModelConfig = subgroups(
@@ -715,6 +719,49 @@ class ConfigWithFrozen(TestSetup):
 )
 def test_subgroups_supports_frozen_instances(command: str, expected: ConfigWithFrozen):
     assert ConfigWithFrozen.setup(command) == expected
+
+
+@pytest.mark.parametrize(
+    ("dataclass_type", "command"),
+    [
+        (Config, "--help"),
+        (Config, "--model=model_a --help"),
+        (Config, "--model=model_b --help"),
+        (ConfigWithFrozen, "--help"),
+        (ConfigWithFrozen, "--conf=odd --help"),
+        (ConfigWithFrozen, "--conf=even --help"),
+        (ConfigWithFrozen, "--conf=odd --a 123 --help"),
+        (ConfigWithFrozen, "--conf=even --a 100 --help"),
+    ],
+)
+def test_help(
+    dataclass_type: type[TestSetup],
+    command: str,
+    file_regression: FileRegressionFixture,
+):
+    if sys.version_info[:2] != (3, 11):
+        pytest.skip("The regression check is only ran with Python 3.11")
+
+    file_regression.check(
+        f"""\
+# Regression file for [this test]({Path(__file__).relative_to(Path.cwd())}:{inspect.getlineno(inspect.currentframe())})
+
+Given Source code:
+
+```python
+{''.join(inspect.getsourcelines(dataclass_type)[0])}
+```
+
+and command: {command!r}
+
+We expect to get:
+
+```console
+{dataclass_type.get_help_text(command)}
+```
+""",
+        extension=".md",
+    )
 
 
 # def test_subgroups_with_partials():
