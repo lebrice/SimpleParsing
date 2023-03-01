@@ -1,4 +1,4 @@
-# Regression file for [this test](test/test_subgroups.py:757)
+# Regression file for [this test](test/test_subgroups.py:724)
 
 Given Source code:
 

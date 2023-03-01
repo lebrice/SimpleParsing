@@ -742,9 +742,10 @@ def test_help(
     if sys.version_info[:2] != (3, 11):
         pytest.skip("The regression check is only ran with Python 3.11")
 
+    here = Path(__file__).relative_to(Path.cwd())
     file_regression.check(
         f"""\
-# Regression file for [this test]({Path(__file__).relative_to(Path.cwd())}:{inspect.getlineno(inspect.currentframe())})
+# Regression file for [this test]({here}:{inspect.getsourcelines(test_help)[1]})
 
 Given Source code:
 
