@@ -361,6 +361,20 @@ def load(
 ) -> Dataclass:
     """Loads an instance of `cls` from the given file.
 
+    First, `load_fn` is used to get a potentially nested dictionary of python primitives from a
+    file. Then, a decoding function is applied to each value, based on the type annotation of the
+    corresponding field. Finally, the resulting dictionary is used to instantiate an instance of
+    the dataclass `cls`.
+
+    - string -> `load_fn` (json/yaml/etc) -> dict with "raw" python values -> decode -> \
+        dict with constructor arguments -> `cls`(**dict) -> instance of `cls`
+
+    NOTE: This does not save the types of the dataclass fields. This is usually not an issue, since
+    we can recover the right type to use by looking at subclasses of the annotated type. However,
+    in some cases (e.g. subgroups), it might be useful to save all the types of all the
+    fields, in which case you should probably use something like `yaml.dump`, directly passing it
+    the dataclass, instead of this.
+
     Args:
         cls (Type[D]): A dataclass type to load.
         path (Path | str): Path or Path string or open file.
@@ -529,7 +543,12 @@ def read_file(path: str | Path) -> dict:
 
 
 def save(obj: Any, path: str | Path, dump_fn: Callable[[dict, IO], None] | None = None) -> None:
-    """Save the given dataclass or dictionary to the given file."""
+    """Save the given dataclass or dictionary to the given file.
+
+    Note: The `encode` function is applied to all the object fields to get serializable values,
+    like so:
+    - obj -> encode -> "raw" values (dicts, strings, ints, etc) -> `dump_fn` ([json/yaml/etc].dumps) -> string
+    """
     path = Path(path)
 
     if not isinstance(obj, dict):

@@ -7,7 +7,7 @@ import sys
 import typing
 from enum import Enum, auto
 from logging import getLogger
-from typing import Any, ClassVar, Hashable, Union, cast
+from typing import Any, Callable, ClassVar, Hashable, Union, cast
 
 from typing_extensions import Literal
 
@@ -15,6 +15,7 @@ from simple_parsing.help_formatter import TEMPORARY_TOKEN
 
 from .. import docstring, utils
 from ..helpers.custom_actions import BooleanOptionalAction
+from ..utils import Dataclass
 from .field_metavar import get_metavar
 from .field_parsing import get_parsing_fn
 from .wrapper import Wrapper
@@ -961,7 +962,7 @@ class FieldWrapper(Wrapper):
         return "subgroups" in self.field.metadata
 
     @property
-    def subgroup_choices(self) -> dict[str, type]:
+    def subgroup_choices(self) -> dict[Hashable, Callable[[], Dataclass] | Dataclass]:
         if not self.is_subgroup:
             raise RuntimeError(f"Field {self.field} doesn't have subgroups! ")
         return self.field.metadata["subgroups"]
