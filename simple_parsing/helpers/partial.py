@@ -11,47 +11,27 @@ from logging import getLogger as get_logger
 from typing import (
     Any,
     Callable,
+    Dict,
     Generic,
     Hashable,
     Sequence,
-    TypeVar,
     _ProtocolMeta,
     cast,
     get_type_hints,
-    overload,
 )
 
-from typing_extensions import ParamSpec
+from typing_extensions import ParamSpec, TypeVar
 
 import simple_parsing
 
-__all__ = ["Partial", "config_dataclass_for", "infer_type_annotation_from_default"]
+__all__ = ["Partial", "config_for", "infer_type_annotation_from_default"]
 
 C = TypeVar("C", bound=Callable)
 _P = ParamSpec("_P")
-_T = TypeVar("_T", bound="Any")
+_T = TypeVar("_T", bound=Any)
 _C = TypeVar("_C", bound=Callable[..., Any])
 
 logger = get_logger(__name__)
-
-
-@singledispatch
-def infer_type_annotation_from_default(default: Any) -> Any | type:
-    if isinstance(default, (int, str, float, bool)):
-        return type(default)
-    if isinstance(default, tuple):
-        return typing.Tuple[tuple(infer_type_annotation_from_default(d) for d in default)]
-    if isinstance(default, list):
-        if not default:
-            return list
-        # Assuming that all items have the same type.
-        return typing.List[infer_type_annotation_from_default(default[0])]
-    if isinstance(default, dict):
-        if not default:
-            return dict
-    raise NotImplementedError(
-        f"Don't know how to infer type annotation to use for default of {default}"
-    )
 
 
 @singledispatch
@@ -61,56 +41,48 @@ def adjust_default(default: Any) -> Any:
     IF in some libraries, the signature has a special default value, that we shouldn't use as the
     default, e.g. "MyLibrary.REQUIRED" or something, then a handler can be registered here to
     convert it to something else.
+
+    For example, here's a fix for the `lr` param of the `torch.optim.SGD` optimizer, which has a
+    weird annotation of `_RequiredParameter`:
+
+    ```python
+    from torch.optim.optimizer import _RequiredParameter
+
+    @adjust_default.register(_RequiredParameter)
+    def _(default: Any) -> Any:
+        return dataclasses.MISSING
     """
     return default
 
 
-@overload
-def cache_when_possible(fn: _C) -> _C:
-    ...
+_P = ParamSpec("_P")
+_OutT = TypeVar("_OutT")
 
 
-@overload
-def cache_when_possible(*, cache_fn=lru_cache) -> Callable[[_C], _C]:
-    ...
+def _cache_when_possible(
+    fn: Callable[_P, _OutT]
+) -> Callable[_P, _OutT] | functools._lru_cache_wrapper[_OutT]:
+    """Makes `fn` behave like `functools.cache(fn)` when args are all hashable, else no change."""
+    cached_fn = lru_cache(maxsize=None)(fn)
 
-
-@overload
-def cache_when_possible(fn: _C, *, cache_fn: Callable = lru_cache) -> _C:
-    ...
-
-
-def _default_cache_fn(fn: _C) -> _C:
-    return lru_cache(maxsize=None)(fn)  # type: ignore
-
-
-def cache_when_possible(
-    fn: _C | None = None, *, cache_fn: Callable = _default_cache_fn
-) -> _C | Callable[[_C], _C]:
-
-    if fn is None:
-
-        def _wrapper(_fn: _C) -> _C:
-            return cache_when_possible(_fn, cache_fn=cache_fn)
-
-        return _wrapper
-
-    cached_fn = cache_fn(fn)
+    def _all_hashable(args: tuple, kwargs: dict) -> bool:
+        return all(isinstance(arg, Hashable) for arg in args) and all(
+            isinstance(arg, Hashable) for arg in kwargs.values()
+        )
 
     @wraps(fn)
-    def _switch(*args, **kwargs):
-        if all(isinstance(arg, Hashable) for arg in args) and all(
-            isinstance(arg, Hashable) for arg in kwargs.values()
-        ):
-            return cached_fn(*args, **kwargs)
+    def _switch(*args: _P.args, **kwargs: _P.kwargs) -> _OutT:
+        if _all_hashable(args, kwargs):
+            hashable_kwargs = typing.cast(Dict[str, Hashable], kwargs)
+            return cached_fn(*args, **hashable_kwargs)
         return fn(*args, **kwargs)
 
     return _switch
 
 
-@cache_when_possible()
-def config_dataclass_for(
-    cls: Callable[_P, _T] | type[_T],
+@_cache_when_possible
+def config_for(
+    cls: type[_T] | Callable[_P, _T],
     ignore_args: str | Sequence[str] = (),
     **defaults,
 ) -> type[Partial[_T]]:
@@ -205,6 +177,28 @@ def config_dataclass_for(
     return config_class
 
 
+@singledispatch
+def infer_type_annotation_from_default(default: Any) -> Any | type:
+    """Used when there is a default value, but no type annotation, to infer the type of field to
+    create on the config dataclass.
+    """
+    if isinstance(default, (int, str, float, bool)):
+        return type(default)
+    if isinstance(default, tuple):
+        return typing.Tuple[tuple(infer_type_annotation_from_default(d) for d in default)]
+    if isinstance(default, list):
+        if not default:
+            return list
+        # Assuming that all items have the same type.
+        return typing.List[infer_type_annotation_from_default(default[0])]
+    if isinstance(default, dict):
+        if not default:
+            return dict
+    raise NotImplementedError(
+        f"Don't know how to infer type annotation to use for default of {default}"
+    )
+
+
 def _parse_args_from_docstring(docstring: str) -> dict[str, str]:
     """Taken from `pytorch_lightning.utilities.argparse`."""
     arg_block_indent = None
@@ -252,14 +246,14 @@ def _get_generated_config_class_name(target: type | Callable) -> str:
 class _Partial(_ProtocolMeta):
     _target_: _C
 
-    def __getitem__(cls, target: type[_T] | Callable[_P, _T]) -> type[Callable[_P, _T]]:
+    def __getitem__(cls, target: Callable[_P, _T]) -> type[Callable[_P, _T]]:
         # full_path = target.__module__ + "." + target.__qualname__
         # if full_path in _autogenerated_config_classes:
         #     return _autogenerated_config_classes[full_path]
 
         # TODO: Maybe we should make a distinction here between Partial[_T] and Partial[SomeClass?]
         # Create the config class.
-        config_class = config_dataclass_for(target)
+        config_class = config_for(target)
         # Set it's module to be the one calling this, and set that class name in the globals of
         # the calling module? --> No, too hacky.
 

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from simple_parsing import ArgumentParser
 from simple_parsing.helpers import subgroups
-from simple_parsing.helpers.partial import Partial, config_dataclass_for
+from simple_parsing.helpers.partial import Partial, config_for
 
 
 # Suppose we want to choose between the Adam and SGD optimizers from PyTorch:
@@ -51,8 +51,8 @@ class SGD(Optimizer):
 # required argument.
 # AdamConfig = Partial[Adam]  # would treat 'params' as a required argument.
 # SGDConfig = Partial[SGD]    # same here
-AdamConfig: type[Partial[Adam]] = config_dataclass_for(Adam, ignore_args="params")
-SGDConfig: type[Partial[SGD]] = config_dataclass_for(SGD, ignore_args="params")
+AdamConfig: type[Partial[Adam]] = config_for(Adam, ignore_args="params")
+SGDConfig: type[Partial[SGD]] = config_for(SGD, ignore_args="params")
 
 
 @dataclass
