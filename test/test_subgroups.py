@@ -738,10 +738,10 @@ def test_help(
     dataclass_type: type[TestSetup],
     command: str,
     file_regression: FileRegressionFixture,
+    request: pytest.FixtureRequest,
 ):
     if sys.version_info[:2] != (3, 11):
         pytest.skip("The regression check is only ran with Python 3.11")
-
     here = Path(__file__).relative_to(Path.cwd())
     file_regression.check(
         f"""\
@@ -761,6 +761,7 @@ We expect to get:
 {dataclass_type.get_help_text(command)}
 ```
 """,
+        basename=request.node.name,
         extension=".md",
     )
 
