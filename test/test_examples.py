@@ -134,6 +134,7 @@ def test_running_example_outputs_expected_without_arg(
     set_prog_name: Callable[[str, str | None], None],
     assert_equals_stdout: Callable[[str, str], None],
 ):
+    # TODO: Use file_regression fixture to check output against a nicely formatted example script.
     return test_running_example_outputs_expected(file_path, "", set_prog_name, assert_equals_stdout)
 
 

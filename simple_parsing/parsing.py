@@ -14,6 +14,8 @@ from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, Sequence, TypeVar, overload
 
+from typing_extensions import Literal, deprecated
+
 from simple_parsing.wrappers.dataclass_wrapper import DataclassWrapperType
 
 from . import utils
@@ -174,6 +176,32 @@ class ArgumentParser(argparse.ArgumentParser):
     ) -> DataclassWrapper[DataclassT]:
         pass
 
+    @deprecated("Passing dict as default is deprecated and will be removed at some point.")
+    @overload
+    def add_arguments(
+        self,
+        dataclass: type[DataclassT],
+        dest: str,
+        *,
+        prefix: str = "",
+        default: dict = ...,
+        dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
+    ) -> DataclassWrapper[DataclassT]:
+        pass
+
+    @deprecated("Support for passing 'argparse.SUPPRESS' might get deprecated and removed.")
+    @overload
+    def add_arguments(
+        self,
+        dataclass: type[DataclassT],
+        dest: str,
+        *,
+        prefix: str = "",
+        default: Literal["==SUPPRESS=="] | str = ...,
+        dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
+    ) -> DataclassWrapper[DataclassT]:
+        pass
+
     @overload
     def add_arguments(
         self,
@@ -191,7 +219,7 @@ class ArgumentParser(argparse.ArgumentParser):
         dest: str,
         *,
         prefix: str = "",
-        default: DataclassT | None = None,
+        default: DataclassT | dict | str | None = None,
         dataclass_wrapper_class: type[DataclassWrapperType] = DataclassWrapper,
     ) -> DataclassWrapper[DataclassT] | DataclassWrapperType:
         """Adds command-line arguments for the fields of `dataclass`.
