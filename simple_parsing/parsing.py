@@ -634,11 +634,13 @@ class ArgumentParser(argparse.ArgumentParser):
                 if argparse.SUPPRESS in subgroup_field.parent.defaults:
                     assert argument_options["default"] is argparse.SUPPRESS
                     argument_options["default"] = argparse.SUPPRESS
+
                 logger.debug(
                     f"Adding subgroup argument: add_argument(*{flags} **{str(argument_options)})"
                 )
                 subgroup_choice_parser.add_argument(*flags, **argument_options)
 
+            # Parse `args` repeatedly until all the subgroup choices are resolved.
             parsed_args, unused_args = subgroup_choice_parser.parse_known_args(
                 args=args, namespace=namespace
             )
@@ -651,14 +653,16 @@ class ArgumentParser(argparse.ArgumentParser):
                 # NOTE: There should always be a parsed value for the subgroup argument on the
                 # namespace. This is because we added all the subgroup arguments before we get
                 # here.
-                # TODO: Refactor this here.
                 subgroup_dict = subgroup_field.subgroup_choices
                 chosen_subgroup_key: SubgroupKey = getattr(parsed_args, dest)
                 assert chosen_subgroup_key in subgroup_dict
 
-                # Changing the default value of the (now parsed) field for the subgroup, just so it
-                # shows (default: {chosen_subgroup_key}) on the command-line.
-                subgroup_field.set_default(chosen_subgroup_key)
+                # Changing the default value of the (now parsed) field for the subgroup choice,
+                # just so it shows (default: {chosen_subgroup_key}) on the command-line.
+                # Note: This really isn't required, we could have it just be the default value, but
+                # it seems a bit more consistent with us then showing the --help string for the
+                # chosen dataclass type (as we're doing below).
+                # subgroup_field.set_default(chosen_subgroup_key)
                 logger.debug(
                     f"resolved the subgroup at {dest!r}: will use the subgroup at key "
                     f"{chosen_subgroup_key!r}"
@@ -685,14 +689,6 @@ class ArgumentParser(argparse.ArgumentParser):
                 parent_dataclass_wrapper = subgroup_field.parent
                 # NOTE: Using self._add_arguments so it returns the modified wrapper and doesn't
                 # affect the `self._wrappers` list.
-                # logger.debug(
-                #     f"self._add_arguments("
-                #     f"dataclass_type={dataclass_type}, "
-                #     f"name={name}, "
-                #     f"dataclass_fn={dataclass_fn}, "
-                #     f"default={default}, "
-                #     f"parent={parent_dataclass_wrapper})"
-                # )
                 new_wrapper = self._add_arguments(
                     dataclass_type=dataclass_type,
                     name=name,

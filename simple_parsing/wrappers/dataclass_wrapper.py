@@ -208,8 +208,6 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                     f"Adding a subgroup field {wrapped_field.name} just so it shows up in the "
                     f"--help text."
                 )
-                # check that the default was properly set to the chosen subgroup value
-                assert wrapped_field.default in wrapped_field.subgroup_choices.keys()
 
             logger.info(f"group.add_argument(*{wrapped_field.option_strings}, **{arg_options})")
             # TODO: Perhaps we could hook into the `action` that is returned here to know if the
