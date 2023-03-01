@@ -30,7 +30,7 @@ def test_suppress_default(simple_attribute, silent):
     assert parser.parse_args(shlex.split("--b 0")) == argparse.Namespace(some_class={"b": 0})
 
 
-def test_suppress_with_unsuppressed_dataclass(simple_attribute, silent):
+def test_with_unsuppressed_dataclass(simple_attribute, silent):
     some_type, passed_value, expected_value = simple_attribute
 
     @dataclass
@@ -47,27 +47,22 @@ def test_suppress_with_unsuppressed_dataclass(simple_attribute, silent):
     parser.add_arguments(SomeClass1, dest="some_class1", default=argparse.SUPPRESS)
     parser.add_arguments(SomeClass2, dest="some_class2")
 
-    parsed_args, unparsed_args = parser.parse_known_args(
-        shlex.split(f"--a {passed_value} --b 0 --c {passed_value} --c {passed_value}")
-    )
+    parsed_args = parser.parse_args(shlex.split(f"--a {passed_value} --b 0 --c {passed_value}"))
     assert parsed_args == argparse.Namespace(
         some_class1={"a": expected_value, "b": 0},
-        some_class2=SomeClass2(expected_value),
+        some_class2=SomeClass2(c=expected_value),
     )
-    assert unparsed_args == []
 
-    parsed_args, unparsed_args = parser.parse_known_args(
-        shlex.split(f"--a {passed_value} --c {passed_value}")
-    )
+    parsed_args = parser.parse_args(shlex.split(f"--a {passed_value} --c {passed_value}"))
     assert parsed_args == argparse.Namespace(
-        some_class1={"a": expected_value}, some_class2=SomeClass2(expected_value)
+        some_class1={"a": expected_value},
+        some_class2=SomeClass2(c=expected_value),
     )
-    assert unparsed_args == []
 
-    with raises_missing_required_arg():
-        parser.parse_known_args(shlex.split(f"--a {passed_value}"))
+    with raises_missing_required_arg("-c/--c"):
+        parser.parse_args(shlex.split(f"--a {passed_value}"))
 
-    with raises_missing_required_arg():
+    with raises_missing_required_arg("-c/--c"):
         parser.parse_args("")
 
     assert parser.parse_args(shlex.split(f"--c {passed_value}")) == argparse.Namespace(
@@ -75,7 +70,7 @@ def test_suppress_with_unsuppressed_dataclass(simple_attribute, silent):
     )
 
 
-def test_suppress_conflict_with_unsuppressed_dataclass(simple_attribute, silent):
+def test_conflict_with_unsuppressed_dataclass(simple_attribute, silent):
     some_type, passed_value, expected_value = simple_attribute
 
     @dataclass
@@ -87,15 +82,15 @@ def test_suppress_conflict_with_unsuppressed_dataclass(simple_attribute, silent)
     parser.add_arguments(SomeClass, dest="some_class1", default=argparse.SUPPRESS)
     parser.add_arguments(SomeClass, dest="some_class2")
 
-    parsed_args, unparsed_args = parser.parse_known_args(
+    parsed_args = parser.parse_args(
         shlex.split(
             f"--some_class1.a {passed_value} --some_class1.b 0 --some_class2.a {passed_value}"
         )
     )
     assert parsed_args == argparse.Namespace(
-        some_class1={"a": expected_value, "b": 0}, some_class2=SomeClass(expected_value)
+        some_class1={"a": expected_value, "b": 0},
+        some_class2=SomeClass(expected_value),
     )
-    assert unparsed_args == []
 
     parsed_args, unparsed_args = parser.parse_known_args(
         shlex.split(f"--a {passed_value} --some_class2.a {passed_value}")
@@ -103,10 +98,10 @@ def test_suppress_conflict_with_unsuppressed_dataclass(simple_attribute, silent)
     assert parsed_args == argparse.Namespace(some_class2=SomeClass(expected_value))
     assert unparsed_args == shlex.split(f"--a {passed_value}")
 
-    with raises_missing_required_arg():
+    with raises_missing_required_arg("-some_class2.a/--some_class2.a"):
         parser.parse_known_args(shlex.split(f"--a {passed_value}"))
 
-    with raises_missing_required_arg():
+    with raises_missing_required_arg("-some_class2.a/--some_class2.a"):
         parser.parse_args("")
 
     assert parser.parse_args(shlex.split(f"--some_class2.a {passed_value}")) == argparse.Namespace(
@@ -114,7 +109,7 @@ def test_suppress_conflict_with_unsuppressed_dataclass(simple_attribute, silent)
     )
 
 
-def test_suppress_with_regular_suppressed_args(simple_attribute, silent):
+def test_with_regular_suppressed_args(simple_attribute, silent):
     some_type, passed_value, expected_value = simple_attribute
 
     @dataclass
@@ -129,23 +124,17 @@ def test_suppress_with_regular_suppressed_args(simple_attribute, silent):
     else:
         parser.add_argument("--c", type=some_type, default=argparse.SUPPRESS)
 
-    parsed_args, unparsed_args = parser.parse_known_args(
-        shlex.split(f"--a {passed_value} --b 0 --c {passed_value}")
-    )
+    parsed_args = parser.parse_args(shlex.split(f"--a {passed_value} --b 0 --c {passed_value}"))
     assert parsed_args == argparse.Namespace(
         some_class={"a": expected_value, "b": 0}, c=expected_value
     )
-    assert unparsed_args == []
 
     parsed_args, unparsed_args = parser.parse_known_args(shlex.split(f"--a {passed_value}"))
     assert parsed_args == argparse.Namespace(some_class={"a": expected_value})
     assert unparsed_args == []
 
-    parsed_args, unparsed_args = parser.parse_known_args(
-        shlex.split(f"--a {passed_value} --c {passed_value}")
-    )
+    parsed_args = parser.parse_args(shlex.split(f"--a {passed_value} --c {passed_value}"))
     assert parsed_args == argparse.Namespace(some_class={"a": expected_value}, c=expected_value)
-    assert unparsed_args == []
 
     assert parser.parse_args("") == argparse.Namespace()
     assert parser.parse_args(shlex.split("--b 0")) == argparse.Namespace(some_class={"b": 0})
@@ -166,23 +155,16 @@ def test_suppress_with_regular_unsuppressed_args(simple_attribute, silent):
     else:
         parser.add_argument("--c", type=some_type)
 
-    parsed_args, unparsed_args = parser.parse_known_args(
-        shlex.split(f"--a {passed_value} --b 0 --c {passed_value}")
-    )
+    parsed_args = parser.parse_args(shlex.split(f"--a {passed_value} --b 0 --c {passed_value}"))
     assert parsed_args == argparse.Namespace(
         some_class={"a": expected_value, "b": 0}, c=expected_value
     )
-    assert unparsed_args == []
 
-    parsed_args, unparsed_args = parser.parse_known_args(shlex.split(f"--a {passed_value}"))
+    parsed_args = parser.parse_args(shlex.split(f"--a {passed_value}"))
     assert parsed_args == argparse.Namespace(some_class={"a": expected_value}, c=None)
-    assert unparsed_args == []
 
-    parsed_args, unparsed_args = parser.parse_known_args(
-        shlex.split(f"--a {passed_value} --c {passed_value}")
-    )
+    parsed_args = parser.parse_args(shlex.split(f"--a {passed_value} --c {passed_value}"))
     assert parsed_args == argparse.Namespace(some_class={"a": expected_value}, c=expected_value)
-    assert unparsed_args == []
 
     assert parser.parse_args("") == argparse.Namespace(c=None)
     assert parser.parse_args(shlex.split("--b 0")) == argparse.Namespace(

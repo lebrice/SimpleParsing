@@ -16,7 +16,11 @@ with open("requirements.txt") as req_file:
     install_requires = req_file.read().splitlines(keepends=False)
 
 extras_require: dict[str, list[str]] = {
-    "test": ["pytest", "pytest-xdist"],
+    "test": [
+        "pytest",
+        "pytest-xdist",
+        "pytest-regressions",
+    ],
     "yaml": ["pyyaml"],
 }
 extras_require["all"] = list(set(sum(extras_require.values(), [])))

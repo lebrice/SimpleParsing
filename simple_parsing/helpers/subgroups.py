@@ -6,20 +6,24 @@ import typing
 from dataclasses import _MISSING_TYPE, MISSING
 from enum import Enum
 from logging import getLogger as get_logger
-from typing import Any, Callable, TypeVar, overload
+from typing import Any, Callable, TypeVar, Union, overload
 
-from simple_parsing.utils import DataclassT, is_dataclass_type
+from typing_extensions import TypeAlias
+
+from simple_parsing.utils import DataclassT, is_dataclass_instance, is_dataclass_type
 
 logger = get_logger(__name__)
+
+SubgroupKey: TypeAlias = Union[str, int, bool, Enum]
 
 Key = TypeVar("Key", str, int, bool, Enum)
 
 
 @overload
 def subgroups(
-    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
+    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
     *args,
-    default: Key,
+    default: Key | DataclassT,
     default_factory: _MISSING_TYPE = MISSING,
     **kwargs,
 ) -> DataclassT:
@@ -28,7 +32,7 @@ def subgroups(
 
 @overload
 def subgroups(
-    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
+    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
     *args,
     default: _MISSING_TYPE = MISSING,
     default_factory: type[DataclassT] | functools.partial[DataclassT],
@@ -39,7 +43,7 @@ def subgroups(
 
 @overload
 def subgroups(
-    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
+    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
     *args,
     default: _MISSING_TYPE = MISSING,
     default_factory: _MISSING_TYPE = MISSING,
@@ -49,9 +53,9 @@ def subgroups(
 
 
 def subgroups(
-    subgroups: dict[Key, type[DataclassT] | functools.partial[DataclassT]],
+    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
     *args,
-    default: Key | _MISSING_TYPE = MISSING,
+    default: Key | DataclassT | _MISSING_TYPE = MISSING,
     default_factory: type[DataclassT] | functools.partial[DataclassT] | _MISSING_TYPE = MISSING,
     **kwargs,
 ) -> DataclassT:
@@ -60,9 +64,6 @@ def subgroups(
     This is different than adding a subparser action. There can only be one subparser action, while
     there can be arbitrarily many subgroups. Subgroups can also be nested!
 
-    TODO: We don't yet inspect the default values for the fields of each subgroup, when the
-    subgroup values aren't classes (e.g. `functools.partial`s). The help text is therefore slightly
-    wrong: it shows the field defaults from the class definition, not those of the subgroup.
 
     Parameters
     ----------
@@ -81,7 +82,19 @@ def subgroups(
     """
     if default_factory is not MISSING and default is not MISSING:
         raise ValueError("Can't pass both default and default_factory!")
-    if default is not MISSING and default not in subgroups:
+    from collections.abc import Hashable
+
+    if is_dataclass_instance(default):
+        if not isinstance(default, Hashable):
+            raise ValueError(
+                "'default' can either be a key of the subgroups dict or a hashable (frozen) "
+                "dataclass."
+            )
+        if default not in subgroups.values():
+            # TODO: (@lebrice): Do we really need to enforce this? What is the reasoning behind this
+            # restriction again?
+            raise ValueError(f"Default value {default} needs to be a value in the subgroups dict.")
+    elif default is not MISSING and default not in subgroups.keys():
         raise ValueError("default must be a key in the subgroups dict!")
 
     if default_factory is not MISSING and default_factory not in list(subgroups.values()):
@@ -106,7 +119,8 @@ def subgroups(
     # instantiate that value in order to inspect the attributes and its values..
 
     # NOTE: This needs to be the right frame where the subgroups are set.
-    caller_frame = inspect.currentframe().f_back
+    _current_frame = inspect.currentframe()
+    caller_frame = _current_frame.f_back if _current_frame else None
     for subgroup_key, subgroup_value in subgroups.items():
         if is_lambda(subgroup_value):
             raise NotImplementedError(
@@ -117,7 +131,9 @@ def subgroups(
                 "change between subgroups, consider using a `functools.partial` instead. "
             )
 
-        if is_dataclass_type(subgroup_value):
+        if is_dataclass_instance(subgroup_value):
+            dataclass_type = type(subgroup_value)
+        elif is_dataclass_type(subgroup_value):
             # all good! Just use that dataclass.
             dataclass_type = subgroup_value
         else:
@@ -145,10 +161,16 @@ def subgroups(
     # subgroup_field_values = {}
 
     if default is not MISSING:
-        assert default in subgroups.keys()
-        default_factory = subgroups[default]
-        metadata["subgroup_default"] = default
-        default = MISSING
+        if is_dataclass_instance(default):
+            assert default in subgroups.values()
+            subgroup_key = [k for k, v in subgroups.items() if v is default][0]
+            metadata["subgroup_default"] = subgroup_key
+            default = subgroup_key
+        else:
+            assert default in subgroups.keys()
+            default_factory = subgroups[default]
+            metadata["subgroup_default"] = default
+            default = MISSING
 
     elif default_factory is not MISSING:
         # assert default_factory in subgroups.values()
