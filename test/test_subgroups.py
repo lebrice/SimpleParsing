@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import dataclasses
 import functools
+import inspect
 import shlex
+import sys
 from dataclasses import dataclass, field
 from functools import partial
+from pathlib import Path
 from typing import Callable, TypeVar
 
 import pytest
+from pytest_regressions.file_regression import FileRegressionFixture
 from typing_extensions import Annotated
 
 from simple_parsing import ArgumentParser, subgroups
@@ -579,7 +583,7 @@ class ModelBConfig(ModelConfig):
 
 
 @dataclass
-class Config:
+class Config(TestSetup):
 
     # Which model to use
     model: ModelConfig = subgroups(
@@ -672,6 +676,94 @@ def test_annotated_as_subgroups():
     assert Config.setup("--model small").model == Model(num_layers=1, hidden_dim=32)
     assert Config.setup("--model big").model == Model(num_layers=12, hidden_dim=128)
     assert Config.setup("--num_layers 123").model == Model(num_layers=123, hidden_dim=32)
+
+
+@dataclasses.dataclass(frozen=True)
+class FrozenConfig:
+    a: int = 1
+    b: str = "bob"
+
+
+def test_subgroups_doesnt_support_nonfrozen_instances():
+    with pytest.raises(
+        ValueError,
+        match="'default' can either be a key of the subgroups dict or a hashable",
+    ):
+        _ = subgroups({"a": A, "b": B}, default=A(a=1.0))
+
+    with pytest.raises(
+        ValueError,
+        match="'default' can either be a key of the subgroups dict or a hashable",
+    ):
+        _ = subgroups({"a": A(a=1.0), "b": B}, default=A(a=1.0))
+
+
+odd = FrozenConfig(a=1, b="odd")
+even = FrozenConfig(a=2, b="even")
+
+
+@dataclasses.dataclass
+class ConfigWithFrozen(TestSetup):
+    conf: FrozenConfig = subgroups({"odd": odd, "even": even}, default=odd)
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        ("", ConfigWithFrozen(odd)),
+        ("--conf=odd", ConfigWithFrozen(odd)),
+        ("--conf=even", ConfigWithFrozen(even)),
+        ("--conf=odd --a 123", ConfigWithFrozen(dataclasses.replace(odd, a=123))),
+        ("--conf=even --a 100", ConfigWithFrozen(dataclasses.replace(even, a=100))),
+    ],
+)
+def test_subgroups_supports_frozen_instances(command: str, expected: ConfigWithFrozen):
+    assert ConfigWithFrozen.setup(command) == expected
+
+
+@pytest.mark.parametrize(
+    ("dataclass_type", "command"),
+    [
+        (Config, "--help"),
+        (Config, "--model=model_a --help"),
+        (Config, "--model=model_b --help"),
+        (ConfigWithFrozen, "--help"),
+        (ConfigWithFrozen, "--conf=odd --help"),
+        (ConfigWithFrozen, "--conf=even --help"),
+        (ConfigWithFrozen, "--conf=odd --a 123 --help"),
+        (ConfigWithFrozen, "--conf=even --a 100 --help"),
+    ],
+)
+def test_help(
+    dataclass_type: type[TestSetup],
+    command: str,
+    file_regression: FileRegressionFixture,
+    request: pytest.FixtureRequest,
+):
+    if sys.version_info[:2] != (3, 11):
+        pytest.skip("The regression check is only ran with Python 3.11")
+    here = Path(__file__).relative_to(Path.cwd())
+    file_regression.check(
+        f"""\
+# Regression file for [this test]({here}:{inspect.getsourcelines(test_help)[1]})
+
+Given Source code:
+
+```python
+{''.join(inspect.getsourcelines(dataclass_type)[0])}
+```
+
+and command: {command!r}
+
+We expect to get:
+
+```console
+{dataclass_type.get_help_text(command)}
+```
+""",
+        basename=request.node.name,
+        extension=".md",
+    )
 
 
 # def test_subgroups_with_partials():

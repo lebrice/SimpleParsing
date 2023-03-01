@@ -136,7 +136,7 @@ class ConflictResolver:
         for w in wrappers:
             if isinstance(w, DataclassWrapper):
                 field_wrappers.extend(w.fields)
-                logger.debug(f"Wrapper {w.dest} has fields {w.fields}")
+                # logger.debug(f"Wrapper {w.dest} has fields {w.fields}")
             else:
                 field_wrappers.append(w)
 
