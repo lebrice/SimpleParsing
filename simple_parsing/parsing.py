@@ -9,11 +9,12 @@ import functools
 import itertools
 import shlex
 import sys
+import typing
 from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _
 from collections import defaultdict
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Callable, Sequence, TypeVar, overload
+from typing import Any, Callable, Sequence, Type, TypeVar, overload
 
 from simple_parsing.helpers.subgroups import SubgroupKey
 from simple_parsing.wrappers.dataclass_wrapper import DataclassWrapperType
@@ -160,6 +161,7 @@ class ArgumentParser(argparse.ArgumentParser):
             add_config_path_arg = bool(config_path)
         self.add_config_path_arg = add_config_path_arg
 
+    # TODO: Remove, since the base class already has nicer type hints.
     def add_argument(
         self,
         *name_or_flags: str,
@@ -246,9 +248,15 @@ class ArgumentParser(argparse.ArgumentParser):
         if is_dataclass_instance(dataclass):
             if default is not None:
                 raise ValueError("Can't use `default` when `dataclass` is a dataclass instance.")
+            dataclass = typing.cast(DataclassT, dataclass)
             dataclass_type = type(dataclass)
             default = dataclass
         else:
+            if not is_dataclass_type(dataclass):
+                raise ValueError(
+                    f"`dataclass` should be a dataclass type or instance. Got {dataclass}."
+                )
+            dataclass = typing.cast(Type[DataclassT], dataclass)
             dataclass_type = dataclass
             default = default
 
@@ -437,12 +445,17 @@ class ArgumentParser(argparse.ArgumentParser):
         *,
         prefix: str = "",
         dataclass_fn: Callable[..., DataclassT] | None = None,
-        default: DataclassT | None = None,
+        default: DataclassT | dict | None = None,
         dataclass_wrapper_class: type[DataclassWrapperType] = DataclassWrapper,
         parent: DataclassWrapper | None = None,
     ) -> DataclassWrapper[DataclassT] | DataclassWrapperType:
         assert is_dataclass_type(dataclass_type)
-        assert default is None or is_dataclass_instance(default)
+        assert (
+            default is None
+            or is_dataclass_instance(default)
+            or default is argparse.SUPPRESS
+            or isinstance(default, dict)
+        )
         assert dataclass_fn is None or callable(dataclass_fn)
 
         for wrapper in self._wrappers:
