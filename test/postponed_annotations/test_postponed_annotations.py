@@ -57,11 +57,27 @@ def test_postponed_annotations_with_multi_depth_inherits_2():
 
 
 def test_overwrite_base():
+    """Test that postponed annotations don't break types with the same name in multiple files."""
     import test.postponed_annotations.overwrite_base as overwrite_base
     import test.postponed_annotations.overwrite_subclass as overwrite_subclass
 
     assert overwrite_subclass.Subclass.setup(
         "--something_else False"
     ) == overwrite_subclass.Subclass(
-        a=overwrite_base.Foo(), other_attribute=overwrite_subclass.Foo(False)
+        attribute=overwrite_base.ParamCls(),
+        other_attribute=overwrite_subclass.ParamCls(False),
     )
+
+
+def test_overwrite_field():
+    """Test that postponed annotations don't break attribute overwriting in multiple files."""
+    import test.postponed_annotations.overwrite_base as overwrite_base
+    import test.postponed_annotations.overwrite_attribute as overwrite_attribute
+
+    instance = overwrite_attribute.Subclass.setup("--v True")
+    assert type(instance.attribute) != overwrite_base.ParamCls, (
+        "attribute type from Base class correctly ignored"
+    )
+    assert instance == overwrite_attribute.Subclass(
+        attribute=overwrite_attribute.ParamClsSubclass(True)
+    ), "parsed attribute value is correct"

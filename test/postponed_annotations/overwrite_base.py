@@ -4,10 +4,10 @@ from dataclasses import dataclass
 
 
 @dataclass
-class Foo:
+class ParamCls:
     ...
 
 
 @dataclass
 class Base:
-    a: Foo
+    attribute: ParamCls

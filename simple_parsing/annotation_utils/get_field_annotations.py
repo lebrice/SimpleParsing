@@ -5,6 +5,7 @@ import types
 import typing
 from contextlib import contextmanager
 from dataclasses import InitVar
+from itertools import dropwhile
 from logging import getLogger as get_logger
 from typing import Any, Dict, Iterator, Optional, get_type_hints
 
@@ -190,13 +191,14 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
     if frame is not None:
         local_ns.update(frame.f_locals)
 
-    # Get the global_ns in the module starting from the deepest base until the module where the field_name is defined.
+    # Get the global_ns in the module starting from the deepest base until the module with the field_name last definition.
     global_ns = {}
-    for base_cls in reversed(some_class.mro()):
+    classes_to_iterate = list(dropwhile(
+        lambda cls: field_name not in getattr(cls, "__annotations__", {}),
+        some_class.mro()
+    ))
+    for base_cls in reversed(classes_to_iterate):
         global_ns.update(sys.modules[base_cls.__module__].__dict__)
-        annotations = getattr(base_cls, "__annotations__", None)
-        if annotations and field_name in annotations:
-            break
 
     try:
         with _initvar_patcher():
