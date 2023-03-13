@@ -957,6 +957,11 @@ def getitem_recursive(
     return flatten(d)[tuple(keys)]
 
 
+def all_subclasses(t: type[T]) -> set[type[T]]:
+    immediate_subclasses = t.__subclasses__()
+    return set(immediate_subclasses).union(*[all_subclasses(s) for s in immediate_subclasses])
+
+
 if __name__ == "__main__":
     import doctest
 

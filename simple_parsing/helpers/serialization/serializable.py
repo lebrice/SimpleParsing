@@ -2,15 +2,24 @@ from __future__ import annotations
 
 import json
 import pickle
+import warnings
 from collections import OrderedDict
 from dataclasses import MISSING, Field, dataclass, fields, is_dataclass
 from functools import partial
+from importlib import import_module
 from itertools import chain
 from logging import getLogger
 from pathlib import Path
+from types import ModuleType
 from typing import IO, Any, Callable, ClassVar, TypeVar, Union
 
-from simple_parsing.utils import get_args, get_forward_arg, is_optional
+from simple_parsing.utils import (
+    DataclassT,
+    all_subclasses,
+    get_args,
+    get_forward_arg,
+    is_optional,
+)
 
 from .decoding import decode_field, register_decoding_fn
 from .encoding import SimpleJsonEncoder, encode
@@ -22,7 +31,6 @@ LoadsFn = Callable[[str], dict]
 
 logger = getLogger(__name__)
 
-Dataclass = TypeVar("Dataclass")
 D = TypeVar("D", bound="SerializableMixin")
 
 try:
@@ -102,7 +110,9 @@ class SerializableMixin:
         encode.register(cls, cls.to_dict)
         register_decoding_fn(cls, cls.from_dict)
 
-    def to_dict(self, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
+    def to_dict(
+        self, dict_factory: type[dict] = dict, recurse: bool = True, save_dc_types: bool = False
+    ) -> dict:
         """Serializes this dataclass to a dict.
 
         NOTE: This 'extends' the `asdict()` function from
@@ -110,7 +120,9 @@ class SerializableMixin:
         dict, or to perform some kind of custom encoding (for instance,
         detaching `Tensor` objects before serializing the dataclass to a dict).
         """
-        return to_dict(self, dict_factory=dict_factory, recurse=recurse)
+        return to_dict(
+            self, dict_factory=dict_factory, recurse=recurse, save_dc_types=save_dc_types
+        )
 
     @classmethod
     def from_dict(cls: type[D], obj: dict, drop_extra_fields: bool | None = None) -> D:
@@ -354,11 +366,11 @@ T = TypeVar("T")
 
 
 def load(
-    cls: type[Dataclass],
+    cls: type[DataclassT],
     path: Path | str | IO,
     drop_extra_fields: bool | None = None,
     load_fn: LoadFn | None = None,
-) -> Dataclass:
+) -> DataclassT:
     """Loads an instance of `cls` from the given file.
 
     First, `load_fn` is used to get a potentially nested dictionary of python primitives from a
@@ -420,12 +432,12 @@ def load(
 
 
 def load_json(
-    cls: type[Dataclass],
+    cls: type[DataclassT],
     path: str | Path,
     drop_extra_fields: bool | None = None,
     load_fn: LoadFn = json.load,
     **kwargs,
-) -> Dataclass:
+) -> DataclassT:
     """Loads an instance from the corresponding json-formatted file.
 
     Args:
@@ -440,32 +452,32 @@ def load_json(
 
 
 def loads(
-    cls: type[Dataclass],
+    cls: type[DataclassT],
     s: str,
     drop_extra_fields: bool | None = None,
     load_fn: LoadsFn = json.loads,
-) -> Dataclass:
+) -> DataclassT:
     d = load_fn(s)
     return from_dict(cls, d, drop_extra_fields=drop_extra_fields)
 
 
 def loads_json(
-    cls: type[Dataclass],
+    cls: type[DataclassT],
     s: str,
     drop_extra_fields: bool | None = None,
     load_fn: LoadsFn = json.loads,
     **kwargs,
-) -> Dataclass:
+) -> DataclassT:
     return loads(cls, s, drop_extra_fields=drop_extra_fields, load_fn=partial(load_fn, **kwargs))
 
 
 def loads_yaml(
-    cls: type[Dataclass],
+    cls: type[DataclassT],
     s: str,
     drop_extra_fields: bool | None = None,
     load_fn: LoadsFn | None = None,
     **kwargs,
-) -> Dataclass:
+) -> DataclassT:
     import yaml
 
     load_fn = load_fn or yaml.safe_load
@@ -542,7 +554,12 @@ def read_file(path: str | Path) -> dict:
         return load_fn(f)
 
 
-def save(obj: Any, path: str | Path, dump_fn: Callable[[dict, IO], None] | None = None) -> None:
+def save(
+    obj: Any,
+    path: str | Path,
+    dump_fn: Callable[[dict, IO], None] | None = None,
+    save_dc_types: bool = False,
+) -> None:
     """Save the given dataclass or dictionary to the given file.
 
     Note: The `encode` function is applied to all the object fields to get serializable values,
@@ -552,7 +569,7 @@ def save(obj: Any, path: str | Path, dump_fn: Callable[[dict, IO], None] | None 
     path = Path(path)
 
     if not isinstance(obj, dict):
-        obj = to_dict(obj)
+        obj = to_dict(obj, save_dc_types=save_dc_types)
 
     if dump_fn:
         save_fn = dump_fn
@@ -569,16 +586,20 @@ def save(obj: Any, path: str | Path, dump_fn: Callable[[dict, IO], None] | None 
         return save_fn(obj, f)
 
 
-def save_yaml(obj, path: str | Path, dump_fn: DumpFn | None = None, **kwargs) -> None:
+def save_yaml(
+    obj, path: str | Path, dump_fn: DumpFn | None = None, save_dc_types: bool = False, **kwargs
+) -> None:
     import yaml
 
     if dump_fn is None:
         dump_fn = yaml.dump
-    save(obj, path, dump_fn=partial(dump_fn, **kwargs))
+    save(obj, path, dump_fn=partial(dump_fn, **kwargs), save_dc_types=save_dc_types)
 
 
-def save_json(obj, path: str | Path, dump_fn: DumpFn = json.dump, **kwargs) -> None:
-    save(obj, path, dump_fn=partial(dump_fn, **kwargs))
+def save_json(
+    obj, path: str | Path, dump_fn: DumpFn = json.dump, save_dc_types: bool = False, **kwargs
+) -> None:
+    save(obj, path, dump_fn=partial(dump_fn, **kwargs), save_dc_types=save_dc_types)
 
 
 def load_yaml(
@@ -645,18 +666,45 @@ def dumps_yaml(dc, dump_fn: DumpsFn | None = None, **kwargs) -> str:
     return dumps(dc, dump_fn=partial(dump_fn, **kwargs))
 
 
-def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
+DC_TYPE_KEY = "_type_"
+
+
+def to_dict(
+    dc: DataclassT,
+    dict_factory: type[dict] = dict,
+    recurse: bool = True,
+    save_dc_types: bool = False,
+) -> dict:
     """Serializes this dataclass to a dict.
 
     NOTE: This 'extends' the `asdict()` function from
     the `dataclasses` package, allowing us to not include some fields in the
     dict, or to perform some kind of custom encoding (for instance,
     detaching `Tensor` objects before serializing the dataclass to a dict).
+
+    When `save_dc_types` is True, the type of each dataclass field is saved in the dict of that
+    field at a `DC_TYPE_KEY` entry.
     """
     if not is_dataclass(dc):
         raise ValueError("to_dict should only be called on a dataclass instance.")
 
     d: dict[str, Any] = dict_factory()
+
+    if save_dc_types:
+        class_name = dc.__class__.__qualname__
+        module = type(dc).__module__
+        if "<locals>" in class_name:
+            # Don't save the type of function-scoped dataclasses.
+            warnings.warn(
+                RuntimeWarning(
+                    f"Dataclass type {type(dc)} is defined in a function scope, which might cause "
+                    f"issues when deserializing the containing dataclass. Refusing to save the "
+                    f"type of this dataclass in the serialized dictionary."
+                )
+            )
+        else:
+            d[DC_TYPE_KEY] = module + "." + class_name
+
     for f in fields(dc):
         name = f.name
         value = getattr(dc, name)
@@ -675,10 +723,9 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
         encoding_fn = encode
         # TODO: Make a variant of the serialization tests that use the static functions everywhere.
         if is_dataclass(value) and recurse:
-            try:
-                encoded = to_dict(value, dict_factory=dict_factory, recurse=recurse)
-            except TypeError:
-                encoded = to_dict(value)
+            encoded = to_dict(
+                value, dict_factory=dict_factory, recurse=recurse, save_dc_types=save_dc_types
+            )
             logger.debug(f"Encoded dataclass field {name}: {encoded}")
         else:
             try:
@@ -693,8 +740,8 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
 
 
 def from_dict(
-    cls: type[Dataclass], d: dict[str, Any], drop_extra_fields: bool | None = None
-) -> Dataclass:
+    cls: type[DataclassT], d: dict[str, Any], drop_extra_fields: bool | None = None
+) -> DataclassT:
     """Parses an instance of the dataclass `cls` from the dict `d`.
 
     Args:
@@ -728,6 +775,14 @@ def from_dict(
     init_args: dict[str, Any] = {}
     non_init_args: dict[str, Any] = {}
 
+    if DC_TYPE_KEY in obj_dict:
+        target = obj_dict.pop(DC_TYPE_KEY)
+        # module, dc_type = target.rsplit(".", 1)
+        live_dc_type = _locate(target)
+        # live_module = importlib.import_module(module)
+        # live_dc_type = getattr(live_module, dc_type)
+        return from_dict(live_dc_type, obj_dict, drop_extra_fields=drop_extra_fields)
+
     if drop_extra_fields is None:
         drop_extra_fields = not getattr(cls, "decode_into_subclasses", False)
         logger.debug("drop_extra_fields is None. Using cls attribute.")
@@ -755,7 +810,9 @@ def from_dict(
             continue
 
         raw_value = obj_dict.pop(name)
-        field_value = decode_field(field, raw_value, containing_dataclass=cls)
+        field_value = decode_field(
+            field, raw_value, containing_dataclass=cls, drop_extra_fields=drop_extra_fields
+        )
 
         if field.init:
             init_args[name] = field_value
@@ -770,17 +827,18 @@ def from_dict(
             logger.warning(f"Dropping extra args {extra_args}")
             extra_args.clear()
 
-        elif issubclass(cls, (Serializable, FrozenSerializable, SerializableMixin)):
+        else:
             # Use the first Serializable derived class that has all the required
             # fields.
             logger.debug(f"Missing field names: {extra_args.keys()}")
 
             # Find all the "registered" subclasses of `cls`. (from Serializable)
-            derived_classes: list[type[SerializableMixin]] = []
-            for subclass in cls.subclasses:
-                if issubclass(subclass, cls) and subclass is not cls:
+            derived_classes: list[type[DataclassT]] = []
+
+            for subclass in all_subclasses(cls):
+                if subclass is not cls:
                     derived_classes.append(subclass)
-            logger.debug(f"All serializable derived classes of {cls} available: {derived_classes}")
+            logger.debug(f"All derived classes of {cls} available: {derived_classes}")
 
             # All the arguments that the dataclass should be able to accept in
             # its 'init'.
@@ -837,3 +895,58 @@ def get_first_non_None_type(optional_type: type | tuple[type, ...]) -> type | No
 def is_dataclass_or_optional_dataclass_type(t: type) -> bool:
     """Returns whether `t` is a dataclass type or an Optional[<dataclass type>]."""
     return is_dataclass(t) or (is_optional(t) and is_dataclass(get_args(t)[0]))
+
+
+def _locate(path: str) -> Any:
+    """
+    COPIED FROM Hydra:
+    https://github.com/facebookresearch/hydra/blob/f8940600d0ab5c695961ad83abd042ffe9458caf/hydra/_internal/utils.py#L614
+
+    Locate an object by name or dotted path, importing as necessary.
+    This is similar to the pydoc function `locate`, except that it checks for
+    the module from the given path from back to front.
+    """
+    if path == "":
+        raise ImportError("Empty path")
+
+    parts = [part for part in path.split(".")]
+    for part in parts:
+        if not len(part):
+            raise ValueError(
+                f"Error loading '{path}': invalid dotstring."
+                + "\nRelative imports are not supported."
+            )
+    assert len(parts) > 0
+    part0 = parts[0]
+    try:
+        obj = import_module(part0)
+    except Exception as exc_import:
+        raise ImportError(
+            f"Error loading '{path}':\n{repr(exc_import)}"
+            + f"\nAre you sure that module '{part0}' is installed?"
+        ) from exc_import
+    for m in range(1, len(parts)):
+        part = parts[m]
+        try:
+            obj = getattr(obj, part)
+        except AttributeError as exc_attr:
+            parent_dotpath = ".".join(parts[:m])
+            if isinstance(obj, ModuleType):
+                mod = ".".join(parts[: m + 1])
+                try:
+                    obj = import_module(mod)
+                    continue
+                except ModuleNotFoundError as exc_import:
+                    raise ImportError(
+                        f"Error loading '{path}':\n{repr(exc_import)}"
+                        + f"\nAre you sure that '{part}' is importable from module '{parent_dotpath}'?"
+                    ) from exc_import
+                except Exception as exc_import:
+                    raise ImportError(
+                        f"Error loading '{path}':\n{repr(exc_import)}"
+                    ) from exc_import
+            raise ImportError(
+                f"Error loading '{path}':\n{repr(exc_attr)}"
+                + f"\nAre you sure that '{part}' is an attribute of '{parent_dotpath}'?"
+            ) from exc_attr
+    return obj

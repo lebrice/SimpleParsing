@@ -46,10 +46,7 @@ def frozen(request, monkeypatch):
     # NOTE: Need to unregister all the subclasses of SerializableMixin and FrozenSerializable, so
     # the dataclasses from one test aren't used in another.
     subclasses_before = SerializableMixin.subclasses.copy()
-    from simple_parsing.helpers.serialization.decoding import (
-        _decoding_fns,
-        get_decoding_fn,
-    )
+    from simple_parsing.helpers.serialization.decoding import _decoding_fns
 
     frozen = request.param
     decoding_fns_before = _decoding_fns.copy()
@@ -66,7 +63,7 @@ def frozen(request, monkeypatch):
     _decoding_fns.update(decoding_fns_before)
 
     # Clear the LRU cache of `get_decoding_fn`.
-    get_decoding_fn.cache_clear()
+    # get_decoding_fn.cache_clear()
 
     # SerializableMixin.subclasses = subclasses_before
     # note: clear the `subclasses` of the base classes?
