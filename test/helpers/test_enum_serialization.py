@@ -28,15 +28,6 @@ class Parameters(Serializable):
     p: Optional[Path] = None
 
 
-@pytest.fixture(autouse=True)
-def clear_get_decoding_fn_cache():
-    """Clears the lru_cache of the `get_decoding_fn` function between tests.
-    This avoids any interference between runs."""
-    from simple_parsing.helpers.serialization.decoding import get_decoding_fn
-
-    get_decoding_fn.cache_clear()
-
-
 @pytest.mark.xfail(
     raises=KeyError, match="'jsonl'", strict=True, reason="Enums are saved by name, not by value."
 )

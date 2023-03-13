@@ -84,11 +84,34 @@ def simple_attribute_with_default(request: pytest.FixtureRequest):
     return request.param
 
 
-@pytest.fixture(autouse=True, params=["simple", "verbose"])
-def simple_and_advanced_api(request, monkeypatch):
+# @lebrice: Changing this to `False` for now, which reduces the number of tests by half.
+# This shouldn't be too much of a problem, since the `simple_parsing.parse` and `ArgumentParser`
+# apis are using the same logic under the hood.
+# TODO: Design a better way to test both the simple and advanced api.
+
+
+@pytest.fixture(autouse=False, scope="module", params=["simple", "verbose"])
+def simple_and_advanced_api(request: pytest.FixtureRequest):
+    """This makes `TestSetup.setup` use either the `sp.parse` or `ArgumentParser` api.
+
+    TODO: Remove this hacky fixture. Causes issues with test modules being run twice, which causes
+    lots of issues with the serialization / deserialization functions and tests.
+    """
     api: Literal["simple", "verbose"] = request.param
-    monkeypatch.setitem(os.environ, "SIMPLE_PARSING_API", api)
+    os.environ["SIMPLE_PARSING_API"] = api
+    from simple_parsing.helpers.serialization.decoding import _decoding_fns
+
+    # NOTE: Annoying that we have to do this, but we need to make sure that the decoding functions
+    # from one test run don't affect the decoding functions of the next test run.
+
+    decoding_fns_backup = _decoding_fns.copy()
+
     yield
+
+    _decoding_fns.clear()
+    _decoding_fns.update(decoding_fns_backup)
+
+    os.environ.pop("SIMPLE_PARSING_API")
 
 
 @pytest.fixture

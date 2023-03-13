@@ -14,7 +14,7 @@ from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _
 from collections import defaultdict
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Callable, Sequence, Type, TypeVar, overload
+from typing import Any, Callable, Sequence, Type, overload
 
 from simple_parsing.helpers.subgroups import SubgroupKey
 from simple_parsing.wrappers.dataclass_wrapper import DataclassWrapperType
@@ -971,14 +971,12 @@ class ArgumentParser(argparse.ArgumentParser):
         return leftover_args, constructor_arguments
 
 
-T = TypeVar("T")
-
-
+# TODO: Change the order of arguments to put `args` as the second argument.
 def parse(
-    config_class: type[Dataclass],
+    config_class: type[DataclassT],
     config_path: Path | str | None = None,
     args: str | Sequence[str] | None = None,
-    default: Dataclass | None = None,
+    default: DataclassT | None = None,
     dest: str = "config",
     *,
     prefix: str = "",
@@ -988,7 +986,8 @@ def parse(
     argument_generation_mode=ArgumentGenerationMode.FLAT,
     formatter_class: type[HelpFormatter] = SimpleHelpFormatter,
     add_config_path_arg: bool | None = None,
-) -> Dataclass:
+    **kwargs,
+) -> DataclassT:
     """Parse the given dataclass from the command-line.
 
     See the `ArgumentParser` constructor for more details on the arguments (they are the same here
@@ -1006,6 +1005,7 @@ def parse(
         argument_generation_mode=argument_generation_mode,
         formatter_class=formatter_class,
         add_config_path_arg=add_config_path_arg,
+        **kwargs,
     )
 
     parser.add_arguments(config_class, prefix=prefix, dest=dest, default=default)

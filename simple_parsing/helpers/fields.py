@@ -18,7 +18,7 @@ from simple_parsing.helpers.custom_actions import (
     DEFAULT_NEGATIVE_PREFIX,
     BooleanOptionalAction,
 )
-from simple_parsing.utils import Dataclass, str2bool
+from simple_parsing.utils import DataclassT, str2bool
 
 # NOTE: backward-compatibility import because it was moved to a different file.
 from .subgroups import subgroups  # noqa: F401
@@ -344,7 +344,9 @@ def mutable_field(
 
 
 def subparsers(
-    subcommands: dict[str, type[Dataclass]], default: Dataclass | _MISSING_TYPE = MISSING, **kwargs
+    subcommands: dict[str, type[DataclassT]],
+    default: DataclassT | _MISSING_TYPE = MISSING,
+    **kwargs,
 ) -> Any:
     return field(
         metadata={

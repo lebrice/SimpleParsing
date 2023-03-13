@@ -8,10 +8,11 @@ from collections import OrderedDict
 from collections.abc import Mapping
 from dataclasses import Field
 from enum import Enum
-from functools import lru_cache, partial
+from functools import partial
 from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, TypeVar
+from typing_extensions import Literal
 
 from simple_parsing.annotation_utils.get_field_annotations import (
     evaluate_string_annotation,
@@ -25,6 +26,7 @@ from simple_parsing.utils import (
     is_enum,
     is_forward_ref,
     is_list,
+    is_literal,
     is_set,
     is_tuple,
     is_typevar,
@@ -55,7 +57,12 @@ def decode_bool(v: Any) -> bool:
 _decoding_fns[bool] = decode_bool
 
 
-def decode_field(field: Field, raw_value: Any, containing_dataclass: type | None = None) -> Any:
+def decode_field(
+    field: Field,
+    raw_value: Any,
+    containing_dataclass: type | None = None,
+    drop_extra_fields: bool | None = None,
+) -> Any:
     """Converts a "raw" value (e.g. from json file) to the type of the `field`.
 
     When serializing a dataclass to json, all objects are converted to dicts.
@@ -84,10 +91,17 @@ def decode_field(field: Field, raw_value: Any, containing_dataclass: type | None
     if isinstance(field_type, str) and containing_dataclass:
         field_type = evaluate_string_annotation(field_type, containing_dataclass)
 
-    return get_decoding_fn(field_type)(raw_value)
+    decoding_function = get_decoding_fn(field_type)
+
+    if is_dataclass_type(field_type) and drop_extra_fields is not None:
+        # Pass the drop_extra_fields argument to the decoding function.
+        return decoding_function(raw_value, drop_extra_fields=drop_extra_fields)
+
+    return decoding_function(raw_value)
 
 
-@lru_cache(maxsize=100)
+# NOTE: Disabling the caching here might help avoid some bugs, and it's unclear if this has that
+# much of a performance impact.
 def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
     """Fetches/Creates a decoding function for the given type annotation.
 
@@ -210,6 +224,11 @@ def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
         logger.debug(f"Decoding a typevar: {t}, bound type is {bound}.")
         if bound is not None:
             return get_decoding_fn(bound)
+    
+    if is_literal(t):
+        logger.debug(f"Decoding a Literal field: {t}")
+        possible_vals = get_type_arguments(t)
+        return decode_literal(*possible_vals)
 
     # Unknown type.
     warnings.warn(
@@ -222,15 +241,17 @@ def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
     return try_constructor(t)
 
 
-def _register(t: type, func: Callable) -> None:
-    if t not in _decoding_fns:
+def _register(t: type, func: Callable, overwrite: bool = False) -> None:
+    if t not in _decoding_fns or overwrite:
         # logger.debug(f"Registering the type {t} with decoding function {func}")
         _decoding_fns[t] = func
 
 
-def register_decoding_fn(some_type: type[T], function: Callable[[Any], T]) -> None:
+def register_decoding_fn(
+    some_type: type[T], function: Callable[[Any], T], overwrite: bool = False
+) -> None:
     """Register a decoding function for the type `some_type`."""
-    _register(some_type, function)
+    _register(some_type, function, overwrite=overwrite)
 
 
 def decode_optional(t: type[T]) -> Callable[[Any | None], T | None]:
@@ -380,6 +401,26 @@ def decode_enum(item_type: type[Enum]) -> Callable[[str], Enum]:
         return item_type[val]
 
     return _decode_enum
+
+
+def decode_literal(*possible_vals: Any) -> Callable[[Any], Any]:
+    """Creates a decoding function for a Literal type.
+
+    Args:
+        *possible_vals (Any): The permissible values for the Literal type.
+
+    Returns:
+        Callable[[Any], Any]: A function that checks if a given value is one of the
+            permissible values for the Literal. If not, raises a TypeError.
+    """
+
+    def _decode_literal(val: Any) -> Any:
+        if val not in possible_vals:
+            raise TypeError(f"Expected one of {possible_vals} for Literal, got {val}")
+
+        return val
+
+    return _decode_literal
 
 
 def no_op(v: T) -> T:

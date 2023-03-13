@@ -1,4 +1,4 @@
-# Regression file for [this test](test/test_subgroups.py:724)
+# Regression file for [this test](test/test_subgroups.py:725)
 
 Given Source code:
 
@@ -9,7 +9,7 @@ class ConfigWithFrozen(TestSetup):
 
 ```
 
-and command: '--conf=odd --a 123 --help'
+and command: '--conf=odd --help'
 
 We expect to get:
 
