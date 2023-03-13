@@ -988,6 +988,7 @@ def parse(
     argument_generation_mode=ArgumentGenerationMode.FLAT,
     formatter_class: type[HelpFormatter] = SimpleHelpFormatter,
     add_config_path_arg: bool | None = None,
+    **kwargs,
 ) -> Dataclass:
     """Parse the given dataclass from the command-line.
 
@@ -1006,6 +1007,7 @@ def parse(
         argument_generation_mode=argument_generation_mode,
         formatter_class=formatter_class,
         add_config_path_arg=add_config_path_arg,
+        **kwargs,
     )
 
     parser.add_arguments(config_class, prefix=prefix, dest=dest, default=default)
