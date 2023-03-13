@@ -1,6 +1,7 @@
 import functools
 from dataclasses import dataclass, fields, is_dataclass
 
+import simple_parsing as sp
 from simple_parsing import ArgumentParser
 from simple_parsing.helpers.partial import Partial
 
@@ -90,3 +91,25 @@ def test_getattr():
     some_fn_partial = bob.some_fn
     assert some_fn_partial.v1 == 1
     assert some_fn_partial.v2 == 2
+
+
+def test_works_with_frozen_instances_as_default():
+    @dataclass(frozen=True, kw_only=True)
+    class A:
+        x: int
+        y: bool = True
+
+    AConfig = sp.config_for(A, ignore_args="x")
+
+    @dataclass(frozen=True, kw_only=True)
+    class ParentConfig:
+        a: Partial[A] = sp.subgroups(
+            {
+                "a1": AConfig(y=False),
+                "a2": AConfig(y=True),
+            },
+            default="a1",
+        )
+
+    b = sp.parse(ParentConfig, args="")
+    assert b.a(x=1) == A(x=1, y=False)

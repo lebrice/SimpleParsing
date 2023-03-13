@@ -59,9 +59,7 @@ _P = ParamSpec("_P")
 _OutT = TypeVar("_OutT")
 
 
-def _cache_when_possible(
-    fn: Callable[_P, _OutT]
-) -> Callable[_P, _OutT] | functools._lru_cache_wrapper[_OutT]:
+def _cache_when_possible(fn: Callable[_P, _OutT]) -> Callable[_P, _OutT]:
     """Makes `fn` behave like `functools.cache(fn)` when args are all hashable, else no change."""
     cached_fn = lru_cache(maxsize=None)(fn)
 
