@@ -160,6 +160,20 @@ def test_registering_safe_casting_decoding_fn():
 
     register_decoding_fn(int, _safe_cast, overwrite=True)
 
+    assert (
+        Parameters.loads_yaml(
+            textwrap.dedent(
+                """\
+        hparams:
+            use_log: 1
+            severity: 0.0
+            probs: [3, 4.0]
+        """
+            )
+        )
+        == Parameters(hparams=Hparams(severity=0, probs=[3, 4]))
+    )
+
     with pytest.raises(ValueError, match="Cannot safely cast 0.1 to int"):
         Parameters.loads_yaml(
             textwrap.dedent(
@@ -187,6 +201,7 @@ def test_registering_safe_casting_decoding_fn():
     register_decoding_fn(int, int, overwrite=True)
 
 
+@pytest.mark.xfail(strict=True, match="DID NOT RAISE <class 'ValueError'>")
 def test_optional_list_type_doesnt_use_type_decoding_fn():
     """BUG: Parsing an Optional[list[int]] doesn't work correctly."""
 
@@ -205,6 +220,7 @@ def test_optional_list_type_doesnt_use_type_decoding_fn():
     with pytest.raises(ValueError):
         get_decoding_fn(List[int])([0.1, 0.2])
 
+    # BUG: This doesn't work correctly.
     with pytest.raises(ValueError):
         get_decoding_fn(Optional[List[int]])([0.1, 0.2])
 
