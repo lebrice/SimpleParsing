@@ -222,15 +222,17 @@ def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
     return try_constructor(t)
 
 
-def _register(t: type, func: Callable) -> None:
-    if t not in _decoding_fns:
+def _register(t: type, func: Callable, overwrite: bool = False) -> None:
+    if t not in _decoding_fns or overwrite:
         # logger.debug(f"Registering the type {t} with decoding function {func}")
         _decoding_fns[t] = func
 
 
-def register_decoding_fn(some_type: type[T], function: Callable[[Any], T]) -> None:
+def register_decoding_fn(
+    some_type: type[T], function: Callable[[Any], T], overwrite: bool = False
+) -> None:
     """Register a decoding function for the type `some_type`."""
-    _register(some_type, function)
+    _register(some_type, function, overwrite=overwrite)
 
 
 def decode_optional(t: type[T]) -> Callable[[Any | None], T | None]:
