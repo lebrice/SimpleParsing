@@ -135,6 +135,7 @@ class TestSetup:
         *,
         argument_generation_mode: ArgumentGenerationMode = ArgumentGenerationMode.FLAT,
         nested_mode: NestedMode = NestedMode.DEFAULT,
+        **kwargs,
     ) -> Dataclass:
         """Basic setup for a test.
 
@@ -167,15 +168,17 @@ class TestSetup:
                 instance, unknown_args = simple_parsing.parse_known_args(
                     **common_kwargs,
                     attempt_to_reorder=attempt_to_reorder,
+                    **kwargs,
                 )
             else:
-                instance = simple_parsing.parse(**common_kwargs)
+                instance = simple_parsing.parse(**common_kwargs, **kwargs)
         else:
             parser = simple_parsing.ArgumentParser(
                 conflict_resolution=conflict_resolution_mode,
                 add_option_string_dash_variants=add_option_string_dash_variants,
                 argument_generation_mode=argument_generation_mode,
                 nested_mode=nested_mode,
+                **kwargs,
             )
             if dest is None:
                 dest = camel_case(cls.__name__)

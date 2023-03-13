@@ -1,0 +1,1 @@
+{"_type_": "test_encoding.Container", "item": {"_type_": "test_encoding.BB", "a": 123, "b": "hey", "extra_field": 111, "other_field": 222}}

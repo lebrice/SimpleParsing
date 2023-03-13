@@ -8,7 +8,7 @@ from collections import OrderedDict
 from collections.abc import Mapping
 from dataclasses import Field
 from enum import Enum
-from functools import lru_cache, partial
+from functools import partial
 from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, TypeVar
@@ -55,7 +55,12 @@ def decode_bool(v: Any) -> bool:
 _decoding_fns[bool] = decode_bool
 
 
-def decode_field(field: Field, raw_value: Any, containing_dataclass: type | None = None) -> Any:
+def decode_field(
+    field: Field,
+    raw_value: Any,
+    containing_dataclass: type | None = None,
+    drop_extra_fields: bool | None = None,
+) -> Any:
     """Converts a "raw" value (e.g. from json file) to the type of the `field`.
 
     When serializing a dataclass to json, all objects are converted to dicts.
@@ -84,10 +89,17 @@ def decode_field(field: Field, raw_value: Any, containing_dataclass: type | None
     if isinstance(field_type, str) and containing_dataclass:
         field_type = evaluate_string_annotation(field_type, containing_dataclass)
 
-    return get_decoding_fn(field_type)(raw_value)
+    decoding_function = get_decoding_fn(field_type)
+
+    if is_dataclass_type(field_type) and drop_extra_fields is not None:
+        # Pass the drop_extra_fields argument to the decoding function.
+        return decoding_function(raw_value, drop_extra_fields=drop_extra_fields)
+
+    return decoding_function(raw_value)
 
 
-@lru_cache(maxsize=100)
+# NOTE: Disabling the caching here might help avoid some bugs, and it's unclear if this has that
+# much of a performance impact.
 def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
     """Fetches/Creates a decoding function for the given type annotation.
 

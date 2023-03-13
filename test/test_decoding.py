@@ -125,7 +125,7 @@ class Parameters(Serializable):
 
 def test_implicit_int_casting(tmp_path: Path):
     """Test for 'issue' #227: https://github.com/lebrice/SimpleParsing/issues/227"""
-
+    assert get_decoding_fn(int) is int
     with open(tmp_path / "conf.yaml", "w") as f:
         f.write(
             textwrap.dedent(
@@ -147,10 +147,6 @@ def test_registering_safe_casting_decoding_fn():
 
     # Solution: register a decoding function for `int` that casts to int, but raises an error if
     # the value would lose precision.
-
-    # Do this so the parsing function for `List[int]` is rebuilt to use the new parsing function
-    # for `int`.
-    get_decoding_fn.cache_clear()
 
     def _safe_cast(v: Any) -> int:
         int_v = int(v)
@@ -204,10 +200,6 @@ def test_registering_safe_casting_decoding_fn():
 @pytest.mark.xfail(strict=True, match="DID NOT RAISE <class 'ValueError'>")
 def test_optional_list_type_doesnt_use_type_decoding_fn():
     """BUG: Parsing an Optional[list[int]] doesn't work correctly."""
-
-    # Do this so the parsing function for `List[int]` is rebuilt to use the new parsing function
-    # for `int`.
-    get_decoding_fn.cache_clear()
 
     def _safe_cast(v: Any) -> int:
         int_v = int(v)
