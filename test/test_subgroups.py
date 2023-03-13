@@ -14,7 +14,8 @@ import pytest
 from pytest_regressions.file_regression import FileRegressionFixture
 from typing_extensions import Annotated
 
-from simple_parsing import ArgumentParser, subgroups
+from simple_parsing import ArgumentParser, parse, subgroups
+from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
 from .test_choice import Color
 from .testutils import TestSetup, raises_invalid_choice, raises_missing_required_arg
@@ -794,3 +795,139 @@ We expect to get:
 #     assert Config.setup("--model small").model == SmallModel()
 #     assert Config.setup("--model big").model == BigModel()
 #     assert Config.setup("--num_layers 123").model == Model(num_layers=123, hidden_dim=32)
+
+
+@pytest.mark.parametrize("frozen", [True, False])
+def test_nested_subgroups(frozen: bool):
+    """Assert that #160 is fixed: https://github.com/lebrice/SimpleParsing/issues/160"""
+
+    @dataclass(frozen=frozen)
+    class FooConfig:
+        ...
+
+    @dataclass(frozen=frozen)
+    class BarConfig:
+        foo: FooConfig
+
+    @dataclass(frozen=frozen)
+    class FooAConfig(FooConfig):
+        foo_param_a: float = 0.0
+
+    @dataclass(frozen=frozen)
+    class FooBConfig(FooConfig):
+        foo_param_b: str = "foo_b"
+
+    @dataclass(frozen=frozen)
+    class Bar1Config(BarConfig):
+        foo: FooConfig = subgroups(
+            {"foo_a": FooAConfig, "foo_b": FooBConfig},
+            default_factory=FooAConfig,
+        )
+
+    @dataclass(frozen=frozen)
+    class Bar2Config(BarConfig):
+        foo: FooConfig = subgroups(
+            {"foo_a": FooAConfig, "foo_b": FooBConfig},
+            default_factory=FooBConfig,
+        )
+
+    @dataclass(frozen=frozen)
+    class Config(TestSetup):
+        bar: Bar1Config | Bar2Config = subgroups(
+            {"bar_1": Bar1Config, "bar_2": Bar2Config},
+            default_factory=Bar2Config,
+        )
+
+    assert Config.setup("") == Config(bar=Bar2Config(foo=FooBConfig()))
+    assert Config.setup("--bar=bar_1 --foo=foo_a") == Config(bar=Bar1Config(foo=FooAConfig()))
+
+
+@dataclass
+class ModelConfig:
+    ...
+
+
+@dataclass
+class DatasetConfig:
+    ...
+
+
+@dataclass
+class ModelAConfig(ModelConfig):
+    lr: float = 3e-4
+    optimizer: str = "Adam"
+    betas: tuple[float, float] = (0.9, 0.999)
+
+
+@dataclass
+class ModelBConfig(ModelConfig):
+    lr: float = 1e-3
+    optimizer: str = "SGD"
+    momentum: float = 1.234
+
+
+@dataclass
+class Dataset1Config(DatasetConfig):
+    data_dir: str | Path = "data/foo"
+    foo: bool = False
+
+
+@dataclass
+class Dataset2Config(DatasetConfig):
+    data_dir: str | Path = "data/bar"
+    bar: float = 1.2
+
+
+@dataclass
+class Config(TestSetup):
+
+    # Which model to use
+    model: ModelConfig = subgroups(
+        {"model_a": ModelAConfig, "model_b": ModelBConfig},
+        default_factory=ModelAConfig,
+    )
+
+    # Which dataset to use
+    dataset: DatasetConfig = subgroups(
+        {"dataset_1": Dataset1Config, "dataset_2": Dataset2Config},
+        default_factory=Dataset2Config,
+    )
+
+
+def _parse_config(args: str) -> Config:
+    return parse(
+        Config,
+        args=args,
+        argument_generation_mode=ArgumentGenerationMode.NESTED,
+        nested_mode=NestedMode.WITHOUT_ROOT,
+    )
+
+
+def test_ordering_of_args_doesnt_matter():
+    """Test to confirm that #160 is fixed:"""
+
+    # $ python issue.py --model model_a --model.lr 1e-2
+    assert _parse_config(args="--model model_a --model.lr 1e-2") == Config(
+        model=ModelAConfig(lr=0.01, optimizer="Adam", betas=(0.9, 0.999)),
+        dataset=Dataset2Config(data_dir="data/bar", bar=1.2),
+    )
+
+    # I was expecting this to work given that both model configs have `lr` attribute
+    # $ python issue.py --model.lr 1e-2.
+    assert _parse_config(args="--model.lr 1e-2") == Config(
+        model=ModelAConfig(lr=1e-2, optimizer="Adam", betas=(0.9, 0.999)),
+        dataset=Dataset2Config(data_dir="data/bar", bar=1.2),
+    )
+
+    # $ python issue.py --model model_a --model.betas 0. 1.
+    assert _parse_config(args="--model model_a --model.betas 0. 1.") == Config(
+        model=ModelAConfig(lr=0.0003, optimizer="Adam", betas=(0.0, 1.0)),
+        dataset=Dataset2Config(data_dir="data/bar", bar=1.2),
+    )
+
+    # % ModelA being the default, I was expecting this two work
+    # $ python issue.py --model.betas 0. 1.
+    assert _parse_config(args="--model.betas 0. 1.") == Config(
+        model=ModelAConfig(lr=0.0003, optimizer="Adam", betas=(0.0, 1.0)),
+        dataset=Dataset2Config(data_dir="data/bar", bar=1.2),
+    )
