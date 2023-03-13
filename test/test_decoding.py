@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple, Type
 
 import pytest
 
-from simple_parsing.helpers import Serializable, dict_field, list_field
+from simple_parsing.helpers import Serializable, dict_field, list_field, subgroups
 from simple_parsing.helpers.serialization.decoding import get_decoding_fn
 
 
@@ -76,6 +76,32 @@ def test_typevar_decoding(simple_attribute):
     #     "hey4": expected_value,
     # })
     assert SomeClass.loads(b.dumps()) == b
+
+
+def test_subgroups():
+    @dataclass
+    class InnerABC(Serializable):
+        x: list = list_field()
+
+    @dataclass
+    class Inner1(InnerABC):
+        y2: list = list_field()
+    
+    @dataclass
+    class Inner2(InnerABC):
+        y2: list = list_field()
+
+    @dataclass
+    class Outer(Serializable):
+        inner: InnerABC = subgroups(
+            {"inner1": Inner1, "inner2": Inner2},
+            default="inner1"
+        )
+
+    outer1 = Outer(inner=Inner1(x=[1, 2, 3], y2=[4, 5, 6]))
+    outer2 = Outer(inner=Inner2(x=[1, 2, 3], y2=[4, 5, 6]))
+    assert Outer.loads(outer1.dumps()) == outer1
+    assert Outer.loads(outer2.dumps()) == outer2
 
 
 def test_super_nesting():
