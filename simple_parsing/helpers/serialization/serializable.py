@@ -680,6 +680,22 @@ def to_dict(dc, dict_factory: type[dict] = dict, recurse: bool = True) -> dict:
             except TypeError:
                 encoded = to_dict(value)
             logger.debug(f"Encoded dataclass field {name}: {encoded}")
+
+            # If the field is a subgroup, we need to figure out which subgroup it is,
+            # and save that string in the dict.
+            subgroup_info = f.metadata.get("subgroups")
+            if subgroup_info:
+                # Invert the subgroup_info dict to get a mapping from subgroup type to subgroup name.
+                subgroup_type_to_name = {v: k for k, v in subgroup_info.items()}
+                subgroup_type = type(value)
+                if subgroup_type not in subgroup_type_to_name:
+                    raise ValueError(
+                        f"Subgroup type {subgroup_type} not found in subgroup_info dict: {subgroup_info}"
+                    )
+
+                # Save the subgroup name in the dict.
+                subgroup_name = subgroup_type_to_name[subgroup_type]
+                encoded["__subgroup__"] = subgroup_name
         else:
             try:
                 encoded = encoding_fn(value)

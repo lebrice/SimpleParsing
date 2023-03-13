@@ -74,6 +74,13 @@ def decode_field(field: Field, raw_value: Any, containing_dataclass: type | None
     """
     name = field.name
     field_type = field.type
+    
+    subgroup_info = field.metadata.get("subgroups")
+    if subgroup_info is not None:
+        subgroup = raw_value.pop("__subgroup__", None)
+        if subgroup:
+            field_type = subgroup_info[subgroup]
+
     logger.debug(f"name = {name}, field_type = {field_type}")
 
     # If the user set a custom decoding function, we use it.
