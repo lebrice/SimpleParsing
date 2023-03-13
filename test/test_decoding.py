@@ -85,7 +85,7 @@ def test_subgroups():
 
     @dataclass
     class Inner1(InnerABC):
-        y2: list = list_field()
+        y1: list = list_field()
     
     @dataclass
     class Inner2(InnerABC):
@@ -98,10 +98,14 @@ def test_subgroups():
             default="inner1"
         )
 
-    outer1 = Outer(inner=Inner1(x=[1, 2, 3], y2=[4, 5, 6]))
+    outer1 = Outer(inner=Inner1(x=[1, 2, 3], y1=[4, 5, 6]))
     outer2 = Outer(inner=Inner2(x=[1, 2, 3], y2=[4, 5, 6]))
     assert Outer.loads(outer1.dumps()) == outer1
     assert Outer.loads(outer2.dumps()) == outer2
+
+    # Should be using the __subgroup__ field to encode the type of the inner class
+    assert "__subgroup__" in outer1.dumps()
+    assert "__subgroup__" in outer2.dumps()
 
 
 def test_super_nesting():
