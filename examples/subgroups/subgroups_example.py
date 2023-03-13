@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from simple_parsing import ArgumentParser, subgroups
+from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
 
 @dataclass
@@ -48,17 +49,19 @@ class Config:
     # Which model to use
     model: ModelConfig = subgroups(
         {"model_a": ModelAConfig, "model_b": ModelBConfig},
-        default=ModelAConfig(),
+        default_factory=ModelAConfig,
     )
 
     # Which dataset to use
     dataset: DatasetConfig = subgroups(
         {"dataset_1": Dataset1Config, "dataset_2": Dataset2Config},
-        default=Dataset2Config(),
+        default_factory=Dataset2Config,
     )
 
 
-parser = ArgumentParser()
+parser = ArgumentParser(
+    argument_generation_mode=ArgumentGenerationMode.NESTED, nested_mode=NestedMode.WITHOUT_ROOT
+)
 parser.add_arguments(Config, dest="config")
 args = parser.parse_args()
 
