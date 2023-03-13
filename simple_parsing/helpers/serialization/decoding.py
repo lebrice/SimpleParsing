@@ -11,7 +11,8 @@ from enum import Enum
 from functools import lru_cache, partial
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Callable, Literal, TypeVar
+from typing import Any, Callable, TypeVar
+from typing_extensions import Literal
 
 from simple_parsing.annotation_utils.get_field_annotations import (
     evaluate_string_annotation,
