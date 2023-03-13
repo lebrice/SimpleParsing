@@ -51,6 +51,7 @@ def adjust_default(default: Any) -> Any:
     @adjust_default.register(_RequiredParameter)
     def _(default: Any) -> Any:
         return dataclasses.MISSING
+    ```
     """
     return default
 
