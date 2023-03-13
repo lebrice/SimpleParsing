@@ -794,3 +794,48 @@ We expect to get:
 #     assert Config.setup("--model small").model == SmallModel()
 #     assert Config.setup("--model big").model == BigModel()
 #     assert Config.setup("--num_layers 123").model == Model(num_layers=123, hidden_dim=32)
+
+
+@pytest.mark.parametrize("frozen", [True, False])
+def test_nested_subgroups(frozen: bool):
+    """Assert that #160 is fixed: https://github.com/lebrice/SimpleParsing/issues/160"""
+
+    @dataclass(frozen=frozen)
+    class FooConfig:
+        ...
+
+    @dataclass(frozen=frozen)
+    class BarConfig:
+        foo: FooConfig
+
+    @dataclass(frozen=frozen)
+    class FooAConfig(FooConfig):
+        foo_param_a: float = 0.0
+
+    @dataclass(frozen=frozen)
+    class FooBConfig(FooConfig):
+        foo_param_b: str = "foo_b"
+
+    @dataclass(frozen=frozen)
+    class Bar1Config(BarConfig):
+        foo: FooConfig = subgroups(
+            {"foo_a": FooAConfig, "foo_b": FooBConfig},
+            default_factory=FooAConfig,
+        )
+
+    @dataclass(frozen=frozen)
+    class Bar2Config(BarConfig):
+        foo: FooConfig = subgroups(
+            {"foo_a": FooAConfig, "foo_b": FooBConfig},
+            default_factory=FooBConfig,
+        )
+
+    @dataclass(frozen=frozen)
+    class Config(TestSetup):
+        bar: Bar1Config | Bar2Config = subgroups(
+            {"bar_1": Bar1Config, "bar_2": Bar2Config},
+            default_factory=Bar2Config,
+        )
+
+    assert Config.setup("") == Config(bar=Bar2Config(foo=FooBConfig()))
+    assert Config.setup("--bar=bar_1 --foo=foo_a") == Config(bar=Bar1Config(foo=FooAConfig()))
