@@ -4,8 +4,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from test.testutils import Generic, TypeVar
 from typing import Any, Dict, List, Optional, Tuple, Type
+from typing_extensions import Literal
 
 import pytest
+import warnings
 
 from simple_parsing.helpers import Serializable, dict_field, list_field
 from simple_parsing.helpers.serialization.decoding import (
@@ -36,6 +38,22 @@ def test_encode_something(simple_attribute):
     #     "hey4": expected_value,
     # })
     assert SomeClass.loads(b.dumps()) == b
+
+
+def test_literal_decoding():
+    @dataclass
+    class SomeClass(Serializable):
+        x: Literal["a", "b", "c"] = "a"
+
+    # This test should fail if there's a warning on decoding- previous versions
+    # have raised a UserWarning when decoding a literal, of the form:
+    # Unable to find a decoding function for annotation typing.Literal['a', 'b', 'c']
+    # with pytest.warns(UserWarning, match="Unable to find a decoding function"):
+    #     assert SomeClass.loads('{"x": "a"}') == SomeClass()
+
+    # Make sure that we can't decode a value that's not in the literal
+    with pytest.raises(TypeError):
+        SomeClass.loads('{"x": "d"}')
 
 
 def test_typevar_decoding(simple_attribute):
