@@ -222,18 +222,6 @@ def _parse_args_from_docstring(docstring: str) -> dict[str, str]:
     return parsed
 
 
-try:
-    # This only seems to be necessary for the SGD optimizer.
-    from torch.optim.optimizer import _RequiredParameter
-
-    @adjust_default.register(_RequiredParameter)
-    def _(default: Any) -> Any:
-        return dataclasses.MISSING
-
-except ImportError:
-    pass
-
-
 def _get_generated_config_class_name(target: type | Callable) -> str:
     if inspect.isclass(target):
         return target.__name__ + "Config"
@@ -286,7 +274,6 @@ class Partial(functools.partial, Generic[_T], metaclass=_Partial):
         return super().__new__(cls, _func, *args, **kwargs)
 
     def __call__(self: Callable[_P, _T], *args: _P.args, **kwargs: _P.kwargs) -> _T:
-        # BUG: This serializes the nested attributes to dict, but we don't want that.
         constructor_kwargs = {
             field.name: getattr(self, field.name) for field in dataclasses.fields(self)
         }
