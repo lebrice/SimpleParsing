@@ -100,15 +100,17 @@ def test_works_with_frozen_instances_as_default():
         y: bool = True
 
     AConfig = sp.config_for(A, ignore_args="x")
+    a1_config = AConfig(y=False)
+    a2_config = AConfig(y=True)
 
     @dataclass(frozen=True)
     class ParentConfig:
         a: Partial[A] = sp.subgroups(
             {
-                "a1": AConfig(y=False),
-                "a2": AConfig(y=True),
+                "a1": a1_config,
+                "a2": a2_config,
             },
-            default="a1",
+            default=a2_config,
         )
 
     b = sp.parse(ParentConfig, args="")
