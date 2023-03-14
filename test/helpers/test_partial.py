@@ -1,4 +1,5 @@
 import functools
+from collections.abc import Hashable
 from dataclasses import dataclass, fields, is_dataclass
 
 import simple_parsing as sp
@@ -94,14 +95,18 @@ def test_getattr():
 
 
 def test_works_with_frozen_instances_as_default():
-    @dataclass(frozen=True)
+    @dataclass
     class A:
         x: int
         y: bool = True
 
-    AConfig = sp.config_for(A, ignore_args="x")
+    AConfig = sp.config_for(A, ignore_args="x", frozen=True)
+
     a1_config = AConfig(y=False)
     a2_config = AConfig(y=True)
+
+    assert isinstance(a1_config, functools.partial)
+    assert isinstance(a1_config, Hashable)
 
     @dataclass(frozen=True)
     class ParentConfig:
@@ -113,5 +118,5 @@ def test_works_with_frozen_instances_as_default():
             default=a2_config,
         )
 
-    b = sp.parse(ParentConfig, args="")
-    assert b.a(x=1) == A(x=1, y=False)
+    b = sp.parse(ParentConfig, args="--a a2")
+    assert b.a(x=1) == A(x=1, y=a2_config.y)

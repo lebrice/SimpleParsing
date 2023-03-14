@@ -83,6 +83,7 @@ def _cache_when_possible(fn: Callable[_P, _OutT]) -> Callable[_P, _OutT]:
 def config_for(
     cls: type[_T] | Callable[_P, _T],
     ignore_args: str | Sequence[str] = (),
+    frozen: bool = True,
     **defaults,
 ) -> type[Partial[_T]]:
     """Create a dataclass that contains the arguments for the constructor of `cls`.
@@ -193,7 +194,7 @@ def config_for(
             logger.debug(f"Adding optional field: {fields[-1]}")
 
     cls_name = _get_generated_config_class_name(cls)
-    config_class = make_dataclass(cls_name=cls_name, bases=(Partial,), fields=fields)
+    config_class = make_dataclass(cls_name=cls_name, bases=(Partial,), fields=fields, frozen=frozen)
     config_class._target_ = cls
     config_class.__doc__ = (
         f"Auto-Generated configuration dataclass for {cls.__module__}.{cls.__qualname__}\n"
