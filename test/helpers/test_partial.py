@@ -94,14 +94,14 @@ def test_getattr():
 
 
 def test_works_with_frozen_instances_as_default():
-    @dataclass(frozen=True, kw_only=True)
+    @dataclass(frozen=True)
     class A:
         x: int
         y: bool = True
 
     AConfig = sp.config_for(A, ignore_args="x")
 
-    @dataclass(frozen=True, kw_only=True)
+    @dataclass(frozen=True)
     class ParentConfig:
         a: Partial[A] = sp.subgroups(
             {
