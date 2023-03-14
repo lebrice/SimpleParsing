@@ -1,5 +1,5 @@
-_type_: test_encoding.Container
+_type_: test.helpers.test_encoding.Container
 item:
-  _type_: test_encoding.B
+  _type_: test.helpers.test_encoding.B
   a: 123
   b: hey
