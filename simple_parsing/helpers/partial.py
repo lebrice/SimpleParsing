@@ -89,9 +89,46 @@ def config_for(
 
     Example:
 
-    ```python
-    AdamConfig = create_config_dataclass_for_type(torch.optim.Adam)
-    ```
+    >>> import dataclasses
+    >>> import simple_parsing as sp
+    >>> class Adam:  # i.e. `torch.optim.Adam`, which we don't have installed in this example.
+    ...     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999)):
+    ...         self.params = params
+    ...         self.lr = lr
+    ...         self.betas = betas
+    ...     def __repr__(self) -> str:
+    ...         return f"Adam(params={self.params}, lr={self.lr}, betas={self.betas})"
+    ...
+    >>> AdamConfig = sp.config_for(Adam, ignore_args="params")
+    >>> parser = sp.ArgumentParser()
+    >>> _ = parser.add_arguments(AdamConfig, dest="optimizer")
+
+
+    >>> args = parser.parse_args(["--lr", "0.1", "--betas", "0.1", "0.2"])
+    >>> args.optimizer
+    AdamConfig(lr=0.1, betas=(0.1, 0.2))
+
+    The return dataclass is a subclass of `functools.partial` that returns the `Adam` object:
+
+    >>> isinstance(args.optimizer, functools.partial)
+    True
+    >>> dataclasses.is_dataclass(args.optimizer)
+    True
+    >>> args.optimizer(params=[1, 2, 3])
+    Adam(params=[1, 2, 3], lr=0.1, betas=(0.1, 0.2))
+
+    >>> parser.print_help()
+    usage: pytest [-h] [--lr float] [--betas float float]
+    <BLANKLINE>
+    options:
+      -h, --help           show this help message and exit
+    <BLANKLINE>
+    AdamConfig ['optimizer']:
+      Auto-Generated configuration dataclass for simple_parsing.helpers.partial.Adam
+    <BLANKLINE>
+      --lr float
+      --betas float float
+
 
     """
     if isinstance(ignore_args, str):
@@ -123,23 +160,13 @@ def config_for(
             logger.debug(f"Ignoring argument {name}")
             continue
 
-        # if parser and any(action.dest == name for action in parser._actions):
-        #     # There's already an argument with this name, e.g. `lr`.
-        #     continue
-
         if parameter.annotation is not inspect.Parameter.empty:
             field_type = parameter.annotation
         elif name in class_annotations:
             field_type = class_annotations[name]
         elif default is not dataclasses.MISSING:
             # Infer the type from the default value.
-            # try:
-            # # BUG: There is a default of '<required parameter>'.
-            # if str(default) == "<required parameter>":
-            #     breakpoint()
             field_type = infer_type_annotation_from_default(default)
-            # except:
-            #     field_type = Any
         else:
             logger.warning(
                 f"Don't know what the type of field '{name}' of class {cls} is! "
