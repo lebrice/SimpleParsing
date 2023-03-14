@@ -24,7 +24,7 @@ from typing_extensions import ParamSpec, TypeVar
 
 import simple_parsing
 
-__all__ = ["Partial", "config_for", "infer_type_annotation_from_default"]
+__all__ = ["Partial", "adjust_default", "config_for", "infer_type_annotation_from_default"]
 
 C = TypeVar("C", bound=Callable)
 _P = ParamSpec("_P")
