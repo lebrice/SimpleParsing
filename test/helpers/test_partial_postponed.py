@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import pickle
 from dataclasses import dataclass, is_dataclass
+from test.testutils import TestSetup
 
 from simple_parsing import ArgumentParser
 from simple_parsing.helpers.partial import Partial
-
-from .testutils import TestSetup
 
 
 @dataclass
