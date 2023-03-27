@@ -129,22 +129,6 @@ def unflatten_selection_dict(
     return unflatten_split(dc)
 
 
-@overload
-def replace_subgroups(
-    obj: DataclassT,
-    changes_dict: dict[str, Any],
-    selections: dict[str, Key | DataclassT] | None = None,
-) -> DataclassT:
-    ...
-
-
-@overload
-def replace_subgroups(
-    obj: DataclassT, selections: dict[str, Key | DataclassT] | None = None, **changes
-) -> DataclassT:
-    ...
-
-
 def replace_subgroups(
     obj: DataclassT, selections: dict[str, Key | DataclassT] | None = None
 ):
