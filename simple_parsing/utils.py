@@ -939,29 +939,6 @@ def unflatten_split(
     return unflatten({tuple(key.split(sep)): value for key, value in flattened.items()})
 
 
-def unflatten_keyword(
-    flattened: Mapping[str, V], keyword: str = "__key__", sep="."
-) -> PossiblyNestedDict[str, V]:
-    """
-    This function convert flattened dict into additional layer of nested dict
-    and it adds the `keyword` as the key to the unpaired value.
-
-    >>> unflatten_keyword({'ab_or_cd': 'cd', 'ab_or_cd.c_or_d': 'd'})
-    {'ab_or_cd': {'__key__': 'cd', 'c_or_d': 'd'}}
-
-    >>> unflatten_keyword({"a": 1, "b": 2})
-    {'a': {'__key__': 1}, 'b': {'__key__': 2}}
-    """
-    dc = {}
-    for k, v in flattened.items():
-        if keyword != k and sep not in k:
-            dc[k + sep + keyword] = v
-        else:
-            dc[k] = v
-
-    return unflatten_split(dc)
-
-
 @overload
 def getitem_recursive(d: PossiblyNestedDict[K, V], keys: Iterable[K]) -> V:
     ...
