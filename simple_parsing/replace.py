@@ -1,25 +1,24 @@
 from __future__ import annotations
 
-import dataclasses
-from typing import Any, overload, Mapping
 import copy
+import dataclasses
+from typing import Any, Mapping, overload
 
 from simple_parsing.annotation_utils.get_field_annotations import (
     get_field_type_from_annotations,
 )
 from simple_parsing.helpers.subgroups import Key
-from simple_parsing.utils import DataclassT, is_dataclass_instance, unflatten_split
 from simple_parsing.utils import (
     DataclassT,
+    PossiblyNestedDict,
+    V,
     contains_dataclass_type_arg,
     is_dataclass_instance,
     is_dataclass_type,
     is_optional,
-    is_union,
-    PossiblyNestedDict,
-    V,
-    unflatten_split
+    unflatten_split,
 )
+
 
 @overload
 def replace(obj: DataclassT, changes_dict: dict[str, Any]) -> DataclassT:
@@ -129,9 +128,7 @@ def unflatten_selection_dict(
     return unflatten_split(dc)
 
 
-def replace_subgroups(
-    obj: DataclassT, selections: dict[str, Key | DataclassT] | None = None
-):
+def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] | None = None):
     """
     This function replaces the dataclass of subgroups, union, and optional union.
     The `selections` dict can be in flat format or in nested format.
@@ -152,7 +149,7 @@ def replace_subgroups(
 
         field_value = getattr(obj, field.name)
         t = get_field_type_from_annotations(obj.__class__, field.name)
-        
+
         new_value = None
         # Replace subgroup is allowed when the type annotation contains dataclass
         if contains_dataclass_type_arg(t):
@@ -178,7 +175,7 @@ def replace_subgroups(
                 new_value = field_value
         else:
             raise ValueError(f"The replaced subgroups contains no dataclass in its annotation {t}")
-            
+
         if not field.init:
             raise ValueError(f"Cannot replace value of non-init field {field.name}.")
 
