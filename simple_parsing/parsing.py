@@ -5,22 +5,31 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import functools
 import itertools
 import shlex
 import sys
+import typing
 from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _
 from collections import defaultdict
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Callable, Sequence, TypeVar, overload
+from typing import Any, Callable, Sequence, Type, overload
 
+from simple_parsing.helpers.subgroups import SubgroupKey
 from simple_parsing.wrappers.dataclass_wrapper import DataclassWrapperType
 
 from . import utils
 from .conflicts import ConflictResolution, ConflictResolver
 from .help_formatter import SimpleHelpFormatter
 from .helpers.serialization.serializable import read_file
-from .utils import Dataclass, DataclassT, dict_union, is_dataclass_type
+from .utils import (
+    Dataclass,
+    DataclassT,
+    dict_union,
+    is_dataclass_instance,
+    is_dataclass_type,
+)
 from .wrappers import DashVariant, DataclassWrapper, FieldWrapper
 from .wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
@@ -152,6 +161,7 @@ class ArgumentParser(argparse.ArgumentParser):
             add_config_path_arg = bool(config_path)
         self.add_config_path_arg = add_config_path_arg
 
+    # TODO: Remove, since the base class already has nicer type hints.
     def add_argument(
         self,
         *name_or_flags: str,
@@ -185,9 +195,21 @@ class ArgumentParser(argparse.ArgumentParser):
     ) -> DataclassWrapperType:
         pass
 
+    @overload
     def add_arguments(
         self,
-        dataclass: type[DataclassT] | Dataclass,
+        dataclass: DataclassT,
+        dest: str,
+        *,
+        prefix: str = "",
+        default: None = None,
+        dataclass_wrapper_class: type[DataclassWrapper] = DataclassWrapper,
+    ) -> DataclassWrapper[DataclassT]:
+        pass
+
+    def add_arguments(
+        self,
+        dataclass: type[DataclassT] | DataclassT,
         dest: str,
         *,
         prefix: str = "",
@@ -223,8 +245,23 @@ class ArgumentParser(argparse.ArgumentParser):
         The generated DataclassWrapper instance. Feel free to inspect / play around with this if
         you want :)
         """
+        if is_dataclass_instance(dataclass):
+            if default is not None:
+                raise ValueError("Can't use `default` when `dataclass` is a dataclass instance.")
+            dataclass = typing.cast(DataclassT, dataclass)
+            dataclass_type = type(dataclass)
+            default = dataclass
+        else:
+            if not is_dataclass_type(dataclass):
+                raise ValueError(
+                    f"`dataclass` should be a dataclass type or instance. Got {dataclass}."
+                )
+            dataclass = typing.cast(Type[DataclassT], dataclass)
+            dataclass_type = dataclass
+            default = default
+
         new_wrapper = self._add_arguments(
-            dataclass=dataclass,
+            dataclass_type=dataclass_type,
             name=dest,
             prefix=prefix,
             default=default,
@@ -403,35 +440,43 @@ class ArgumentParser(argparse.ArgumentParser):
 
     def _add_arguments(
         self,
-        dataclass: type[DataclassT] | DataclassT,
+        dataclass_type: type[DataclassT],
         name: str,
         *,
         prefix: str = "",
         dataclass_fn: Callable[..., DataclassT] | None = None,
-        default: Dataclass | None = None,
+        default: DataclassT | dict | None = None,
         dataclass_wrapper_class: type[DataclassWrapperType] = DataclassWrapper,
         parent: DataclassWrapper | None = None,
     ) -> DataclassWrapper[DataclassT] | DataclassWrapperType:
+        assert is_dataclass_type(dataclass_type)
+        assert (
+            default is None
+            or is_dataclass_instance(default)
+            or default is argparse.SUPPRESS
+            or isinstance(default, dict)
+        )
+        assert dataclass_fn is None or callable(dataclass_fn)
+
         for wrapper in self._wrappers:
             if wrapper.dest == name:
-                if wrapper.dataclass == dataclass:
+                if wrapper.dataclass == dataclass_type:
                     raise argparse.ArgumentError(
                         argument=None,
                         message=f"Destination attribute {name} is already used for "
-                        f"dataclass of type {dataclass}. Make sure all destinations"
-                        f" are unique. (new dataclass type: {dataclass})",
+                        f"dataclass of type {dataclass_type}. Make sure all destinations"
+                        f" are unique. (new dataclass type: {dataclass_type})",
                     )
-        if not isinstance(dataclass, type):
+        if not isinstance(dataclass_type, type):
             if default is None:
-                default = dataclass
-            dataclass = type(dataclass)
+                default = dataclass_type
+            dataclass_type = type(dataclass_type)
 
-        dataclass_fn = dataclass_fn or dataclass
-
+        dataclass_fn = dataclass_fn or dataclass_type
         # Create this object that  holds the dataclass we will create arguments for and the
         # arguments that were passed.
         new_wrapper = dataclass_wrapper_class(
-            dataclass=dataclass,
+            dataclass=dataclass_type,
             name=name,
             prefix=prefix,
             default=default,
@@ -557,7 +602,7 @@ class ArgumentParser(argparse.ArgumentParser):
         unresolved_subgroups = _get_subgroup_fields(wrappers)
         # Dictionary of the subgroup choices that were resolved (key: subgroup dest, value: chosen
         # subgroup name).
-        resolved_subgroups: dict[str, str] = {}
+        resolved_subgroups: dict[str, SubgroupKey] = {}
 
         if not unresolved_subgroups:
             # No subgroups to parse.
@@ -584,7 +629,7 @@ class ArgumentParser(argparse.ArgumentParser):
         for current_nesting_level in itertools.count():
             # Do rounds of parsing with just the subgroup arguments, until all the subgroups
             # are resolved to a dataclass type.
-            logger.info(
+            logger.debug(
                 f"Starting subgroup parsing round {current_nesting_level}: {list(unresolved_subgroups.keys())}"
             )
             # Add all the unresolved subgroups arguments.
@@ -596,16 +641,19 @@ class ArgumentParser(argparse.ArgumentParser):
                     assert argument_options["required"]
                 else:
                     assert argument_options["default"] is subgroup_field.subgroup_default
+                    assert not is_dataclass_instance(argument_options["default"])
 
                 # TODO: Do we really need to care about this "SUPPRESS" stuff here?
                 if argparse.SUPPRESS in subgroup_field.parent.defaults:
                     assert argument_options["default"] is argparse.SUPPRESS
                     argument_options["default"] = argparse.SUPPRESS
-                logger.info(
+
+                logger.debug(
                     f"Adding subgroup argument: add_argument(*{flags} **{str(argument_options)})"
                 )
                 subgroup_choice_parser.add_argument(*flags, **argument_options)
 
+            # Parse `args` repeatedly until all the subgroup choices are resolved.
             parsed_args, unused_args = subgroup_choice_parser.parse_known_args(
                 args=args, namespace=namespace
             )
@@ -618,42 +666,49 @@ class ArgumentParser(argparse.ArgumentParser):
                 # NOTE: There should always be a parsed value for the subgroup argument on the
                 # namespace. This is because we added all the subgroup arguments before we get
                 # here.
-                assert hasattr(parsed_args, dest)
-                chosen_subgroup_key = getattr(parsed_args, dest)
-                assert chosen_subgroup_key in subgroup_field.subgroup_choices
+                subgroup_dict = subgroup_field.subgroup_choices
+                chosen_subgroup_key: SubgroupKey = getattr(parsed_args, dest)
+                assert chosen_subgroup_key in subgroup_dict
 
-                chosen_subgroup_dataclass_fn = subgroup_field.subgroup_choices[chosen_subgroup_key]
-                dataclass_types = subgroup_field.field.metadata["subgroup_dataclass_types"]
-                chosen_subgroup_dataclass_type = dataclass_types[chosen_subgroup_key]
-                assert is_dataclass_type(chosen_subgroup_dataclass_type)
-
-                resolved_subgroups[dest] = chosen_subgroup_key
-
-                logger.info(
-                    f"resolved the subgroup at dest {dest} to a value of "
-                    f"{chosen_subgroup_key}, which means to use the "
-                    f"{chosen_subgroup_dataclass_type} dataclass"
+                # Changing the default value of the (now parsed) field for the subgroup choice,
+                # just so it shows (default: {chosen_subgroup_key}) on the command-line.
+                # Note: This really isn't required, we could have it just be the default value, but
+                # it seems a bit more consistent with us then showing the --help string for the
+                # chosen dataclass type (as we're doing below).
+                # subgroup_field.set_default(chosen_subgroup_key)
+                logger.debug(
+                    f"resolved the subgroup at {dest!r}: will use the subgroup at key "
+                    f"{chosen_subgroup_key!r}"
                 )
-                parent_dataclass_wrapper = subgroup_field.parent
-                # The default value for the subgroup field should be the value that was chosen.
-                # Manually set the default value for this field.
-                subgroup_field.set_default(chosen_subgroup_key)
 
-                # NOTE: Here the `default` for the new argument group is `None`, because
-                # `subgroups` only allows using a dict[Hashable, callable], and we want to avoid
-                # calling the callables unless we really need to.
-                default = None
+                default_or_dataclass_fn = subgroup_dict[chosen_subgroup_key]
+                if is_dataclass_instance(default_or_dataclass_fn):
+                    # The chosen value in the subgroup dict is a frozen dataclass instance.
+                    default = default_or_dataclass_fn
+                    dataclass_fn = functools.partial(dataclasses.replace, default)
+                    dataclass_type = type(default)
+                else:
+                    default = None
+                    dataclass_fn = default_or_dataclass_fn
+                    dataclass_type = subgroup_field.field.metadata["subgroup_dataclass_types"][
+                        chosen_subgroup_key
+                    ]
+
+                assert default is None or is_dataclass_instance(default)
+                assert callable(dataclass_fn)
+                assert is_dataclass_type(dataclass_type)
+
                 name = dest.split(".")[-1]
+                parent_dataclass_wrapper = subgroup_field.parent
                 # NOTE: Using self._add_arguments so it returns the modified wrapper and doesn't
                 # affect the `self._wrappers` list.
                 new_wrapper = self._add_arguments(
-                    dataclass=chosen_subgroup_dataclass_type,
-                    dataclass_fn=chosen_subgroup_dataclass_fn,
+                    dataclass_type=dataclass_type,
                     name=name,
+                    dataclass_fn=dataclass_fn,
                     default=default,
                     parent=parent_dataclass_wrapper,
                 )
-
                 # Make the new wrapper a child of the class which contains the field.
                 # - it isn't already a child
                 # - it's parent is the parent dataclass wrapper
@@ -664,7 +719,11 @@ class ArgumentParser(argparse.ArgumentParser):
                 assert parent_dataclass_wrapper in _flatten_wrappers(wrappers)
                 assert new_wrapper in _flatten_wrappers(wrappers)
 
+                # Mark this subgroup as resolved.
                 unresolved_subgroups.pop(dest)
+                resolved_subgroups[dest] = chosen_subgroup_key
+                # TODO: Should we remove the FieldWrapper for the subgroups now that it's been
+                # resolved?
 
             # Find the new subgroup fields that weren't resolved before.
             # TODO: What if a name conflict occurs between a subgroup field and one of the new
@@ -679,15 +738,15 @@ class ArgumentParser(argparse.ArgumentParser):
             unresolved_subgroups = {
                 k: v for k, v in all_subgroup_fields.items() if k not in resolved_subgroups
             }
-            logger.info(f"All subgroups: {list(all_subgroup_fields.keys())}")
-            logger.info(f"Resolved subgroups: {resolved_subgroups}")
-            logger.info(f"Unresolved subgroups: {list(unresolved_subgroups.keys())}")
+            logger.debug(f"All subgroups: {list(all_subgroup_fields.keys())}")
+            logger.debug(f"Resolved subgroups: {resolved_subgroups}")
+            logger.debug(f"Unresolved subgroups: {list(unresolved_subgroups.keys())}")
 
             if not unresolved_subgroups:
-                logger.info("Done parsing all the subgroups!")
+                logger.debug("Done parsing all the subgroups!")
                 break
             else:
-                logger.info(
+                logger.debug(
                     f"Done parsing a round of subparsers at nesting level "
                     f"{current_nesting_level}. Moving to the next round which has "
                     f"{len(unresolved_subgroups)} unresolved subgroup choices."
@@ -878,7 +937,7 @@ class ArgumentParser(argparse.ArgumentParser):
                     continue
 
                 if field.is_subgroup:
-                    # Skip the subgroup fields.
+                    # Skip the subgroup fields, since we added a child DataclassWrapper for them.
                     logger.debug(f"Not calling the subgroup FieldWrapper for dest {field.dest}")
                     continue
 
@@ -912,14 +971,12 @@ class ArgumentParser(argparse.ArgumentParser):
         return leftover_args, constructor_arguments
 
 
-T = TypeVar("T")
-
-
+# TODO: Change the order of arguments to put `args` as the second argument.
 def parse(
-    config_class: type[Dataclass],
+    config_class: type[DataclassT],
     config_path: Path | str | None = None,
     args: str | Sequence[str] | None = None,
-    default: Dataclass | None = None,
+    default: DataclassT | None = None,
     dest: str = "config",
     *,
     prefix: str = "",
@@ -929,7 +986,8 @@ def parse(
     argument_generation_mode=ArgumentGenerationMode.FLAT,
     formatter_class: type[HelpFormatter] = SimpleHelpFormatter,
     add_config_path_arg: bool | None = None,
-) -> Dataclass:
+    **kwargs,
+) -> DataclassT:
     """Parse the given dataclass from the command-line.
 
     See the `ArgumentParser` constructor for more details on the arguments (they are the same here
@@ -947,6 +1005,7 @@ def parse(
         argument_generation_mode=argument_generation_mode,
         formatter_class=formatter_class,
         add_config_path_arg=add_config_path_arg,
+        **kwargs,
     )
 
     parser.add_arguments(config_class, prefix=prefix, dest=dest, default=default)
@@ -1068,5 +1127,5 @@ def _create_dataclass_instance(
         else:
             logger.debug(f"All fields for {wrapper.dest} were either at their default, or None.")
             return None
-
+    logger.debug(f"Calling constructor: {constructor}(**{constructor_args})")
     return constructor(**constructor_args)

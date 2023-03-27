@@ -5,9 +5,10 @@ import os
 import pathlib
 import sys
 from logging import getLogger as get_logger
-from typing import Any, NamedTuple
+from typing import Any, Generic, TypeVar
 
 import pytest
+from typing_extensions import NamedTuple  # For Generic NamedTuples
 from typing_extensions import Literal
 
 pytest.register_assert_rewrite("test.testutils")
@@ -42,7 +43,7 @@ simple_arguments: list[tuple[type, Any, Any]] = [
 
 class SimpleAttributeTuple(NamedTuple):
     field_type: type
-    passed_value: str
+    passed_cmdline_value: str
     expected_value: Any
 
 
@@ -54,15 +55,63 @@ def simple_attribute(request):
         f"Attribute type: {some_type}, passed value: '{passed_value}', expected: '{expected_value}'"
     )
     return SimpleAttributeTuple(
-        field_type=some_type, passed_value=passed_value, expected_value=expected_value
+        field_type=some_type, passed_cmdline_value=passed_value, expected_value=expected_value
     )
 
 
-@pytest.fixture(autouse=True, params=["simple", "verbose"])
-def simple_and_advanced_api(request, monkeypatch):
+T = TypeVar("T")
+
+
+class SimpleAttributeWithDefault(NamedTuple, Generic[T]):
+    field_type: type[T]
+    passed_cmdline_value: str
+    expected_value: T
+    default_value: T
+
+
+# TODO: Also add something like `[Optional[t] for t in simple_arguments]`!
+default_values_for_type = {int: [0, -111], str: ["bob", ""], float: [0.0, 1e2], bool: [True, False]}
+
+
+@pytest.fixture(
+    params=[
+        SimpleAttributeWithDefault(some_type, passed_value, expected_value, default_value)
+        for some_type, passed_value, expected_value in simple_arguments
+        for default_value in default_values_for_type[some_type]
+    ]
+)
+def simple_attribute_with_default(request: pytest.FixtureRequest):
+    return request.param
+
+
+# @lebrice: Changing this to `False` for now, which reduces the number of tests by half.
+# This shouldn't be too much of a problem, since the `simple_parsing.parse` and `ArgumentParser`
+# apis are using the same logic under the hood.
+# TODO: Design a better way to test both the simple and advanced api.
+
+
+@pytest.fixture(autouse=False, scope="module", params=["simple", "verbose"])
+def simple_and_advanced_api(request: pytest.FixtureRequest):
+    """This makes `TestSetup.setup` use either the `sp.parse` or `ArgumentParser` api.
+
+    TODO: Remove this hacky fixture. Causes issues with test modules being run twice, which causes
+    lots of issues with the serialization / deserialization functions and tests.
+    """
     api: Literal["simple", "verbose"] = request.param
-    monkeypatch.setitem(os.environ, "SIMPLE_PARSING_API", api)
+    os.environ["SIMPLE_PARSING_API"] = api
+    from simple_parsing.helpers.serialization.decoding import _decoding_fns
+
+    # NOTE: Annoying that we have to do this, but we need to make sure that the decoding functions
+    # from one test run don't affect the decoding functions of the next test run.
+
+    decoding_fns_backup = _decoding_fns.copy()
+
     yield
+
+    _decoding_fns.clear()
+    _decoding_fns.update(decoding_fns_backup)
+
+    os.environ.pop("SIMPLE_PARSING_API")
 
 
 @pytest.fixture

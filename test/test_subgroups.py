@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import dataclasses
 import functools
+import inspect
 import shlex
+import sys
 from dataclasses import dataclass, field
 from functools import partial
+from pathlib import Path
 from typing import Callable, TypeVar
 
 import pytest
+from pytest_regressions.file_regression import FileRegressionFixture
 from typing_extensions import Annotated
 
-from simple_parsing import ArgumentParser, subgroups
+from simple_parsing import ArgumentParser, parse, subgroups
+from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
 from .test_choice import Color
 from .testutils import TestSetup, raises_invalid_choice, raises_missing_required_arg
@@ -579,7 +584,7 @@ class ModelBConfig(ModelConfig):
 
 
 @dataclass
-class Config:
+class Config(TestSetup):
 
     # Which model to use
     model: ModelConfig = subgroups(
@@ -674,6 +679,95 @@ def test_annotated_as_subgroups():
     assert Config.setup("--num_layers 123").model == Model(num_layers=123, hidden_dim=32)
 
 
+@dataclasses.dataclass(frozen=True)
+class FrozenConfig:
+    a: int = 1
+    b: str = "bob"
+
+
+def test_subgroups_doesnt_support_nonfrozen_instances():
+    with pytest.raises(
+        ValueError,
+        match="'default' can either be a key of the subgroups dict or a hashable",
+    ):
+        _ = subgroups({"a": A, "b": B}, default=A(a=1.0))
+
+    with pytest.raises(
+        ValueError,
+        match="'default' can either be a key of the subgroups dict or a hashable",
+    ):
+        _ = subgroups({"a": A(a=1.0), "b": B}, default=A(a=1.0))
+
+
+odd = FrozenConfig(a=1, b="odd")
+even = FrozenConfig(a=2, b="even")
+
+
+@dataclasses.dataclass
+class ConfigWithFrozen(TestSetup):
+    conf: FrozenConfig = subgroups({"odd": odd, "even": even}, default=odd)
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        ("", ConfigWithFrozen(odd)),
+        ("--conf=odd", ConfigWithFrozen(odd)),
+        ("--conf=even", ConfigWithFrozen(even)),
+        ("--conf=odd --a 123", ConfigWithFrozen(dataclasses.replace(odd, a=123))),
+        ("--conf=even --a 100", ConfigWithFrozen(dataclasses.replace(even, a=100))),
+    ],
+)
+def test_subgroups_supports_frozen_instances(command: str, expected: ConfigWithFrozen):
+    assert ConfigWithFrozen.setup(command) == expected
+
+
+@pytest.mark.parametrize(
+    ("dataclass_type", "command"),
+    [
+        (Config, "--help"),
+        (Config, "--model=model_a --help"),
+        (Config, "--model=model_b --help"),
+        (ConfigWithFrozen, "--help"),
+        (ConfigWithFrozen, "--conf=odd --help"),
+        (ConfigWithFrozen, "--conf=even --help"),
+        (ConfigWithFrozen, "--conf=odd --a 123 --help"),
+        (ConfigWithFrozen, "--conf=even --a 100 --help"),
+    ],
+)
+def test_help(
+    dataclass_type: type[TestSetup],
+    command: str,
+    file_regression: FileRegressionFixture,
+    request: pytest.FixtureRequest,
+):
+    if sys.version_info[:2] != (3, 11):
+        pytest.skip("The regression check is only ran with Python 3.11")
+
+    here = Path(__file__).relative_to(Path.cwd())
+    file_regression.check(
+        f"""\
+# Regression file for [this test]({here}:{inspect.getsourcelines(test_help)[1]})
+
+Given Source code:
+
+```python
+{''.join(inspect.getsourcelines(dataclass_type)[0])}
+```
+
+and command: {command!r}
+
+We expect to get:
+
+```console
+{dataclass_type.get_help_text(command, prog="pytest")}
+```
+""",
+        basename=request.node.name,
+        extension=".md",
+    )
+
+
 # def test_subgroups_with_partials():
 #     class Model:
 #         def __init__(self, num_layers: int = 3, hidden_dim: int = 64):
@@ -701,3 +795,139 @@ def test_annotated_as_subgroups():
 #     assert Config.setup("--model small").model == SmallModel()
 #     assert Config.setup("--model big").model == BigModel()
 #     assert Config.setup("--num_layers 123").model == Model(num_layers=123, hidden_dim=32)
+
+
+@pytest.mark.parametrize("frozen", [True, False])
+def test_nested_subgroups(frozen: bool):
+    """Assert that #160 is fixed: https://github.com/lebrice/SimpleParsing/issues/160"""
+
+    @dataclass(frozen=frozen)
+    class FooConfig:
+        ...
+
+    @dataclass(frozen=frozen)
+    class BarConfig:
+        foo: FooConfig
+
+    @dataclass(frozen=frozen)
+    class FooAConfig(FooConfig):
+        foo_param_a: float = 0.0
+
+    @dataclass(frozen=frozen)
+    class FooBConfig(FooConfig):
+        foo_param_b: str = "foo_b"
+
+    @dataclass(frozen=frozen)
+    class Bar1Config(BarConfig):
+        foo: FooConfig = subgroups(
+            {"foo_a": FooAConfig, "foo_b": FooBConfig},
+            default_factory=FooAConfig,
+        )
+
+    @dataclass(frozen=frozen)
+    class Bar2Config(BarConfig):
+        foo: FooConfig = subgroups(
+            {"foo_a": FooAConfig, "foo_b": FooBConfig},
+            default_factory=FooBConfig,
+        )
+
+    @dataclass(frozen=frozen)
+    class Config(TestSetup):
+        bar: Bar1Config | Bar2Config = subgroups(
+            {"bar_1": Bar1Config, "bar_2": Bar2Config},
+            default_factory=Bar2Config,
+        )
+
+    assert Config.setup("") == Config(bar=Bar2Config(foo=FooBConfig()))
+    assert Config.setup("--bar=bar_1 --foo=foo_a") == Config(bar=Bar1Config(foo=FooAConfig()))
+
+
+@dataclass
+class ModelConfig:
+    ...
+
+
+@dataclass
+class DatasetConfig:
+    ...
+
+
+@dataclass
+class ModelAConfig(ModelConfig):
+    lr: float = 3e-4
+    optimizer: str = "Adam"
+    betas: tuple[float, float] = (0.9, 0.999)
+
+
+@dataclass
+class ModelBConfig(ModelConfig):
+    lr: float = 1e-3
+    optimizer: str = "SGD"
+    momentum: float = 1.234
+
+
+@dataclass
+class Dataset1Config(DatasetConfig):
+    data_dir: str | Path = "data/foo"
+    foo: bool = False
+
+
+@dataclass
+class Dataset2Config(DatasetConfig):
+    data_dir: str | Path = "data/bar"
+    bar: float = 1.2
+
+
+@dataclass
+class Config(TestSetup):
+
+    # Which model to use
+    model: ModelConfig = subgroups(
+        {"model_a": ModelAConfig, "model_b": ModelBConfig},
+        default_factory=ModelAConfig,
+    )
+
+    # Which dataset to use
+    dataset: DatasetConfig = subgroups(
+        {"dataset_1": Dataset1Config, "dataset_2": Dataset2Config},
+        default_factory=Dataset2Config,
+    )
+
+
+def _parse_config(args: str) -> Config:
+    return parse(
+        Config,
+        args=args,
+        argument_generation_mode=ArgumentGenerationMode.NESTED,
+        nested_mode=NestedMode.WITHOUT_ROOT,
+    )
+
+
+def test_ordering_of_args_doesnt_matter():
+    """Test to confirm that #160 is fixed:"""
+
+    # $ python issue.py --model model_a --model.lr 1e-2
+    assert _parse_config(args="--model model_a --model.lr 1e-2") == Config(
+        model=ModelAConfig(lr=0.01, optimizer="Adam", betas=(0.9, 0.999)),
+        dataset=Dataset2Config(data_dir="data/bar", bar=1.2),
+    )
+
+    # I was expecting this to work given that both model configs have `lr` attribute
+    # $ python issue.py --model.lr 1e-2.
+    assert _parse_config(args="--model.lr 1e-2") == Config(
+        model=ModelAConfig(lr=1e-2, optimizer="Adam", betas=(0.9, 0.999)),
+        dataset=Dataset2Config(data_dir="data/bar", bar=1.2),
+    )
+
+    # $ python issue.py --model model_a --model.betas 0. 1.
+    assert _parse_config(args="--model model_a --model.betas 0. 1.") == Config(
+        model=ModelAConfig(lr=0.0003, optimizer="Adam", betas=(0.0, 1.0)),
+        dataset=Dataset2Config(data_dir="data/bar", bar=1.2),
+    )
+
+    # % ModelA being the default, I was expecting this two work
+    # $ python issue.py --model.betas 0. 1.
+    assert _parse_config(args="--model.betas 0. 1.") == Config(
+        model=ModelAConfig(lr=0.0003, optimizer="Adam", betas=(0.0, 1.0)),
+        dataset=Dataset2Config(data_dir="data/bar", bar=1.2),
+    )
