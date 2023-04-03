@@ -3,14 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..test_utils import TestSetup
-from .overwrite_base import Base
+from .overwrite_base import Base, ParamCls
 
 
 @dataclass
-class ParamCls:
-    something_else: bool = True
+class ParamClsSubclass(ParamCls):
+    v: bool
 
 
 @dataclass
 class Subclass(Base, TestSetup):
-    other_attribute: ParamCls
+    attribute: ParamClsSubclass
