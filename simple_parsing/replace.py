@@ -161,39 +161,40 @@ def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] |
             continue
 
         field_value = getattr(obj, field.name)
-        t = get_field_type_from_annotations(obj.__class__, field.name)
+        field_annotation = get_field_type_from_annotations(obj.__class__, field.name)
 
         new_value = None
         # Replace subgroup is allowed when the type annotation contains dataclass
-        if not contains_dataclass_type_arg(t):
-            raise ValueError(f"The replaced subgroups contains no dataclass in its annotation {t}")
+        if not contains_dataclass_type_arg(field_annotation):
+            raise ValueError(f"The replaced subgroups contains no dataclass in its annotation {field_annotation}")
         
         selection = selections.pop(field.name)
         if isinstance(selection, dict):
-            key = selection.pop(keyword, None)
+            value_of_selection = selection.pop(keyword, None)
             child_selections = selection
         else:
-            key = selection
+            value_of_selection = selection
             child_selections = None
 
-        if is_dataclass_type(key):
-            field_value = key()
-        elif is_dataclass_instance(key):
-            field_value = copy.deepcopy(key)
+        if is_dataclass_type(value_of_selection):
+            field_value = value_of_selection()
+        elif is_dataclass_instance(value_of_selection):
+            field_value = copy.deepcopy(value_of_selection)
         elif field.metadata.get("subgroups", None):
-            subgroup_selection = field.metadata["subgroups"][key]
+            assert isinstance(value_of_selection, str)
+            subgroup_selection = field.metadata["subgroups"][value_of_selection]
             if is_dataclass_instance(subgroup_selection):
                 # when the subgroup selection is a frozen dataclass instance
                 field_value = subgroup_selection
             else:
                 # when the subgroup selection is a dataclass type
-                field_value = field.metadata["subgroups"][key]()
-        elif is_optional(t) and key is None:
+                field_value = field.metadata["subgroups"][value_of_selection]()
+        elif is_optional(field_annotation) and value_of_selection is None:
             field_value = None
-        elif contains_dataclass_type_arg(t) and key is None:
+        elif contains_dataclass_type_arg(field_annotation) and value_of_selection is None:
             field_value = field.default_factory()
         else:
-            raise ValueError(f"invalid selection key '{key}' for field '{field.name}'")
+            raise ValueError(f"invalid selection key '{value_of_selection}' for field '{field.name}'")
 
         if child_selections:
             new_value = replace_subgroups(field_value, child_selections)
