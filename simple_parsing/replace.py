@@ -120,7 +120,7 @@ def unflatten_selection_dict(
     {'a': 1, 'b': 2}
     """
     dc = {}
-    
+
     existing_top_level_keys = set()
     conflited_top_level_keys = set()
     for k, v in flattened.items():
@@ -129,7 +129,7 @@ def unflatten_selection_dict(
             existing_top_level_keys.add(top_level_key)
         else:
             conflited_top_level_keys.add(top_level_key)
-        
+
     for k, v in flattened.items():
         # if keyword != k and sep not in k and not isinstance(v, dict):
         if k in conflited_top_level_keys:
@@ -156,7 +156,7 @@ def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] |
     for field in dataclasses.fields(obj):
         if not field.init:
             raise ValueError(f"Cannot replace value of non-init field {field.name}.")
-        
+
         if field.name not in selections:
             continue
 
@@ -166,8 +166,10 @@ def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] |
         new_value = None
         # Replace subgroup is allowed when the type annotation contains dataclass
         if not contains_dataclass_type_arg(field_annotation):
-            raise ValueError(f"The replaced subgroups contains no dataclass in its annotation {field_annotation}")
-        
+            raise ValueError(
+                f"The replaced subgroups contains no dataclass in its annotation {field_annotation}"
+            )
+
         selection = selections.pop(field.name)
         if isinstance(selection, dict):
             value_of_selection = selection.pop(keyword, None)
@@ -194,7 +196,9 @@ def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] |
         elif contains_dataclass_type_arg(field_annotation) and value_of_selection is None:
             field_value = field.default_factory()
         else:
-            raise ValueError(f"invalid selection key '{value_of_selection}' for field '{field.name}'")
+            raise ValueError(
+                f"invalid selection key '{value_of_selection}' for field '{field.name}'"
+            )
 
         if child_selections:
             new_value = replace_subgroups(field_value, child_selections)

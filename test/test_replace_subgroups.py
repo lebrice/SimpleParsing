@@ -19,13 +19,16 @@ class B:
 class AorB:
     a_or_b: A | B = subgroups({"a": A, "b": B}, default_factory=A)
 
+
 @dataclass(frozen=True)
 class FrozenConfig:
     a: int = 1
     b: str = "bob"
 
+
 odd = FrozenConfig(a=1, b="odd")
 even = FrozenConfig(a=2, b="even")
+
 
 @dataclass
 class Config:
