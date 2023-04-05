@@ -137,10 +137,9 @@ def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] |
     """
     keyword = "__key__"
 
-    if selections:
-        selections = unflatten_selection_dict(selections, keyword)
-    else:
+    if not selections:
         return obj
+    selections = unflatten_selection_dict(selections, keyword)
 
     replace_kwargs = {}
     for field in dataclasses.fields(obj):
