@@ -151,29 +151,28 @@ def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] |
 
         new_value = None
         # Replace subgroup is allowed when the type annotation contains dataclass
-        if contains_dataclass_type_arg(t):
-            child_selections = selections.pop(field.name)
-            key = child_selections.pop(keyword, None)
-
-            if is_dataclass_type(key):
-                field_value = key()
-            elif is_dataclass_instance(key):
-                field_value = copy.deepcopy(key)
-            elif field.metadata.get("subgroups", None):
-                field_value = field.metadata["subgroups"][key]()
-            elif is_optional(t) and key is None:
-                field_value = None
-            elif contains_dataclass_type_arg(t) and key is None:
-                field_value = field.default_factory()
-            else:
-                raise ValueError(f"invalid selection key '{key}' for field '{field.name}'")
-
-            if child_selections:
-                new_value = replace_subgroups(field_value, child_selections)
-            else:
-                new_value = field_value
-        else:
+        if not contains_dataclass_type_arg(t):
             raise ValueError(f"The replaced subgroups contains no dataclass in its annotation {t}")
+        child_selections = selections.pop(field.name)
+        key = child_selections.pop(keyword, None)
+
+        if is_dataclass_type(key):
+            field_value = key()
+        elif is_dataclass_instance(key):
+            field_value = copy.deepcopy(key)
+        elif field.metadata.get("subgroups", None):
+            field_value = field.metadata["subgroups"][key]()
+        elif is_optional(t) and key is None:
+            field_value = None
+        elif contains_dataclass_type_arg(t) and key is None:
+            field_value = field.default_factory()
+        else:
+            raise ValueError(f"invalid selection key '{key}' for field '{field.name}'")
+
+        if child_selections:
+            new_value = replace_subgroups(field_value, child_selections)
+        else:
+            new_value = field_value
 
         if not field.init:
             raise ValueError(f"Cannot replace value of non-init field {field.name}.")
