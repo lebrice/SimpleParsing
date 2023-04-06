@@ -18,7 +18,8 @@ from simple_parsing.utils import (
     is_optional,
     unflatten_split,
 )
-
+import logging
+logger = logging.getLogger(__name__)
 
 @overload
 def replace(obj: DataclassT, changes_dict: dict[str, Any]) -> DataclassT:
@@ -107,7 +108,7 @@ def replace(obj: DataclassT, changes_dict: dict[str, Any] | None = None, **chang
 
 
 def unflatten_selection_dict(
-    flattened: Mapping[str, V], keyword: str = "__key__", sep="."
+    flattened: Mapping[str, V], keyword: str = "__key__", sep: str =".", recursive: bool = False
 ) -> PossiblyNestedDict[str, V]:
     """
     This function convert a flattened dict into a nested dict
@@ -115,31 +116,50 @@ def unflatten_selection_dict(
 
     >>> unflatten_selection_dict({'ab_or_cd': 'cd', 'ab_or_cd.c_or_d': 'd'})
     {'ab_or_cd': {'__key__': 'cd', 'c_or_d': 'd'}}
+    
+    >>> unflatten_selection_dict({'lv1': 'a', 'lv1.lv2': 'b', 'lv1.lv2.lv3': 'c'})
+    {'lv1': {'__key__': 'a', 'lv2': 'b', 'lv2.lv3': 'c'}}
+
+    >>> unflatten_selection_dict({'lv1': 'a', 'lv1.lv2': 'b', 'lv1.lv2.lv3': 'c'}, recursive=True)
+    {'lv1': {'__key__': 'a', 'lv2': {'__key__': 'b', 'lv3': 'c'}}}
+
+    >>> unflatten_selection_dict({'ab_or_cd.c_or_d': 'd'})
+    {'ab_or_cd': {'c_or_d': 'd'}}
 
     >>> unflatten_selection_dict({"a": 1, "b": 2})
     {'a': 1, 'b': 2}
     """
     dc = {}
 
-    existing_top_level_keys = set()
-    conflited_top_level_keys = set()
+    unflatten_those_top_level_keys = set()
     for k, v in flattened.items():
-        top_level_key = k.split(sep)[0]
-        if top_level_key not in existing_top_level_keys:
-            existing_top_level_keys.add(top_level_key)
-        else:
-            conflited_top_level_keys.add(top_level_key)
+        splited_keys = k.split(sep)
+        if len(splited_keys) >= 2:
+            unflatten_those_top_level_keys.add(splited_keys[0])
 
     for k, v in flattened.items():
-        # if keyword != k and sep not in k and not isinstance(v, dict):
-        if k in conflited_top_level_keys:
-            dc[k + sep + keyword] = v
+        keys = k.split(sep)
+        top_level_key = keys[0]
+        rest_keys = keys[1:]
+        if top_level_key in unflatten_those_top_level_keys:
+            sub_dc = dc.get(top_level_key, {})
+            if len(rest_keys) == 0:
+                sub_dc[keyword] = v
+            else:
+                sub_dc['.'.join(rest_keys)] = v
+            dc[top_level_key] = sub_dc
         else:
             dc[k] = v
-    return unflatten_split(dc)
+    
+    if recursive:
+        for k in unflatten_those_top_level_keys:
+            v = dc.pop(k)
+            unflatten_v = unflatten_selection_dict(v, recursive=recursive)
+            dc[k] = unflatten_v
+    return dc
 
 
-def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] | None = None):
+def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] | None = None) -> DataclassT:
     """
     This function replaces the dataclass of subgroups, union, and optional union.
     The `selections` dict can be in flat format or in nested format.
