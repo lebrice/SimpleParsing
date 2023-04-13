@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import sys
 import warnings
 from collections import OrderedDict
 from collections.abc import Mapping
@@ -49,8 +50,10 @@ _decoding_fns: dict[type[T], Callable[[Any], T]] = {
 
 def decode_int(v: Any) -> int:
     int_v = int(v)
-    if int_v != float(v):
-        raise UnsafeCastingError(raw_value=v, decoded_value=int_v)
+    if isinstance(v, bool):
+        warnings.warn(UnsafeCastingWarning(raw_value=v, decoded_value=int_v))
+    elif int_v != float(v):
+        warnings.warn(UnsafeCastingWarning(raw_value=v, decoded_value=int_v))
     return int_v
 
 
@@ -102,21 +105,26 @@ def decode_field(
 
     decoding_function = get_decoding_fn(field_type)
 
-    try:
+    _kwargs = dict(category=UnsafeCastingWarning) if sys.version_info >= (3, 11) else {}
+    with warnings.catch_warnings(record=True, **_kwargs) as warning_messages:
         if is_dataclass_type(field_type) and drop_extra_fields is not None:
             # Pass the drop_extra_fields argument to the decoding function.
             decoded_value = decoding_function(raw_value, drop_extra_fields=drop_extra_fields)
         else:
             decoded_value = decoding_function(raw_value)
-    except UnsafeCastingError as err:
+
+    for warning_message in warning_messages.copy():
+        if not isinstance(warning_message.message, UnsafeCastingWarning):
+            warnings.warn(warning_message.message)
+            warning_messages.remove(warning_message)
+
+    if warning_messages:
         warnings.warn(
             RuntimeWarning(
-                f"Unsafe lossy casting of field '{name}' (raw value of {raw_value!r}) to type '{field_type}' during deserialization."
+                f"Unsafe casting occurred when deserializing field '{name}' of type {field_type}: "
+                f"raw value: {raw_value!r}, decoded value: {decoded_value!r}."
             )
         )
-        # NOTE: We could also return the raw value here if we wanted to.
-        # return err.raw_value
-        return err.decoded_value
     return decoded_value
 
 
@@ -477,7 +485,7 @@ def try_constructor(t: type[T]) -> Callable[[Any], T | Any]:
 register_decoding_fn(Path, Path)
 
 
-class UnsafeCastingError(Exception):
+class UnsafeCastingWarning(RuntimeWarning):
     def __init__(self, raw_value: Any, decoded_value: Any) -> None:
         super().__init__()
         self.raw_value = raw_value
