@@ -31,9 +31,9 @@ class Parameters(Serializable):
 @pytest.mark.xfail(
     raises=KeyError, match="'jsonl'", strict=True, reason="Enums are saved by name, not by value."
 )
-def test_decode_enum_saved_by_value_doesnt_work():
+def test_decode_enum_saved_by_value_doesnt_work(tmp_path: Path):
     """Test to reproduce https://github.com/lebrice/SimpleParsing/issues/219#issuecomment-1437817369"""
-    with open("conf.yaml", "w") as f:
+    with open(tmp_path / "conf.yaml", "w") as f:
         f.write(
             textwrap.dedent(
                 """\
@@ -45,7 +45,7 @@ def test_decode_enum_saved_by_value_doesnt_work():
             )
         )
 
-    file_config = Parameters.load_yaml("conf.yaml")
+    file_config = Parameters.load_yaml(tmp_path / "conf.yaml")
     assert file_config == Parameters(hparams=Hparams(xyz=[LoggingTypes.JSONL]), p=Path("/tmp"))
 
 

@@ -3,7 +3,7 @@ import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 from test.testutils import Generic, TypeVar
-from typing import Any, Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import pytest
 from typing_extensions import Literal
@@ -122,12 +122,27 @@ def test_super_nesting():
             json.loads(json.dumps([[1, 2], [3, 4]])),
             [(1, 2.0), (3, 4.0)],
         ),
+        (Union[int, float], "1", 1),
+        (Union[int, float], "1.2", 1.2),
+        pytest.param(
+            Union[int, float],
+            1.2,
+            1.2,
+            marks=[
+                pytest.mark.xfail(reason="decoding an int works (but raises a warning)"),
+            ],
+        ),
+        # NOTE: Here we expect a float, since it's the first type that will work.
+        (Union[float, int], "1", 1.0),
+        (Union[float, int], "1.2", 1.2),
+        (Union[float, int], 1.2, 1.2),
     ],
 )
-def test_decode_tuple(some_type: Type, encoded_value: Any, expected_value: Any):
+def test_decode(some_type: Type, encoded_value: Any, expected_value: Any):
     decoding_function = get_decoding_fn(some_type)
     actual = decoding_function(encoded_value)
     assert actual == expected_value
+    assert type(actual) == type(expected_value)
 
 
 @dataclass
@@ -163,11 +178,23 @@ def test_implicit_int_casting(tmp_path: Path):
 
 
 @pytest.fixture(autouse=True)
-def reset_int_decoding_fn_after_test():
+def reset_int_decoding_fns_after_test():
     """Reset the decoding function for `int` to the default after each test."""
-    int_decoding_fn = get_decoding_fn(int)
+    from simple_parsing.helpers.serialization.decoding import _decoding_fns
+
+    backup = _decoding_fns.copy()
     yield
-    register_decoding_fn(int, int_decoding_fn, overwrite=True)
+    for key, value in _decoding_fns.items():
+        if key not in backup:
+            # print(f"Test added a decoding function for {key} with value {value}.")
+            pass
+        elif value != backup[key]:
+            # print(
+            #     f"Test changed the decoding function for {key} from {backup[key]} to {value}.",
+            # )
+            pass
+    _decoding_fns.clear()
+    _decoding_fns.update(backup)
 
 
 def test_registering_safe_casting_decoding_fn():
@@ -256,23 +283,26 @@ class ClassWithIntList:
 @pytest.mark.parametrize(
     ("class_to_use", "serialized_dict", "expected_message", "expected_result"),
     [
-        (
+        pytest.param(
             ClassWithInt,
             {"a": 1.1},
             r"Unsafe casting occurred when deserializing field 'a' of type <class 'int'>: raw value: 1.1, decoded value: 1",
             ClassWithInt(a=int(1.1)),
+            id="float to int",
         ),
-        (
+        pytest.param(
             ClassWithInt,
             {"a": True},
             r"Unsafe casting occurred when deserializing field 'a' of type <class 'int'>: raw value: True, decoded value: 1",
             ClassWithInt(a=int(True)),
+            id="bool to int",
         ),
-        (
+        pytest.param(
             ClassWithIntList,
             {"values": [1.1, 2.2, 3.3]},
             r"Unsafe casting occurred when deserializing field 'values' of type list\[int\]: raw value: \[1.1, 2.2, 3.3\], decoded value: \[1, 2, 3\].",
             ClassWithIntList(values=[int(1.1), int(2.2), int(3.3)]),
+            id="List of floats",
         ),
     ],
 )
