@@ -277,7 +277,7 @@ class ClassWithInt:
 
 @dataclass
 class ClassWithIntList:
-    values: list[int] = field(default_factory=[1, 2, 3].copy)
+    values: List[int] = field(default_factory=[1, 2, 3].copy)
 
 
 @pytest.mark.parametrize(

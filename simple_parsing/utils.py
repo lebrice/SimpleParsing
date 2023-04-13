@@ -917,7 +917,13 @@ def unflatten(flattened: Mapping[tuple[K, ...], V]) -> PossiblyNestedDict[K, V]:
 
 
 def flatten_join(nested: PossiblyNestedMapping[str, V], sep: str = ".") -> dict[str, V]:
-    """Flatten a dictionary of dictionaries. When collisions occur, joins the keys with `sep`."""
+    """Flatten a dictionary of dictionaries. Joins different nesting levels with `sep` as separator.
+
+    >>> flatten_join({'a': {'b': 2, 'c': 3}, 'c': {'d': 3, 'e': 4}})
+    {'a.b': 2, 'a.c': 3, 'c.d': 3, 'c.e': 4}
+    >>> flatten_join({'a': {'b': 2, 'c': 3}, 'c': {'d': 3, 'e': 4}}, sep="/")
+    {'a/b': 2, 'a/c': 3, 'c/d': 3, 'c/e': 4}
+    """
     return {sep.join(keys): value for keys, value in flatten(nested).items()}
 
 
