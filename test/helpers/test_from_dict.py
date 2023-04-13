@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import functools
+import json
 from dataclasses import dataclass, field, replace
 
 import pytest
 
 from simple_parsing.helpers.serialization import from_dict, to_dict
+from simple_parsing.helpers.serialization.serializable import loads_json
 from simple_parsing.utils import Dataclass
 
 
@@ -87,3 +89,18 @@ def test_issue_210_nested_dataclasses_serialization(config: Dataclass):
     # More 'intense' comparisons, to make sure that the serialization is reversible:
     assert to_dict(_from_dict(to_dict(config))) == to_dict(config)
     assert _from_dict(to_dict(_from_dict(to_dict(config)))) == _from_dict(to_dict(config))
+
+
+def test_issue_227_unsafe_int_casting_on_load():
+    """Test that a warning is raised when performing a lossy cast when deserializing a dataclass."""
+
+    @dataclass
+    class ClassWithInt:
+        a: int = 1
+
+    with pytest.warns(
+        RuntimeWarning,
+        match=r"Unsafe lossy casting of field 'a' \(raw value of 1.1\) to type '<class 'int'>' during deserialization.",
+    ):
+        obj = loads_json(ClassWithInt, json.dumps({"a": 1.1}))
+        assert obj.a == int(1.1)

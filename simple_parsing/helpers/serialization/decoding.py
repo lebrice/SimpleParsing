@@ -12,7 +12,6 @@ from functools import partial
 from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, TypeVar
-from typing_extensions import Literal
 
 from simple_parsing.annotation_utils.get_field_annotations import (
     evaluate_string_annotation,
@@ -44,8 +43,18 @@ V = TypeVar("V")
 _decoding_fns: dict[type[T], Callable[[Any], T]] = {
     # the 'primitive' types are decoded using the type fn as a constructor.
     t: t
-    for t in [str, float, int, bytes]
+    for t in [str, float, bytes]
 }
+
+
+def decode_int(v: Any) -> int:
+    int_v = int(v)
+    if int_v != float(v):
+        raise UnsafeCastingError(raw_value=v, decoded_value=int_v)
+    return int_v
+
+
+_decoding_fns[int] = decode_int
 
 
 def decode_bool(v: Any) -> bool:
@@ -93,11 +102,22 @@ def decode_field(
 
     decoding_function = get_decoding_fn(field_type)
 
-    if is_dataclass_type(field_type) and drop_extra_fields is not None:
-        # Pass the drop_extra_fields argument to the decoding function.
-        return decoding_function(raw_value, drop_extra_fields=drop_extra_fields)
-
-    return decoding_function(raw_value)
+    try:
+        if is_dataclass_type(field_type) and drop_extra_fields is not None:
+            # Pass the drop_extra_fields argument to the decoding function.
+            decoded_value = decoding_function(raw_value, drop_extra_fields=drop_extra_fields)
+        else:
+            decoded_value = decoding_function(raw_value)
+    except UnsafeCastingError as err:
+        warnings.warn(
+            RuntimeWarning(
+                f"Unsafe lossy casting of field '{name}' (raw value of {raw_value!r}) to type '{field_type}' during deserialization."
+            )
+        )
+        # NOTE: We could also return the raw value here if we wanted to.
+        # return err.raw_value
+        return err.decoded_value
+    return decoded_value
 
 
 # NOTE: Disabling the caching here might help avoid some bugs, and it's unclear if this has that
@@ -224,7 +244,7 @@ def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
         logger.debug(f"Decoding a typevar: {t}, bound type is {bound}.")
         if bound is not None:
             return get_decoding_fn(bound)
-    
+
     if is_literal(t):
         logger.debug(f"Decoding a Literal field: {t}")
         possible_vals = get_type_arguments(t)
@@ -455,3 +475,10 @@ def try_constructor(t: type[T]) -> Callable[[Any], T | Any]:
 
 
 register_decoding_fn(Path, Path)
+
+
+class UnsafeCastingError(Exception):
+    def __init__(self, raw_value: Any, decoded_value: Any) -> None:
+        super().__init__()
+        self.raw_value = raw_value
+        self.decoded_value = decoded_value
