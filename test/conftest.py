@@ -4,6 +4,7 @@ import logging
 import os
 import pathlib
 import sys
+import warnings
 from logging import getLogger as get_logger
 from typing import Any, Generic, TypeVar
 
@@ -173,8 +174,15 @@ def no_stdout(capsys, caplog):
         pytest.fail(f"Test generated some output in stderr: '{captured.err}'")
 
 
+@pytest.fixture(autouse=False)
+def no_warnings_raised():
+    with warnings.catch_warnings(record=True):
+        warnings.simplefilter("error")
+        yield
+
+
 @pytest.fixture
-def no_warnings(caplog):
+def no_warning_log_messages(caplog):
     yield
     for when in ("setup", "call"):
         messages = [x.message for x in caplog.get_records(when) if x.levelno == logging.WARNING]
@@ -183,7 +191,7 @@ def no_warnings(caplog):
 
 
 @pytest.fixture
-def silent(no_stdout, no_warnings):
+def silent(no_stdout, no_warning_log_messages):
     """
     Test fixture that will make a test fail if it prints anything to stdout or
     logs warnings

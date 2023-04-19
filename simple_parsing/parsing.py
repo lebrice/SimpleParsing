@@ -298,7 +298,13 @@ class ArgumentParser(argparse.ArgumentParser):
                 self.set_defaults(config_file)
 
         if self.add_config_path_arg:
-            temp_parser = ArgumentParser(add_config_path_arg=False, add_help=False)
+            temp_parser = ArgumentParser(
+                add_config_path_arg=False,
+                add_help=False,
+                add_option_string_dash_variants=FieldWrapper.add_dash_variants,
+                argument_generation_mode=FieldWrapper.argument_generation_mode,
+                nested_mode=FieldWrapper.nested_mode,
+            )
             temp_parser.add_argument(
                 "--config_path",
                 type=Path,
