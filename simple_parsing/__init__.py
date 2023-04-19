@@ -6,8 +6,10 @@ from .conflicts import ConflictResolution
 from .decorators import main
 from .help_formatter import SimpleHelpFormatter
 from .helpers import (
+    Partial,
     Serializable,
     choice,
+    config_for,
     field,
     flag,
     list_field,
@@ -31,6 +33,7 @@ __all__ = [
     "ArgumentGenerationMode",
     "ArgumentParser",
     "choice",
+    "config_for",
     "ConflictResolution",
     "DashVariant",
     "field",
@@ -44,6 +47,7 @@ __all__ = [
     "parse_known_args",
     "parse",
     "ParsingError",
+    "Partial",
     "replace",
     "Serializable",
     "SimpleHelpFormatter",

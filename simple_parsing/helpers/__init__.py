@@ -2,6 +2,7 @@
 from .fields import *
 from .flatten import FlattenedAccess
 from .hparams import HyperParameters
+from .partial import Partial, config_for
 from .serialization import FrozenSerializable, Serializable, SimpleJsonEncoder, encode
 
 try:
