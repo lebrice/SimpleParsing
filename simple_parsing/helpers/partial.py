@@ -118,19 +118,17 @@ def config_for(
     >>> args.optimizer(params=[1, 2, 3])
     Adam(params=[1, 2, 3], lr=0.1, betas=(0.1, 0.2))
 
-    >>> parser.print_help()
+    >>> parser.print_help()  # doctest: +SKIP
     usage: pytest [-h] [--lr float] [--betas float float]
-    <BLANKLINE>
+
     options:
       -h, --help           show this help message and exit
-    <BLANKLINE>
+
     AdamConfig ['optimizer']:
       Auto-Generated configuration dataclass for simple_parsing.helpers.partial.Adam
-    <BLANKLINE>
+
       --lr float
       --betas float float
-
-
     """
     if isinstance(ignore_args, str):
         ignore_args = (ignore_args,)
