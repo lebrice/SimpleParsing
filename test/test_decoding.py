@@ -3,17 +3,18 @@ import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 from test.testutils import Generic, TypeVar
-from typing import Any, Dict, List, Optional, Tuple, Type
-from typing_extensions import Literal
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import pytest
-import warnings
+from typing_extensions import Literal
 
 from simple_parsing.helpers import Serializable, dict_field, list_field
 from simple_parsing.helpers.serialization.decoding import (
     get_decoding_fn,
     register_decoding_fn,
 )
+from simple_parsing.helpers.serialization.serializable import loads_json
+from simple_parsing.utils import DataclassT
 
 
 def test_encode_something(simple_attribute):
@@ -121,12 +122,27 @@ def test_super_nesting():
             json.loads(json.dumps([[1, 2], [3, 4]])),
             [(1, 2.0), (3, 4.0)],
         ),
+        (Union[int, float], "1", 1),
+        (Union[int, float], "1.2", 1.2),
+        pytest.param(
+            Union[int, float],
+            1.2,
+            1.2,
+            marks=[
+                pytest.mark.xfail(reason="decoding an int works (but raises a warning)"),
+            ],
+        ),
+        # NOTE: Here we expect a float, since it's the first type that will work.
+        (Union[float, int], "1", 1.0),
+        (Union[float, int], "1.2", 1.2),
+        (Union[float, int], 1.2, 1.2),
     ],
 )
-def test_decode_tuple(some_type: Type, encoded_value: Any, expected_value: Any):
+def test_decode(some_type: Type, encoded_value: Any, expected_value: Any):
     decoding_function = get_decoding_fn(some_type)
     actual = decoding_function(encoded_value)
     assert actual == expected_value
+    assert type(actual) == type(expected_value)
 
 
 @dataclass
@@ -142,8 +158,9 @@ class Parameters(Serializable):
 
 
 def test_implicit_int_casting(tmp_path: Path):
-    """Test for 'issue' #227: https://github.com/lebrice/SimpleParsing/issues/227"""
-    assert get_decoding_fn(int) is int
+    """Test that we do in fact perform the unsafe casting as described in #227:
+    https://github.com/lebrice/SimpleParsing/issues/227
+    """
     with open(tmp_path / "conf.yaml", "w") as f:
         f.write(
             textwrap.dedent(
@@ -155,9 +172,29 @@ def test_implicit_int_casting(tmp_path: Path):
                 """
             )
         )
-
-    file_config = Parameters.load(tmp_path / "conf.yaml")
+    with pytest.warns(RuntimeWarning, match="Unsafe casting"):
+        file_config = Parameters.load(tmp_path / "conf.yaml")
     assert file_config == Parameters(hparams=Hparams(severity=0, probs=[0, 0]))
+
+
+@pytest.fixture(autouse=True)
+def reset_int_decoding_fns_after_test():
+    """Reset the decoding function for `int` to the default after each test."""
+    from simple_parsing.helpers.serialization.decoding import _decoding_fns
+
+    backup = _decoding_fns.copy()
+    yield
+    for key, value in _decoding_fns.items():
+        if key not in backup:
+            # print(f"Test added a decoding function for {key} with value {value}.")
+            pass
+        elif value != backup[key]:
+            # print(
+            #     f"Test changed the decoding function for {key} from {backup[key]} to {value}.",
+            # )
+            pass
+    _decoding_fns.clear()
+    _decoding_fns.update(backup)
 
 
 def test_registering_safe_casting_decoding_fn():
@@ -212,8 +249,6 @@ def test_registering_safe_casting_decoding_fn():
             )
         )
 
-    register_decoding_fn(int, int, overwrite=True)
-
 
 @pytest.mark.xfail(strict=True, match="DID NOT RAISE <class 'ValueError'>")
 def test_optional_list_type_doesnt_use_type_decoding_fn():
@@ -234,4 +269,54 @@ def test_optional_list_type_doesnt_use_type_decoding_fn():
     with pytest.raises(ValueError):
         get_decoding_fn(Optional[List[int]])([0.1, 0.2])
 
-    register_decoding_fn(int, int, overwrite=True)
+
+@dataclass
+class ClassWithInt:
+    a: int = 1
+
+
+@dataclass
+class ClassWithIntList:
+    values: List[int] = field(default_factory=[1, 2, 3].copy)
+
+
+@pytest.mark.parametrize(
+    ("class_to_use", "serialized_dict", "expected_message", "expected_result"),
+    [
+        pytest.param(
+            ClassWithInt,
+            {"a": 1.1},
+            r"Unsafe casting occurred when deserializing field 'a' of type <class 'int'>: raw value: 1.1, decoded value: 1",
+            ClassWithInt(a=int(1.1)),
+            id="float to int",
+        ),
+        pytest.param(
+            ClassWithInt,
+            {"a": True},
+            r"Unsafe casting occurred when deserializing field 'a' of type <class 'int'>: raw value: True, decoded value: 1",
+            ClassWithInt(a=int(True)),
+            id="bool to int",
+        ),
+        pytest.param(
+            ClassWithIntList,
+            {"values": [1.1, 2.2, 3.3]},
+            r"Unsafe casting occurred when deserializing field 'values' of type typing.List\[int\]: raw value: \[1.1, 2.2, 3.3\], decoded value: \[1, 2, 3\].",
+            ClassWithIntList(values=[int(1.1), int(2.2), int(3.3)]),
+            id="List of floats",
+        ),
+    ],
+)
+def test_issue_227_unsafe_int_casting_on_load(
+    class_to_use: Type[DataclassT],
+    serialized_dict: dict,
+    expected_message: str,
+    expected_result: DataclassT,
+):
+    """Test that a warning is raised when performing a lossy cast when deserializing a dataclass."""
+    with pytest.warns(
+        RuntimeWarning,
+        match=expected_message,
+    ) as record:
+        obj = loads_json(class_to_use, json.dumps(serialized_dict))
+        assert obj == expected_result
+    assert len(record.list) == 1
