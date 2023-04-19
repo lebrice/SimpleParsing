@@ -300,14 +300,14 @@ class ClassWithIntList:
         pytest.param(
             ClassWithIntList,
             {"values": [1.1, 2.2, 3.3]},
-            r"Unsafe casting occurred when deserializing field 'values' of type list\[int\]: raw value: \[1.1, 2.2, 3.3\], decoded value: \[1, 2, 3\].",
+            r"Unsafe casting occurred when deserializing field 'values' of type typing.List\[int\]: raw value: \[1.1, 2.2, 3.3\], decoded value: \[1, 2, 3\].",
             ClassWithIntList(values=[int(1.1), int(2.2), int(3.3)]),
             id="List of floats",
         ),
     ],
 )
 def test_issue_227_unsafe_int_casting_on_load(
-    class_to_use: type[DataclassT],
+    class_to_use: Type[DataclassT],
     serialized_dict: dict,
     expected_message: str,
     expected_result: DataclassT,
