@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import sys
 import warnings
 from collections import OrderedDict
 from collections.abc import Mapping
@@ -12,7 +13,6 @@ from functools import partial
 from logging import getLogger
 from pathlib import Path
 from typing import Any, Callable, TypeVar
-from typing_extensions import Literal
 
 from simple_parsing.annotation_utils.get_field_annotations import (
     evaluate_string_annotation,
@@ -44,17 +44,66 @@ V = TypeVar("V")
 _decoding_fns: dict[type[T], Callable[[Any], T]] = {
     # the 'primitive' types are decoded using the type fn as a constructor.
     t: t
-    for t in [str, float, int, bytes]
+    for t in [str, bytes]
 }
 
 
-def decode_bool(v: Any) -> bool:
+def register_decoding_fn(
+    some_type: type[T], function: Callable[[Any], T], overwrite: bool = False
+) -> None:
+    """Register a decoding function for the type `some_type`."""
+    _register(some_type, function, overwrite=overwrite)
+
+
+def _register(t: type, func: Callable, overwrite: bool = False) -> None:
+    if t not in _decoding_fns or overwrite:
+        # logger.debug(f"Registering the type {t} with decoding function {func}")
+        _decoding_fns[t] = func
+
+
+C = TypeVar("C", bound=Callable[[Any], Any])
+
+
+def decoding_fn_for_type(some_type: type) -> Callable[[C], C]:
+    """Registers a function to be used to convert a serialized value to the given type.
+
+    The function should accept one argument (the serialized value) and return the decoded value.
+    """
+
+    def _wrapper(fn: C) -> C:
+        register_decoding_fn(some_type, fn, overwrite=True)
+        return fn
+
+    return _wrapper
+
+
+@decoding_fn_for_type(int)
+def _decode_int(v: str) -> int:
+    int_v = int(v)
+    if isinstance(v, bool):
+        warnings.warn(UnsafeCastingWarning(raw_value=v, decoded_value=int_v))
+    elif int_v != float(v):
+        warnings.warn(UnsafeCastingWarning(raw_value=v, decoded_value=int_v))
+    return int_v
+
+
+@decoding_fn_for_type(float)
+def _decode_float(v: Any) -> float:
+    float_v = float(v)
+    if isinstance(v, bool):
+        warnings.warn(UnsafeCastingWarning(raw_value=v, decoded_value=float_v))
+    return float_v
+
+
+@decoding_fn_for_type(bool)
+def _decode_bool(v: Any) -> bool:
     if isinstance(v, str):
-        return str2bool(v)
-    return bool(v)
-
-
-_decoding_fns[bool] = decode_bool
+        bool_v = str2bool(v)
+    else:
+        bool_v = bool(v)
+        if isinstance(v, (int, float)) and v not in (0, 1, 0.0, 1.0):
+            warnings.warn(UnsafeCastingWarning(raw_value=v, decoded_value=bool_v))
+    return bool_v
 
 
 def decode_field(
@@ -93,11 +142,36 @@ def decode_field(
 
     decoding_function = get_decoding_fn(field_type)
 
-    if is_dataclass_type(field_type) and drop_extra_fields is not None:
-        # Pass the drop_extra_fields argument to the decoding function.
-        return decoding_function(raw_value, drop_extra_fields=drop_extra_fields)
+    _kwargs = dict(category=UnsafeCastingWarning) if sys.version_info >= (3, 11) else {}
 
-    return decoding_function(raw_value)
+    with warnings.catch_warnings(record=True, **_kwargs) as warning_messages:
+        if is_dataclass_type(field_type) and drop_extra_fields is not None:
+            # Pass the drop_extra_fields argument to the decoding function.
+            decoded_value = decoding_function(raw_value, drop_extra_fields=drop_extra_fields)
+        else:
+            decoded_value = decoding_function(raw_value)
+
+    for warning_message in warning_messages.copy():
+        if not isinstance(warning_message.message, UnsafeCastingWarning):
+            warnings.warn_explicit(
+                message=warning_message.message,
+                category=warning_message.category,
+                filename=warning_message.filename,
+                lineno=warning_message.lineno,
+                # module=warning_message.module,
+                # registry=warning_message.registry,
+                # module_globals=warning_message.module_globals,
+            )
+            warning_messages.remove(warning_message)
+
+    if warning_messages:
+        warnings.warn(
+            RuntimeWarning(
+                f"Unsafe casting occurred when deserializing field '{name}' of type {field_type}: "
+                f"raw value: {raw_value!r}, decoded value: {decoded_value!r}."
+            )
+        )
+    return decoded_value
 
 
 # NOTE: Disabling the caching here might help avoid some bugs, and it's unclear if this has that
@@ -224,7 +298,7 @@ def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
         logger.debug(f"Decoding a typevar: {t}, bound type is {bound}.")
         if bound is not None:
             return get_decoding_fn(bound)
-    
+
     if is_literal(t):
         logger.debug(f"Decoding a Literal field: {t}")
         possible_vals = get_type_arguments(t)
@@ -239,19 +313,6 @@ def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
         )
     )
     return try_constructor(t)
-
-
-def _register(t: type, func: Callable, overwrite: bool = False) -> None:
-    if t not in _decoding_fns or overwrite:
-        # logger.debug(f"Registering the type {t} with decoding function {func}")
-        _decoding_fns[t] = func
-
-
-def register_decoding_fn(
-    some_type: type[T], function: Callable[[Any], T], overwrite: bool = False
-) -> None:
-    """Register a decoding function for the type `some_type`."""
-    _register(some_type, function, overwrite=overwrite)
 
 
 def decode_optional(t: type[T]) -> Callable[[Any | None], T | None]:
@@ -281,15 +342,21 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], T | Any]:
 
 
 def decode_union(*types: type[T]) -> Callable[[Any], T | Any]:
-    types = list(types)
-    optional = type(None) in types
+    types_list = list(types)
+    optional = type(None) in types_list
+
     # Partition the Union into None and non-None types.
-    while type(None) in types:
-        types.remove(type(None))
+    while type(None) in types_list:
+        types_list.remove(type(None))
 
     decoding_fns: list[Callable[[Any], T]] = [
-        decode_optional(t) if optional else get_decoding_fn(t) for t in types
+        decode_optional(t) if optional else get_decoding_fn(t) for t in types_list
     ]
+
+    # TODO: We could be a bit smarter about the order in which we try the functions, but for now,
+    # we just try the functions in the same order as the annotation, and return the result from the
+    # first function that doesn't raise an exception.
+
     # Try using each of the non-None types, in succession. Worst case, return the value.
     return try_functions(*decoding_fns)
 
@@ -455,3 +522,10 @@ def try_constructor(t: type[T]) -> Callable[[Any], T | Any]:
 
 
 register_decoding_fn(Path, Path)
+
+
+class UnsafeCastingWarning(RuntimeWarning):
+    def __init__(self, raw_value: Any, decoded_value: Any) -> None:
+        super().__init__()
+        self.raw_value = raw_value
+        self.decoded_value = decoded_value

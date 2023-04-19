@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Union
 
+import pytest
+
 import simple_parsing
 from simple_parsing import ArgumentParser, choice
 from simple_parsing.helpers import subparsers
@@ -291,6 +293,7 @@ def test_argparse_version_giving_extra_args_to_parent():
     assert args == (Namespace(foo=3, bar=2, baz=3), ["--foo", "1"])
 
 
+@pytest.mark.filterwarnings("ignore:Unparsed arguments")
 def test_simpleparse_version_giving_extra_args_to_parent():
     parser = simple_parsing.ArgumentParser()
     parser.add_argument("--foo", type=int, default=3)
