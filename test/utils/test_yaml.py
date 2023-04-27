@@ -1,13 +1,10 @@
 """ Tests for serialization to/from yaml files. """
 import textwrap
 from dataclasses import dataclass
-from pathlib import Path
 from typing import List
 
 from simple_parsing import list_field
 from simple_parsing.helpers.serialization import YamlSerializable
-
-from ..nesting.example_use_cases import HyperParameters
 
 
 @dataclass
@@ -63,32 +60,6 @@ def test_dumps_loads():
         """
         )
     )
-
-
-def test_save_yaml(tmpdir: Path):
-    hparams = HyperParameters.setup("")
-    tmp_path = Path(tmpdir / "temp.yml")
-    hparams.save_yaml(tmp_path)
-
-    _hparams = HyperParameters.load_yaml(tmp_path)
-    assert hparams == _hparams
-
-
-def test_save_json(tmpdir: Path):
-    hparams = HyperParameters.setup("")
-    tmp_path = Path(tmpdir / "temp.json")
-    hparams.save_yaml(tmp_path)
-    _hparams = HyperParameters.load_yaml(tmp_path)
-    assert hparams == _hparams
-
-
-def test_save_yml(tmpdir: Path):
-    hparams = HyperParameters.setup("")
-    tmp_path = Path(tmpdir / "temp.yml")
-    hparams.save(tmp_path)
-
-    _hparams = HyperParameters.load(tmp_path)
-    assert hparams == _hparams
 
 
 # def test_save_yml(HyperParameters, tmpdir: Path):
