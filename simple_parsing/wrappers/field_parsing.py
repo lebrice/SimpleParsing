@@ -172,7 +172,9 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
             f"Couldn't parse value {val}, returning the value as-is. (exceptions: {exceptions})"
         )
 
-    _try_functions.__name__ = "Try<" + " and ".join(str(func.__name__) for func in funcs) + ">"
+    _try_functions.__name__ = (
+        "Try<" + " and ".join(str(getattr(func, "__name__", func)) for func in funcs) + ">"
+    )
     return _try_functions
 
 
