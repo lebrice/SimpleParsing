@@ -20,6 +20,8 @@ extras_require: dict[str, list[str]] = {
         "pytest",
         "pytest-xdist",
         "pytest-regressions",
+        "numpy",
+        "torch",
     ],
     "yaml": ["pyyaml"],
 }
