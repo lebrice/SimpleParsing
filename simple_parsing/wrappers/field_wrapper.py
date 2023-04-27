@@ -10,7 +10,6 @@ from logging import getLogger
 from typing import Any, Callable, ClassVar, Hashable, Union, cast
 
 from typing_extensions import Literal
-from typing import Any, ClassVar, Dict, List, Optional, Set, Tuple, Type, Union, cast, Callable
 
 from simple_parsing.help_formatter import TEMPORARY_TOKEN
 
@@ -865,7 +864,7 @@ class FieldWrapper(Wrapper):
         self._type_metadata = metadata
 
     @property
-    def type_metadata(self) -> Type[Any]:
+    def type_metadata(self) -> type[Any]:
         """Returns the wrapped field's type metadata."""
         if self._type_metadata is None:
             self._compute_type_and_metadata()
@@ -1129,7 +1128,6 @@ def only_keep_action_args(options: dict[str, Any], action: str | Any) -> dict[st
 
     kept_options, deleted_options = utils.keep_keys(options, args_to_keep)
     if deleted_options:
-        breakpoint()
         logger.debug(
             f"Some auto-generated options were deleted, as they were "
             f"not required by the Action constructor: {deleted_options}."

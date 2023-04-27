@@ -3,8 +3,8 @@
 """
 from __future__ import annotations
 
-import functools
 import ast
+import functools
 import inspect
 import tokenize
 from dataclasses import dataclass
@@ -14,6 +14,9 @@ from textwrap import dedent
 
 import docstring_parser as dp
 from docstring_parser.common import Docstring
+from typing_extensions import Literal
+
+from simple_parsing.utils import Dataclass
 
 logger = getLogger(__name__)
 
@@ -122,7 +125,7 @@ def _get_attribute_docstring(dataclass: type, field_name: str) -> AttributeDocSt
         return None
 
 
-def scrape_comments(src):
+def scrape_comments(src: str) -> list[tuple[int, int, Literal["COMMENT"], str]]:
     lines = bytes(src, encoding="utf8").splitlines(keepends=True)
     return [
         (*tok.start, "COMMENT", tok.string[1:].strip())
@@ -133,13 +136,13 @@ def scrape_comments(src):
 
 class AttributeVisitor(ast.NodeVisitor):
     def __init__(self):
-        self.data = []
+        self.data: list[tuple[int, int, str, str]] = []
         self.prefix = None
 
-    def add_data(self, node, kind, content):
+    def add_data(self, node: ast.Expr, kind: str, content: str):
         self.data.append((node.lineno, node.col_offset, kind, content))
 
-    def visit_body(self, name, stmts):
+    def visit_body(self, name: str, stmts: list[ast.stmt]):
         old_prefix = self.prefix
         if self.prefix is None:
             self.prefix = ""
@@ -182,16 +185,16 @@ class AttributeVisitor(ast.NodeVisitor):
         super().generic_visit(node)
 
 
-def scrape_docstrings(src):
+def scrape_docstrings(src: str):
     visitor = AttributeVisitor()
     visitor.visit(ast.parse(src))
     return visitor.data
 
 
-def get_attribute_docstrings(cls):
-    docs = {}
-    current = None
-    current_line = None
+def get_attribute_docstrings(cls: type[Dataclass]) -> dict[str, AttributeDocString]:
+    docs: dict[str, AttributeDocString] = {}
+    current: str | None = None
+    current_line: int | None = None
     comments_above = []
     try:
         indented_src = inspect.getsource(cls)
@@ -208,15 +211,21 @@ def get_attribute_docstrings(cls):
     for line, _, kind, content in sorted(data):
         if kind == "COMMENT":
             if current is not None and current_line == line:
-                docs[current].comment_inline = content
+                docs[current].comment_inline = content.strip()
             else:
                 comments_above.append(content)
         elif kind == "DOC" and current:
-            docs[current].docstring_below = content
+
+            content_lines = content.splitlines()
+            if len(content_lines) > 1:
+                docs[current].docstring_below = (
+                    dedent(content_lines[0]) + "\n" + dedent("\n".join(content_lines[1:]))
+                )
+            else:
+                docs[current].docstring_below = dedent(content.strip())
+
         elif kind == "VARIABLE":
-            docs[content] = AttributeDocString(
-                comment_above="\n".join(comments_above)
-            )
+            docs[content] = AttributeDocString(comment_above=dedent("\n".join(comments_above)))
             comments_above = []
             current = content
             current_line = line
