@@ -3,6 +3,7 @@
 """
 from __future__ import annotations
 
+import functools
 import inspect
 from dataclasses import dataclass
 from logging import getLogger
@@ -95,6 +96,7 @@ def get_attribute_docstring(
     return created_docstring
 
 
+@functools.lru_cache(2048)
 def _get_attribute_docstring(dataclass: type, field_name: str) -> AttributeDocString | None:
     """Gets the AttributeDocString of the given field in the given dataclass.
     Doesn't inspect base classes.
