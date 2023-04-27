@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import ast
+import dataclasses
 import functools
 import inspect
 import tokenize
@@ -13,7 +14,6 @@ from logging import getLogger
 from textwrap import dedent
 
 import docstring_parser as dp
-from docstring_parser.common import Docstring
 from typing_extensions import Literal
 
 from simple_parsing.utils import Dataclass
@@ -34,7 +34,7 @@ class AttributeDocString:
 
     @property
     def help_string(self) -> str:
-        """Returns the value that will be used for the "--help" string, using the contents of self."""
+        """Returns the value that will be used for the "--help" string."""
         return (
             self.docstring_below
             or self.comment_above
@@ -56,9 +56,9 @@ def get_attribute_docstring(
     Arguments:
         some_dataclass: a dataclass
         field_name: the name of the field.
-        accumulate_from_bases: Whether to accumulate the docstring components by looking through the
-            base classes. When set to `False`, whenever one of the classes has a definition for the
-            field, it is directly returned. Otherwise, we accumulate the parts of the dodc
+        accumulate_from_bases: Whether to accumulate the docstring components by looking through
+            the base classes. When set to `False`, whenever one of the classes has a definition for
+            the field, it is directly returned. Otherwise, we accumulate the parts of the dodc
     Returns:
         AttributeDocString -- an object holding the string descriptions of the field.
     """
@@ -69,7 +69,8 @@ def get_attribute_docstring(
     assert mro[-1] is object
     mro = mro[:-1]
     for base_class in mro:
-        attribute_docstring = _get_attribute_docstring(base_class, field_name)
+        attribute_docstring = get_attribute_docstrings(base_class).get(field_name, None)
+
         if not attribute_docstring:
             continue
         if not created_docstring:
@@ -101,28 +102,6 @@ def get_attribute_docstring(
         )
         return AttributeDocString()
     return created_docstring
-
-
-@functools.lru_cache(2048)
-def _get_attribute_docstring(dataclass: type, field_name: str) -> AttributeDocString | None:
-    """Gets the AttributeDocString of the given field in the given dataclass.
-    Doesn't inspect base classes.
-    """
-    # Parse docstring to use as help strings
-    desc_from_cls_docstring = ""
-    cls_docstring = inspect.getdoc(dataclass)
-    if cls_docstring:
-        docstring: Docstring = dp.parse(cls_docstring)
-        for param in docstring.params:
-            if param.arg_name == field_name:
-                desc_from_cls_docstring = param.description or ""
-
-    results = get_attribute_docstrings(dataclass).get(field_name, None)
-    if results:
-        results.desc_from_cls_docstring = desc_from_cls_docstring
-        return results
-    else:
-        return None
 
 
 def scrape_comments(src: str) -> list[tuple[int, int, Literal["COMMENT"], str]]:
@@ -193,6 +172,7 @@ def scrape_docstrings(src: str):
     return visitor.data
 
 
+@functools.lru_cache(2048)
 def get_attribute_docstrings(cls: type[Dataclass]) -> dict[str, AttributeDocString]:
     docs: dict[str, AttributeDocString] = {}
     current: str | None = None
@@ -236,4 +216,14 @@ def get_attribute_docstrings(cls: type[Dataclass]) -> dict[str, AttributeDocStri
         elif kind == "OTHER":
             current = current_line = None
             comments_above = []
+
+    # Parse docstring to use as help strings
+    cls_docstring = inspect.getdoc(cls)
+    if cls_docstring:
+        docstring: dp.Docstring = dp.parse(cls_docstring)
+        for param in docstring.params:
+            for field in dataclasses.fields(cls):
+                if param.arg_name == field.name:
+                    docs[field.name].desc_from_cls_docstring = param.description or ""
+
     return docs
