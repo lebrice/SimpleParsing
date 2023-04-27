@@ -136,10 +136,12 @@ def scrape_comments(src: str) -> list[tuple[int, int, Literal["COMMENT"], str]]:
 
 class AttributeVisitor(ast.NodeVisitor):
     def __init__(self):
-        self.data: list[tuple[int, int, str, str]] = []
+        self.data: list[tuple[int, int, Literal["DOC", "VARIABLE", "OTHER"], str | None]] = []
         self.prefix = None
 
-    def add_data(self, node: ast.Expr, kind: str, content: str):
+    def add_data(
+        self, node: ast.AST, kind: Literal["DOC", "VARIABLE", "OTHER"], content: str | None
+    ):
         self.data.append((node.lineno, node.col_offset, kind, content))
 
     def visit_body(self, name: str, stmts: list[ast.stmt]):
@@ -159,27 +161,27 @@ class AttributeVisitor(ast.NodeVisitor):
                 self.visit(stmt)
         self.prefix = old_prefix
 
-    def visit_ClassDef(self, node):
+    def visit_ClassDef(self, node: ast.ClassDef):
         if self.prefix is not None:
             self.add_data(node, "VARIABLE", f"{self.prefix}{node.name}")
         self.visit_body(node.name, node.body)
 
-    def visit_FunctionDef(self, node):
+    def visit_FunctionDef(self, node: ast.FunctionDef):
         if self.prefix is not None:
             self.add_data(node, "VARIABLE", f"{self.prefix}{node.name}")
         self.visit_body(node.name, node.body)
 
-    def visit_Assign(self, node):
+    def visit_Assign(self, node: ast.Assign):
         self.generic_visit(node, may_assign=True)
 
-    def visit_AnnAssign(self, node):
+    def visit_AnnAssign(self, node: ast.AnnAssign):
         self.generic_visit(node, may_assign=True)
 
-    def visit_Name(self, node):
+    def visit_Name(self, node: ast.Name):
         if isinstance(node.ctx, ast.Store):
             self.add_data(node, "VARIABLE", f"{self.prefix}{node.id}")
 
-    def generic_visit(self, node, may_assign=False):
+    def generic_visit(self, node: ast.AST, may_assign: bool = False):
         if isinstance(node, ast.stmt) and not may_assign:
             self.add_data(node, "OTHER", None)
         super().generic_visit(node)
@@ -210,12 +212,13 @@ def get_attribute_docstrings(cls: type[Dataclass]) -> dict[str, AttributeDocStri
     data = scrape_comments(src) + scrape_docstrings(src)
     for line, _, kind, content in sorted(data):
         if kind == "COMMENT":
+            assert content is not None
             if current is not None and current_line == line:
                 docs[current].comment_inline = content.strip()
             else:
                 comments_above.append(content)
         elif kind == "DOC" and current:
-
+            assert content is not None
             content_lines = content.splitlines()
             if len(content_lines) > 1:
                 docs[current].docstring_below = (
@@ -225,6 +228,7 @@ def get_attribute_docstrings(cls: type[Dataclass]) -> dict[str, AttributeDocStri
                 docs[current].docstring_below = dedent(content.strip())
 
         elif kind == "VARIABLE":
+            assert content is not None
             docs[content] = AttributeDocString(comment_above=dedent("\n".join(comments_above)))
             comments_above = []
             current = content
