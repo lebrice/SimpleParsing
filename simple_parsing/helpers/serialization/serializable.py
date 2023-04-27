@@ -13,6 +13,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import IO, Any, Callable, ClassVar, TypeVar, Union
 
+from typing_extensions import Protocol
+
 from simple_parsing.utils import (
     DataclassT,
     all_subclasses,
@@ -57,11 +59,16 @@ except ImportError:
     pass
 
 
-class FormatExtension:
-    binary: bool = False
+class FormatExtension(Protocol):
+    binary: ClassVar[bool] = False
 
-    def __init__(self, extension_name: str, binary=False):
-        self.extension_name = extension_name
+    @staticmethod
+    def load(fp: IO) -> Any:
+        ...
+
+    @staticmethod
+    def dump(obj: Any, io: IO) -> None:
+        ...
 
 
 class JSONExtension(FormatExtension):
@@ -70,12 +77,13 @@ class JSONExtension(FormatExtension):
 
 
 class PickleExtension(FormatExtension):
-    load = staticmethod(pickle.load)
-    dump = staticmethod(pickle.dump)
+    binary: ClassVar[bool] = True
+    load: ClassVar[Callable[[IO], Any]] = staticmethod(pickle.load)
+    dump: ClassVar[Callable[[Any, IO[bytes]], None]] = staticmethod(pickle.dump)
 
 
 class YamlExtension(FormatExtension):
-    def load(self, io: IO) -> None:
+    def load(self, io: IO) -> Any:
         import yaml
 
         return yaml.safe_load(io)
@@ -89,42 +97,45 @@ class YamlExtension(FormatExtension):
 class NumpyExtension(FormatExtension):
     binary: bool = True
 
-    def load(self, io: IO) -> None:
+    def load(self, io: IO) -> Any:
         import numpy
 
-        return numpy.load(io)
+        obj = numpy.load(io, allow_pickle=True)
+        if isinstance(obj, numpy.ndarray) and obj.dtype == object:
+            obj = obj.item()
+        return obj
 
-    def dump(self, obj: Any, io: IO, **kwargs) -> None:
+    def dump(self, obj: Any, io: IO[bytes], **kwargs) -> None:
         import numpy
 
-        return numpy.save(obj, io, **kwargs)
+        return numpy.save(io, obj, **kwargs)
 
 
 class TorchExtension(FormatExtension):
     binary: bool = True
 
     def load(self, io: IO) -> None:
-        import torch
+        import torch  # type: ignore
 
         return torch.load(io)
 
     def dump(self, obj: Any, io: IO, **kwargs) -> None:
-        import torch
+        import torch  # type: ignore
 
         return torch.save(obj, io, **kwargs)
 
 
-json_extension = JSONExtension("_")
-yaml_extension = YamlExtension("_")
+json_extension = JSONExtension()
+yaml_extension = YamlExtension()
 
 
 extensions: dict[str, FormatExtension] = {
-    ".json": JSONExtension(".json"),
-    ".pkl": PickleExtension(".pkl"),
-    ".yaml": YamlExtension(".yaml"),
-    ".yml": YamlExtension(".yml"),
-    ".npy": NumpyExtension(".npy"),
-    ".pth": TorchExtension(".pth"),
+    ".json": JSONExtension(),
+    ".pkl": PickleExtension(),
+    ".yaml": YamlExtension(),
+    ".yml": YamlExtension(),
+    ".npy": NumpyExtension(),
+    ".pth": TorchExtension(),
 }
 
 
@@ -330,17 +341,13 @@ class SerializableMixin:
         """
         return load_yaml(cls, path, load_fn=load_fn, drop_extra_fields=drop_extra_fields, **kwargs)
 
-    def save(self, path: str | Path, format: FormatExtension = None) -> None:
+    def save(self, path: str | Path, format: FormatExtension | None = None) -> None:
         save(self, path=path, format=format)
 
-    def _save(
-        self, path: str | Path, format: FormatExtension = json_extension, **kwargs
-    ) -> None:
+    def _save(self, path: str | Path, format: FormatExtension = json_extension, **kwargs) -> None:
         save(self, path=path, format=format, **kwargs)
 
-    def save_yaml(
-        self, path: str | Path, dump_fn: DumpFn | None = None, **kwargs
-    ) -> None:
+    def save_yaml(self, path: str | Path, dump_fn: DumpFn | None = None, **kwargs) -> None:
         save_yaml(self, path, **kwargs)
 
     def save_json(self, path: str | Path, **kwargs) -> None:
@@ -587,11 +594,15 @@ def read_file(path: str | Path) -> dict:
 
 
 def save(
-    obj: Any, path: str | Path, format: FormatExtension | None = None, **kwargs
+    obj: Any,
+    path: str | Path,
+    format: FormatExtension | None = None,
+    save_dc_types: bool = False,
+    **kwargs,
 ) -> None:
     """Save the given dataclass or dictionary to the given file."""
     if not isinstance(obj, dict):
-        obj = to_dict(obj)
+        obj = to_dict(obj, save_dc_types=save_dc_types)
     if format is None:
         format = get_extension(path)
     with open(path, mode="wb" if format.binary else "w") as f:
