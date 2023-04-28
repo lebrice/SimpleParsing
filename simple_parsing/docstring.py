@@ -97,12 +97,17 @@ def get_attribute_docstring(
 
 
 @functools.lru_cache(2048)
+def cached_inspect_getsource(obj: object) -> str:
+    return inspect.getsource(obj)
+    
+
+@functools.lru_cache(2048)
 def _get_attribute_docstring(dataclass: type, field_name: str) -> AttributeDocString | None:
     """Gets the AttributeDocString of the given field in the given dataclass.
     Doesn't inspect base classes.
     """
     try:
-        source = inspect.getsource(dataclass)
+        source = cached_inspect_getsource(dataclass)
     except (TypeError, OSError) as e:
         logger.debug(
             UserWarning(
