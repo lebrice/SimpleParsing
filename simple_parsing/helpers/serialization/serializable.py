@@ -810,9 +810,12 @@ def from_dict(
             continue
 
         raw_value = obj_dict.pop(name)
-        field_value = decode_field(
-            field, raw_value, containing_dataclass=cls, drop_extra_fields=drop_extra_fields
-        )
+        if raw_value is None:
+            field_value = None
+        else:
+            field_value = decode_field(
+                field, raw_value, containing_dataclass=cls, drop_extra_fields=drop_extra_fields
+            )
 
         if field.init:
             init_args[name] = field_value
