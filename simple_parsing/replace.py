@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import logging
 from typing import Any, Mapping, overload
 
 from simple_parsing.annotation_utils.get_field_annotations import (
@@ -18,8 +19,9 @@ from simple_parsing.utils import (
     is_optional,
     unflatten_split,
 )
-import logging
+
 logger = logging.getLogger(__name__)
+
 
 @overload
 def replace(obj: DataclassT, changes_dict: dict[str, Any]) -> DataclassT:
@@ -107,59 +109,9 @@ def replace(obj: DataclassT, changes_dict: dict[str, Any] | None = None, **chang
     return dataclasses.replace(obj, **replace_kwargs)
 
 
-def unflatten_selection_dict(
-    flattened: Mapping[str, V], keyword: str = "__key__", sep: str =".", recursive: bool = False
-) -> PossiblyNestedDict[str, V]:
-    """
-    This function convert a flattened dict into a nested dict
-    and it inserts the `keyword` as the selection into the nested dict.
-
-    >>> unflatten_selection_dict({'ab_or_cd': 'cd', 'ab_or_cd.c_or_d': 'd'})
-    {'ab_or_cd': {'__key__': 'cd', 'c_or_d': 'd'}}
-    
-    >>> unflatten_selection_dict({'lv1': 'a', 'lv1.lv2': 'b', 'lv1.lv2.lv3': 'c'})
-    {'lv1': {'__key__': 'a', 'lv2': 'b', 'lv2.lv3': 'c'}}
-
-    >>> unflatten_selection_dict({'lv1': 'a', 'lv1.lv2': 'b', 'lv1.lv2.lv3': 'c'}, recursive=True)
-    {'lv1': {'__key__': 'a', 'lv2': {'__key__': 'b', 'lv3': 'c'}}}
-
-    >>> unflatten_selection_dict({'ab_or_cd.c_or_d': 'd'})
-    {'ab_or_cd': {'c_or_d': 'd'}}
-
-    >>> unflatten_selection_dict({"a": 1, "b": 2})
-    {'a': 1, 'b': 2}
-    """
-    dc = {}
-
-    unflatten_those_top_level_keys = set()
-    for k, v in flattened.items():
-        splited_keys = k.split(sep)
-        if len(splited_keys) >= 2:
-            unflatten_those_top_level_keys.add(splited_keys[0])
-
-    for k, v in flattened.items():
-        keys = k.split(sep)
-        top_level_key = keys[0]
-        rest_keys = keys[1:]
-        if top_level_key in unflatten_those_top_level_keys:
-            sub_dc = dc.get(top_level_key, {})
-            if len(rest_keys) == 0:
-                sub_dc[keyword] = v
-            else:
-                sub_dc['.'.join(rest_keys)] = v
-            dc[top_level_key] = sub_dc
-        else:
-            dc[k] = v
-    
-    if recursive:
-        for k in unflatten_those_top_level_keys:
-            v = dc.pop(k)
-            unflatten_v = unflatten_selection_dict(v, recursive=recursive)
-            dc[k] = unflatten_v
-    return dc
-
-
-def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] | None = None) -> DataclassT:
+def replace_subgroups(
+    obj: DataclassT, selections: dict[str, Key | DataclassT] | None = None
+) -> DataclassT:
     """
     This function replaces the dataclass of subgroups, union, and optional union.
     The `selections` dict can be in flat format or in nested format.
@@ -170,7 +122,7 @@ def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] |
 
     if not selections:
         return obj
-    selections = unflatten_selection_dict(selections, keyword)
+    selections = _unflatten_selection_dict(selections, keyword, recursive=False)
 
     replace_kwargs = {}
     for field in dataclasses.fields(obj):
@@ -227,3 +179,55 @@ def replace_subgroups(obj: DataclassT, selections: dict[str, Key | DataclassT] |
 
         replace_kwargs[field.name] = new_value
     return dataclasses.replace(obj, **replace_kwargs)
+
+
+def _unflatten_selection_dict(
+    flattened: Mapping[str, V], keyword: str = "__key__", sep: str = ".", recursive: bool = True
+) -> PossiblyNestedDict[str, V]:
+    """
+    This function convert a flattened dict into a nested dict
+    and it inserts the `keyword` as the selection into the nested dict.
+
+    >>> _unflatten_selection_dict({'ab_or_cd': 'cd', 'ab_or_cd.c_or_d': 'd'})
+    {'ab_or_cd': {'__key__': 'cd', 'c_or_d': 'd'}}
+
+    >>> _unflatten_selection_dict({'lv1': 'a', 'lv1.lv2': 'b', 'lv1.lv2.lv3': 'c'})
+    {'lv1': {'__key__': 'a', 'lv2': {'__key__': 'b', 'lv3': 'c'}}}
+
+    >>> _unflatten_selection_dict({'lv1': 'a', 'lv1.lv2': 'b', 'lv1.lv2.lv3': 'c'}, recursive=False)
+    {'lv1': {'__key__': 'a', 'lv2': 'b', 'lv2.lv3': 'c'}}
+
+    >>> _unflatten_selection_dict({'ab_or_cd.c_or_d': 'd'})
+    {'ab_or_cd': {'c_or_d': 'd'}}
+
+    >>> _unflatten_selection_dict({"a": 1, "b": 2})
+    {'a': 1, 'b': 2}
+    """
+    dc = {}
+
+    unflatten_those_top_level_keys = set()
+    for k, v in flattened.items():
+        splited_keys = k.split(sep)
+        if len(splited_keys) >= 2:
+            unflatten_those_top_level_keys.add(splited_keys[0])
+
+    for k, v in flattened.items():
+        keys = k.split(sep)
+        top_level_key = keys[0]
+        rest_keys = keys[1:]
+        if top_level_key in unflatten_those_top_level_keys:
+            sub_dc = dc.get(top_level_key, {})
+            if len(rest_keys) == 0:
+                sub_dc[keyword] = v
+            else:
+                sub_dc[".".join(rest_keys)] = v
+            dc[top_level_key] = sub_dc
+        else:
+            dc[k] = v
+
+    if recursive:
+        for k in unflatten_those_top_level_keys:
+            v = dc.pop(k)
+            unflatten_v = _unflatten_selection_dict(v, recursive=recursive)
+            dc[k] = unflatten_v
+    return dc
