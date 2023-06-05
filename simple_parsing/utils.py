@@ -38,6 +38,13 @@ from typing import (
 
 from typing_extensions import Literal, Protocol, TypeGuard, get_args, get_origin
 
+# There are cases where typing.Literal doesn't match typing_extensions.Literal:
+# https://github.com/python/typing_extensions/pull/148
+try:
+    from typing import Literal as LiteralAlt
+except ImportError:
+    LiteralAlt = Literal  # type: ignore
+
 
 # NOTE: Copied from typing_inspect.
 def is_typevar(t) -> bool:
@@ -262,7 +269,7 @@ def is_literal(t: type) -> bool:
     >>> is_literal(Optional[Literal[1,2]])
     False
     """
-    return get_origin(t) is Literal
+    return get_origin(t) in (Literal, LiteralAlt)
 
 
 def is_list(t: type) -> bool:
