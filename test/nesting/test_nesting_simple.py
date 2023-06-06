@@ -6,7 +6,7 @@ import pytest
 import simple_parsing
 from simple_parsing import ConflictResolution, field
 
-from . import TestSetup
+from ..testutils import TestSetup
 from .example_use_cases import HParams, RunConfig, TrainConfig
 
 
