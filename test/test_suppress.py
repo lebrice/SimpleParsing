@@ -1,7 +1,7 @@
 import argparse
 import shlex
 from dataclasses import dataclass
-from test import raises_missing_required_arg
+from test.testutils import raises_missing_required_arg
 
 from simple_parsing import ArgumentParser
 from simple_parsing.utils import str2bool
