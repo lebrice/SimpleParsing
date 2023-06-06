@@ -1,4 +1,5 @@
 import enum
+import sys
 from dataclasses import dataclass
 from typing import Any, List, NamedTuple, Optional
 
@@ -7,6 +8,7 @@ from typing_extensions import Literal
 
 from .testutils import (
     TestSetup,
+    exits_and_writes_to_stderr,
     raises_invalid_choice,
     raises_missing_required_arg,
     xfail_param,
@@ -98,3 +100,21 @@ def test_list_of_literal(literal_field: FieldComponents):
     )
     with raises_invalid_choice():
         assert Foo.setup(f"--values {incorrect_value}")
+
+
+@dataclass
+class SomeFoo(TestSetup):
+    param: Literal["bar", "biz"] = "biz"
+
+
+@pytest.mark.skipif(sys.version_info != (3, 9), reason="Bug is only in 3.9")
+@pytest.mark.xfail(strict=True, reason="This bug was fixed by #260")
+def test_reproduce_issue_259_parsing_literal_py39():
+    """Reproduces https://github.com/lebrice/SimpleParsing/issues/259"""
+    # $ python issue.py
+    # usage: issue.py [-h] [--param typing.Literal['bar', 'biz']]
+    # issue.py: error: argument --param: invalid typing.Literal['bar', 'biz'] value: 'biz'
+    with exits_and_writes_to_stderr(
+        "argument --param: invalid typing.Literal['bar', 'biz'] value: 'biz'"
+    ):
+        assert SomeFoo.setup("").param == "biz"
