@@ -77,6 +77,11 @@ def decoding_fn_for_type(some_type: type) -> Callable[[C], C]:
     return _wrapper
 
 
+def has_custom_decode_fn(some_type: type) -> bool:
+    """Returns True if the given type has a custom decoding function registered."""
+    return some_type in _decoding_fns
+
+
 @decoding_fn_for_type(int)
 def _decode_int(v: str) -> int:
     int_v = int(v)

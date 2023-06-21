@@ -15,6 +15,7 @@ from simple_parsing.help_formatter import TEMPORARY_TOKEN
 
 from .. import docstring, utils
 from ..helpers.custom_actions import BooleanOptionalAction
+from ..helpers.serialization import has_custom_decode_fn
 from ..utils import Dataclass
 from .field_metavar import get_metavar
 from .field_parsing import get_parsing_fn
@@ -517,7 +518,7 @@ class FieldWrapper(Wrapper):
                 # TODO: Make sure that this doesn't cause issues with NamedTuple types.
                 return tuple(raw_parsed_value)
 
-        elif self.type not in utils.builtin_types:
+        elif self.type not in utils.builtin_types and not has_custom_decode_fn(self.type):
             # TODO: what if we actually got an auto-generated parsing function?
             try:
                 # if the field has a weird type, we try to call it directly.
