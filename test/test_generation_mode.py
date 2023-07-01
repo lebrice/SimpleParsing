@@ -4,7 +4,7 @@ import pytest
 
 from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
-from . import TestSetup
+from .testutils import TestSetup
 
 
 @dataclass
