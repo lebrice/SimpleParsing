@@ -32,14 +32,6 @@ def _fn_with_all_argument_types(a: int, /, b: int, *, c: int) -> int:
     return a + b + c
 
 
-class ListWithPopDefault(collections.UserList):
-    def pop(self, index, default_value=None):
-        try:
-            return super().pop(index)
-        except IndexError:
-            return default_value
-
-
 def partial(fn: Callable, *args, **kwargs) -> Callable:
     _wrapper = functools.partial(fn, *args, **kwargs)
     _wrapper.__qualname__ = fn.__qualname__
