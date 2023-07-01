@@ -1,11 +1,8 @@
-"""Tests simple parsing decorators.
-"""
+"""Tests simple parsing decorators."""
 import collections
 import dataclasses
 import functools
-import inspect
 import sys
-import typing
 from typing import Callable
 
 import pytest
