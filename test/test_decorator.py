@@ -44,27 +44,8 @@ class ListWithPopDefault(collections.UserList):
 
 
 def partial(fn: Callable, *args, **kwargs) -> Callable:
-    """Partial via changing the signature defaults."""
-
-    @functools.wraps(fn)
-    def _wrapper(*other_args, **other_kwargs):
-        return fn(*other_args, **other_kwargs)
-
-    signature = inspect.signature(fn)
-    parameters = signature.parameters
-
-    args = ListWithPopDefault(args)
-
-    new_parameters = []
-    for key, param in parameters.items():
-        param = typing.cast(inspect.Parameter, param)
-        default = args.pop(0, None) or kwargs.get(key, None)
-        if default is not None:
-            param = param.replace(default=default)
-        new_parameters.append(param)
-
-    signature = signature.replace(parameters=new_parameters)
-    _wrapper.__signature__ = signature
+    _wrapper = functools.partial(fn, *args, **kwargs)
+    _wrapper.__qualname__ = fn.__qualname__
 
     return _wrapper
 
@@ -73,7 +54,7 @@ def partial(fn: Callable, *args, **kwargs) -> Callable:
     "args, expected, fn",
     [
         ("", 1, partial(_fn_with_positional_only, 1)),
-        ("2", 2, partial(_fn_with_positional_only, 1)),
+        ("2", 2, partial(_fn_with_positional_only)),
         ("2", 2, _fn_with_positional_only),
         ("", 1, partial(_fn_with_keyword_only, x=1)),
         ("--x=2", 2, partial(_fn_with_keyword_only, x=1)),
