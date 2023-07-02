@@ -43,7 +43,8 @@ class ListWithPopDefault(collections.UserList):
 
 def delay_evaluation_wrapper(fn: Callable) -> Callable:
     def delayed_call(*args, **kwargs):
-        return lambda : fn(*args, **kwargs)
+        return lambda: fn(*args, **kwargs)
+
     return delayed_call
 
 
@@ -115,9 +116,6 @@ def test_simple_arguments(
 
 def _fn_with_nested_dataclass(x: int, /, *, data: AddThreeNumbers) -> int:
     return x + data()
-
-
-
 
 
 @pytest.mark.parametrize(
