@@ -409,6 +409,12 @@ class FieldWrapper(Wrapper):
             else:
                 _arg_options["nargs"] = "*"
 
+        if isinstance(self.type_metadata, dict):
+            _arg_options.update(self.type_metadata)
+        elif isinstance(self.type_metadata, Callable):
+            self.type_metadata(self, _arg_options)
+        else:
+            raise TypeError("Wrong type for metadata")
         return _arg_options
 
     def duplicate_if_needed(self, parsed_values: Any) -> list[Any]:
@@ -830,26 +836,62 @@ class FieldWrapper(Wrapper):
     def required(self, value: bool):
         self._required = value
 
+    def _compute_type_and_metadata(self):
+        # TODO: Refactor this. Really ugly.
+        typ = self.field.type
+        if isinstance(typ, str):
+            # The type of the field might be a string when using `from __future__ import annotations`.
+            # NOTE: Here we'd like to convert the fields type to an actual type, in case the
+            # `from __future__ import annotations` feature is used.
+            # This should also resolve most forward references.
+            from simple_parsing.annotation_utils.get_field_annotations import (
+                get_field_type_from_annotations,
+            )
+
+            field_type = get_field_type_from_annotations(self.parent.dataclass, self.field.name)
+            typ = field_type
+        elif isinstance(typ, dataclasses.InitVar):
+            typ = typ.type
+
+        if hasattr(typ, "__metadata__"):
+            (metadata,) = typ.__metadata__
+            (effective_type,) = typ.__args__
+        else:
+            metadata = {}
+            effective_type = typ
+
+        self._type = effective_type
+        self._type_metadata = metadata
+
+    @property
+    def type_metadata(self) -> type[Any]:
+        """Returns the wrapped field's type metadata."""
+        if self._type_metadata is None:
+            self._compute_type_and_metadata()
+        return self._type_metadata
+
     @property
     def type(self) -> type[Any]:
         """Returns the wrapped field's type annotation."""
-        # TODO: Refactor this. Really ugly.
         if self._type is None:
-            self._type = self.field.type
-            if isinstance(self._type, str):
-                # The type of the field might be a string when using `from __future__ import annotations`.
-                # NOTE: Here we'd like to convert the fields type to an actual type, in case the
-                # `from __future__ import annotations` feature is used.
-                # This should also resolve most forward references.
-                from simple_parsing.annotation_utils.get_field_annotations import (
-                    get_field_type_from_annotations,
-                )
-
-                field_type = get_field_type_from_annotations(self.parent.dataclass, self.field.name)
-                self._type = field_type
-            elif isinstance(self._type, dataclasses.InitVar):
-                self._type = self._type.type
+            self._compute_type_and_metadata()
         return self._type
+        # if self._type is None:
+        #     self._type = self.field.type
+        #     if isinstance(self._type, str):
+        #         # The type of the field might be a string when using `from __future__ import annotations`.
+        #         # NOTE: Here we'd like to convert the fields type to an actual type, in case the
+        #         # `from __future__ import annotations` feature is used.
+        #         # This should also resolve most forward references.
+        #         from simple_parsing.annotation_utils.get_field_annotations import (
+        #             get_field_type_from_annotations,
+        #         )
+
+        #         field_type = get_field_type_from_annotations(self.parent.dataclass, self.field.name)
+        #         self._type = field_type
+        #     elif isinstance(self._type, dataclasses.InitVar):
+        #         self._type = self._type.type
+        # return self._type
 
     def __str__(self):
         return f"""<FieldWrapper for field '{self.dest}'>"""
