@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from ..nesting.example_use_cases import HyperParameters
 
 
@@ -47,6 +49,13 @@ def test_save_numpy(tmpdir: Path):
     assert hparams == _hparams
 
 
+try:
+    import torch
+except ImportError:
+    torch = None
+
+
+@pytest.mark.skipif(torch is None, reason="PyTorch is not installed")
 def test_save_torch(tmpdir: Path):
     hparams = HyperParameters.setup("")
     tmp_path = Path(tmpdir / "temp.pth")
