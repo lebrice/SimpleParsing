@@ -61,7 +61,7 @@ def unflatten(possibly_related_wrappers: list[DataclassWrapper]) -> list[Datacla
 class ConflictResolver:
     def __init__(self, conflict_resolution=ConflictResolution.AUTO):
         self.conflict_resolution = conflict_resolution
-        self._max_attempts = 50
+        self.max_attempts = 50
 
     def resolve_and_flatten(self, wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
         """Given the list of all dataclass wrappers, find and resolve any conflicts between fields.
@@ -387,10 +387,4 @@ class ConflictResolver:
                     arg_names.add(option)
         return False
 
-    @property
-    def max_attempts(self) -> int:
-        return self._max_attempts
-    
-    @max_attempts.setter
-    def max_attempts(self, value: int):
         self._max_attempts = value
