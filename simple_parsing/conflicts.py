@@ -386,5 +386,3 @@ class ConflictResolver:
                         return True
                     arg_names.add(option)
         return False
-
-        self._max_attempts = value
