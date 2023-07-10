@@ -107,9 +107,9 @@ class ConflictResolver:
 
             conflict = self.get_conflict(wrappers_flat)
             cur_attempts += 1
-            if cur_attempts == self._max_attempts:
+            if cur_attempts == self.max_attempts:
                 raise ConflictResolutionError(
-                    f"Reached maximum number of attempts ({self._max_attempts}) "
+                    f"Reached maximum number of attempts ({self.max_attempts}) "
                     "while trying to solve the conflicting argument names. "
                     "This is either a bug, or there is something weird going "
                     "on with your class hierarchy/argument names... \n"
