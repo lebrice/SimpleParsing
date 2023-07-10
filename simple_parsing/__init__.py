@@ -26,7 +26,7 @@ from .parsing import (
     parse,
     parse_known_args,
 )
-from .replace import replace
+from .replace import replace, replace_subgroups
 from .utils import InconsistentArgumentError
 
 __all__ = [
@@ -49,6 +49,7 @@ __all__ = [
     "ParsingError",
     "Partial",
     "replace",
+    "replace_subgroups",
     "Serializable",
     "SimpleHelpFormatter",
     "subgroups",
