@@ -976,6 +976,13 @@ class ArgumentParser(argparse.ArgumentParser):
 
         return leftover_args, constructor_arguments
 
+    @property
+    def confilct_resolver_max_attempts(self) -> int:
+        return self._conflict_resolver.max_attempts
+    
+    @confilct_resolver_max_attempts.setter
+    def confilct_resolver_max_attempts(self, value: int):
+        self._conflict_resolver.max_attempts = value
 
 # TODO: Change the order of arguments to put `args` as the second argument.
 def parse(

@@ -61,6 +61,7 @@ def unflatten(possibly_related_wrappers: list[DataclassWrapper]) -> list[Datacla
 class ConflictResolver:
     def __init__(self, conflict_resolution=ConflictResolution.AUTO):
         self.conflict_resolution = conflict_resolution
+        self.max_attempts = 50
 
     def resolve_and_flatten(self, wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
         """Given the list of all dataclass wrappers, find and resolve any conflicts between fields.
@@ -82,7 +83,7 @@ class ConflictResolver:
         conflict = self.get_conflict(wrappers_flat)
 
         # current and maximum number of attempts. When reached, raises an error.
-        cur_attempts, max_attempts = 0, 50
+        cur_attempts = 0
         while conflict:
             message: str = (
                 "The following wrappers are in conflict, as they share the "
@@ -106,9 +107,9 @@ class ConflictResolver:
 
             conflict = self.get_conflict(wrappers_flat)
             cur_attempts += 1
-            if cur_attempts == max_attempts:
+            if cur_attempts == self.max_attempts:
                 raise ConflictResolutionError(
-                    f"Reached maximum number of attempts ({max_attempts}) "
+                    f"Reached maximum number of attempts ({self.max_attempts}) "
                     "while trying to solve the conflicting argument names. "
                     "This is either a bug, or there is something weird going "
                     "on with your class hierarchy/argument names... \n"
