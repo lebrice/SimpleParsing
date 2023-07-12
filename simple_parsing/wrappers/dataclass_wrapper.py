@@ -14,6 +14,7 @@ import docstring_parser as dp
 from typing_extensions import Literal
 
 from .. import docstring, utils
+from ..helpers.serialization import has_custom_decode_fn
 from ..utils import Dataclass, DataclassT, is_dataclass_instance, is_dataclass_type
 from .field_wrapper import FieldWrapper
 from .wrapper import Wrapper
@@ -133,7 +134,9 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
 
                 self.fields.append(field_wrapper)
 
-            elif dataclasses.is_dataclass(field_type) and field.default is not None:
+            elif dataclasses.is_dataclass(field_type) and\
+                    field.default is not None and\
+                    not has_custom_decode_fn(field_type):
                 # Non-optional dataclass field.
                 # handle a nested dataclass attribute
                 dataclass, name = field_type, field.name
@@ -150,9 +153,11 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                 )
                 self._children.append(child_wrapper)
 
-            elif utils.contains_dataclass_type_arg(field_type):
-                # Extract the dataclass type from the annotation of the field.
-                field_dataclass = utils.get_dataclass_type_arg(field_type)
+            # See if it's a generic with a dataclass arg
+            # if so, extract the dataclass type from the annotation of the field.
+            elif (field_dataclass := utils.get_dataclass_type_arg(field_type)) is not None and\
+                    field.default is not None and\
+                    not has_custom_decode_fn(field_dataclass):
                 # todo: Figure out if this is still necessary, or if `field_default` can be handled
                 # the same way as above.
                 if field_default is dataclasses.MISSING:
@@ -288,7 +293,7 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
 
     def set_default(self, value: DataclassT | dict | None):
         """Sets the default values for the arguments of the fields of this dataclass."""
-        if value is not None and not isinstance(value, dict):
+        if value is not None and dataclasses.is_dataclass(value):
             field_default_values = dataclasses.asdict(value)
         else:
             field_default_values = value
