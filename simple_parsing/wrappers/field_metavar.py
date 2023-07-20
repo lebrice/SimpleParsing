@@ -15,17 +15,17 @@ _new_metavars: Dict[Type[T], Optional[str]] = {
 }
 
 
-def log_results(fn: Callable[[Type], str]):
-    @functools.wraps(fn)
-    def _wrapped(t: Type) -> str:
-        result = fn(t)
-        # logger.debug(f"Metavar for type {t}: {result}")
-        return result
+# def log_results(fn: Callable[[Type], str]):
+#     @functools.wraps(fn)
+#     def _wrapped(t: Type) -> str:
+#         result = fn(t)
+#         # logger.debug(f"Metavar for type {t}: {result}")
+#         return result
 
-    return _wrapped
+#     return _wrapped
 
 
-@log_results
+# @log_results
 def get_metavar(t: Type) -> str:
     """Gets the metavar to be used for that type in help strings.
 

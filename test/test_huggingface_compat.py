@@ -2,6 +2,7 @@
 
 This checks that Simple-Parsing can be used as a replacement for the HFArgumentParser.
 """
+import enum
 import io
 from dataclasses import dataclass, field
 from enum import Enum
@@ -10,7 +11,7 @@ from typing import List, Optional, Union
 
 import pytest
 
-from simple_parsing import ArgumentParser
+from simple_parsing import ArgumentParser, field, parse
 from simple_parsing.docstring import get_attribute_docstring
 
 from .testutils import TestSetup, raises_invalid_choice
@@ -1266,7 +1267,6 @@ class TrainingArguments(TestSetup):
 
 @pytest.mark.xfail(reason="docstring_parser can't parse the docstring of TrainingArguments!")
 def test_docstring_parse_works_with_hf_training_args():
-
     assert get_attribute_docstring(TrainingArguments, "output_dir").desc_from_cls_docstring == (
         "The output directory where the model predictions and checkpoints will be written."
     )
@@ -1297,3 +1297,58 @@ def test_serialization(tmp_path: Path, filename: str, args: TrainingArguments):
     path = tmp_path / filename
     save(args, path)
     assert load(TrainingArguments, path) == args
+
+
+### From Issue 275: https://github.com/lebrice/SimpleParsing/issues/275
+
+
+class _Color(str, enum.Enum):
+    RED = "red"
+    ORANGE = "orange"
+    BLUE = "blue"
+
+
+@dataclass
+class SubComponent:
+    color: Union[str, _Color] = _Color.BLUE
+
+    def __post_init__(self):
+        self.color = _Color(self.color)
+
+
+# ======================= My Code =======================
+@dataclass
+class HParams:
+    """You can use Enums"""
+
+    sub_component: SubComponent = field(default_factory=lambda: SubComponent(color="red"))
+
+
+@pytest.mark.xfail(strict=True, match="DID NOT RAISE")
+def test_reproduce_issue_275():
+    with pytest.raises(
+        ValueError,
+        match="is not a valid Color",
+    ):
+        _ = parse(HParams)
+
+
+@pytest.mark.parametrize(
+    ("args", "expected"),
+    [
+        ("", HParams()),
+        ("--color red", HParams(sub_component=SubComponent(color=_Color.RED))),
+    ],
+)
+def test_issue_275_fixed(args: str, expected: HParams):
+    assert parse(HParams, args=args) == expected
+
+
+def test_unintended_side_effect():
+    @dataclass
+    class Foo:
+        data_dir: Union[str, Path] = "data/foo"
+
+    foo = parse(Foo, args="")
+    assert foo == Foo()
+    assert isinstance(foo.data_dir, str)

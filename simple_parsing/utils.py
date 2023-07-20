@@ -482,6 +482,7 @@ def is_homogeneous_tuple_type(t: type[tuple]) -> bool:
         return False
     type_arguments = get_type_arguments(t)
     if not type_arguments:
+        # tricky! `tuple` is homogeneous? `tuple[]` maybe, but `tuple` is `tuple[Any, ...]` no?
         return True
     assert isinstance(type_arguments, tuple), type_arguments
     if len(type_arguments) == 2 and type_arguments[1] is Ellipsis:

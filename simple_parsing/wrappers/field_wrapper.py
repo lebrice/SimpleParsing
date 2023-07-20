@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import enum
 import inspect
 import sys
 import typing
@@ -206,7 +207,6 @@ class FieldWrapper(Wrapper):
         self._results = {}
 
         for destination, value in zip(self.destinations, values):
-
             if self.is_subgroup:
                 logger.debug(f"Ignoring the FieldWrapper for subgroup at dest {self.dest}")
                 return
@@ -221,7 +221,7 @@ class FieldWrapper(Wrapper):
             #     constructor_arguments[parent_dest][attribute] = value
 
             # TODO: Need to decide which one to do here. Seems easier to always set all the values.
-            logger.debug(f"constructor_arguments[{parent_dest}][{attribute}] = {value}")
+            logger.debug(f"constructor_arguments[{parent_dest}][{attribute}] = {value!r}")
             constructor_arguments[parent_dest][attribute] = value
 
             if self.is_subgroup:
@@ -345,7 +345,13 @@ class FieldWrapper(Wrapper):
             logger.debug(f"self.choices = {self.choices}")
             assert issubclass(self.type, Enum)
             _arg_options["choices"] = list(e.name for e in self.type)
-            _arg_options["type"] = str
+
+            def _str_or_enum_to_str(v: str | enum.Enum):
+                if isinstance(v, enum.Enum):
+                    return v.name
+                return v
+
+            _arg_options["type"] = _str_or_enum_to_str
             # if the default value is an Enum, we convert it to a string.
             if self.default:
 
