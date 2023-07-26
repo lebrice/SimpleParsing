@@ -1,11 +1,10 @@
-# Regression file for [this test](test/test_subgroups.py:725)
+# Regression file for [this test](test/subgroups/test_subgroups.py:724)
 
 Given Source code:
 
 ```python
 @dataclass
 class Config(TestSetup):
-
     # Which model to use
     model: ModelConfig = subgroups(
         {"model_a": ModelAConfig, "model_b": ModelBConfig},
@@ -14,7 +13,7 @@ class Config(TestSetup):
 
 ```
 
-and command: '--help'
+and command: '--model=model_a --help'
 
 We expect to get:
 

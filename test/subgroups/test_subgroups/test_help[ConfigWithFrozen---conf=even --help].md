@@ -1,4 +1,4 @@
-# Regression file for [this test](test/test_subgroups.py:725)
+# Regression file for [this test](test/subgroups/test_subgroups.py:724)
 
 Given Source code:
 
@@ -9,7 +9,7 @@ class ConfigWithFrozen(TestSetup):
 
 ```
 
-and command: '--help'
+and command: '--conf=even --help'
 
 We expect to get:
 
@@ -27,7 +27,7 @@ ConfigWithFrozen ['config_with_frozen']:
 FrozenConfig ['config_with_frozen.conf']:
   FrozenConfig(a: 'int' = 1, b: 'str' = 'bob')
 
-  -a int, --a int    (default: 1)
-  -b str, --b str    (default: odd)
+  -a int, --a int    (default: 2)
+  -b str, --b str    (default: even)
 
 ```

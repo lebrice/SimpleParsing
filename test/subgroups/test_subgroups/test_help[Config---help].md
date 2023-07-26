@@ -1,11 +1,10 @@
-# Regression file for [this test](test/test_subgroups.py:725)
+# Regression file for [this test](test/subgroups/test_subgroups.py:724)
 
 Given Source code:
 
 ```python
 @dataclass
 class Config(TestSetup):
-
     # Which model to use
     model: ModelConfig = subgroups(
         {"model_a": ModelAConfig, "model_b": ModelBConfig},
@@ -14,13 +13,13 @@ class Config(TestSetup):
 
 ```
 
-and command: '--model=model_b --help'
+and command: '--help'
 
 We expect to get:
 
 ```console
 usage: pytest [-h] [--model {model_a,model_b}] [--lr float] [--optimizer str]
-              [--momentum float]
+              [--betas float float]
 
 options:
   -h, --help            show this help message and exit
@@ -31,11 +30,11 @@ Config ['config']:
   --model {model_a,model_b}
                         Which model to use (default: model_a)
 
-ModelBConfig ['config.model']:
-  ModelBConfig(lr: 'float' = 0.001, optimizer: 'str' = 'SGD', momentum: 'float' = 1.234)
+ModelAConfig ['config.model']:
+  ModelAConfig(lr: 'float' = 0.0003, optimizer: 'str' = 'Adam', betas: 'tuple[float, float]' = (0.9, 0.999))
 
-  --lr float            (default: 0.001)
-  --optimizer str       (default: SGD)
-  --momentum float      (default: 1.234)
+  --lr float            (default: 0.0003)
+  --optimizer str       (default: Adam)
+  --betas float float   (default: (0.9, 0.999))
 
 ```
