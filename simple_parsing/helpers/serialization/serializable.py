@@ -16,6 +16,7 @@ from typing import IO, Any, Callable, ClassVar, TypeVar, Union
 from typing_extensions import Protocol
 
 from simple_parsing.utils import (
+    Dataclass,
     DataclassT,
     all_subclasses,
     get_args,
@@ -173,6 +174,7 @@ class SerializableMixin:
     >>> assert config == config_
     """
 
+    # TODO: Get rid of this, use __subclasses__ method of the type instead.
     subclasses: ClassVar[list[type[D]]] = []
     decode_into_subclasses: ClassVar[bool] = False
 
@@ -684,6 +686,10 @@ def dumps_yaml(dc, dump_fn: DumpsFn | None = None, **kwargs) -> str:
 DC_TYPE_KEY = "_type_"
 
 
+def get_dc_type_path(dc: type[Dataclass]) -> str:
+    return dc.__module__ + "." + dc.__qualname__
+
+
 def to_dict(
     dc: DataclassT,
     dict_factory: type[dict] = dict,
@@ -706,9 +712,8 @@ def to_dict(
     d: dict[str, Any] = dict_factory()
 
     if save_dc_types:
-        class_name = dc.__class__.__qualname__
-        module = type(dc).__module__
-        if "<locals>" in class_name:
+        class_path = get_dc_type_path(type(dc))
+        if "<locals>" in class_path:
             # Don't save the type of function-scoped dataclasses.
             warnings.warn(
                 RuntimeWarning(
@@ -718,7 +723,7 @@ def to_dict(
                 )
             )
         else:
-            d[DC_TYPE_KEY] = module + "." + class_name
+            d[DC_TYPE_KEY] = class_path
 
     for f in fields(dc):
         name = f.name

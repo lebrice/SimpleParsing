@@ -797,6 +797,17 @@ class FieldWrapper(Wrapper):
 
     def set_default(self, value: Any):
         logger.debug(f"The field {self.name} has its default manually set to a value of {value}.")
+        # TODO: Should we do something different if we're a subgroup field and this default value
+        # is a dict (which happens when using a config path)? This field is intended to just parse
+        # the subgroup choice.
+        if self.is_subgroup and isinstance(value, dict):
+            raise RuntimeError(
+                f"Something weird happened: We don't expect this subgroup field at {self.dest!r} "
+                f"to get a dict default value (it's just used to parse the choice of subgroup "
+                f"(a string)) "
+                f"Received default value of {value}"
+            )
+        #     logger.debug("Setting the default value for a subgroup field to a dict!")
         self._default = value
 
     @property

@@ -9,9 +9,12 @@ import textwrap
 from dataclasses import MISSING
 from logging import getLogger
 from typing import Any, Callable, Generic, TypeVar, cast
+import warnings
 
 import docstring_parser as dp
 from typing_extensions import Literal
+
+from simple_parsing.helpers.serialization.serializable import DC_TYPE_KEY
 
 from .. import docstring, utils
 from ..utils import Dataclass, DataclassT, is_dataclass_instance, is_dataclass_type
@@ -274,6 +277,10 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                 self._defaults = [default_field_value]
         return self._defaults
 
+    @property
+    def was_subgroup(self) -> bool:
+        return self._field is not None and "subgroups" in self._field.metadata
+
     @defaults.setter
     def defaults(self, value: list[DataclassT]):
         self._defaults = value
@@ -288,24 +295,55 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
 
     def set_default(self, value: DataclassT | dict | None):
         """Sets the default values for the arguments of the fields of this dataclass."""
-        if value is not None and not isinstance(value, dict):
-            field_default_values = dataclasses.asdict(value)
-        else:
-            field_default_values = value
-        self._default = value
-        if field_default_values is None:
+        if value is None:
+            self._default = None
             return
+
+        field_default_values = (
+            value if isinstance(value, dict) else dataclasses.asdict(value)
+        ).copy()
+        if DC_TYPE_KEY in field_default_values:
+            from simple_parsing.helpers.serialization.serializable import _locate
+
+            dc_type_qualpath = field_default_values.pop(DC_TYPE_KEY)
+            assert isinstance(dc_type_qualpath, str)
+            dataclass_type = _locate(dc_type_qualpath)
+            logger.debug(
+                f"The default value dictionary has the {DC_TYPE_KEY=} of {dc_type_qualpath}"
+            )
+            if self.dataclass_fn is not dataclass_type:
+                logger.debug(
+                    f"Overwriting the dataclass_fn from {self.dataclass_fn} to {dataclass_type}"
+                )
+            self.dataclass_fn = dataclass_type
+
+        self._default = field_default_values
+
         for field_wrapper in self.fields:
             if field_wrapper.name not in field_default_values:
                 continue
             # Manually set the default value for this argument.
-            field_default_value = field_default_values[field_wrapper.name]
+            field_default_value = field_default_values.pop(field_wrapper.name)
+            if field_wrapper.is_subgroup and isinstance(field_default_value, dict):
+                # TODO: FIX THIS: Perhaps we need to store this "default" for later, so that we can
+                # apply them to the DataclassWrapper that will be created for this field once
+                # subgroups are resolved.
+                assert False, field_default_value
+
             field_wrapper.set_default(field_default_value)
         for nested_dataclass_wrapper in self._children:
             if nested_dataclass_wrapper.name not in field_default_values:
                 continue
-            field_default_value = field_default_values[nested_dataclass_wrapper.name]
+            field_default_value = field_default_values.pop(nested_dataclass_wrapper.name)
             nested_dataclass_wrapper.set_default(field_default_value)
+        if field_default_values:
+            warnings.warn(
+                RuntimeWarning(
+                    f"Got some unexpected leftover default values for dataclass at path "
+                    f"{self.dest}: "
+                    f"{field_default_values}"
+                )
+            )
 
     @property
     def title(self) -> str:

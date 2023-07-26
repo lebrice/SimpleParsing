@@ -289,8 +289,9 @@ class ArgumentParser(argparse.ArgumentParser):
         # default Namespace built from parser defaults
         if namespace is None:
             namespace = Namespace()
+
         if self.config_path:
-            if isinstance(self.config_path, Path):
+            if isinstance(self.config_path, (str, Path)):
                 config_paths = [self.config_path]
             else:
                 config_paths = self.config_path
@@ -387,33 +388,47 @@ class ArgumentParser(argparse.ArgumentParser):
         # The kwargs that are set in the dataclasses, rather than on the namespace.
         kwarg_defaults_set_in_dataclasses = {}
         for wrapper in self._wrappers:
-            if wrapper.dest in kwargs:
-                default_for_dataclass = kwargs[wrapper.dest]
+            if wrapper.dest not in kwargs:
+                # The dataclass doesn't have any values in the loaded config dict.
+                continue
 
-                if isinstance(default_for_dataclass, (str, Path)):
-                    default_for_dataclass = read_file(path=default_for_dataclass)
-                elif not isinstance(default_for_dataclass, dict) and not dataclasses.is_dataclass(
-                    default_for_dataclass
-                ):
-                    raise ValueError(
-                        f"Got a default for field {wrapper.dest} that isn't a dataclass, dict or "
-                        f"path: {default_for_dataclass}"
-                    )
+            default_in_config_for_dc = kwargs[wrapper.dest]
+            # TODO: This interacts weirdly with subgroups!
+            if wrapper.was_subgroup:
+                # FIXME: Debugging
+                assert False, (wrapper, default_in_config_for_dc)
 
-                # Set the .default attribute on the DataclassWrapper (which also updates the
-                # defaults of the fields and any nested dataclass fields).
-                wrapper.set_default(default_for_dataclass)
-
-                # It's impossible for multiple wrappers in kwargs to have the same destination.
-                assert wrapper.dest not in kwarg_defaults_set_in_dataclasses
-                value_for_constructor_arguments = (
-                    default_for_dataclass
-                    if isinstance(default_for_dataclass, dict)
-                    else dataclasses.asdict(default_for_dataclass)
+            if isinstance(default_in_config_for_dc, dict):
+                # wrapper.set_default(config_default_for_dc)
+                pass
+            elif isinstance(default_in_config_for_dc, (str, Path)):
+                # BUG: Need to check if the field is a subgroup first!
+                default_in_config_for_dc = read_file(path=default_in_config_for_dc)
+                # wrapper.set_default(config_default_for_dc)
+            elif is_dataclass_instance(default_in_config_for_dc):
+                # wrapper.set_default(config_default_for_dc)
+                pass
+            else:
+                raise ValueError(
+                    f"Got a default for field {wrapper.dest} that isn't a dataclass, dict or "
+                    f"Path: {default_in_config_for_dc}"
                 )
-                kwarg_defaults_set_in_dataclasses[wrapper.dest] = value_for_constructor_arguments
-                # Remove this from the **kwargs, so they don't get set on the namespace.
-                kwargs.pop(wrapper.dest)
+
+            # Set the .default attribute on the DataclassWrapper (which also updates the
+            # defaults of the fields and any nested dataclass fields).
+            wrapper.set_default(default_in_config_for_dc)
+
+            # It's impossible for multiple wrappers in kwargs to have the same destination.
+            assert wrapper.dest not in kwarg_defaults_set_in_dataclasses
+            value_for_constructor_arguments = (
+                default_in_config_for_dc
+                if isinstance(default_in_config_for_dc, dict)
+                else dataclasses.asdict(default_in_config_for_dc)
+            )
+            kwarg_defaults_set_in_dataclasses[wrapper.dest] = value_for_constructor_arguments
+            # Remove this from the **kwargs, so they don't get set on the namespace.
+            kwargs.pop(wrapper.dest)
+
         # TODO: Stop using a defaultdict for the very important `self.constructor_arguments`!
         self.constructor_arguments = dict_union(
             self.constructor_arguments,
@@ -643,16 +658,25 @@ class ArgumentParser(argparse.ArgumentParser):
                 flags = subgroup_field.option_strings
                 argument_options = subgroup_field.arg_options
 
+                argparse_default = argument_options.get("default")
                 if subgroup_field.subgroup_default is dataclasses.MISSING:
                     assert argument_options["required"]
+                    assert argparse_default is None
+                elif isinstance(argparse_default, dict):
+                    # BUG: We have a default value that is a dictionary. This is probably because
+                    # .set_defaults was called before we could resolve the subgroups, and so the
+                    # subgroup_field has this weird default value of a dictionary.
+                    # TODO: Figure out how to fix this!
+                    argument_options["default"] = subgroup_field.subgroup_default
                 else:
-                    assert argument_options["default"] is subgroup_field.subgroup_default
+                    assert argparse_default is subgroup_field.subgroup_default, (
+                        argparse_default,
+                        subgroup_field.subgroup_default,
+                    )
                     assert not is_dataclass_instance(argument_options["default"])
 
-                # TODO: Do we really need to care about this "SUPPRESS" stuff here?
                 if argparse.SUPPRESS in subgroup_field.parent.defaults:
                     assert argument_options["default"] is argparse.SUPPRESS
-                    argument_options["default"] = argparse.SUPPRESS
 
                 logger.debug(
                     f"Adding subgroup argument: add_argument(*{flags} **{str(argument_options)})"

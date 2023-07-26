@@ -38,6 +38,7 @@ def set_prog_name():
 
 @pytest.fixture
 def assert_equals_stdout(capsys):
+    # TODO: Replace all this with a FileRegression.
     def strip(string):
         return "".join(string.split())
 

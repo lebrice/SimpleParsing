@@ -46,7 +46,7 @@ class C:
             "",
             C(c=B2(a=0, b=1)),
             True,
-            marks=pytest.mark.xfail(strict=True, raises=AssertionError),
+            # marks=pytest.mark.xfail(strict=True, raises=AssertionError),
         ),
         pytest.param(
             "--c.a=1",
