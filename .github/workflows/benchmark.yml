@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   benchmark:
-    name: Run pytest-benchmark benchmark example
+    name: Run benchmark-action
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -24,10 +24,17 @@ jobs:
         with:
           python-version: 3.11
           cache: "pip"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e .[all]
+
+      - name: Download previous benchmark data
+        uses: actions/cache@v3
+        with:
+          path: ./cache
+          key: ${{ runner.os }}-benchmark
 
       - name: Run benchmark
         run: |
@@ -41,15 +48,17 @@ jobs:
           # Where the output from the benchmark tool is stored
           output-file-path: .benchmark_output.json
           # # Where the previous data file is stored
-          # external-data-json-path: ./cache/benchmark-data.json
+          external-data-json-path: ./cache/benchmark-master.json
           # Use personal access token instead of GITHUB_TOKEN due to https://github.community/t/github-action-not-triggering-gh-pages-upon-push/16096
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # NOTE: auto-push must be false when external-data-json-path is set since this action
           # reads/writes the given JSON file and never pushes to remote
-          auto-push: true
+          auto-push: false
           # Show alert with commit comment on detecting possible performance regression
-          alert-threshold: '200%'
+          alert-threshold: '150%'
           comment-on-alert: true
+          # Enable Job Summary for PRs
+          summary-always: true
           # Workflow will fail when an alert happens
           fail-on-alert: true
           alert-comment-cc-users: '@lebrice'
