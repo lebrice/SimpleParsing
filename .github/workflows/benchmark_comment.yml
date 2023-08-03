@@ -37,4 +37,5 @@ jobs:
       - name: Run the action
         uses: nils-braun/pytest-benchmark-commenter@v2
         with:
+          benchmark-file: benchmark_results.json
           comparison-benchmark-file: "old_benchmark/benchmark_results.json"
