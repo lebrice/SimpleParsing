@@ -21,6 +21,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .[all]
-      - name: Test with pytest
+      - name: Unit tests with Pytest
         run: |
-          pytest
+          pytest --benchmark-disable
+      - name: Run benchmark with pytest-benchmark
+        run: pytest --benchmark-only --benchmark-compare=.benchmark_results.json --benchmark-compare-fail=min:1%
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'pytest'
+          output-file-path: output.json
