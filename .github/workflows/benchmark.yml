@@ -9,13 +9,13 @@ on:
 
 permissions:
   # deployments permission to deploy GitHub pages website
-  contents: write
+  contents: read
   # contents permission to update benchmark contents in gh-pages branch
-  deployments: write
+  deployments: read
 
 jobs:
   benchmark:
-    name: Run pytest-benchmark benchmark example
+    name: Run benchmark-action
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -31,7 +31,7 @@ jobs:
           pip install -e .[all]
 
       - name: Download previous benchmark data
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ./cache
           key: ${{ runner.os }}-benchmark
@@ -55,7 +55,7 @@ jobs:
           # reads/writes the given JSON file and never pushes to remote
           auto-push: false
           # Show alert with commit comment on detecting possible performance regression
-          alert-threshold: '200%'
+          alert-threshold: '150%'
           comment-on-alert: true
           # Enable Job Summary for PRs
           summary-always: true
