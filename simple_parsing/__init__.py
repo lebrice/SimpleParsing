@@ -1,6 +1,9 @@
 """Simple, Elegant Argument parsing.
 @author: Fabrice Normandin
 """
+import time
+
+time.sleep(5)  # FIXME: Making the entire package slower on purpose to trigger performance tests
 from . import helpers, utils, wrappers
 from .conflicts import ConflictResolution
 from .decorators import main
