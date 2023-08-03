@@ -8,7 +8,7 @@ import typing
 from typing import Any, Callable, NamedTuple
 
 import docstring_parser as dp
-
+from simple_parsing.docstring import dp_parse, inspect_getdoc
 from . import helpers, parsing
 
 
@@ -55,7 +55,7 @@ def main(original_function=None, **sp_kwargs):
             parameters = signature.parameters
 
             # Parse docstring to use as help strings
-            docstring = dp.parse(inspect.getdoc(function) or "")
+            docstring = dp_parse(inspect_getdoc(function) or "")
             docstring_param_description = {
                 param.arg_name: param.description for param in docstring.params
             }
