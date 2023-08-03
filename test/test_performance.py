@@ -66,13 +66,13 @@ def test_parse_performance(benchmark: BenchmarkFixture):
 @pytest.mark.benchmark(
     group="serialization",
 )
-@pytest.mark.parametrize("filename", ["bob.yaml", "bob.json", "bob.pkl", "bob.yml"])
-def test_serialization_performance(benchmark: BenchmarkFixture, tmp_path: Path, filename: str):
+@pytest.mark.parametrize("filetype", [".yaml", ".json", ".pkl"])
+def test_serialization_performance(benchmark: BenchmarkFixture, tmp_path: Path, filetype: str):
     from simple_parsing.helpers.serialization import save, load
     from test.test_huggingface_compat import TrainingArguments
 
     args = TrainingArguments()
-    path = tmp_path / filename
+    path = (tmp_path / "bob").with_suffix(filetype)
 
     def save_and_load():
         clear_lru_caches()
