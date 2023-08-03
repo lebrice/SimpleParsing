@@ -1,14 +1,16 @@
 name: Benchmark
+
+# Do not run this workflow on pull request since this workflow has permission to modify contents.
 on:
   push:
     branches:
       - master
-  pull_request:
-    branches:
-      - master
+  workflow_dispatch: {}
 
 permissions:
+  # deployments permission to deploy GitHub pages website
   contents: write
+  # contents permission to update benchmark contents in gh-pages branch
   deployments: write
 
 jobs:
