@@ -1,5 +1,6 @@
 import functools
 import importlib
+from pathlib import Path
 import sys
 from typing import Callable, TypeVar
 import pytest
@@ -48,6 +49,9 @@ def test_import_performance(benchmark: BenchmarkFixture):
     benchmark(call_before(unimport_sp, import_sp))
 
 
+@pytest.mark.benchmark(
+    group="parse",
+)
 def test_parse_performance(benchmark: BenchmarkFixture):
     import simple_parsing as sp
     from test.nesting.example_use_cases import HyperParameters
@@ -57,3 +61,23 @@ def test_parse_performance(benchmark: BenchmarkFixture):
         HyperParameters,
         args="--age_group.num_layers 5 --age_group.num_units 65 ",
     )
+
+
+@pytest.mark.benchmark(
+    group="serialization",
+)
+@pytest.mark.parametrize("filename", ["bob.yaml", "bob.json", "bob.pkl", "bob.yml"])
+def test_serialization_performance(benchmark: BenchmarkFixture, tmp_path: Path, filename: str):
+    from simple_parsing.helpers.serialization import save, load
+    from test.test_huggingface_compat import TrainingArguments
+
+    args = TrainingArguments()
+    path = tmp_path / filename
+
+    def save_and_load():
+        clear_lru_caches()
+        path.unlink(missing_ok=True)
+        save(args, path)
+        assert load(TrainingArguments, path) == args
+
+    benchmark(save_and_load)
