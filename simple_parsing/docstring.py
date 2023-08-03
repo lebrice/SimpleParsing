@@ -13,9 +13,15 @@ from logging import getLogger
 import docstring_parser as dp
 from docstring_parser.common import Docstring
 
-dp_parse = functools.lru_cache(2048)(dp.parse)
-inspect_getsource = functools.lru_cache(2048)(inspect.getsource)
-inspect_getdoc = functools.lru_cache(2048)(inspect.getdoc)
+# dp_parse = functools.lru_cache(2048)(dp.parse)
+# inspect_getsource = functools.lru_cache(2048)(inspect.getsource)
+# inspect_getdoc = functools.lru_cache(2048)(inspect.getdoc)
+# FIXME: Making this slower on purpose just to check that the CI works (and also to evaluate how
+# much improvement we get from caching)
+dp_parse = dp.parse
+inspect_getsource = inspect.getsource
+inspect_getdoc = inspect.getdoc
+
 logger = getLogger(__name__)
 
 

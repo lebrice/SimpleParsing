@@ -10,7 +10,6 @@ from functools import singledispatch, total_ordering
 from logging import getLogger
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar
-import typing
 
 from simple_parsing import utils
 from simple_parsing.helpers.serialization.serializable import Serializable
@@ -21,11 +20,12 @@ from simple_parsing.utils import (
     get_type_arguments,
 )
 
+# FIXME: Doing this intentionally to make things slower. This should get spotted by the CI tests.
+import numpy
+
 from .hparam import ValueOutsidePriorException
 from .priors import Prior
 
-if typing.TYPE_CHECKING:
-    import numpy
 
 logger = getLogger(__name__)
 T = TypeVar("T")

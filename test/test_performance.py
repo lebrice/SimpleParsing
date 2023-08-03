@@ -27,9 +27,12 @@ def unimport_sp():
 def clear_lru_caches():
     from simple_parsing.docstring import dp_parse, inspect_getdoc, inspect_getsource
 
-    dp_parse.cache_clear()
-    inspect_getdoc.cache_clear()
-    inspect_getsource.cache_clear()
+    for v in [dp_parse, inspect_getdoc, inspect_getsource]:
+        if hasattr(v, "cache_clear") and callable(v.cache_clear):
+            v.cache_clear()
+    # dp_parse.cache_clear()
+    # inspect_getdoc.cache_clear()
+    # inspect_getsource.cache_clear()
 
 
 def call_before(before: Callable[[], None], fn: C) -> C:
