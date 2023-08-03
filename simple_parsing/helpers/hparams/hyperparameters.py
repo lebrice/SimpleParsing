@@ -1,3 +1,4 @@
+from __future__ import annotations
 import dataclasses
 import inspect
 import math
@@ -9,6 +10,7 @@ from functools import singledispatch, total_ordering
 from logging import getLogger
 from pathlib import Path
 from typing import Any, ClassVar, Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar
+import typing
 
 from simple_parsing import utils
 from simple_parsing.helpers.serialization.serializable import Serializable
@@ -22,17 +24,12 @@ from simple_parsing.utils import (
 from .hparam import ValueOutsidePriorException
 from .priors import Prior
 
+if typing.TYPE_CHECKING:
+    import numpy
+
 logger = getLogger(__name__)
 T = TypeVar("T")
 HP = TypeVar("HP", bound="HyperParameters")
-
-numpy_installed = False
-try:
-    import numpy as np
-
-    numpy_installed = True
-except ImportError:
-    pass
 
 
 @dataclass
@@ -51,10 +48,8 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
 
     # Class variable holding the random number generator used to create the
     # samples.
-    if numpy_installed:
-        np_rng: ClassVar[np.random.RandomState] = np.random
-    else:
-        rng: ClassVar[random.Random] = random.Random()
+
+    rng: ClassVar[random.Random] = random.Random()
 
     def __post_init__(self):
         for name, f in field_dict(self).items():
@@ -141,8 +136,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
     def get_bounds(cls) -> List[BoundInfo]:
         """Returns the bounds of the search domain for this type of HParam.
 
-        Returns them as a list of `BoundInfo` objects, in the format expected by
-        GPyOpt.
+        Returns them as a list of `BoundInfo` objects, in the format expected by GPyOpt.
         """
         bounds: List[BoundInfo] = []
         for f in fields(cls):
@@ -162,9 +156,8 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
 
     @classmethod
     def get_bounds_dicts(cls) -> List[Dict[str, Any]]:
-        """Returns the bounds of the search space for this type of HParam,
-        in the format expected by the `GPyOpt` package.
-        """
+        """Returns the bounds of the search space for this type of HParam, in the format expected
+        by the `GPyOpt` package."""
         return [b.to_dict() for b in cls.get_bounds()]
 
     @classmethod
@@ -186,13 +179,15 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
             else:
                 prior: Optional[Prior] = field.metadata.get("prior")
                 if prior is not None:
-                    if numpy_installed:
-                        prior.np_rng = cls.np_rng
-                    else:
+                    try:
+                        import numpy as np
+
+                        prior.np_rng = np.random
+                    except ImportError:
                         prior.rng = cls.rng
                     value = prior.sample()
                     shape = getattr(prior, "shape", None)
-                    if numpy_installed and isinstance(value, np.ndarray) and not shape:
+                    if shape == () and hasattr(value, "item") and callable(value.item):
                         value = value.item()
                     kwargs[field.name] = value
         return cls(**kwargs)
@@ -202,43 +197,46 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
         new_hp = type(self).from_dict(new_hp_dict)
         return new_hp
 
-    # @classmethod
-    # @contextmanager
-    # def use_priors(cls, value: bool = True):
-    #     temp = cls.sample_from_priors
-    #     cls.sample_from_priors = value
-    #     yield
-    #     cls.sample_from_priors = temp
+        # @classmethod
+        # @contextmanager
+        # def use_priors(cls, value: bool = True):
+        #     temp = cls.sample_from_priors
+        #     cls.sample_from_priors = value
+        #     yield
+        #     cls.sample_from_priors = temp
 
-    if numpy_installed:
+    def to_array(self, dtype: numpy.dtype | None = None) -> numpy.ndarray:
+        import numpy as np
 
-        def to_array(self, dtype=np.float32) -> np.ndarray:
-            values: List[float] = []
-            for k, v in self.to_dict(dict_factory=OrderedDict).items():
-                try:
-                    v = float(v)
-                except Exception:
-                    logger.warning(f"Ignoring field {k} because we can't make a float out of it.")
-                else:
-                    values.append(v)
-            return np.array(values, dtype=dtype)
+        dtype = np.float32 if dtype is None else dtype
+        values: List[float] = []
+        for k, v in self.to_dict(dict_factory=OrderedDict).items():
+            try:
+                v = float(v)
+            except Exception:
+                logger.warning(f"Ignoring field {k} because we can't make a float out of it.")
+            else:
+                values.append(v)
+        return np.array(values, dtype=dtype)
 
-        @classmethod
-        def from_array(cls: Type[HP], array: np.ndarray) -> HP:
-            if len(array.shape) == 2 and array.shape[0] == 1:
-                array = array[0]
+    @classmethod
+    def from_array(cls: Type[HP], array: numpy.ndarray) -> HP:
+        import numpy as np
 
-            keys = list(field_dict(cls))
-            # idea: could use to_dict and to_array together to determine how many
-            # values to get for each field. For now we assume that each field is one
-            # variable.
-            # cls.sample().to_dict()
-            # assert len(keys) == len(array), "assuming that each field is dim 1 for now."
-            assert len(keys) == len(array), "assuming that each field is dim 1 for now."
-            d = OrderedDict(zip(keys, array))
-            logger.debug(f"Creating an instance of {cls} using args {d}")
-            d = OrderedDict((k, v.item() if isinstance(v, np.ndarray) else v) for k, v in d.items())
-            return cls.from_dict(d)
+        if len(array.shape) == 2 and array.shape[0] == 1:
+            array = array[0]
+
+        keys = list(field_dict(cls))
+        # idea: could use to_dict and to_array together to determine how many
+        # values to get for each field. For now we assume that each field is one
+        # variable.
+        # cls.sample().to_dict()
+        # assert len(keys) == len(array), "assuming that each field is dim 1 for now."
+        assert len(keys) == len(array), "assuming that each field is dim 1 for now."
+        d = OrderedDict(zip(keys, array))
+        logger.debug(f"Creating an instance of {cls} using args {d}")
+        d = OrderedDict((k, v.item() if isinstance(v, np.ndarray) else v) for k, v in d.items())
+        return cls.from_dict(d)
 
     def clip_within_bounds(self: HP) -> HP:
         d = self.to_dict()

@@ -10,13 +10,13 @@ from dataclasses import MISSING
 from logging import getLogger
 from typing import Any, Callable, Generic, TypeVar, cast
 
-import docstring_parser as dp
 from typing_extensions import Literal
 
-from .. import docstring, utils
-from ..utils import Dataclass, DataclassT, is_dataclass_instance, is_dataclass_type
-from .field_wrapper import FieldWrapper
-from .wrapper import Wrapper
+from simple_parsing import docstring, utils
+from simple_parsing.docstring import dp_parse, inspect_getdoc
+from simple_parsing.utils import Dataclass, DataclassT, is_dataclass_instance, is_dataclass_type
+from simple_parsing.wrappers.field_wrapper import FieldWrapper
+from simple_parsing.wrappers.wrapper import Wrapper
 
 logger = getLogger(__name__)
 
@@ -327,11 +327,11 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
 
         # NOTE: The class docstring may be EXTRELEMY LARGE.
 
-        class_docstring = inspect.getdoc(self.dataclass) or ""
+        class_docstring = inspect_getdoc(self.dataclass) or ""
         if not class_docstring:
             return ""
 
-        doc = dp.parse(class_docstring)
+        doc = dp_parse(class_docstring)
 
         from simple_parsing.decorators import _description_from_docstring
 

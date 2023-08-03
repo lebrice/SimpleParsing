@@ -1,0 +1,55 @@
+name: Benchmark
+
+# Do not run this workflow on pull request since this workflow has permission to modify contents.
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch: {}
+
+permissions:
+  # deployments permission to deploy GitHub pages website
+  contents: write
+  # contents permission to update benchmark contents in gh-pages branch
+  deployments: write
+
+jobs:
+  benchmark:
+    name: Run pytest-benchmark benchmark example
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.11
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[all]
+
+      - name: Run benchmark
+        run: |
+          pytest --benchmark-only --benchmark-json=.benchmark_output.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Python Benchmark with pytest-benchmark
+          tool: 'pytest'
+          # Where the output from the benchmark tool is stored
+          output-file-path: .benchmark_output.json
+          # # Where the previous data file is stored
+          # external-data-json-path: ./cache/benchmark-data.json
+          # Use personal access token instead of GITHUB_TOKEN due to https://github.community/t/github-action-not-triggering-gh-pages-upon-push/16096
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # NOTE: auto-push must be false when external-data-json-path is set since this action
+          # reads/writes the given JSON file and never pushes to remote
+          auto-push: true
+          # Show alert with commit comment on detecting possible performance regression
+          alert-threshold: '200%'
+          comment-on-alert: true
+          # Workflow will fail when an alert happens
+          fail-on-alert: true
+          alert-comment-cc-users: '@lebrice'

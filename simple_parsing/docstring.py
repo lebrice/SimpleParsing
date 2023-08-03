@@ -5,12 +5,17 @@ from __future__ import annotations
 
 import functools
 import inspect
+
+# from inspect import
 from dataclasses import dataclass
 from logging import getLogger
 
 import docstring_parser as dp
 from docstring_parser.common import Docstring
 
+dp_parse = functools.lru_cache(2048)(dp.parse)
+inspect_getsource = functools.lru_cache(2048)(inspect.getsource)
+inspect_getdoc = functools.lru_cache(2048)(inspect.getdoc)
 logger = getLogger(__name__)
 
 
@@ -102,7 +107,7 @@ def _get_attribute_docstring(dataclass: type, field_name: str) -> AttributeDocSt
     Doesn't inspect base classes.
     """
     try:
-        source = inspect.getsource(dataclass)
+        source = inspect_getsource(dataclass)
     except (TypeError, OSError) as e:
         logger.debug(
             UserWarning(
@@ -114,9 +119,9 @@ def _get_attribute_docstring(dataclass: type, field_name: str) -> AttributeDocSt
 
     # Parse docstring to use as help strings
     desc_from_cls_docstring = ""
-    cls_docstring = inspect.getdoc(dataclass)
+    cls_docstring = inspect_getdoc(dataclass)
     if cls_docstring:
-        docstring: Docstring = dp.parse(cls_docstring)
+        docstring: Docstring = dp_parse(cls_docstring)
         for param in docstring.params:
             if param.arg_name == field_name:
                 desc_from_cls_docstring = param.description or ""
