@@ -1,0 +1,33 @@
+name: Upload the benchmark results
+on:
+  push:
+    branches:
+      - master
+      - temp_master
+  workflow_dispatch: {}
+
+jobs:
+  upload_benchmark_results:
+    runs-on: ubuntu-latest
+    name: Test out the action in this repository
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.11
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[all]
+
+      - name: Run the benchmark
+        run: pytest --benchmark-only --benchmark-json=benchmark_results.json
+
+      - name: Upload the file
+        uses: actions/upload-artifact@v2
+        with:
+          name: benchmark_results
+          path: benchmark_results.json
