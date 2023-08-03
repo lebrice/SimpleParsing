@@ -57,6 +57,8 @@ jobs:
           # Show alert with commit comment on detecting possible performance regression
           alert-threshold: '200%'
           comment-on-alert: true
+          # Enable Job Summary for PRs
+          summary-always: true
           # Workflow will fail when an alert happens
           fail-on-alert: true
           alert-comment-cc-users: '@lebrice'
