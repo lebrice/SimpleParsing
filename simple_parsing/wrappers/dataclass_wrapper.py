@@ -298,6 +298,9 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
         for field_wrapper in self.fields:
             if field_wrapper.name not in field_default_values:
                 continue
+            if not field_wrapper.field.init:
+                # NOTE: Ignore the non-init fields.
+                continue
             # Manually set the default value for this argument.
             field_default_value = field_default_values[field_wrapper.name]
             field_wrapper.set_default(field_default_value)

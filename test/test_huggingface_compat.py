@@ -300,14 +300,14 @@ def test_enums_are_parsed_to_enum_member():
 
     # However, it is, once we factor in what's happening in the __post_init__ of TrainingArguments.
     with pytest.raises(ValueError):
-        TrainingArguments.setup("--evaluation_strategy invalid")
+        parse(TrainingArguments, args="--evaluation_strategy invalid")
 
     for mode, enum_value in zip(
         ["no", "steps", "epoch"],
         [IntervalStrategy.NO, IntervalStrategy.STEPS, IntervalStrategy.EPOCH],
     ):
         assert (
-            TrainingArguments.setup(f"--evaluation_strategy {mode}").evaluation_strategy
+            parse(TrainingArguments, args=f"--evaluation_strategy {mode}").evaluation_strategy
             == enum_value
         )
 
@@ -1266,7 +1266,13 @@ def test_docstring_parse_works_with_hf_training_args():
 
 
 def test_entire_docstring_isnt_used_as_help():
-    help_text = TrainingArguments.get_help_text()
+    parser = ArgumentParser()
+    parser.add_arguments(TrainingArguments, "config")
+    with io.StringIO() as f:
+        parser.print_help(file=f)
+        f.seek(0)
+        help_text = f.read()
+    # help_text = TrainingArguments.get_help_text()
 
     help_from_field = "Whether to use Apple Silicon chip based `mps` device."
     assert help_from_field in help_text
