@@ -1,8 +1,8 @@
-name: Benchmark
-on: 
-  push:
+name: Compare Performance with Master
+on:
+  pull_request:
     branches:
-      - lebrice/perf_benchmarking  # TEMP: Change to `master` before merging.
+      - lebrice/temp_master  # TEMP: Change to `master` before merging.
 
 jobs:
   benchmark:
