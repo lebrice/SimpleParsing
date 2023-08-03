@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1691090043113,
+  "lastUpdate": 1691094586978,
   "repoUrl": "https://github.com/lebrice/SimpleParsing",
   "entries": {
     "Python Benchmark with pytest-benchmark": [
@@ -38,6 +38,44 @@ window.BENCHMARK_DATA = {
             "unit": "iter/sec",
             "range": "stddev: 0.00014291956931091477",
             "extra": "mean: 12.418791684209912 msec\nrounds: 19"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "normandf@mila.quebec",
+            "name": "Fabrice Normandin",
+            "username": "lebrice"
+          },
+          "committer": {
+            "email": "normandf@mila.quebec",
+            "name": "Fabrice Normandin",
+            "username": "lebrice"
+          },
+          "distinct": true,
+          "id": "edb897e3ea52a7600787ce63d4bf88ad089017d1",
+          "message": "Add an \"upload\" action for benchmark results\n\nSigned-off-by: Fabrice Normandin <normandf@mila.quebec>",
+          "timestamp": "2023-08-03T16:29:01-04:00",
+          "tree_id": "6314b6fd38c1bab3cbea41afaf9ccffda8cd011f",
+          "url": "https://github.com/lebrice/SimpleParsing/commit/edb897e3ea52a7600787ce63d4bf88ad089017d1"
+        },
+        "date": 1691094586371,
+        "tool": "pytest",
+        "benches": [
+          {
+            "name": "test/test_performance.py::test_import_performance",
+            "value": 83.18442762374737,
+            "unit": "iter/sec",
+            "range": "stddev: 0.0002325094334172115",
+            "extra": "mean: 12.021480805555504 msec\nrounds: 72"
+          },
+          {
+            "name": "test/test_performance.py::test_parse_performance",
+            "value": 81.03641929369861,
+            "unit": "iter/sec",
+            "range": "stddev: 0.00017625019565362677",
+            "extra": "mean: 12.340130631583323 msec\nrounds: 19"
           }
         ]
       }
