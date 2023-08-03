@@ -76,7 +76,9 @@ def test_serialization_performance(benchmark: BenchmarkFixture, tmp_path: Path, 
 
     def save_and_load():
         clear_lru_caches()
-        path.unlink(missing_ok=True)
+        # NOTE: can't just use unlink(missing_ok=True) since python3.7 doesn't have it.
+        if path.exists():
+            path.unlink()
         save(args, path)
         assert load(TrainingArguments, path) == args
 
