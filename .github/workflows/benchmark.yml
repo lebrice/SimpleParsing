@@ -38,10 +38,12 @@ jobs:
           tool: 'pytest'
           # Where the output from the benchmark tool is stored
           output-file-path: .benchmark_output.json
-          # Where the previous data file is stored
-          external-data-json-path: ./cache/benchmark-data.json
+          # # Where the previous data file is stored
+          # external-data-json-path: ./cache/benchmark-data.json
           # Use personal access token instead of GITHUB_TOKEN due to https://github.community/t/github-action-not-triggering-gh-pages-upon-push/16096
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # NOTE: auto-push must be false when external-data-json-path is set since this action
+          # reads/writes the given JSON file and never pushes to remote
           auto-push: true
           # Show alert with commit comment on detecting possible performance regression
           alert-threshold: '200%'
