@@ -4,7 +4,7 @@ name: Benchmark
 on:
   push:
     branches:
-      - master
+      - lebrice/perf_benchmarking  # TEMP: Change to `master` before merging.
   workflow_dispatch: {}
 
 permissions:
