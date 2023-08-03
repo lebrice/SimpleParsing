@@ -4,14 +4,14 @@ name: Benchmark
 on:
   push:
     branches:
-      - lebrice/perf_benchmarking  # TEMP: Change to `master` before merging.
+      - master
   workflow_dispatch: {}
 
 permissions:
   # deployments permission to deploy GitHub pages website
-  contents: read
+  contents: write
   # contents permission to update benchmark contents in gh-pages branch
-  deployments: read
+  deployments: write
 
 jobs:
   benchmark:

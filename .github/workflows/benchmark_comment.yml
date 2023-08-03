@@ -2,7 +2,7 @@ name: Compare Performance with Master
 on:
   pull_request:
     branches:
-      - lebrice/temp_master  # TEMP: Change to `master` before merging.
+      - master
 
 jobs:
   benchmark:
