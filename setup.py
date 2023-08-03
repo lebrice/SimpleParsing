@@ -20,6 +20,7 @@ extras_require: dict[str, list[str]] = {
         "pytest",
         "pytest-xdist",
         "pytest-regressions",
+        "pytest-benchmark",
         "numpy",
         # "torch",
     ],
