@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Callable, TypeVar
 
 import pytest
+from simple_parsing.helpers.serialization import save
 from pytest_regressions.file_regression import FileRegressionFixture
 from typing_extensions import Annotated
 
@@ -935,3 +936,39 @@ def test_ordering_of_args_doesnt_matter():
         model=ModelAConfig(lr=0.0003, optimizer="Adam", betas=(0.0, 1.0)),
         dataset=Dataset2Config(data_dir="data/bar", bar=1.2),
     )
+
+
+@dataclass
+class A1:
+    a_val: int = 1
+
+
+@dataclass
+class A2:
+    a_val: int = 2
+
+
+@dataclass
+class A1OrA2:
+    a: A1 | A2 = subgroups({"a1": A1, "a2": A2}, default="a1")
+
+
+@pytest.mark.parametrize(
+    ("value_in_config", "args", "expected"),
+    [
+        (A1OrA2(a=A2()), "", A1OrA2(a=A1())),
+        (A1OrA2(a=A1()), "", A1OrA2(a=A1())),
+    ],
+)
+@pytest.mark.parametrize("filetype", [".yaml", ".json", ".pkl"])
+def test_parse_with_config_file_with_different_subgroup(
+    tmp_path: Path,
+    filetype: str,
+    value_in_config: A1OrA2,
+    args: str,
+    expected: A1OrA2,
+):
+    config_path = (tmp_path / "bob").with_suffix(filetype)
+
+    save(value_in_config, config_path, save_dc_types=True)
+    assert parse(A1OrA2, config_path=config_path, args=args) == expected

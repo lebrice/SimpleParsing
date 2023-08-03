@@ -1305,11 +1305,11 @@ def test_serialization(tmp_path: Path, filename: str, args: TrainingArguments):
     assert load(TrainingArguments, path) == args
 
 
-@pytest.mark.xfail(
-    raises=TypeError,
-    strict=True,
-    reason="All fields (non-init ones too) are passed to .set_defaults, which raises a TypeError",
-)
+# @pytest.mark.xfail(
+#     raises=TypeError,
+#     strict=True,
+#     reason="All fields (non-init ones too) are passed to .set_defaults, which raises a TypeError",
+# )
 @pytest.mark.parametrize("filetype", [".yaml", ".json", ".pkl"])
 def test_parse_with_config_file(tmp_path: Path, filetype: str):
     default_args = TrainingArguments(label_smoothing_factor=123.123)
