@@ -14,13 +14,16 @@ from typing import (
     overload,
 )
 
-numpy_installed = False
-try:
-    import numpy as np
+import importlib.util
 
-    numpy_installed = True
-except ImportError:
-    pass
+class _np_lazy:
+    def __getattr__(self, attr):
+        global np
+        import numpy as np
+        return getattr(np, attr)
+
+np = _np_lazy()
+numpy_installed = importlib.util.find_spec("numpy") is not None
 
 
 T = TypeVar("T")
