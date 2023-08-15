@@ -11,37 +11,35 @@ logger = getLogger(__name__)
 
 
 class ConflictResolution(enum.Enum):
-    """Determines prefixing when adding the same dataclass more than once.
+    """Determines prefixing when adding the same dataclass more than once."""
 
-
-    - NONE:
-        Disallow using the same dataclass in two different destinations without
-        explicitly setting a distinct prefix for at least one of them.
-
-    - EXPLICIT:
-        When adding arguments for a dataclass that is already present, the
-        argparse arguments for each class will use their full absolute path as a
-        prefix.
-
-    - ALWAYS_MERGE:
-        When adding arguments for a dataclass that has previously been added,
-        the arguments for both the old and new destinations will be set using
-        the same option_string, and the passed values for the old and new
-        destinations will correspond to the first and second values,
-        respectively.
-        NOTE: This changes the argparse type for that argument into a list of
-        the original item type.
-
-    - AUTO (default):
-        Prefixes for each destination are created automatically, using the first
-        discriminative prefix that can differentiate between all the conflicting
-        arguments.
+    NONE = enum.auto()
+    """
+    Disallow using the same dataclass in two different destinations without
+    explicitly setting a distinct prefix for at least one of them.
     """
 
-    NONE = -1
-    EXPLICIT = 0
-    ALWAYS_MERGE = 1
-    AUTO = 2
+    EXPLICIT = enum.auto()
+    """When adding arguments for a dataclass that is already present, the argparse arguments for
+    each class will use their full absolute path as a prefix.
+    """
+
+    ALWAYS_MERGE = enum.auto()
+    """
+    When adding arguments for a dataclass that has previously been added,
+    the arguments for both the old and new destinations will be set using
+    the same option_string, and the passed values for the old and new
+    destinations will correspond to the first and second values,
+    respectively.
+    NOTE: This changes the argparse type for that argument into a list of
+    the original item type.
+    """
+
+    AUTO = enum.auto()
+    """Prefixes for each destination are created automatically, using the first discriminative
+    prefix that can differentiate between all the conflicting
+    arguments.
+    """
 
 
 class ConflictResolutionError(Exception):
