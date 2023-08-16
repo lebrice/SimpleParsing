@@ -4,306 +4,119 @@
 from __future__ import annotations
 
 import argparse
-from ast import arg
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 import copy
 import dataclasses
 import functools
 import inspect
-import itertools
 import shlex
 import sys
 from argparse import (
-    _SUPPRESS_T,
-    SUPPRESS,
-    _ActionStr,
-    _NArgsStr,
-    Action,
-    FileType,
     HelpFormatter,
     Namespace,
 )
-from collections import defaultdict
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Callable, Generic, Iterable, Literal, Sequence, Type, TypeVar, Unpack
-from typing_extensions import Required, TypedDict
-from simple_parsing.helpers.subgroups import SubgroupKey
-from simple_parsing.wrappers.dataclass_wrapper import DataclassWrapperType
-from torch import clone
+from typing import Any, Callable, Literal, Sequence, TypeVar, Unpack
 
-from . import utils
 from .conflicts import ConflictResolution
 from .help_formatter import SimpleHelpFormatter
-from .helpers.serialization.serializable import read_file
 from .utils import (
     Dataclass,
     DataclassT,
-    dict_union,
-    is_dataclass_instance,
-    is_dataclass_type,
 )
-from .wrappers import DashVariant, DataclassWrapper, FieldWrapper
-from .wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
+from .types import (
+    ArgparseParserState,
+    GeneratedAddArgumentKwargs,
+    ParserState,
+    ParserOptions,
+    AddedDcArguments,
+    AddArgumentKwargs,
+    AddArgumentGroupKwargs,
+    FieldMetaData,
+)
 
 logger = getLogger(__name__)
+
+T = TypeVar("T")
 
 
 class ParsingError(RuntimeError, SystemExit):
     pass
 
 
-@dataclasses.dataclass(frozen=True, unsafe_hash=True)
-class ParserOptions:
-    conflict_resolution: ConflictResolution
-    """What kind of prefixing mechanism to use when reusing dataclasses (argument groups).
-    For more info, check the docstring of the `ConflictResolution` Enum.
-    """
-
-    add_option_string_dash_variants: DashVariant
-    """Controls the formatting of the dashes in option strings.
-    
-    Whether or not to add option_string variants where the underscores in attribute names are
-    replaced with dashes.
-    
-    For example, when set to DashVariant.UNDERSCORE_AND_DASH, "--no-cache" and "--no_cache" can
-    both be used to point to the same attribute `no_cache` on some dataclass.
-    """
-
-    argument_generation_mode: ArgumentGenerationMode
-    """Controls how the option strings of nested arguments are generated.
-    
-    In the ArgumentGenerationMode.FLAT mode, the default one, the arguments are flat when possible,
-    ignoring their nested structure and including it only on the presence of a
-    conflict.
-
-    In the ArgumentGenerationMode.NESTED mode, the option strings always show the full path, to
-    show their nested structure.
-
-    In the ArgumentGenerationMode.BOTH mode, both option strings are generated for each argument.
-    """
-
-    nested_mode: NestedMode
-    """Controls how option strings are generated when using a `argument_generation_mode!=FLAT`.
-    
-    (ArgumentGenerationMode.NESTED and ArgumentGenerationMode.BOTH)
-    In the NestedMode.DEFAULT mode, the nested arguments are generated
-    reflecting their full 'destination' path from the returning namespace.
-
-    In the NestedMode.WITHOUT_ROOT, the first level is removed. This is useful when
-    parser.add_arguments is only called once, and where the same prefix would be shared
-    by all arguments. For example, if you have a single dataclass MyArguments and
-    you call parser.add_arguments(MyArguments, "args"), the arguments could look like this:
-    '--args.input.path --args.output.path'.
-    We could prefer to remove the root level in such a case
-        so that the arguments get generated as
-    '--input.path --output.path'.
-    """
-
-    formatter_class: Type[HelpFormatter]
-    """ The formatter class to use.
-    
-    By default, uses `simple_parsing.SimpleHelpFormatter`, which is a combination of the
-    `argparse.ArgumentDefaultsHelpFormatter`, `argparse.MetavarTypeHelpFormatter` and
-    `argparse.RawDescriptionHelpFormatter` classes.
-    """
-
-    add_config_path_arg: bool
-    """When set to `True`, adds a `--config_path` argument used to select a config file to load."""
+ArgparseGroupsAndActionKwargs = list[
+    tuple[AddArgumentGroupKwargs, list[GeneratedAddArgumentKwargs]]
+]
 
 
-@dataclasses.dataclass(frozen=True, unsafe_hash=True)
-class ArgparseParserState:
-    actions: list[Action]
-    option_string_actions: dict[str, Action]
-
-    registries: dict[str, dict[Literal["action", "type"] | None, type[argparse.Action]]]
-
-    # action storage
-    actions: list[argparse.Action]
-    option_string_actions: dict[str, argparse.Action]
-
-    # groups
-    action_groups: list[argparse._ArgumentGroup]
-    mutually_exclusive_groups: list[argparse._MutuallyExclusiveGroup]
-
-    # defaults storage
-    defaults: dict[str, Any]
-
-    has_negative_number_optionals: list[bool]
-
-
-@dataclasses.dataclass(frozen=True, unsafe_hash=True)
-class AddedDcArguments(Generic[DataclassT]):
-    dataclass: type[DataclassT]
-    dest: str
-    prefix: str = ""
-    default: DataclassT | None = None
-
-
-@dataclasses.dataclass(frozen=True, unsafe_hash=True)
-class ParserState(ArgparseParserState):
-    added_dc_args: Sequence[AddedDcArguments]
-
-
-T = TypeVar("T")
-
-
-class AddArgumentGroupKwargs(TypedDict, total=False):
-    title: str | None
-    description: str | None
-    prefix_chars: str
-    argument_default: Any
-    conflict_handler: str
-
-
-class AddArgumentKwargs(TypedDict, Generic[T], total=False):
-    option_strings: Sequence[str]
-    action: str | type[argparse.Action]
-    nargs: int | argparse._NArgsStr | argparse._SUPPRESS_T
-    const: Any
-    default: T
-    type: Callable[[str], T] | argparse.FileType
-    choices: Iterable[T] | None
-    required: bool
-    help: str | None
-    metavar: str | tuple[str, ...] | None
-    dest: str | None
-    version: str
-
-
-class FieldMetaData(TypedDict, Generic[T]):
-    alias: list[str]
-    to_dict: bool
-    cmd: bool
-    positional: bool
-    encoding_fn: Callable[[T], Any] | None
-    decoding_fn: Callable[[Any], T] | None
-    add_argument_overrides: AddArgumentKwargs[T]
-
-
-def field(
-    *,
-    default: T | Literal[dataclasses.MISSING] = dataclasses.MISSING,
-    default_factory: Callable[[], T] | Literal[dataclasses.MISSING] = dataclasses.MISSING,
-    init: bool = True,
-    repr: bool = True,
-    hash: bool | None = None,
-    compare: bool = True,
-    metadata: dict[str, Any] | None = None,
-    # Added arguments:
-    alias: str | list[str] | None = None,
-    cmd: bool = True,
-    positional: bool = False,
-    to_dict: bool = True,
-    encoding_fn: Callable[[T], Any] | None = None,
-    decoding_fn: Callable[[Any], T] | None = None,
-    # dataclasses.field arguments
-    **add_argument_overrides: Unpack[AddArgumentKwargs[T]],
-) -> T:
-    # metadata = metadata.copy() if metadata else {}
-    _metadata: FieldMetaData[T] = (metadata or {}).copy()  # type: ignore
-    _metadata.update(
-        {
-            "alias": [alias] if isinstance(alias, str) else alias or [],
-            "to_dict": to_dict,
-            "encoding_fn": encoding_fn,
-            "decoding_fn": decoding_fn,
-            "cmd": cmd,
-            "positional": positional,
-            "add_argument_overrides": add_argument_overrides,
-        }
-    )
-
-    if add_argument_overrides:
-        action = add_argument_overrides.get("action")
-        if action == "store_false":
-            if default not in {dataclasses.MISSING, True}:
-                raise RuntimeError(
-                    "default should either not be passed or set "
-                    "to True when using the store_false action."
-                )
-            default = True  # type: ignore
-        elif action == "store_true":
-            if default not in {dataclasses.MISSING, False}:
-                raise RuntimeError(
-                    "default should either not be passed or set "
-                    "to False when using the store_true action."
-                )
-            default = False  # type: ignore
-    # NOTE: Adding the three branches to narrowing down the types and match the three overloads of
-    # dataclasses.field
-    if default is not dataclasses.MISSING:
-        return dataclasses.field(  # type: ignore
-            default=default,
-            init=init,
-            repr=repr,
-            hash=hash,
-            compare=compare,
-            metadata=_metadata,
-        )
-    elif not isinstance(default_factory, dataclasses._MISSING_TYPE):
-        return dataclasses.field(
-            default_factory=default_factory,
-            init=init,
-            repr=repr,
-            hash=hash,
-            compare=compare,
-            metadata=_metadata,
-        )
-    else:
-        return dataclasses.field(
-            init=init, repr=repr, hash=hash, compare=compare, metadata=_metadata
-        )
-
-
-def resolve_conflicts(
-    parser_state: ParserState, dc_args: Sequence[AddedDcArguments]
-) -> tuple[ParserState, list[AddedDcArguments]]:
-    ...
-
-
-@functools.cache
 def preprocess(
     parser_state: ParserState, args: Sequence[str], namespace: Namespace
 ) -> argparse.ArgumentParser:
-    # 1. Resolve subgroups choices and conflicts
-    # 2. Given the Parser's state (including the AddedDcArguments), the `args` and `namespace`:
-    #   - Create the AddArgumentGroupKwargs for each dataclass
-    #   - Create the AddArgumentKwargs for each field of each dataclass
-    dc_args = parser_state.added_dc_args
+    argparse_groups_and_action_kwargs = convert_to_argparse(
+        parser_state, args=args, namespace=namespace
+    )
 
-    parser = set_state(argparse.ArgumentParser(), parser_state)
-    # parser_state, args, namespace = resolve_subparsers(parser_state, args, namespace)
-
-    while there_are_unresolved_subgroups(parser_state, args, namespace) or there_are_conflicts(
-        parser_state, args, namespace
-    ):
-        parser_state, dc_args = resolve_subgroups(parser_state, dc_args)
-        parser_state, dc_args = resolve_conflicts(parser_state, dc_args)
-
-    groups_to_fields = convert_to_argparse(parser_state, args=args, namespace=namespace)
-
-    for arg_group_kwargs, field_args_list in groups_to_fields:
-        arg_group = parser.add_argument_group(
-            title=arg_group_kwargs.pop("title"),
-            description=arg_group_kwargs.pop("description"),
-            prefix_chars=arg_group_kwargs.get("prefix_chars"),
-            argument_default=arg_group_kwargs.get("argument_default"),
-            conflict_handler=arg_group_kwargs.get("conflict_handler"),
+    while there_are_unresolved_subgroups(
+        parser_state, argparse_groups_and_action_kwargs, args, namespace
+    ) or there_are_conflicts(parser_state, argparse_groups_and_action_kwargs):
+        parser_state = resolve_subgroups(parser_state, args=args, namespace=namespace)
+        parser_state = resolve_conflicts(parser_state, args=args, namespace=namespace)
+        argparse_groups_and_action_kwargs = convert_to_argparse(
+            parser_state, args=args, namespace=namespace
         )
+
+    # Everything is done. We can now finally add all the arguments and parse them.
+    parser = set_state(argparse.ArgumentParser(), parser_state)
+    for arg_group_kwargs, field_args_list in argparse_groups_and_action_kwargs:
+        arg_group = parser.add_argument_group(**arg_group_kwargs)
         for field_args in field_args_list:
             arg_group.add_argument(*field_args.pop("option_strings"), **field_args)
-
     return parser
+
+
+def there_are_unresolved_subgroups(
+    parser_state: ParserState,
+    groups_to_fields: ArgparseGroupsAndActionKwargs,
+    args: Sequence[str],
+    namespace: Namespace,
+) -> bool:
+    for dataclass_args in parser_state.added_dc_args:
+        dataclass = dataclass_args.dataclass
+        # for field in dataclasses.fields(dataclass)
+    return False  # TODO
+
+
+def there_are_conflicts(
+    parser_state: ParserState, argparse_groups_and_action_kwargs: ArgparseGroupsAndActionKwargs
+) -> bool:
+    all_destinations: set[str] = set()
+    for _, field_actions_kwargs in argparse_groups_and_action_kwargs:
+        for add_argument_kwargs in field_actions_kwargs:
+            field_destination = add_argument_kwargs["dest"]
+            if field_destination in all_destinations:
+                return True
+            all_destinations.add(field_destination)
+    return False
+
+
+def resolve_subgroups(
+    parser_state: ParserState, args: Sequence[str], namespace: Namespace
+) -> ParserState:
+    ...
+
+
+def resolve_conflicts(
+    parser_state: ParserState, args: Sequence[str], namespace: Namespace
+) -> ParserState:
+    ...
 
 
 def convert_to_argparse(
     parser_state: ParserState, args: Sequence[str], namespace: Namespace
-) -> list[tuple[AddArgumentGroupKwargs, list[AddArgumentKwargs]]]:
+) -> ArgparseGroupsAndActionKwargs:
     # NOTE: There are no more conflicts
-
-    result = []
+    result: ArgparseGroupsAndActionKwargs = []
 
     dc_args: AddedDcArguments
     for dc_args in parser_state.added_dc_args:
@@ -613,7 +426,6 @@ def parse_known_args(
     args: str | Sequence[str] | None = None,
     default: Dataclass | None = None,
     dest: str = "config",
-    attempt_to_reorder: bool = False,
     *,
     nested_mode: NestedMode = NestedMode.WITHOUT_ROOT,
     conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
@@ -644,77 +456,81 @@ def parse_known_args(
         add_config_path_arg=add_config_path_arg,
     )
     parser.add_arguments(config_class, dest=dest, default=default)
-    parsed_args, unknown_args = parser.parse_known_args(
-        args, attempt_to_reorder=attempt_to_reorder
-    )
+    parsed_args, unknown_args = parser.parse_known_args(args)
     config: Dataclass = getattr(parsed_args, dest)
     return config, unknown_args
 
 
-def _get_subgroup_fields(wrappers: list[DataclassWrapper]) -> dict[str, FieldWrapper]:
-    subgroup_fields = {}
-    all_wrappers = _flatten_wrappers(wrappers)
-    for wrapper in all_wrappers:
-        for field in wrapper.fields:
-            if field.is_subgroup:
-                assert field not in subgroup_fields.values()
-                subgroup_fields[field.dest] = field
-    return subgroup_fields
+def field(
+    *,
+    default: T | Literal[dataclasses.MISSING] = dataclasses.MISSING,
+    default_factory: Callable[[], T] | Literal[dataclasses.MISSING] = dataclasses.MISSING,
+    init: bool = True,
+    repr: bool = True,
+    hash: bool | None = None,
+    compare: bool = True,
+    metadata: dict[str, Any] | None = None,
+    # Added arguments:
+    alias: str | list[str] | None = None,
+    cmd: bool = True,
+    positional: bool = False,
+    to_dict: bool = True,
+    encoding_fn: Callable[[T], Any] | None = None,
+    decoding_fn: Callable[[Any], T] | None = None,
+    # dataclasses.field arguments
+    **add_argument_overrides: Unpack[AddArgumentKwargs[T]],
+) -> T:
+    # metadata = metadata.copy() if metadata else {}
+    _metadata: FieldMetaData[T] = (metadata or {}).copy()  # type: ignore
+    _metadata.update(
+        {
+            "alias": [alias] if isinstance(alias, str) else alias or [],
+            "to_dict": to_dict,
+            "encoding_fn": encoding_fn,
+            "decoding_fn": decoding_fn,
+            "cmd": cmd,
+            "positional": positional,
+            "add_argument_overrides": add_argument_overrides,
+        }
+    )
 
-
-def _remove_duplicates(wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
-    return list(set(wrappers))
-
-
-def _assert_no_duplicates(wrappers: list[DataclassWrapper]) -> None:
-    if len(wrappers) != len(set(wrappers)):
-        raise RuntimeError(
-            "Duplicate wrappers found! This is a potentially nasty bug on our "
-            "part. Please make an issue at https://www.github.com/lebrice/SimpleParsing/issues "
+    if add_argument_overrides:
+        action = add_argument_overrides.get("action")
+        if action == "store_false":
+            if default not in {dataclasses.MISSING, True}:
+                raise RuntimeError(
+                    "default should either not be passed or set "
+                    "to True when using the store_false action."
+                )
+            default = True  # type: ignore
+        elif action == "store_true":
+            if default not in {dataclasses.MISSING, False}:
+                raise RuntimeError(
+                    "default should either not be passed or set "
+                    "to False when using the store_true action."
+                )
+            default = False  # type: ignore
+    # NOTE: Adding the three branches to narrowing down the types and match the three overloads of
+    # dataclasses.field
+    if default is not dataclasses.MISSING:
+        return dataclasses.field(  # type: ignore
+            default=default,
+            init=init,
+            repr=repr,
+            hash=hash,
+            compare=compare,
+            metadata=_metadata,
         )
-
-
-def _flatten_wrappers(wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
-    """Takes a list of nodes, returns a flattened list of all nodes in the tree."""
-    _assert_no_duplicates(wrappers)
-    roots_only = _unflatten_wrappers(wrappers)
-    return sum(([w] + list(w.descendants) for w in roots_only), [])
-
-
-def _unflatten_wrappers(wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
-    """Given a list of nodes in one or more trees, returns only the root nodes.
-
-    In our context, this is all the dataclass arg groups that were added with
-    `parser.add_arguments`.
-    """
-    _assert_no_duplicates(wrappers)
-    return [w for w in wrappers if w.parent is None]
-
-
-def _create_dataclass_instance(
-    wrapper: DataclassWrapper[DataclassT],
-    constructor: Callable[..., DataclassT],
-    constructor_args: dict[str, Any],
-) -> DataclassT | None:
-    # Check if the dataclass annotation is marked as Optional.
-    # In this case, if no arguments were passed, and the default value is None, then return
-    # None.
-    # TODO: (BUG!) This doesn't distinguish the case where the defaults are passed via the
-    # command-line from the case where no arguments are passed at all!
-    if wrapper.optional and wrapper.default is None:
-        for field_wrapper in wrapper.fields:
-            arg_value = constructor_args[field_wrapper.name]
-            default_value = field_wrapper.default
-            logger.debug(
-                f"field {field_wrapper.name}, arg value: {arg_value}, "
-                f"default value: {default_value}"
-            )
-            if arg_value != default_value:
-                # Value is not the default value, so an argument must have been passed.
-                # Break, and return the instance.
-                break
-        else:
-            logger.debug(f"All fields for {wrapper.dest} were either at their default, or None.")
-            return None
-    logger.debug(f"Calling constructor: {constructor}(**{constructor_args})")
-    return constructor(**constructor_args)
+    elif not isinstance(default_factory, dataclasses._MISSING_TYPE):
+        return dataclasses.field(
+            default_factory=default_factory,
+            init=init,
+            repr=repr,
+            hash=hash,
+            compare=compare,
+            metadata=_metadata,
+        )
+    else:
+        return dataclasses.field(
+            init=init, repr=repr, hash=hash, compare=compare, metadata=_metadata
+        )
