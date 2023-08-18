@@ -1,10 +1,10 @@
 """Simple, Elegant Argument parsing.
+
 @author: Fabrice Normandin
 """
 from __future__ import annotations
 
 import argparse
-from collections.abc import Callable
 import copy
 import dataclasses
 import functools
@@ -12,24 +12,27 @@ import inspect
 import shlex
 import sys
 from argparse import (
-    HelpFormatter,
     Namespace,
 )
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Callable, Literal, Sequence, TypeVar, Unpack
+from typing import Any, Callable, Literal, Sequence, TypeVar
+import typing
+from typing_extensions import ParamSpec, Unpack
+import warnings
+from refactored_parsing.utils import utils
 
-from .conflicts import ConflictResolution
+
 from .help_formatter import SimpleHelpFormatter
-from .utils import (
+from .types import (
     Dataclass,
     DataclassT,
-)
-from .types import (
     ArgparseParserState,
+    DashesOrUnderscores,
     GeneratedAddArgumentKwargs,
+    NestedFieldDisplay,
     ParserState,
-    ParserOptions,
+    ConflictResolution,
     AddedDcArguments,
     AddArgumentKwargs,
     AddArgumentGroupKwargs,
@@ -71,7 +74,8 @@ def preprocess(
     for arg_group_kwargs, field_args_list in argparse_groups_and_action_kwargs:
         arg_group = parser.add_argument_group(**arg_group_kwargs)
         for field_args in field_args_list:
-            arg_group.add_argument(*field_args.pop("option_strings"), **field_args)
+            option_strings: list[str] = list(field_args.pop("option_strings"))
+            arg_group.add_argument(*option_strings, **field_args)
     return parser
 
 
@@ -82,7 +86,7 @@ def there_are_unresolved_subgroups(
     namespace: Namespace,
 ) -> bool:
     for dataclass_args in parser_state.added_dc_args:
-        dataclass = dataclass_args.dataclass
+        pass
         # for field in dataclasses.fields(dataclass)
     return False  # TODO
 
@@ -103,13 +107,13 @@ def there_are_conflicts(
 def resolve_subgroups(
     parser_state: ParserState, args: Sequence[str], namespace: Namespace
 ) -> ParserState:
-    ...
+    return parser_state
 
 
 def resolve_conflicts(
     parser_state: ParserState, args: Sequence[str], namespace: Namespace
 ) -> ParserState:
-    ...
+    return parser_state
 
 
 def convert_to_argparse(
@@ -121,11 +125,117 @@ def convert_to_argparse(
     dc_args: AddedDcArguments
     for dc_args in parser_state.added_dc_args:
         # For each dataclass that was added?
-        arg_group_kwargs: AddArgumentGroupKwargs = argparse_group_for_dataclass(dc_args)
-        field_args_list: list[AddArgumentKwargs] = argparse_args_for_fields_of(dc_args)
+        arg_group_kwargs: AddArgumentGroupKwargs = argparse_group_for_dataclass(
+            parser_state, dc_args
+        )
+        field_args_list: list[GeneratedAddArgumentKwargs] = argparse_args_for_fields_of(
+            parser_state, dc_args
+        )
 
         result.append((arg_group_kwargs, field_args_list))
     return result
+
+
+def argparse_group_for_dataclass(
+    parser_state: ParserState, dc_args: AddedDcArguments
+) -> AddArgumentGroupKwargs:
+    return AddArgumentGroupKwargs(
+        title=arg_group_title(dc_args),
+        description=arg_group_description(dc_args),
+    )
+
+
+def arg_group_title(dc_args: AddedDcArguments) -> str:
+    # TODO: Assuming that there is only one destination for a given dataclass (no reuse feature)
+    # names_string = f""" [{', '.join(f"'{dest}'" for dest in dc_args.destinations)}]"""
+    names_string = f""" [{dc_args.dest}]"""
+    title = dc_args.dataclass.__qualname__ + names_string
+    return title
+
+
+def arg_group_description(dc_args: AddedDcArguments) -> str:
+    # TODO: If this dataclass is the field of a parent dataclass, use the docstring of the field
+    # (if any) as the description for the argument group.
+    # if self.parent and self._field:
+    #     doc = docstring.get_attribute_docstring(self.parent.dataclass, self._field.name)
+    #     if doc is not None:
+    #         if doc.docstring_below:
+    #             return doc.docstring_below
+    #         elif doc.comment_above:
+    #             return doc.comment_above
+    #         elif doc.comment_inline:
+    #             return doc.comment_inline
+    return dc_args.dataclass.__doc__ or ""
+
+
+def argparse_args_for_fields_of(
+    parser_state: ParserState, dc_args: AddedDcArguments
+) -> list[GeneratedAddArgumentKwargs]:
+    field_arguments: list[GeneratedAddArgumentKwargs] = []
+    for field in dataclasses.fields(dc_args.dataclass):
+        field_add_argument_kwargs = argparse_args_for_field(parser_state, dc_args, field)
+        field_arguments.append(field_add_argument_kwargs)
+    return field_arguments
+
+
+def argparse_args_for_field(
+    parser_state: ParserState, dc_args: AddedDcArguments, field: dataclasses.Field[T]
+) -> GeneratedAddArgumentKwargs[T]:
+    # todo: dispatch based on the type annotation perhaps?
+    field_type = get_field_type(dc_args.dataclass, field.name)
+    action = action_for_field(field_type=field_type, field=field)
+    option_strings = field_option_strings(parser_state=parser_state, dc_args=dc_args, field=field)
+    return GeneratedAddArgumentKwargs(
+        option_strings=option_strings,
+        dest=dc_args.dest + "." + field.name,
+        action=action,
+    )
+
+
+def get_dc_types_tree(dc: type[Dataclass], _prefix: str = "") -> dict[str, type[Dataclass]]:
+    dcs: dict[str, type[Dataclass]] = {}
+    for field in dataclasses.fields(dc):
+        field_annotation = get_field_type(dc, field.name)
+        if dataclasses.is_dataclass(
+            field_annotation
+        ) or utils.is_dataclass_or_optional_dataclass_type(field_annotation):
+            key = f"{_prefix}.{field.name}" if _prefix else field.name
+            dcs[key] = field_annotation
+
+            for nested_key, nested_value in get_dc_types_tree(
+                field_annotation, _prefix=key
+            ).items():
+                dcs[nested_key] = nested_value
+
+    return dcs
+
+
+def field_option_strings(
+    parser_state: ParserState, dc_args: AddedDcArguments, field: dataclasses.Field
+) -> Sequence[str]:
+    """
+    TODO: Should this assume that the prefix has already been correctly set when resolving
+    conflicts / etc? --> Probably yes.
+    Then, what should be the responsibility of this function? Using dashes/underscores variants?
+    """
+
+    dc_args.dest + "." + field.name
+    raise NotImplementedError
+
+
+def action_for_field(field_type: type, field: dataclasses.Field) -> str | type[argparse.Action]:
+    if issubclass(field_type, bool):
+        return "store_false"
+    return "store"
+
+
+def get_field_type(dataclass: type[Dataclass], field_name: str) -> type:
+    return eval_type_annotations(dataclass)[field_name]
+
+
+@functools.lru_cache()
+def eval_type_annotations(dataclass: type[Dataclass]) -> dict[str, type]:
+    return typing.get_type_hints(dataclass)
 
 
 def set_state(
@@ -152,11 +262,13 @@ class ArgumentParser(argparse.ArgumentParser):
         add_help: bool = True,
         allow_abbrev: bool = True,
         exit_on_error: bool = True,
+        *,
+        # New options:
         conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
-        add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
-        argument_generation_mode=ArgumentGenerationMode.FLAT,
-        nested_mode: NestedMode = NestedMode.DEFAULT,
+        dashes_or_underscores: DashesOrUnderscores = DashesOrUnderscores.UNDERSCORE,
+        nested_field_display: NestedFieldDisplay = NestedFieldDisplay.SHORTEST,
         add_config_path_arg: bool | None = None,
+        remove_root_from_option_strings: bool = True,
         config_path: Path | str | Sequence[Path | str] | None = None,
     ):
         """Creates an ArgumentParser instance.
@@ -168,7 +280,10 @@ class ArgumentParser(argparse.ArgumentParser):
         - description: A description of what the program does
         - epilog: Text following the argument descriptions
         - parents: Parsers whose arguments should be copied into this one
-        - formatter_class: HelpFormatter class for printing help messages
+        - formatter_class: HelpFormatter class for printing help messages.
+            By default, uses `simple_parsing.SimpleHelpFormatter`, which is a combination of the
+            `argparse.ArgumentDefaultsHelpFormatter`, `argparse.MetavarTypeHelpFormatter` and
+            `argparse.RawDescriptionHelpFormatter` classes.
         - prefix_chars: Characters that prefix optional arguments
         - fromfile_prefix_chars: Characters that prefix files containing additional arguments
         - argument_default: The default value for all arguments
@@ -177,16 +292,19 @@ class ArgumentParser(argparse.ArgumentParser):
         - allow_abbrev: Allow long options to be abbreviated unambiguously
         - exit_on_error: Determines whether or not ArgumentParser exits with error info when an \
             error occurs
+
         - conflict_resolution: What kind of prefixing mechanism to use when reusing dataclasses \
             (argument groups). For more info, check the docstring of the `ConflictResolution` Enum.
+
         - add_option_string_dash_variants: Controls the formatting of the dashes in option strings.
             This sets whether or not to add option_string variants where the underscores in
             attribute names are replaced with dashes.
-            
+
             For example, when set to DashVariant.UNDERSCORE_AND_DASH, "--no-cache" and "--no_cache"
             can both be used to point to the same attribute `no_cache` on some dataclass.
+
         - argument_generation_mode:  Controls how option strings of nested arguments are generated.
-    
+
             In the `ArgumentGenerationMode.FLAT` mode, the default one, the arguments are flat when
             possible, ignoring their nested structure and including it only on the presence of a
             conflict.
@@ -196,8 +314,9 @@ class ArgumentParser(argparse.ArgumentParser):
 
             In the `ArgumentGenerationMode.BOTH` mode, both option strings are generated for each
             argument.
+
         - nested_mode: Controls option strings generation with `argument_generation_mode!=FLAT`.
-    
+
             (ArgumentGenerationMode.NESTED and ArgumentGenerationMode.BOTH)
             In the NestedMode.DEFAULT mode, the nested arguments are generated
             reflecting their full 'destination' path from the returning namespace.
@@ -210,14 +329,9 @@ class ArgumentParser(argparse.ArgumentParser):
             We could prefer to remove the root level in such a case
                 so that the arguments get generated as
             '--input.path --output.path'.
-        - formatter_class: The formatter class to use.
-    
-            By default, uses `simple_parsing.SimpleHelpFormatter`, which is a combination of the
-            `argparse.ArgumentDefaultsHelpFormatter`, `argparse.MetavarTypeHelpFormatter` and
-            `argparse.RawDescriptionHelpFormatter` classes.
 
         - add_config_path_arg: Whether to add an argument to select a config file to load.
-            
+
             When set to `True`, adds a `--config_path` argument of type `Path`, which accepts more
             than one value, allowing you to specify one or more configuration files that should be
             loaded and used as default values.
@@ -238,21 +352,22 @@ class ArgumentParser(argparse.ArgumentParser):
             exit_on_error=exit_on_error,
         )
         self.conflict_resolution = conflict_resolution
-        self.add_option_string_dash_variants = add_option_string_dash_variants
-        self.argument_generation_mode = argument_generation_mode
-        self.nested_mode = nested_mode
+        self.dashes_or_underscores = dashes_or_underscores
+        self.nested_field_display = nested_field_display
         self.add_help = add_help
         self.config_path = config_path
+        self.remove_root_from_option_strings = remove_root_from_option_strings
+
         self.config_paths: list[Path] = []
         if isinstance(config_path, (str, Path)):
             self.config_paths.append(Path(config_path))
         elif config_path is not None:
             self.config_paths.extend(Path(p) for p in config_path)
-        if add_config_path_arg is None:
-            # By default, add a config path argument if a config path was passed.
-            add_config_path_arg = bool(config_path)
-        self.add_config_path_arg = add_config_path_arg
 
+        # By default, add a config path argument if a config path was passed.
+        self.add_config_path_arg = add_config_path_arg or bool(config_path)
+
+        # State:
         self._added_dc_arguments: list[AddedDcArguments] = []
 
     def add_arguments(
@@ -370,25 +485,24 @@ class ArgumentParser(argparse.ArgumentParser):
             mutually_exclusive_groups=self._mutually_exclusive_groups.copy(),
             defaults=self._defaults.copy(),
             added_dc_args=self._added_dc_arguments.copy(),
+            conflict_resolution=self.conflict_resolution,
+            dashes_or_underscores=self.dashes_or_underscores,
+            nested_field_display=self.nested_field_display,
+            config_path=self.config_path,
+            remove_root_from_option_strings=self.remove_root_from_option_strings,
         )
 
 
 # TODO: Change the order of arguments to put `args` as the second argument.
 def parse(
     config_class: type[DataclassT],
-    config_path: Path | str | None = None,
     args: str | Sequence[str] | None = None,
     default: DataclassT | None = None,
     dest: str = "config",
-    *,
     prefix: str = "",
-    nested_mode: NestedMode = NestedMode.WITHOUT_ROOT,
-    conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
-    add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
-    argument_generation_mode=ArgumentGenerationMode.FLAT,
-    formatter_class: type[HelpFormatter] = SimpleHelpFormatter,
-    add_config_path_arg: bool | None = None,
-    **kwargs,
+    _parser_type: Callable[P, ArgumentParser] = ArgumentParser,
+    *parser_args: P.args,
+    **parser_kwargs: P.kwargs,
 ) -> DataclassT:
     """Parse the given dataclass from the command-line.
 
@@ -397,42 +511,37 @@ def parse(
 
     If `config_path` is passed, loads the values from that file and uses them as defaults.
     """
-    parser = ArgumentParser(
-        nested_mode=nested_mode,
-        add_help=True,
-        # add_config_path_arg=None,
-        config_path=config_path,
-        conflict_resolution=conflict_resolution,
-        add_option_string_dash_variants=add_option_string_dash_variants,
-        argument_generation_mode=argument_generation_mode,
-        formatter_class=formatter_class,
-        add_config_path_arg=add_config_path_arg,
-        **kwargs,
-    )
-
+    parser = _parser_type(*parser_args, **parser_kwargs)
     parser.add_arguments(config_class, prefix=prefix, dest=dest, default=default)
 
     if isinstance(args, str):
         args = shlex.split(args)
     parsed_args = parser.parse_args(args)
+    parsed_args_dict = vars(parsed_args)
 
-    config: Dataclass = getattr(parsed_args, dest)
+    config: DataclassT = parsed_args_dict.pop(dest)
+
+    # If there are subgroups, we can allow an extra "subgroups" attribute, otherwise we don't
+    # expect any other values to be in the namespace.
+    parsed_args_dict.pop("subgroups", None)
+
+    if parsed_args_dict:
+        warnings.warn(RuntimeWarning(f"Namespace has leftover unused values: {parsed_args_dict}"))
     return config
+
+
+P = ParamSpec("P")
 
 
 def parse_known_args(
     config_class: type[Dataclass],
-    config_path: Path | str | None = None,
     args: str | Sequence[str] | None = None,
     default: Dataclass | None = None,
     dest: str = "config",
-    *,
-    nested_mode: NestedMode = NestedMode.WITHOUT_ROOT,
-    conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
-    add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
-    argument_generation_mode=ArgumentGenerationMode.FLAT,
-    formatter_class: type[HelpFormatter] = SimpleHelpFormatter,
-    add_config_path_arg: bool | None = None,
+    # **parser_kwargs: Unpack[ArgumentParserKwargs],
+    _parser_type: Callable[P, ArgumentParser] = ArgumentParser,
+    *parser_args: P.args,
+    **parser_kwargs: P.kwargs,
 ) -> tuple[Dataclass, list[str]]:
     """Parse the given dataclass from the command-line, returning the leftover arguments.
 
@@ -441,20 +550,10 @@ def parse_known_args(
 
     If `config_path` is passed, loads the values from that file and uses them as defaults.
     """
-
     if isinstance(args, str):
         args = shlex.split(args)
-    parser = ArgumentParser(
-        nested_mode=nested_mode,
-        add_help=True,
-        # add_config_path_arg=None,
-        config_path=config_path,
-        conflict_resolution=conflict_resolution,
-        add_option_string_dash_variants=add_option_string_dash_variants,
-        argument_generation_mode=argument_generation_mode,
-        formatter_class=formatter_class,
-        add_config_path_arg=add_config_path_arg,
-    )
+    parser_kwargs.setdefault("nested_field_display", NestedFieldDisplay.FULL_PATH_WITHOUT_ROOT)
+    parser = ArgumentParser(*parser_args, **parser_kwargs)
     parser.add_arguments(config_class, dest=dest, default=default)
     parsed_args, unknown_args = parser.parse_known_args(args)
     config: Dataclass = getattr(parsed_args, dest)
