@@ -125,6 +125,20 @@ class TorchExtension(FormatExtension):
         return torch.save(obj, io, **kwargs)
 
 
+class TOMLExtension(FormatExtension):
+    binary: bool = True
+
+    def load(self, io: IO) -> Any:
+        import tomli
+
+        return tomli.load(io)
+
+    def dump(self, obj: Any, io: IO, **kwargs) -> None:
+        import tomli_w
+
+        return tomli_w.dump(obj, io, **kwargs)
+
+
 json_extension = JSONExtension()
 yaml_extension = YamlExtension()
 
@@ -136,6 +150,7 @@ extensions: dict[str, FormatExtension] = {
     ".yml": YamlExtension(),
     ".npy": NumpyExtension(),
     ".pth": TorchExtension(),
+    ".toml": TOMLExtension(),
 }
 
 

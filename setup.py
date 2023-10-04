@@ -25,6 +25,7 @@ extras_require: dict[str, list[str]] = {
         # "torch",
     ],
     "yaml": ["pyyaml"],
+    "toml": ["tomli", "tomli_w"],
 }
 extras_require["all"] = list(set(sum(extras_require.values(), [])))
 

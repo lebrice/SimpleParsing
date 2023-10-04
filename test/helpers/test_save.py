@@ -63,3 +63,12 @@ def test_save_torch(tmpdir: Path):
 
     _hparams = HyperParameters.load(tmp_path)
     assert hparams == _hparams
+
+
+def test_save_toml(tmpdir: Path):
+    hparams = HyperParameters.setup("")
+    tmp_path = Path(tmpdir / "temp.toml")
+    hparams.save(tmp_path)
+
+    _hparams = HyperParameters.load(tmp_path)
+    assert hparams == _hparams
