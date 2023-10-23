@@ -295,17 +295,22 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
         self._default = value
         if field_default_values is None:
             return
+        unknown_names = set(field_default_values)
         for field_wrapper in self.fields:
             if field_wrapper.name not in field_default_values:
                 continue
             # Manually set the default value for this argument.
             field_default_value = field_default_values[field_wrapper.name]
             field_wrapper.set_default(field_default_value)
+            unknown_names.remove(field_wrapper.name)
         for nested_dataclass_wrapper in self._children:
             if nested_dataclass_wrapper.name not in field_default_values:
                 continue
             field_default_value = field_default_values[nested_dataclass_wrapper.name]
             nested_dataclass_wrapper.set_default(field_default_value)
+            unknown_names.remove(nested_dataclass_wrapper.name)
+        unknown_names.discard("_type_")
+        assert not unknown_names, f"Fields {unknown_names} not found in {self.dest}"
 
     @property
     def title(self) -> str:
