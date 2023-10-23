@@ -40,6 +40,21 @@ def test_set_defaults_from_file(tmp_path: Path):
     assert args.foo == saved_config
 
 
+def test_set_broken_defaults_from_file(tmp_path: Path):
+    parser = ArgumentParser()
+    parser.add_arguments(Foo, dest="foo")
+
+    saved_config = Foo(a=456, b="HOLA")
+    config_path = tmp_path / "broken_foo.yaml"
+    broken_yaml = to_dict(saved_config)
+    broken_yaml["i_do_not_exist"] = 3
+    with open(config_path, "w") as f:
+        yaml.dump({"foo": broken_yaml}, f)
+
+    with pytest.raises(AssertionError):
+        parser.set_defaults(config_path)
+
+
 def test_set_defaults_from_file_without_root(tmp_path: Path):
     """test that set_defaults accepts the fields of the dataclass directly, when the parser has
     nested_mode=NestedMode.WITHOUT_ROOT.
