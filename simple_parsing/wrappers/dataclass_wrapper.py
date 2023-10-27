@@ -310,7 +310,8 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
             nested_dataclass_wrapper.set_default(field_default_value)
             unknown_names.remove(nested_dataclass_wrapper.name)
         unknown_names.discard("_type_")
-        assert not unknown_names, f"Fields {unknown_names} not found in {self.dest}"
+        if unknown_names:
+            raise RuntimeError(f"{sorted(unknown_names)} are not fields of {self.dataclass} at path {self.dest!r}!")
 
     @property
     def title(self) -> str:

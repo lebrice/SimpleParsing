@@ -51,7 +51,12 @@ def test_set_broken_defaults_from_file(tmp_path: Path):
     with open(config_path, "w") as f:
         yaml.dump({"foo": broken_yaml}, f)
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            r"\['i_do_not_exist'\] are not fields of <class 'test.test_set_defaults.Foo'> at path 'foo'!"
+        ),
+    ):
         parser.set_defaults(config_path)
 
 
