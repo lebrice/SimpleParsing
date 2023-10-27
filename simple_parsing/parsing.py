@@ -948,11 +948,14 @@ class ArgumentParser(argparse.ArgumentParser):
                 f for f in dataclasses.fields(dc_wrapper.dataclass) if not f.init
             ]:
                 field_dest = dc_wrapper.dest + "." + non_init_field.name
-                # We fetch the constructor arguments for the containing dataclass and check that it
+                # Fetch the constructor arguments for the containing dataclass and check that it
                 # doesn't have a value set.
-                dc_constructor_args = constructor_arguments
-                for dest_part in dc_wrapper.dest.split("."):
-                    dc_constructor_args = dc_constructor_args[dest_part]
+                # NOTE: The `constructor_arguments` dict is FLAT here, so each dataclass has its
+                # own corresponding arguments at their destination, like `"a.b": {}`.
+                dc_constructor_args = constructor_arguments[dc_wrapper.dest]
+
+                # for dest_part in dc_wrapper.dest.split("."):
+                #     dc_constructor_args = dc_constructor_args[dest_part]
                 if non_init_field.name in dc_constructor_args:
                     logger.warning(
                         f"Field {field_dest} is a field with init=False, but a value is "
