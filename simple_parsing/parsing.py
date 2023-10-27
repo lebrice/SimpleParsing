@@ -648,6 +648,8 @@ class ArgumentParser(argparse.ArgumentParser):
                 if subgroup_field.subgroup_default is dataclasses.MISSING:
                     assert argument_options["required"]
                 elif isinstance(argument_options["default"], dict):
+                    # TODO: In this case here, the value of a nested subgroup in this default dict
+                    # should also be used!
                     # BUG #276: The default here is a dict because it came from a config file.
                     # Here we want the subgroup field to have a 'str' default, because we just want
                     # to be able to choose between the subgroup names.
@@ -1196,29 +1198,6 @@ def _create_dataclass_instance(
     return constructor(**constructor_args)
 
 
-def _has_values_of_type(
-    mapping: Mapping[K, Any], value_type: type[V] | tuple[type[V], ...]
-) -> TypeGuard[Mapping[K, V]]:
-    # Utility functions used to narrow the type of dictionaries.
-    return all(isinstance(v, value_type) for v in mapping.values())
-
-
-def _has_keys_of_type(
-    mapping: Mapping[Any, V], key_type: type[K] | tuple[type[K], ...]
-) -> TypeGuard[Mapping[K, V]]:
-    # Utility functions used to narrow the type of dictionaries.
-    return all(isinstance(k, key_type) for k in mapping.keys())
-
-
-def _has_items_of_type(
-    mapping: Mapping[Any, Any],
-    item_type: tuple[type[K] | tuple[type[K], ...], type[V] | tuple[type[V], ...]],
-) -> TypeGuard[Mapping[K, V]]:
-    # Utility functions used to narrow the type of a dictionary or mapping.
-    key_type, value_type = item_type
-    return _has_keys_of_type(mapping, key_type) and _has_values_of_type(mapping, value_type)
-
-
 def _infer_subgroup_key_to_use_from_config(
     default_in_config: dict[str, Any],
     # subgroup_default: Hashable,
@@ -1294,6 +1273,29 @@ def _infer_subgroup_key_to_use_from_config(
     # default_constructor_args_for_each_subgroup = {
     #     k: _default_constructor_argument_values(dc_type) if dataclasses.is_dataclass(dc_type)
     # }
+
+
+def _has_values_of_type(
+    mapping: Mapping[K, Any], value_type: type[V] | tuple[type[V], ...]
+) -> TypeGuard[Mapping[K, V]]:
+    # Utility functions used to narrow the type of dictionaries.
+    return all(isinstance(v, value_type) for v in mapping.values())
+
+
+def _has_keys_of_type(
+    mapping: Mapping[Any, V], key_type: type[K] | tuple[type[K], ...]
+) -> TypeGuard[Mapping[K, V]]:
+    # Utility functions used to narrow the type of dictionaries.
+    return all(isinstance(k, key_type) for k in mapping.keys())
+
+
+def _has_items_of_type(
+    mapping: Mapping[Any, Any],
+    item_type: tuple[type[K] | tuple[type[K], ...], type[V] | tuple[type[V], ...]],
+) -> TypeGuard[Mapping[K, V]]:
+    # Utility functions used to narrow the type of a dictionary or mapping.
+    key_type, value_type = item_type
+    return _has_keys_of_type(mapping, key_type) and _has_values_of_type(mapping, value_type)
 
 
 def _default_constructor_argument_values(
