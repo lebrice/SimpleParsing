@@ -35,7 +35,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal, Protocol, TypeGuard, get_args, get_origin
+from typing_extensions import Literal, Protocol, TypeGuard, deprecated, get_args, get_origin
 
 # There are cases where typing.Literal doesn't match typing_extensions.Literal:
 # https://github.com/python/typing_extensions/pull/148
@@ -114,6 +114,7 @@ class InconsistentArgumentError(RuntimeError):
         super().__init__(*args, **kwargs)
 
 
+@deprecated("This is unused internally and will be removed soon.")
 def camel_case(name):
     s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
@@ -613,6 +614,7 @@ def get_container_nargs(container_type: type) -> int | str:
     raise NotImplementedError(f"Not sure what 'nargs' should be for type {container_type}")
 
 
+@deprecated("This is likely going to be removed soon.")
 def _parse_multiple_containers(
     container_type: type, append_action: bool = False
 ) -> Callable[[str], list[Any]]:
@@ -887,6 +889,7 @@ def dict_union(*dicts: dict[K, V], recurse: bool = True, dict_factory=dict) -> d
     return result
 
 
+@deprecated("This is buggy and unused internally and will be removed soon.")
 def flatten(nested: PossiblyNestedMapping[K, V]) -> dict[tuple[K, ...], V]:
     """Flatten a dictionary of dictionaries. The returned dictionary's keys are tuples, one entry
     per layer.
@@ -953,16 +956,19 @@ def unflatten_split(
     return unflatten({tuple(key.split(sep)): value for key, value in flattened.items()})
 
 
+@deprecated("This is unused internally and will be removed soon.")
 @overload
 def getitem_recursive(d: PossiblyNestedDict[K, V], keys: Iterable[K]) -> V:
     ...
 
 
+@deprecated("This is unused internally and will be removed soon.")
 @overload
 def getitem_recursive(d: PossiblyNestedDict[K, V], keys: Iterable[K], default: T) -> V | T:
     ...
 
 
+@deprecated("This is unused internally and will be removed soon.")
 def getitem_recursive(
     d: PossiblyNestedDict[K, V], keys: Iterable[K], default: T | _MISSING_TYPE = MISSING
 ) -> V | T:
