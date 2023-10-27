@@ -938,26 +938,31 @@ def test_ordering_of_args_doesnt_matter():
     )
 
 
-@dataclass
+@dataclass(frozen=True, unsafe_hash=True)
 class A1:
     a_val: int = 1
 
 
-@dataclass
+@dataclass(frozen=True, unsafe_hash=True)
 class A2:
     a_val: int = 2
 
 
+also_a2_default = functools.partial(A2, a_val=123)
+
+
 @dataclass
 class A1OrA2:
-    a: A1 | A2 = subgroups({"a1": A1, "a2": A2}, default="a1")
+    a: A1 | A2 = subgroups({"a1": A1, "a2": A2, "also_a2": also_a2_default}, default="a1")
 
 
 @pytest.mark.parametrize(
     ("value_in_config", "args", "expected"),
     [
-        (A1OrA2(a=A2()), "", A1OrA2(a=A1())),
+        (A1OrA2(a=A2()), "", A1OrA2(a=A2())),
         (A1OrA2(a=A1()), "", A1OrA2(a=A1())),
+        (A1OrA2(a=A1()), "--a=a2", A1OrA2(a=A2())),
+        (A1OrA2(a=also_a2_default()), "", A1OrA2(a=also_a2_default())),
     ],
 )
 @pytest.mark.parametrize("filetype", [".yaml", ".json", ".pkl"])
@@ -968,6 +973,9 @@ def test_parse_with_config_file_with_different_subgroup(
     args: str,
     expected: A1OrA2,
 ):
+    """TODO: Honestly not 100% sure what I was testing here."""
+    # I think I was trying to reproduce the issue from #276
+
     config_path = (tmp_path / "bob").with_suffix(filetype)
 
     save(value_in_config, config_path, save_dc_types=True)

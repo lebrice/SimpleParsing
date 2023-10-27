@@ -180,8 +180,14 @@ def replace_subgroups(
     return dataclasses.replace(obj, **replace_kwargs)
 
 
+SUBGROUP_KEY_FLAG = "__key__"
+
+
 def _unflatten_selection_dict(
-    flattened: Mapping[str, V], keyword: str = "__key__", sep: str = ".", recursive: bool = True
+    flattened: Mapping[str, V],
+    keyword: str = SUBGROUP_KEY_FLAG,
+    sep: str = ".",
+    recursive: bool = True,
 ) -> PossiblyNestedDict[str, V]:
     """This function convert a flattened dict into a nested dict and it inserts the `keyword` as
     the selection into the nested dict.

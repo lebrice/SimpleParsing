@@ -6,7 +6,7 @@ import typing
 from dataclasses import _MISSING_TYPE, MISSING
 from enum import Enum
 from logging import getLogger as get_logger
-from typing import Any, Callable, TypeVar, Union, overload
+from typing import Any, Callable, Mapping, TypeVar, Union
 
 from typing_extensions import TypeAlias
 
@@ -21,7 +21,7 @@ DC = TypeVar("DC")
 
 
 def subgroups(
-    subgroups: dict[Key, type[DC] | functools.partial[DC]],
+    subgroups: Mapping[Key, type[DC] | functools.partial[DC]],
     *args,
     default: Key | _MISSING_TYPE = MISSING,
     default_factory: type[DC] | functools.partial[DC] | _MISSING_TYPE = MISSING,
@@ -59,8 +59,8 @@ def subgroups(
                 "dataclass."
             )
         if default not in subgroups.values():
-            # TODO: (@lebrice): Do we really need to enforce this? What is the reasoning behind this
-            # restriction again?
+            # NOTE: The reason we enforce this is perhaps artificial, but it's because the way we
+            # implement subgroups requires us to know the key that is selected in the dict.
             raise ValueError(f"Default value {default} needs to be a value in the subgroups dict.")
     elif default is not MISSING and default not in subgroups.keys():
         raise ValueError("default must be a key in the subgroups dict!")
@@ -186,7 +186,8 @@ def _get_dataclass_type_from_callable(
             return dataclass_fn.func
         # partial to a function that should return a dataclass. Hopefully it has a return type
         # annotation, otherwise we'd have to call the function just to know the return type!
-        # NOTE: recurse here, so it also works with `partial(partial(...))` and `partial(some_function)`
+        # NOTE: recurse here, so it also works with `partial(partial(...))` and
+        # `partial(some_function)`
         return _get_dataclass_type_from_callable(
             dataclass_fn=dataclass_fn.func, caller_frame=caller_frame
         )
@@ -218,7 +219,8 @@ def _get_dataclass_type_from_callable(
             caller_globals = caller_frame.f_globals
 
             try:
-                # NOTE: This doesn't seem to be very often different than just calling `get_type_hints`
+                # NOTE: This doesn't seem to be very often different than just calling
+                # `get_type_hints`
                 type_hints = typing.get_type_hints(
                     dataclass_fn, globalns=caller_globals, localns=caller_locals
                 )
@@ -229,8 +231,8 @@ def _get_dataclass_type_from_callable(
             type_hints = typing.get_type_hints(dataclass_fn)
         dataclass_fn_type = type_hints["return"]
 
-        # Recursing here would be a bit extra, let's be real. Might be good enough to just assume that
-        # the return annotation needs to be a dataclass.
+        # Recursing here would be a bit extra, let's be real. Might be good enough to just assume
+        # that the return annotation needs to be a dataclass.
         # return _get_dataclass_type_from_callable(dataclass_fn_type, caller_frame=caller_frame)
         assert is_dataclass_type(dataclass_fn_type)
         return dataclass_fn_type
