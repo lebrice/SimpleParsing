@@ -210,7 +210,8 @@ def get_argparse_type_for_container(
     'str' is returned.
 
     Arguments:
-        container_type {Type} -- A container type (ideally a typing.Type such as List, Tuple, along with an item annotation: List[str], Tuple[int, int], etc.)
+        container_type -- A container type (ideally a typing.Type such as List, Tuple, along
+            with an item annotation: List[str], Tuple[int, int], etc.)
 
     Returns:
         typing.Type -- the type that should be used in argparse 'type' argument option.
@@ -649,7 +650,8 @@ def _parse_container(container_type: type[Container]) -> Callable[[str], list[An
             # if it doesn't work, fall back to the parse_fn.
             values = _fallback_parse(value)
 
-        # we do the default 'argparse' action, which is to add the values to a bigger list of values.
+        # we do the default 'argparse' action, which is to add the values to a bigger list of
+        # values.
         # result.extend(values)
         logger.debug(f"returning values: {values}")
         return values
@@ -662,7 +664,8 @@ def _parse_container(container_type: type[Container]) -> Callable[[str], list[An
         literal = ast.literal_eval(value)
         logger.debug(f"Parsed literal: {literal}")
         if not isinstance(literal, (list, tuple)):
-            # we were passed a single-element container, like "--some_list 1", which should give [1].
+            # we were passed a single-element container, like "--some_list 1", which should give
+            # [1].
             # We therefore return the literal itself, and argparse will append it.
             return T(literal)
         else:

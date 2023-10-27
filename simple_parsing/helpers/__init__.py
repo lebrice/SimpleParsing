@@ -14,6 +14,7 @@ from .flatten import FlattenedAccess
 from .hparams import HyperParameters
 from .partial import Partial, config_for
 from .serialization import FrozenSerializable, Serializable, SimpleJsonEncoder, encode
+from .subgroups import subgroups
 
 try:
     from .serialization import YamlSerializable
@@ -45,4 +46,5 @@ __all__ = [
     "subparsers",
     "flag",
     "flags",
+    "subgroups",
 ]
