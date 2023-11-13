@@ -116,7 +116,7 @@ options, leftover_args = simple_parsing.parse_known_args(Options)
 
 - ### [**Inheritance**!](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance/README.md)
 
-    You can easily customize an existing argument class by extending it and adding your own attributes, which helps promote code reuse across projects. For more info, take a look at the [inheritance example](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance_example.py)
+    You can easily customize an existing argument class by extending it and adding your own attributes, which helps promote code reuse across projects. For more info, take a look at the [inheritance example](https://github.com/lebrice/SimpleParsing/tree/master/examples/inheritance/inheritance_example.py)
 
 - ### [**Nesting**!](https://github.com/lebrice/SimpleParsing/tree/master/examples/nesting/README.md):
 
