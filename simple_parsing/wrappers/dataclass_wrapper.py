@@ -171,7 +171,8 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                 # a "normal" attribute
                 field_wrapper = self.field_wrapper_class(field, parent=self, prefix=self.prefix)
                 logger.debug(
-                    f"wrapped field at {field_wrapper.dest} has a default value of {field_wrapper.default}"
+                    f"wrapped field at {field_wrapper.dest} has a default value of "
+                    f"{field_wrapper.default}"
                 )
                 if field_default is not dataclasses.MISSING:
                     field_wrapper.set_default(field_default)
@@ -216,9 +217,12 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
     def equivalent_argparse_code(self, leading="group") -> str:
         code = ""
         code += textwrap.dedent(
-            f"""
-        group = parser.add_argument_group(title="{self.title.strip()}", description="{self.description.strip()}")
-        """
+            f"""\
+            group = parser.add_argument_group(
+                title="{self.title.strip()}",
+                description="{self.description.strip()}",
+            )
+            """
         )
         for wrapped_field in self.fields:
             if wrapped_field.is_subparser:
@@ -294,6 +298,11 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
         self._default = value
         if field_default_values is None:
             return
+        # Ignore default values for fields that have init=False.
+        for field in dataclasses.fields(self.dataclass):
+            if not field.init and field.name in field_default_values:
+                field_default_values.pop(field.name)
+
         unknown_names = set(field_default_values)
         for field_wrapper in self.fields:
             if field_wrapper.name not in field_default_values:
@@ -314,7 +323,8 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
         unknown_names.discard("_type_")
         if unknown_names:
             raise RuntimeError(
-                f"{sorted(unknown_names)} are not fields of {self.dataclass} at path {self.dest!r}!"
+                f"{sorted(unknown_names)} are not fields of {self.dataclass} at path "
+                f"{self.dest!r}!"
             )
 
     @property
@@ -431,7 +441,9 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
         # logger.debug(f"merging \n{self}\n with \n{other}")
         logger.debug(f"self destinations: {self.destinations}")
         logger.debug(f"other destinations: {other.destinations}")
-        # assert not set(self.destinations).intersection(set(other.destinations)), "shouldn't have overlap in destinations"
+        # assert not set(self.destinations).intersection(set(other.destinations)), (
+        #     "shouldn't have overlap in destinations"
+        # )
         # self.destinations.extend(other.destinations)
         for dest in other.destinations:
             if dest not in self.destinations:
