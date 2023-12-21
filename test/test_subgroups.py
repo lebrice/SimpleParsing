@@ -11,11 +11,13 @@ from pathlib import Path
 from typing import Callable, TypeVar
 
 import pytest
-from simple_parsing.helpers.serialization import save
 from pytest_regressions.file_regression import FileRegressionFixture
 from typing_extensions import Annotated
 
+from simple_parsing.utils import Dataclass
+from simple_parsing.helpers.serialization import save
 from simple_parsing import ArgumentParser, parse, subgroups
+from simple_parsing.helpers.serialization.serializable import from_dict, to_dict
 from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
 from .test_choice import Color
@@ -426,7 +428,10 @@ lambdas_arent_supported_yet = functools.partial(
     marks=pytest.mark.xfail(
         strict=True,
         raises=NotImplementedError,
-        reason="Lambda expressions aren't allowed in the subgroup dict or default_factory at the moment.",
+        reason=(
+            "Lambda expressions aren't allowed in the subgroup dict or default_factory at the "
+            "moment."
+        ),
     ),
 )
 
@@ -785,11 +790,12 @@ We expect to get:
 #     ModelConfig = _ModelConfig()
 #     SmallModel = _ModelConfig(num_layers=1, hidden_dim=32)
 #     BigModel = _ModelConfig(num_layers=32, hidden_dim=128)
-
-#     @dataclasses.dataclass
-#     class Config(TestSetup):
-#         model: Model = subgroups({"small": SmallModel, "big": BigModel}, default_factory=SmallModel)
-
+#
+#    @dataclasses.dataclass
+#    class Config(TestSetup):
+#        model: Model = subgroups({"small": SmallModel, "big": BigModel},
+#                                 default_factory=SmallModel)
+#
 #     assert Config.setup().model == SmallModel()
 #     # Hopefully this illustrates why Annotated aren't exactly great:
 #     # At runtime, they are basically the same as the original dataclass when called.
@@ -980,3 +986,17 @@ def test_parse_with_config_file_with_different_subgroup(
 
     save(value_in_config, config_path, save_dc_types=True)
     assert parse(A1OrA2, config_path=config_path, args=args) == expected
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        A1OrA2(),
+        A1OrA2(a=A2(a_val=2)),
+    ],
+)
+def test_roundtrip(value: Dataclass):
+    """Test to reproduce
+    https://github.com/lebrice/SimpleParsing/pull/284#issuecomment-1783490388."""
+    assert from_dict(type(value), to_dict(value)) == value
+    assert to_dict(from_dict(type(value), to_dict(value))) == to_dict(value)

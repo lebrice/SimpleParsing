@@ -10,7 +10,8 @@ from typing import Any, Callable, Mapping, TypeVar, Union
 
 from typing_extensions import TypeAlias
 
-from simple_parsing.utils import DataclassT, is_dataclass_instance, is_dataclass_type
+from simple_parsing.helpers.serialization.serializable import to_dict
+from simple_parsing.utils import Dataclass, DataclassT, is_dataclass_instance, is_dataclass_type
 
 logger = get_logger(__name__)
 
@@ -80,7 +81,11 @@ def subgroups(
     metadata["subgroup_default"] = default
     metadata["subgroup_dataclass_types"] = {}
 
-    subgroup_dataclass_types: dict[Key, type[DataclassT]] = {}
+    # Custom encoding function that will add the _type_ key with the subgroup dataclass type.
+    # Using an int here means that only to the subgroup dataclass.
+    kwargs.setdefault("encoding_fn", functools.partial(to_dict, save_dc_types=1))
+
+    subgroup_dataclass_types: dict[Key, type[Dataclass]] = {}
     choices = subgroups.keys()
 
     # NOTE: Perhaps we could raise a warning if the default_factory is a Lambda, since we have to
@@ -198,7 +203,8 @@ def _get_dataclass_type_from_callable(
             f"{dataclass_fn!r}, because it doesn't have a return type annotation, and we don't "
             f"want to call it just to figure out what it produces."
         )
-        # NOTE: recurse here, so it also works with `partial(partial(...))` and `partial(some_function)`
+        # NOTE: recurse here, so it also works with `partial(partial(...))` and
+        # `partial(some_function)`
         # Recurse, so this also works with partial(partial(...)) (idk why you'd do that though.)
 
     if isinstance(signature.return_annotation, str):
@@ -241,7 +247,7 @@ def _get_dataclass_type_from_callable(
 def is_lambda(obj: Any) -> bool:
     """Returns True if the given object is a lambda expression.
 
-    Taken froma-lambda
+    Taken from https://stackoverflow.com/questions/3655842/how-can-i-test-whether-a-variable-holds-a-lambda
     """
     LAMBDA = lambda: 0  # noqa: E731
     return isinstance(obj, type(LAMBDA)) and obj.__name__ == LAMBDA.__name__

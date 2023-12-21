@@ -41,7 +41,7 @@ repos:
 
   # python docstring formatting
   - repo: https://github.com/myint/docformatter
-    rev: v1.5.1
+    rev: v1.7.5
     hooks:
       - id: docformatter
         exclude: ^test/test_docstrings.py
@@ -62,7 +62,6 @@ repos:
     hooks:
       - id: nbstripout
         require_serial: true
-
 
   # md formatting
   - repo: https://github.com/executablebooks/mdformat
