@@ -58,7 +58,10 @@ print(parser.equivalent_argparse_code())
 expected += """
 parser = ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-group = parser.add_argument_group(title="MAML ['hparams']", description="Overwrites some of the default values and adds new arguments/attributes.")
+group = parser.add_argument_group(
+    title="MAML ['hparams']",
+    description="Overwrites some of the default values and adds new arguments/attributes.",
+)
 group.add_argument(*['--num_layers'], **{'type': int, 'required': False, 'dest': 'hparams.num_layers', 'default': 6, 'help': ' '})
 group.add_argument(*['--num_units'], **{'type': int, 'required': False, 'dest': 'hparams.num_units', 'default': 128, 'help': ' '})
 group.add_argument(*['--optimizer'], **{'type': str, 'required': False, 'dest': 'hparams.optimizer', 'default': 'ADAM', 'help': ' '})
