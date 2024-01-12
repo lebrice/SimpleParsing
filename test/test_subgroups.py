@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 import inspect
+import json
 import shlex
 import sys
 from dataclasses import dataclass, field
@@ -970,6 +971,7 @@ class A1OrA2:
         (A1OrA2(a=A1()), "--a=a2", A1OrA2(a=A2())),
         (A1OrA2(a=also_a2_default()), "", A1OrA2(a=also_a2_default())),
     ],
+    ids=repr,
 )
 @pytest.mark.parametrize("filetype", [".yaml", ".json", ".pkl"])
 def test_parse_with_config_file_with_different_subgroup(
@@ -983,8 +985,8 @@ def test_parse_with_config_file_with_different_subgroup(
     # I think I was trying to reproduce the issue from #276
 
     config_path = (tmp_path / "bob").with_suffix(filetype)
-
     save(value_in_config, config_path, save_dc_types=True)
+
     assert parse(A1OrA2, config_path=config_path, args=args) == expected
 
 
@@ -1000,3 +1002,43 @@ def test_roundtrip(value: Dataclass):
     https://github.com/lebrice/SimpleParsing/pull/284#issuecomment-1783490388."""
     assert from_dict(type(value), to_dict(value)) == value
     assert to_dict(from_dict(type(value), to_dict(value))) == to_dict(value)
+
+
+@dataclass
+class AorB:
+    a_or_b: A | B = subgroups(
+        {"a": A, "b": B, "also_a": functools.partial(A, a=1.23)}, default="a"
+    )
+
+
+def test_saved_with_key_as_default(tmp_path: Path):
+    """Test to try to reproduce
+    https://github.com/lebrice/SimpleParsing/pull/284#discussion_r1434421587
+    """
+
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"a_or_b": "b"}))
+
+    assert parse(AorB, args="") == AorB(a_or_b=A())
+    assert parse(AorB, config_path=config_path, args="") == AorB(a_or_b=B())
+    assert parse(AorB, config_path=config_path, args="--a_or_b=a") == AorB(a_or_b=A())
+
+
+def test_saved_with_custom_dict_as_default(tmp_path: Path):
+    """Test when a customized dict is set in the config for a subgroups field.
+
+    We expect to have a warning but for things to work.
+    """
+
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"a_or_b": {"b": "somefoo"}}))
+    assert parse(AorB, args="") == AorB(a_or_b=A())
+
+    with pytest.raises(TypeError):
+        # Default is 'a', so we should get a TypeError because b="somefoo" is passed to `A`.
+        assert parse(AorB, config_path=config_path, args="")
+
+    with pytest.warns(RuntimeWarning):
+        assert parse(AorB, config_path=config_path, args="--b=bobo") == AorB(a_or_b=B(b="bobo"))
+
+    assert parse(AorB, config_path=config_path, args="--a_or_b=a") == AorB(a_or_b=A())

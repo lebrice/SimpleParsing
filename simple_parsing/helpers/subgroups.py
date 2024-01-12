@@ -57,12 +57,16 @@ def subgroups(
         if not isinstance(default, Hashable):
             raise ValueError(
                 "'default' can either be a key of the subgroups dict or a hashable (frozen) "
-                "dataclass."
+                "dataclass in the values of the subgroup dict."
             )
         if default not in subgroups.values():
             # NOTE: The reason we enforce this is perhaps artificial, but it's because the way we
             # implement subgroups requires us to know the key that is selected in the dict.
-            raise ValueError(f"Default value {default} needs to be a value in the subgroups dict.")
+            raise ValueError(
+                f"When passing a dataclass instance as the `default` for the subgroups, it needs "
+                f"to be a hashable value (e.g. frozen dataclass) in the subgroups dict. "
+                f"Got {default}"
+            )
     elif default is not MISSING and default not in subgroups.keys():
         raise ValueError("default must be a key in the subgroups dict!")
 

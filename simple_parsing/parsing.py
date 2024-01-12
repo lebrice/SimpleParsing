@@ -16,7 +16,7 @@ from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _
 from collections import defaultdict
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence, Type, overload
+from typing import Any, Callable, Hashable, Mapping, Sequence, Type, overload
 from typing_extensions import TypeGuard
 import warnings
 from simple_parsing.helpers.subgroups import SubgroupKey
@@ -647,32 +647,18 @@ class ArgumentParser(argparse.ArgumentParser):
                 # Sanity checks:
                 if subgroup_field.subgroup_default is dataclasses.MISSING:
                     assert argument_options["required"]
-                elif isinstance(argument_options["default"], dict):
-                    # TODO: In this case here, the value of a nested subgroup in this default dict
-                    # should also be used!
-                    # BUG #276: The default here is a dict because it came from a config file.
-                    # Here we want the subgroup field to have a 'str' default, because we just want
-                    # to be able to choose between the subgroup names.
-                    _default = argument_options["default"]
-                    _default_key = _infer_subgroup_key_to_use_from_config(
-                        default_in_config=_default,
-                        # subgroup_default=subgroup_field.subgroup_default,
-                        subgroup_choices=subgroup_field.subgroup_choices,
-                    )
-                    # We'd like this field to (at least temporarily) have a different default
-                    # value that is the subgroup key instead of the dictionary.
-                    argument_options["default"] = _default_key
-
+                    if "default" in argument_options:
+                        # todo: should ideally not set this in the first place...
+                        assert argument_options["default"] is dataclasses.MISSING
+                        argument_options.pop("default")
+                    assert "default" not in argument_options
                 else:
-                    assert (
-                        argument_options["default"] is subgroup_field.subgroup_default
-                    ), argument_options["default"]
-                    assert not is_dataclass_instance(argument_options["default"])
-
-                # TODO: Do we really need to care about this "SUPPRESS" stuff here?
-                if argparse.SUPPRESS in subgroup_field.parent.defaults:
-                    assert argument_options["default"] is argparse.SUPPRESS
-                    argument_options["default"] = argparse.SUPPRESS
+                    assert "default" in argument_options
+                    assert argument_options["default"] == subgroup_field.default
+                    argument_options["default"] = _adjust_default_value_for_subgroup_field(
+                        subgroup_field=subgroup_field,
+                        subgroup_default=argument_options["default"],
+                    )
 
                 logger.debug(
                     f"Adding subgroup argument: add_argument(*{flags} **{str(argument_options)})"
@@ -1198,83 +1184,6 @@ def _create_dataclass_instance(
     return constructor(**constructor_args)
 
 
-def _infer_subgroup_key_to_use_from_config(
-    default_in_config: dict[str, Any],
-    # subgroup_default: Hashable,
-    subgroup_choices: Mapping[SubgroupKey, type[Dataclass] | functools.partial[Dataclass]],
-) -> SubgroupKey:
-    config_default = default_in_config
-
-    if SUBGROUP_KEY_FLAG in default_in_config:
-        return default_in_config[SUBGROUP_KEY_FLAG]
-
-    for subgroup_key, subgroup_value in subgroup_choices.items():
-        if default_in_config == subgroup_value:
-            return subgroup_key
-
-    assert (
-        DC_TYPE_KEY in config_default
-    ), f"FIXME: assuming that the {DC_TYPE_KEY} is in the config dict."
-    _default_type_name: str = config_default[DC_TYPE_KEY]
-
-    if _has_values_of_type(subgroup_choices, type) and all(
-        dataclasses.is_dataclass(subgroup_option) for subgroup_option in subgroup_choices.values()
-    ):
-        # Simpler case: All the subgroup options are dataclass types. We just get the key that
-        # matches the type that was saved in the config dict.
-        subgroup_keys_with_value_matching_config_default_type: list[SubgroupKey] = [
-            k
-            for k, v in subgroup_choices.items()
-            if (isinstance(v, type) and f"{v.__module__}.{v.__qualname__}" == _default_type_name)
-        ]
-        # NOTE: There could be duplicates I guess? Something like `subgroups({"a": A, "aa": A})`
-        assert len(subgroup_keys_with_value_matching_config_default_type) >= 1
-        return subgroup_keys_with_value_matching_config_default_type[0]
-
-    # IDEA: Try to find the best subgroup key to use, based on the number of matching constructor
-    # arguments between the default in the config and the defaults for each subgroup.
-    constructor_args_in_each_subgroup = {
-        key: _default_constructor_argument_values(subgroup_value)
-        for key, subgroup_value in subgroup_choices.items()
-    }
-    n_matching_values = {
-        k: _num_matching_values(config_default, constructor_args_in_subgroup_value)
-        for k, constructor_args_in_subgroup_value in constructor_args_in_each_subgroup.items()
-    }
-    closest_subgroups_first = sorted(
-        subgroup_choices.keys(),
-        key=n_matching_values.__getitem__,
-        reverse=True,
-    )
-    warnings.warn(
-        # TODO: Return the dataclass type instead, and be done with it!
-        RuntimeWarning(
-            f"TODO: The config file contains a default value for a subgroup that isn't in the "
-            f"dict of subgroup options. Because of how subgroups are currently implemented, we "
-            f"need to find the key in the subgroup choice dict ({subgroup_choices}) that most "
-            f"closely matches the value {config_default}."
-            f"The current implementation tries to use the dataclass type of this closest match "
-            f"to parse the additional values from the command-line. "
-            f"{default_in_config}. Consider adding the "
-            f"{SUBGROUP_KEY_FLAG}: <key of the subgroup to use>"
-        )
-    )
-    return closest_subgroups_first[0]
-    return closest_subgroups_first[0]
-
-    sorted(
-        [k for k, v in subgroup_choices.items()],
-        key=_num_matching_values,
-        reversed=True,
-    )
-    # _default_values = copy.deepcopy(config_default)
-    # _default_values.pop(DC_TYPE_KEY)
-
-    # default_constructor_args_for_each_subgroup = {
-    #     k: _default_constructor_argument_values(dc_type) if dataclasses.is_dataclass(dc_type)
-    # }
-
-
 def _has_values_of_type(
     mapping: Mapping[K, Any], value_type: type[V] | tuple[type[V], ...]
 ) -> TypeGuard[Mapping[K, V]]:
@@ -1330,12 +1239,143 @@ def _default_constructor_argument_values(
     return result
 
 
-def _num_matching_values(subgroup_default: dict[str, Any], subgroup_choice: dict[str, Any]) -> int:
-    """Returns the number of matching entries in the subgroup dict w/ the default from the
-    config."""
-    return sum(
-        _num_matching_values(default_v, subgroup_choice[k])
-        if isinstance(subgroup_choice.get(k), dict) and isinstance(default_v, dict)
-        else int(subgroup_choice.get(k) == default_v)
-        for k, default_v in subgroup_default.items()
+def _adjust_default_value_for_subgroup_field(
+    subgroup_field: FieldWrapper, subgroup_default: Any
+) -> str | Hashable:
+
+    if argparse.SUPPRESS in subgroup_field.parent.defaults:
+        assert subgroup_default is argparse.SUPPRESS
+        assert isinstance(subgroup_default, str)
+        return subgroup_default
+
+    if isinstance(subgroup_default, dict):
+        default_from_config_file = subgroup_default
+        default_from_dataclass_field = subgroup_field.subgroup_default
+
+        if SUBGROUP_KEY_FLAG in default_from_config_file:
+            _default_subgroup = default_from_config_file[SUBGROUP_KEY_FLAG]
+            logger.debug(f"Using subgroup key {_default_subgroup} as default (from config file)")
+            return _default_subgroup
+
+        if DC_TYPE_KEY in default_from_config_file:
+            # The type of dataclass is specified in the config file.
+            # We can use that to figure out which subgroup to use.
+            default_dataclass_type_from_config = default_from_config_file[DC_TYPE_KEY]
+            if isinstance(default_dataclass_type_from_config, str):
+                from simple_parsing.helpers.serialization.serializable import _locate
+
+                # Try to import the type of dataclass given its import path as a string in the
+                # config file.
+                default_dataclass_type_from_config = _locate(default_dataclass_type_from_config)
+            assert is_dataclass_type(default_dataclass_type_from_config)
+
+            from simple_parsing.helpers.subgroups import _get_dataclass_type_from_callable
+
+            subgroup_choices_with_matching_type: dict[
+                Hashable, Dataclass | Callable[[], Dataclass]
+            ] = {
+                subgroup_key: subgroup_value
+                for subgroup_key, subgroup_value in subgroup_field.subgroup_choices.items()
+                if is_dataclass_type(subgroup_value)
+                and subgroup_value == default_dataclass_type_from_config
+                or is_dataclass_instance(subgroup_value)
+                and type(subgroup_value) == default_dataclass_type_from_config
+                or _get_dataclass_type_from_callable(subgroup_value)
+                == default_dataclass_type_from_config
+            }
+            logger.debug(
+                f"Subgroup choices that match the type in the config file: "
+                f"{subgroup_choices_with_matching_type}"
+            )
+
+            # IDEA: Try to find the best subgroup key to use, based on the number of matching
+            # constructor arguments between the default in the config and the defaults for each
+            # subgroup.
+            constructor_args_of_each_subgroup_val = {
+                key: (
+                    dataclasses.asdict(subgroup_value)
+                    if is_dataclass_instance(subgroup_value)
+                    # (the type should have been narrowed by the is_dataclass_instance typeguard,
+                    # but somehow isn't...)
+                    else _default_constructor_argument_values(subgroup_value)  # type: ignore
+                )
+                for key, subgroup_value in subgroup_choices_with_matching_type.items()
+            }
+            logger.debug(
+                f"Constructor arguments for each subgroup choice: "
+                f"{constructor_args_of_each_subgroup_val}"
+            )
+
+            def _num_overlapping_keys(
+                subgroup_default_in_config: PossiblyNestedDict[str, Any],
+                subgroup_option_from_field: PossiblyNestedDict[str, Any],
+            ) -> int:
+                """Returns the number of matching entries in the subgroup dict w/ the default from
+                the config."""
+                overlap = 0
+                for key, value in subgroup_default_in_config.items():
+                    if key in subgroup_option_from_field:
+                        overlap += 1
+                        if isinstance(value, dict) and isinstance(
+                            subgroup_option_from_field[key], dict
+                        ):
+                            overlap += _num_overlapping_keys(
+                                value, subgroup_option_from_field[key]
+                            )
+                return overlap
+
+            n_matching_values = {
+                k: _num_overlapping_keys(default_from_config_file, constructor_args_in_value)
+                for k, constructor_args_in_value in constructor_args_of_each_subgroup_val.items()
+            }
+            logger.debug(
+                f"Number of overlapping keys for each subgroup choice: {n_matching_values}"
+            )
+            closest_subgroups_first = sorted(
+                subgroup_choices_with_matching_type.keys(),
+                key=n_matching_values.__getitem__,
+                reverse=True,
+            )
+            closest_subgroup_key = closest_subgroups_first[0]
+
+            warnings.warn(
+                RuntimeWarning(
+                    f"The config file contains a default value for a subgroup field that isn't in "
+                    f"the dict of subgroup options. "
+                    f"Because of how subgroups are currently implemented, we need to find the key "
+                    f"in the subgroup choice dict that most closely matches the value "
+                    f"{default_from_config_file} in order to populate the default values for "
+                    f"other fields.\n"
+                    f"The default in the config file: {default_from_config_file}\n"
+                    f"The default in the dataclass field: {default_from_dataclass_field}\n"
+                    f"The subgroups dict: {subgroup_field.subgroup_choices}\n"
+                    f"The current implementation tries to use the dataclass type of this closest "
+                    f"match to parse the additional values from the command-line. "
+                    f"Consider adding a {SUBGROUP_KEY_FLAG!r}: <key of the subgroup to use> item "
+                    f"in the dict entry for that subgroup field in your config, to make it easier "
+                    f"to tell directly which subgroup to use."
+                )
+            )
+            return closest_subgroup_key
+
+        logger.debug(
+            f"Using subgroup key {default_from_dataclass_field} as default (from the dataclass "
+            f"field)"
+        )
+        return default_from_dataclass_field
+
+    if subgroup_default in subgroup_field.subgroup_choices.keys():
+        return subgroup_default
+
+    if subgroup_default in subgroup_field.subgroup_choices.values():
+        matching_keys = [
+            k for k, v in subgroup_field.subgroup_choices.items() if v == subgroup_default
+        ]
+        return matching_keys[0]
+
+    raise RuntimeError(
+        f"Error: Unable to figure out what key matches the default value for the subgroup at "
+        f"{subgroup_field.dest}! (expected to either have the {SUBGROUP_KEY_FLAG!r} flag set, or "
+        f"one of the keys or values of the subgroups dict of that field: "
+        f"{subgroup_field.subgroup_choices})"
     )
