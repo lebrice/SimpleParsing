@@ -981,13 +981,10 @@ def test_parse_with_config_file_with_different_subgroup(
     args: str,
     expected: A1OrA2,
 ):
-    """TODO: Honestly not 100% sure what I was testing here."""
-    # I think I was trying to reproduce the issue from #276
-
+    """Test the case where a subgroup different from the default is saved in the config file."""
     config_path = (tmp_path / "bob").with_suffix(filetype)
     save(value_in_config, config_path, save_dc_types=True)
-
-    assert parse(A1OrA2, config_path=config_path, args=args) == expected
+    assert parse(type(value_in_config), config_path=config_path, args=args) == expected
 
 
 @pytest.mark.parametrize(
