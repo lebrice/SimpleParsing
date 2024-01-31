@@ -1,6 +1,9 @@
 name: Python package
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
 
 jobs:
   linting:
@@ -16,8 +19,6 @@ jobs:
       - run: pre-commit --version
       - run: pre-commit install
       - run: pre-commit run --all-files
-
-
 
   build:
     needs: [linting]
