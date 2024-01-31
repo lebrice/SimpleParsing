@@ -32,7 +32,8 @@ class Parameters(Serializable):
     raises=KeyError, match="'jsonl'", strict=True, reason="Enums are saved by name, not by value."
 )
 def test_decode_enum_saved_by_value_doesnt_work(tmp_path: Path):
-    """Test to reproduce https://github.com/lebrice/SimpleParsing/issues/219#issuecomment-1437817369"""
+    """Test to reproduce
+    https://github.com/lebrice/SimpleParsing/issues/219#issuecomment-1437817369."""
     with open(tmp_path / "conf.yaml", "w") as f:
         f.write(
             textwrap.dedent(

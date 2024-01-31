@@ -1,5 +1,4 @@
-""" Utility functions that simplify defining field of dataclasses.
-"""
+"""Utility functions that simplify defining field of dataclasses."""
 from __future__ import annotations
 
 import dataclasses
@@ -130,7 +129,6 @@ def field(
                     "to True when using the store_false action."
                 )
             default = True  # type: ignore
-
         elif action == "store_true":
             if default not in {MISSING, False}:
                 raise RuntimeError(
@@ -138,7 +136,6 @@ def field(
                     "to False when using the store_true action."
                 )
             default = False  # type: ignore
-
     if default is not MISSING:
         return dataclasses.field(  # type: ignore
             default=default,
@@ -190,8 +187,7 @@ def choice(
 
 
 def choice(*choices, default=MISSING, **kwargs):
-    """Makes a field which can be chosen from the set of choices from the
-    command-line.
+    """Makes a field which can be chosen from the set of choices from the command-line.
 
     Returns a regular `dataclasses.field()`, but with metadata which indicates
     the allowed values.
@@ -245,9 +241,8 @@ def choice(*choices, default=MISSING, **kwargs):
             # TODO: If the choice dict is given, then add encoding/decoding functions that just
             # get/set the right key.
             def _encoding_fn(value: Any) -> str:
-                """Custom encoding function that will simply represent the value as the
-                the key in the dict rather than the value itself.
-                """
+                """Custom encoding function that will simply represent the value as the the key in
+                the dict rather than the value itself."""
                 if value in choice_dict.keys():
                     return value
                 elif value in choice_dict.values():
@@ -257,9 +252,8 @@ def choice(*choices, default=MISSING, **kwargs):
             kwargs.setdefault("encoding_fn", _encoding_fn)
 
             def _decoding_fn(value: Any) -> Any:
-                """Custom decoding function that will retrieve the value from the
-                stored key in the dictionary.
-                """
+                """Custom decoding function that will retrieve the value from the stored key in the
+                dictionary."""
                 return choice_dict.get(value, value)
 
             kwargs.setdefault("decoding_fn", _decoding_fn)
@@ -268,8 +262,8 @@ def choice(*choices, default=MISSING, **kwargs):
 
 
 def list_field(*default_items: T, **kwargs) -> list[T]:
-    """shorthand function for setting a `list` attribute on a dataclass,
-    so that every instance of the dataclass doesn't share the same list.
+    """shorthand function for setting a `list` attribute on a dataclass, so that every instance of
+    the dataclass doesn't share the same list.
 
     Accepts any of the arguments of the `dataclasses.field` function.
 
@@ -291,8 +285,8 @@ def list_field(*default_items: T, **kwargs) -> list[T]:
 
 
 def dict_field(default_items: dict[K, V] | Iterable[tuple[K, V]] = (), **kwargs) -> dict[K, V]:
-    """shorthand function for setting a `dict` attribute on a dataclass,
-    so that every instance of the dataclass doesn't share the same `dict`.
+    """shorthand function for setting a `dict` attribute on a dataclass, so that every instance of
+    the dataclass doesn't share the same `dict`.
 
     NOTE: Do not use keyword arguments as you usually would with a dictionary
     (as in something like `dict_field(a=1, b=2, c=3)`). Instead pass in a
@@ -325,7 +319,9 @@ def mutable_field(
     *fn_args: P.args,
     **fn_kwargs: P.kwargs,
 ) -> T:
-    """Shorthand for `dataclasses.field(default_factory=functools.partial(fn, *fn_args, **fn_kwargs))`.
+    """Shorthand for `dataclasses.field(default_factory=functools.partial(fn, *fn_args,
+
+    **fn_kwargs))`.
 
     NOTE: The *fn_args and **fn_kwargs here are passed to `fn`, and are never used by the argparse
     Action!

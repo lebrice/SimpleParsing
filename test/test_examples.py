@@ -1,6 +1,6 @@
 """A test to make sure that all the example files work without crashing.
-(Could be seen as a kind of integration test.)
 
+(Could be seen as a kind of integration test.)
 """
 from __future__ import annotations
 
@@ -134,7 +134,9 @@ def test_running_example_outputs_expected_without_arg(
     set_prog_name: Callable[[str, str | None], None],
     assert_equals_stdout: Callable[[str, str], None],
 ):
-    return test_running_example_outputs_expected(file_path, "", set_prog_name, assert_equals_stdout)
+    return test_running_example_outputs_expected(
+        file_path, "", set_prog_name, assert_equals_stdout
+    )
 
 
 @contextmanager

@@ -112,9 +112,8 @@ def replace(obj: DataclassT, changes_dict: dict[str, Any] | None = None, **chang
 def replace_subgroups(
     obj: DataclassT, selections: dict[str, Key | DataclassT] | None = None
 ) -> DataclassT:
-    """
-    This function replaces the dataclass of subgroups, union, and optional union.
-    The `selections` dict can be in flat format or in nested format.
+    """This function replaces the dataclass of subgroups, union, and optional union. The
+    `selections` dict can be in flat format or in nested format.
 
     The values of selections can be `Key` of subgroups, dataclass type, and dataclass instance.
     """
@@ -184,9 +183,8 @@ def replace_subgroups(
 def _unflatten_selection_dict(
     flattened: Mapping[str, V], keyword: str = "__key__", sep: str = ".", recursive: bool = True
 ) -> PossiblyNestedDict[str, V]:
-    """
-    This function convert a flattened dict into a nested dict
-    and it inserts the `keyword` as the selection into the nested dict.
+    """This function convert a flattened dict into a nested dict and it inserts the `keyword` as
+    the selection into the nested dict.
 
     >>> _unflatten_selection_dict({'ab_or_cd': 'cd', 'ab_or_cd.c_or_d': 'd'})
     {'ab_or_cd': {'__key__': 'cd', 'c_or_d': 'd'}}

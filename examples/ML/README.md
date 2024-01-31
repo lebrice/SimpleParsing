@@ -1,6 +1,9 @@
 ## Use-Case Example: ML Scripts
+
 Let's look at a great use-case for `simple-parsing`: ugly ML code:
+
 ### Before:
+
 ```python
 import argparse
 
@@ -39,7 +42,9 @@ class MyModel():
 m = MyModel(data_dir, log_dir, checkpoint_dir, learning_rate, momentum)
 # Ok, what if we wanted to add a new hyperparameter?!
 ```
+
 ### After:
+
 ```python
 from dataclasses import dataclass
 from simple_parsing import ArgumentParser

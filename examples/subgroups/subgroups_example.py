@@ -45,7 +45,6 @@ class Dataset2Config(DatasetConfig):
 
 @dataclass
 class Config:
-
     # Which model to use
     model: ModelConfig = subgroups(
         {"model_a": ModelAConfig, "model_b": ModelBConfig},

@@ -177,9 +177,7 @@ class TestIssue47:
         ],
     )
     def test_arg_options_created(self, field_type: Type, expected_options: Dict[str, Any]):
-        """Check the 'arg_options' that get created for different types of tuple
-        fields.
-        """
+        """Check the 'arg_options' that get created for different types of tuple fields."""
         parser = ArgumentParser()
 
         @dataclass

@@ -30,10 +30,8 @@ class HParams:
     learning_rate: float = 0.001  # Learning_rate used by the optimizer.
 
     alpha: float = 0.05  # TODO: Tune this. (This doesn't appear in '--help')
-    """
-    A detailed description of this new 'alpha' parameter, which can potentially
-    span multiple lines.
-    """
+    """A detailed description of this new 'alpha' parameter, which can potentially span multiple
+    lines."""
 
 
 parser = ArgumentParser()

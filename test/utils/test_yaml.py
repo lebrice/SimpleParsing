@@ -1,4 +1,4 @@
-""" Tests for serialization to/from yaml files. """
+"""Tests for serialization to/from yaml files."""
 import textwrap
 from dataclasses import dataclass
 from typing import List

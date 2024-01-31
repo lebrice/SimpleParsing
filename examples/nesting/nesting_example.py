@@ -7,9 +7,7 @@ from simple_parsing import ArgumentParser
 
 @dataclass
 class TaskHyperParameters:
-    """
-    HyperParameters for a task-specific model
-    """
+    """HyperParameters for a task-specific model."""
 
     # name of the task
     name: str

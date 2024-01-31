@@ -1,4 +1,4 @@
-""" Tests for compatibility with the postponed evaluation of annotations. """
+"""Tests for compatibility with the postponed evaluation of annotations."""
 from __future__ import annotations
 
 import dataclasses
@@ -77,8 +77,7 @@ class ClassWithNewUnionSyntax(TestSetup):
 @dataclass
 class OtherClassWithNewUnionSyntax(ClassWithNewUnionSyntax):
     """Create a child class without annotations, just to check that they are picked up from the
-    base class.
-    """
+    base class."""
 
 
 @pytest.mark.parametrize(
@@ -239,13 +238,13 @@ def test_serialization_deserialization():
 @dataclass
 class OptimizerConfig(TestSetup):
     lr_scheduler: str = "cosine"
-    """ LR scheduler to use. """
+    """LR scheduler to use."""
 
 
 @dataclass
 class SubclassOfOptimizerConfig(OptimizerConfig):
     bar: int | float = 123
-    """ some dummy arg bar. """
+    """some dummy arg bar."""
 
 
 def test_missing_annotation_on_subclass():

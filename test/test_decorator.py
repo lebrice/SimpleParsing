@@ -2,10 +2,11 @@
 import collections
 import dataclasses
 import functools
-import sys
-from typing import Callable
-import typing
 import inspect
+import sys
+import typing
+from typing import Callable
+
 import pytest
 
 import simple_parsing as sp

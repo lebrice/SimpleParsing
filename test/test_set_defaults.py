@@ -1,4 +1,4 @@
-""" Tests for the setdefaults method of the parser. """
+"""Tests for the setdefaults method of the parser."""
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -62,8 +62,7 @@ def test_set_broken_defaults_from_file(tmp_path: Path):
 
 def test_set_defaults_from_file_without_root(tmp_path: Path):
     """test that set_defaults accepts the fields of the dataclass directly, when the parser has
-    nested_mode=NestedMode.WITHOUT_ROOT.
-    """
+    nested_mode=NestedMode.WITHOUT_ROOT."""
     parser = ArgumentParser(nested_mode=NestedMode.WITHOUT_ROOT)
     parser.add_arguments(Foo, dest="foo")
 
@@ -102,9 +101,8 @@ class ConfigWithFoo(TestSetup):
 @pytest.mark.parametrize("with_root", [True, False])
 @pytest.mark.parametrize("add_arguments_before", [True, False])
 def test_with_nested_field(tmp_path: Path, add_arguments_before: bool, with_root: bool):
-    """Test that when we use set_defaults with a config that has a nested dataclass field,
-    we can pass a path to a yaml file for one of the field, and it also works.
-    """
+    """Test that when we use set_defaults with a config that has a nested dataclass field, we can
+    pass a path to a yaml file for one of the field, and it also works."""
     parser = ArgumentParser(
         nested_mode=NestedMode.WITHOUT_ROOT if not with_root else NestedMode.DEFAULT
     )

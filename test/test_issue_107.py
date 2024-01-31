@@ -1,4 +1,4 @@
-""" test for https://github.com/lebrice/SimpleParsing/issues/107 """
+"""Test for https://github.com/lebrice/SimpleParsing/issues/107."""
 from dataclasses import dataclass
 from typing import Any
 

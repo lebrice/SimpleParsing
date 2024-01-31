@@ -29,7 +29,7 @@ class Test:
 
 @dataclass
 class Program:
-    """Some top-level command"""
+    """Some top-level command."""
 
     command: Union[Train, Test]
     verbose: bool = False  # log additional messages in the console.

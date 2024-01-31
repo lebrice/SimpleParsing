@@ -6,7 +6,7 @@ import simple_parsing
 
 @dataclass
 class TrainConfig:
-    """Training config for Machine Learning"""
+    """Training config for Machine Learning."""
 
     workers: int = 8  # The number of workers for training
     exp_name: str = "default_exp"  # The experiment name

@@ -22,30 +22,31 @@ class GAN:
 
 
 class WGAN(GAN):
-    """
-    Wasserstein GAN
-    """
+    """Wasserstein GAN."""
 
     @dataclass
     class HyperParameters(GAN.HyperParameters):
         e_drift: float = 1e-4
-        """Coefficient from the progan authors which penalizes critic outputs for having a large magnitude."""
+        """Coefficient from the progan authors which penalizes critic outputs for having a large
+        magnitude."""
 
     def __init__(self, hparams: HyperParameters):
         self.hparams = hparams
 
 
 class WGANGP(WGAN):
-    """
-    Wasserstein GAN with Gradient Penalty
-    """
+    """Wasserstein GAN with Gradient Penalty."""
 
     @dataclass
     class HyperParameters(WGAN.HyperParameters):
         e_drift: float = 1e-4
-        """Coefficient from the progan authors which penalizes critic outputs for having a large magnitude."""
+        """Coefficient from the progan authors which penalizes critic outputs for having a large
+        magnitude."""
         gp_coefficient: float = 10.0
-        """Multiplying coefficient for the gradient penalty term of the loss equation. (10.0 is the default value, and was used by the PROGAN authors.)"""
+        """Multiplying coefficient for the gradient penalty term of the loss equation.
+
+        (10.0 is the default value, and was used by the PROGAN authors.)
+        """
 
     def __init__(self, hparams: HyperParameters):
         self.hparams: WGANGP.HyperParameters = hparams

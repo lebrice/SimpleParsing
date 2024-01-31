@@ -40,8 +40,8 @@ Student(name='Bob', age=20, domain='Computer Science', average_grade=0.8)
 >>> assert _bob == bob
 ```
 
-
 ## Adding custom types
+
 Register a new encoding function using `encode`, and a new decoding function using `register_decoding_fn`
 
 For example: Consider the same example as above, but we add a Tensor attribute from `pytorch`.

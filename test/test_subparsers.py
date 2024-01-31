@@ -16,7 +16,7 @@ from .testutils import TestSetup, raises, xfail
 
 @dataclass
 class TrainOptions:
-    """Training Options"""
+    """Training Options."""
 
     lr: float = 1e-3
     train_path: Path = Path("./train")
@@ -24,7 +24,7 @@ class TrainOptions:
 
 @dataclass
 class ValidOptions:
-    """Validation Options"""
+    """Validation Options."""
 
     test_path: Path = Path("./test")
     metric: str = "accuracy"
@@ -32,7 +32,7 @@ class ValidOptions:
 
 @dataclass
 class GlobalOptions(TestSetup):
-    """Global Options"""
+    """Global Options."""
 
     # mode, either Train or Valid.
     mode: Union[TrainOptions, ValidOptions] = subparsers(
@@ -71,7 +71,7 @@ def test_help_text_works():
 
 @dataclass
 class Start:
-    """Start command"""
+    """Start command."""
 
     value: str = "start command value"
 
@@ -82,7 +82,7 @@ class Start:
 
 @dataclass
 class Stop:
-    """Stop command"""
+    """Stop command."""
 
     value: str = "stop command value"
 
@@ -117,7 +117,7 @@ class Pull:
 
 @dataclass
 class Program(TestSetup):
-    """Some top-level command"""
+    """Some top-level command."""
 
     command: Union[Push, Pull]
     verbose: bool = False
@@ -276,7 +276,6 @@ def test_mixing_the_ordering_all_have_defaults():
 
 
 def test_argparse_version_giving_extra_args_to_parent():
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--foo", type=int, default=3)
 

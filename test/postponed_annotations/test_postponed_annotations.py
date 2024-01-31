@@ -71,13 +71,13 @@ def test_overwrite_base():
 
 def test_overwrite_field():
     """Test that postponed annotations don't break attribute overwriting in multiple files."""
-    import test.postponed_annotations.overwrite_base as overwrite_base
     import test.postponed_annotations.overwrite_attribute as overwrite_attribute
+    import test.postponed_annotations.overwrite_base as overwrite_base
 
     instance = overwrite_attribute.Subclass.setup("--v True")
-    assert type(instance.attribute) != overwrite_base.ParamCls, (
-        "attribute type from Base class correctly ignored"
-    )
+    assert (
+        type(instance.attribute) != overwrite_base.ParamCls
+    ), "attribute type from Base class correctly ignored"
     assert instance == overwrite_attribute.Subclass(
         attribute=overwrite_attribute.ParamClsSubclass(True)
     ), "parsed attribute value is correct"

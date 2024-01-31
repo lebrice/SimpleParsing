@@ -1,5 +1,4 @@
-"""Adds typed dataclasses for the "config" yaml files.
-"""
+"""Adds typed dataclasses for the "config" yaml files."""
 import functools
 from dataclasses import dataclass, field
 from test.testutils import pytest, raises

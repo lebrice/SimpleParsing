@@ -1,5 +1,4 @@
-"""Example of overwriting auto-generated argparse options with custom ones.
-"""
+"""Example of overwriting auto-generated argparse options with custom ones."""
 
 from dataclasses import dataclass
 from typing import List
@@ -29,7 +28,9 @@ class Example1:
 assert parse(Example1, "") == Example1(pets_to_walk=["dog"])
 assert parse(Example1, "--pets_to_walk") == Example1(pets_to_walk=[])
 assert parse(Example1, "--pets_to_walk cat") == Example1(pets_to_walk=["cat"])
-assert parse(Example1, "--pets_to_walk dog dog cat") == Example1(pets_to_walk=["dog", "dog", "cat"])
+assert parse(Example1, "--pets_to_walk dog dog cat") == Example1(
+    pets_to_walk=["dog", "dog", "cat"]
+)
 
 
 # # Passing a value not in 'choices' produces an error:

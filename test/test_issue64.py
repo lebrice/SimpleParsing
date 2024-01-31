@@ -10,7 +10,7 @@ from simple_parsing import ArgumentParser
 
 @dataclass
 class Options:
-    """These are the options"""
+    """These are the options."""
 
     foo: str = "aaa"  # Description
     bar: str = "bbb"
@@ -18,7 +18,6 @@ class Options:
 
 @pytest.mark.xfail(reason="Issue64 is solved below.")
 def test_reproduce_issue64():
-
     parser = ArgumentParser("issue64")
 
     parser.add_arguments(Options, dest="options")
@@ -46,11 +45,11 @@ def test_reproduce_issue64():
 
 
 def test_vanilla_argparse_issue64():
-    """This test shows that the ArgumentDefaultsHelpFormatter of argparse doesn't add
-    the "(default: xyz)" if the 'help' argument isn't already passed!
+    """This test shows that the ArgumentDefaultsHelpFormatter of argparse doesn't add the
+    "(default: xyz)" if the 'help' argument isn't already passed!
 
-    This begs the question: Should simple-parsing add a 'help' argument always, so that
-    the formatter can then add the default string after?
+    This begs the question: Should simple-parsing add a 'help' argument always, so that the
+    formatter can then add the default string after?
     """
     import argparse
 
@@ -86,10 +85,8 @@ def test_vanilla_argparse_issue64():
 
 
 def test_solved_issue64():
-    """test that shows that Issue 64 is solved now, by adding a single space as the
-    'help' argument, the help formatter can then add the "(default: bbb)" after the
-    argument.
-    """
+    """test that shows that Issue 64 is solved now, by adding a single space as the 'help'
+    argument, the help formatter can then add the "(default: bbb)" after the argument."""
     parser = ArgumentParser("issue64")
     parser.add_arguments(Options, dest="options")
 

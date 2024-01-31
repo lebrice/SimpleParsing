@@ -1,8 +1,9 @@
 import functools
 import importlib
-from pathlib import Path
 import sys
+from pathlib import Path
 from typing import Callable, TypeVar
+
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
@@ -53,8 +54,9 @@ def test_import_performance(benchmark: BenchmarkFixture):
     group="parse",
 )
 def test_parse_performance(benchmark: BenchmarkFixture):
-    import simple_parsing as sp
     from test.nesting.example_use_cases import HyperParameters
+
+    import simple_parsing as sp
 
     benchmark(
         call_before(clear_lru_caches, sp.parse),
@@ -68,8 +70,9 @@ def test_parse_performance(benchmark: BenchmarkFixture):
 )
 @pytest.mark.parametrize("filetype", [".yaml", ".json", ".pkl"])
 def test_serialization_performance(benchmark: BenchmarkFixture, tmp_path: Path, filetype: str):
-    from simple_parsing.helpers.serialization import save, load
     from test.test_huggingface_compat import TrainingArguments
+
+    from simple_parsing.helpers.serialization import load, save
 
     args = TrainingArguments()
     path = (tmp_path / "bob").with_suffix(filetype)

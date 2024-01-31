@@ -42,7 +42,6 @@ class TrainConfig(Serializable):
 
 
 def test_comment_pull115(tmp_path):
-
     config_in_file = TrainConfig(
         data_config=DatasetConfig(name="bob", split="victim", prop="123", value=1.23),
         epochs=1,

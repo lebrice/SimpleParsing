@@ -45,6 +45,7 @@ repos:
     rev: v1.5.1
     hooks:
       - id: docformatter
+        exclude: ^test/test_docstrings.py
         args: [--in-place, --wrap-summaries=99, --wrap-descriptions=99]
         require_serial: true
 

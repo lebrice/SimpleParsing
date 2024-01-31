@@ -110,7 +110,7 @@ class SomeFoo(TestSetup):
 @pytest.mark.skipif(sys.version_info != (3, 9), reason="Bug is only in 3.9")
 @pytest.mark.xfail(strict=True, reason="This bug was fixed by #260")
 def test_reproduce_issue_259_parsing_literal_py39():
-    """Reproduces https://github.com/lebrice/SimpleParsing/issues/259"""
+    """Reproduces https://github.com/lebrice/SimpleParsing/issues/259."""
     # $ python issue.py
     # usage: issue.py [-h] [--param typing.Literal['bar', 'biz']]
     # issue.py: error: argument --param: invalid typing.Literal['bar', 'biz'] value: 'biz'

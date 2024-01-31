@@ -17,14 +17,14 @@ class ConvBlock(Serializable):
 
 @dataclass
 class GeneratorHParams(ConvBlock):
-    """Settings of the Generator model"""
+    """Settings of the Generator model."""
 
     optimizer: str = choice("ADAM", "RMSPROP", "SGD", default="ADAM")
 
 
 @dataclass
 class DiscriminatorHParams(ConvBlock):
-    """Settings of the Discriminator model"""
+    """Settings of the Discriminator model."""
 
     optimizer: str = choice("ADAM", "RMSPROP", "SGD", default="ADAM")
 
@@ -48,14 +48,15 @@ class GAN:
 
 @dataclass
 class WGanHParams(GanHParams):
-    """HParams of the WGAN model"""
+    """HParams of the WGAN model."""
 
     e_drift: float = 1e-4
-    """Coefficient from the progan authors which penalizes critic outputs for having a large magnitude."""
+    """Coefficient from the progan authors which penalizes critic outputs for having a large
+    magnitude."""
 
 
 class WGAN(GAN):
-    """Wasserstein GAN"""
+    """Wasserstein GAN."""
 
     def __init__(self, hparams: WGanHParams):
         self.hparams = hparams
@@ -70,21 +71,23 @@ class CriticHParams(DiscriminatorHParams):
 
 @dataclass
 class WGanGPHParams(WGanHParams):
-    """Hyperparameters of the WGAN with Gradient Penalty"""
+    """Hyperparameters of the WGAN with Gradient Penalty."""
 
     e_drift: float = 1e-4
-    """Coefficient from the progan authors which penalizes critic outputs for having a large magnitude."""
+    """Coefficient from the progan authors which penalizes critic outputs for having a large
+    magnitude."""
     gp_coefficient: float = 10.0
-    """Multiplying coefficient for the gradient penalty term of the loss equation. (10.0 is the default value, and was used by the PROGAN authors.)"""
+    """Multiplying coefficient for the gradient penalty term of the loss equation.
+
+    (10.0 is the default value, and was used by the PROGAN authors.)
+    """
     disc: CriticHParams = field(default_factory=CriticHParams)
     # overwrite the usual 'disc' field of the WGanHParams dataclass.
     """ Parameters of the Critic. """
 
 
 class WGANGP(WGAN):
-    """
-    Wasserstein GAN with Gradient Penalty
-    """
+    """Wasserstein GAN with Gradient Penalty."""
 
     def __init__(self, hparams: WGanGPHParams):
         self.hparams = hparams

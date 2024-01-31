@@ -172,13 +172,13 @@ def test_store_false_action():
 def test_only_dashes():
     @dataclass
     class AClass(TestSetup):
-        """foo"""
+        """Foo."""
 
         a_var: int
 
     @dataclass
     class SomeClass(TestSetup):
-        """lol"""
+        """Lol."""
 
         my_var: int
         a: AClass
@@ -228,7 +228,7 @@ def test_only_dashes():
 def test_list_of_choices():
     @dataclass
     class Foo(TestSetup):
-        """Some class Foo"""
+        """Some class Foo."""
 
         # A sequence of tasks.
         task_sequence: List[str] = field(choices=["train", "test", "ood"])

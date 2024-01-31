@@ -9,7 +9,7 @@ from .testutils import TestSetup
 
 @dataclass
 class Base:
-    """A simple base-class example"""
+    """A simple base-class example."""
 
     a: int  # TODO: finetune this
 
@@ -98,7 +98,7 @@ def test_docstring_works_with_field_function():
 
 
 def test_docstrings_with_multiple_inheritance():
-    """Test to reproduce issue 162: https://github.com/lebrice/SimpleParsing/issues/162"""
+    """Test to reproduce issue 162: https://github.com/lebrice/SimpleParsing/issues/162."""
 
     @dataclass
     class Fooz:
@@ -149,7 +149,7 @@ def test_docstring_builds_upon_bases():
         """
 
         bar: int = 123  # inline
-        """field docstring from base class"""
+        """Field docstring from base class."""
 
     @dataclass
     class FooB(Base2):
@@ -159,10 +159,10 @@ def test_docstring_builds_upon_bases():
     assert get_attribute_docstring(FooB, "bar") == AttributeDocString(
         comment_inline="The bar property",
         comment_above="Above",
-        docstring_below="field docstring from base class",
+        docstring_below="Field docstring from base class.",
     )
 
-    assert "field docstring from base class" in FooB.get_help_text()
+    assert "Field docstring from base class." in FooB.get_help_text()
 
 
 def test_getdocstring_bug():
@@ -187,24 +187,23 @@ def test_desc_from_cls_docstring():
         ----------
         batch_size : int, optional
             _description_, by default 32
-
         """
 
         # above
         batch_size: int = 32  # side
-        """below"""
+        """Below."""
 
     assert get_attribute_docstring(SomeClass, "batch_size") == AttributeDocString(
         desc_from_cls_docstring="_description_, by default 32",
         comment_above="above",
         comment_inline="side",
-        docstring_below="below",
+        docstring_below="Below.",
     )
 
 
 def test_help_takes_value_from_docstring():
     @dataclass
-    class Args(TestSetup):
+    class Args:
         """args.
 
         Attributes:

@@ -130,7 +130,6 @@ class Options(HyperParameters):
 
 @pytest.mark.parametrize("seed", [123, 456, 789])
 def test_sample_with_subparsers_field(seed: int):
-
     random.seed(seed)
 
     samples = [Options.sample() for _ in range(10)]

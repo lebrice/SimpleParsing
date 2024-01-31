@@ -8,7 +8,7 @@ parser = simple_parsing.ArgumentParser()
 
 @dataclass
 class MyModelHyperParameters:
-    """Hyperparameters of MyModel"""
+    """Hyperparameters of MyModel."""
 
     # Batch size (per-GPU)
     batch_size: int = 32
@@ -20,7 +20,7 @@ class MyModelHyperParameters:
 
 @dataclass
 class TrainingConfig:
-    """Settings related to Training"""
+    """Settings related to Training."""
 
     data_dir: str = "data"
     log_dir: str = "logs"
@@ -29,7 +29,7 @@ class TrainingConfig:
 
 @dataclass
 class EvalConfig:
-    """Settings related to evaluation"""
+    """Settings related to evaluation."""
 
     eval_dir: str = "eval_data"
 

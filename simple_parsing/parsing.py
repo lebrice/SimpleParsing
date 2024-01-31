@@ -1,4 +1,5 @@
 """Simple, Elegant Argument parsing.
+
 @author: Fabrice Normandin
 """
 from __future__ import annotations
@@ -98,7 +99,6 @@ class ArgumentParser(argparse.ArgumentParser):
 
     - add_config_path_arg : bool, optional
         When set to `True`, adds a `--config_path` argument, of type Path, which is used to parse
-
     """
 
     def __init__(
@@ -761,6 +761,7 @@ class ArgumentParser(argparse.ArgumentParser):
 
     def _remove_subgroups_from_namespace(self, parsed_args: argparse.Namespace) -> None:
         """Removes the subgroup choice results from the namespace.
+
         Modifies the namespace in-place.
         """
         # find all subgroup fields
@@ -979,10 +980,11 @@ class ArgumentParser(argparse.ArgumentParser):
     @property
     def confilct_resolver_max_attempts(self) -> int:
         return self._conflict_resolver.max_attempts
-    
+
     @confilct_resolver_max_attempts.setter
     def confilct_resolver_max_attempts(self, value: int):
         self._conflict_resolver.max_attempts = value
+
 
 # TODO: Change the order of arguments to put `args` as the second argument.
 def parse(
@@ -1068,7 +1070,9 @@ def parse_known_args(
         add_config_path_arg=add_config_path_arg,
     )
     parser.add_arguments(config_class, dest=dest, default=default)
-    parsed_args, unknown_args = parser.parse_known_args(args, attempt_to_reorder=attempt_to_reorder)
+    parsed_args, unknown_args = parser.parse_known_args(
+        args, attempt_to_reorder=attempt_to_reorder
+    )
     config: Dataclass = getattr(parsed_args, dest)
     return config, unknown_args
 
@@ -1118,7 +1122,6 @@ def _create_dataclass_instance(
     constructor: Callable[..., DataclassT],
     constructor_args: dict[str, Any],
 ) -> DataclassT | None:
-
     # Check if the dataclass annotation is marked as Optional.
     # In this case, if no arguments were passed, and the default value is None, then return
     # None.
@@ -1126,7 +1129,6 @@ def _create_dataclass_instance(
     # command-line from the case where no arguments are passed at all!
     if wrapper.optional and wrapper.default is None:
         for field_wrapper in wrapper.fields:
-
             arg_value = constructor_args[field_wrapper.name]
             default_value = field_wrapper.default
             logger.debug(

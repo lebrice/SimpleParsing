@@ -21,7 +21,7 @@ class Temperature(enum.Enum):
 
 @dataclass
 class MyPreferences:
-    """You can use Enums"""
+    """You can use Enums."""
 
     color: Color = Color.BLUE  # my favorite colour
     temp: Temperature = Temperature.WARM

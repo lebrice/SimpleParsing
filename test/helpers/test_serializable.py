@@ -1,5 +1,4 @@
-"""Adds typed dataclasses for the "config" yaml files.
-"""
+"""Adds typed dataclasses for the "config" yaml files."""
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum
@@ -119,7 +118,6 @@ def ParentWithOptionalChildrenWithFriends(ParentWithOptionalChildren, ChildWithF
 
 
 def test_to_dict(silent, Child, Parent):
-
     bob = Child("Bob")
     clarice = Child("Clarice")
     nancy = Parent("Nancy", children=dict(bob=bob, clarice=clarice))
@@ -497,11 +495,9 @@ def test_tuple_with_ellipsis(frozen: bool):
 
 
 def test_choice_dict_with_nonserializable_values(frozen: bool):
-    """Test that when a choice_dict has values of some non-json-FrozenSerializable if frozen else Serializable type, a
-    custom encoding/decoding function is provided that will map to/from the dict keys
-    rather than attempt to serialize the field value.
-
-    """
+    """Test that when a choice_dict has values of some non-json-FrozenSerializable if frozen else
+    Serializable type, a custom encoding/decoding function is provided that will map to/from the
+    dict keys rather than attempt to serialize the field value."""
     from simple_parsing import choice
 
     def identity(x: int):

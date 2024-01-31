@@ -97,8 +97,8 @@ class FlattenedAccess:
     def __setattr__(self, name: str, value: Any):
         """Write the attribute in self or in the children that has it.
 
-        If more than one child has attributes that match the given one, an
-        `AttributeError` is raised.
+        If more than one child has attributes that match the given one, an `AttributeError` is
+        raised.
         """
         # potential parents and corresponding values.
         parents: List[str] = []

@@ -167,20 +167,20 @@ def test_dict_field_without_args():
 
 
 def test_flatten():
-    """Test basic functionality of flatten"""
+    """Test basic functionality of flatten."""
     d = {"a": {"b": 2, "c": 3}, "c": {"d": 3, "e": 4}}
     assert flatten_join(d) == {"a.b": 2, "a.c": 3, "c.d": 3, "c.e": 4}
 
 
 def test_flatten_double_ref():
-    """Test proper handling of double references in dicts"""
+    """Test proper handling of double references in dicts."""
     a = {"b": 2, "c": 3}
     d = {"a": a, "d": {"e": a}}
     assert flatten_join(d) == {"a.b": 2, "a.c": 3, "d.e.b": 2, "d.e.c": 3}
 
 
 def test_unflatten():
-    """Test than unflatten(flatten(x)) is idempotent"""
+    """Test than unflatten(flatten(x)) is idempotent."""
     a = {"b": 2, "c": 3}
     d = {"a": a, "d": {"e": a}}
     assert unflatten_split(flatten_join(d)) == d

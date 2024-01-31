@@ -4,7 +4,7 @@ from dataclasses import dataclass, fields
 
 @dataclass
 class Point:
-    """simple class Point"""
+    """Simple class Point."""
 
     x: float = 0.0
     y: float = 0.0

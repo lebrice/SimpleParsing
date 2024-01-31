@@ -12,8 +12,8 @@ logger = getLogger(__name__)
 
 
 class YamlSerializable(Serializable):
-    """Convenience class, just sets different `load_fn` and `dump_fn` defaults
-    for the `dump`, `dumps`, `load`, `loads` methods of `Serializable`.
+    """Convenience class, just sets different `load_fn` and `dump_fn` defaults for the `dump`,
+    `dumps`, `load`, `loads` methods of `Serializable`.
 
     Uses the `yaml.safe_load` and `yaml.dump` for loading and dumping.
 

@@ -75,7 +75,9 @@ def test_beautiful_tree_structure_merge():
     assert abcd.child_cd.child_d.d == "ABCD_CD_d"
 
 
-def tree_structure_with_repetitions(some_type: Type[T], default_value_function: Callable[[str], T]):
+def tree_structure_with_repetitions(
+    some_type: Type[T], default_value_function: Callable[[str], T]
+):
     @dataclass
     class A:
         a: some_type = default_value_function("a")  # type: ignore
@@ -94,35 +96,35 @@ def tree_structure_with_repetitions(some_type: Type[T], default_value_function: 
 
     @dataclass
     class AA:
-        """Weird AA Class"""
+        """Weird AA Class."""
 
         a1: A = field(default_factory=functools.partial(A, default_value_function("A_1")))
         a2: A = field(default_factory=functools.partial(A, default_value_function("A_2")))
 
     @dataclass
     class BB:
-        """Weird BB Class"""
+        """Weird BB Class."""
 
         b1: B = field(default_factory=functools.partial(B, default_value_function("B_1")))
         b2: B = field(default_factory=functools.partial(B, default_value_function("B_2")))
 
     @dataclass
     class CC:
-        """Weird CC Class"""
+        """Weird CC Class."""
 
         c1: C = field(default_factory=functools.partial(C, default_value_function("C_1")))
         c2: C = field(default_factory=functools.partial(C, default_value_function("C_2")))
 
     @dataclass
     class DD:
-        """Weird DD Class"""
+        """Weird DD Class."""
 
         d1: D = field(default_factory=functools.partial(D, default_value_function("D_1")))
         d2: D = field(default_factory=functools.partial(D, default_value_function("D_2")))
 
     @dataclass
     class AABB:
-        """Weird AABB Class"""
+        """Weird AABB Class."""
 
         aa: AA = field(
             default_factory=functools.partial(
@@ -137,7 +139,7 @@ def tree_structure_with_repetitions(some_type: Type[T], default_value_function: 
 
     @dataclass
     class CCDD:
-        """Weird CCDD Class"""
+        """Weird CCDD Class."""
 
         cc: CC = field(
             default_factory=functools.partial(
@@ -152,7 +154,7 @@ def tree_structure_with_repetitions(some_type: Type[T], default_value_function: 
 
     @dataclass
     class AABBCCDD(TestSetup):
-        """Weird AABBCCDD Class"""
+        """Weird AABBCCDD Class."""
 
         aabb: AABB = field(
             default_factory=functools.partial(
@@ -183,7 +185,7 @@ def tree_structure_with_repetitions(some_type: Type[T], default_value_function: 
 
     @dataclass
     class AABBCCDDWeird(TestSetup):
-        """Weird AABBCCDDWeird Class"""
+        """Weird AABBCCDDWeird Class."""
 
         a: A = field(default_factory=functools.partial(A, "a"))
         b: B = field(default_factory=functools.partial(B, "b"))

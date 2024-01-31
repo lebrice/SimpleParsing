@@ -24,8 +24,7 @@ forward_refs_to_types = {
 
 @contextmanager
 def _initvar_patcher() -> Iterator[None]:
-    """
-    Patch InitVar to not fail when annotations are postponed.
+    """Patch InitVar to not fail when annotations are postponed.
 
     `TypeVar('Forward references must evaluate to types. Got dataclasses.InitVar[tp].')` is raised
     when postponed annotations are enabled and `get_type_hints` is called
@@ -148,7 +147,6 @@ def _get_old_style_annotation(annotation: str) -> str:
 def _replace_new_union_syntax_with_old_union_syntax(
     annotations_dict: Dict[str, str], context: collections.ChainMap
 ) -> Dict[str, Any]:
-
     new_annotations = annotations_dict.copy()
     for field, annotation_str in annotations_dict.items():
         updated_annotation = _get_old_style_annotation(annotation_str)
@@ -193,10 +191,11 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
 
     # Get the global_ns in the module starting from the deepest base until the module with the field_name last definition.
     global_ns = {}
-    classes_to_iterate = list(dropwhile(
-        lambda cls: field_name not in getattr(cls, "__annotations__", {}),
-        some_class.mro()
-    ))
+    classes_to_iterate = list(
+        dropwhile(
+            lambda cls: field_name not in getattr(cls, "__annotations__", {}), some_class.mro()
+        )
+    )
     for base_cls in reversed(classes_to_iterate):
         global_ns.update(sys.modules[base_cls.__module__].__dict__)
 

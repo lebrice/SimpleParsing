@@ -94,7 +94,8 @@ T = TypeVar("T")
 
 class TestParser(simple_parsing.ArgumentParser, Generic[T]):
     __test__ = False
-    """ A parser subclass just used for testing.
+    """A parser subclass just used for testing.
+
     Makes the retrieval of the arguments a bit easier to read.
     """
 

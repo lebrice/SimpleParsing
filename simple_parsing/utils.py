@@ -12,9 +12,8 @@ import re
 import sys
 import types
 import typing
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from collections import abc as c_abc
-from collections import defaultdict
 from dataclasses import _MISSING_TYPE, MISSING, Field
 from enum import Enum
 from logging import getLogger
@@ -108,9 +107,8 @@ def is_subparser_field(field: Field) -> bool:
 
 
 class InconsistentArgumentError(RuntimeError):
-    """
-    Error raised when the number of arguments provided is inconsistent when parsing multiple instances from command line.
-    """
+    """Error raised when the number of arguments provided is inconsistent when parsing multiple
+    instances from command line."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -126,9 +124,8 @@ FALSE_STRINGS: list[str] = ["no", "false", "f", "n", "0"]
 
 
 def str2bool(raw_value: str | bool) -> bool:
-    """
-    Taken from https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
-    """
+    """Taken from https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-
+    argparse."""
     if isinstance(raw_value, bool):
         return raw_value
     v = raw_value.strip().lower()
@@ -208,9 +205,9 @@ def get_item_type(container_type: type[Container[T]]) -> T:
 def get_argparse_type_for_container(
     container_type: type[Container[T]],
 ) -> type[T] | Callable[[str], T]:
-    """Gets the argparse 'type' option to be used for a given container type.
-    When an annotation is present, the 'type' option of argparse is set to that type.
-    if not, then the default value of 'str' is returned.
+    """Gets the argparse 'type' option to be used for a given container type. When an annotation is
+    present, the 'type' option of argparse is set to that type. if not, then the default value of
+    'str' is returned.
 
     Arguments:
         container_type {Type} -- A container type (ideally a typing.Type such as List, Tuple, along with an item annotation: List[str], Tuple[int, int], etc.)
@@ -413,7 +410,9 @@ def is_dataclass_type_or_typevar(t: type) -> bool:
     Returns:
         bool: Whether its a dataclass type.
     """
-    return dataclasses.is_dataclass(t) or (is_typevar(t) and dataclasses.is_dataclass(get_bound(t)))
+    return dataclasses.is_dataclass(t) or (
+        is_typevar(t) and dataclasses.is_dataclass(get_bound(t))
+    )
 
 
 def is_enum(t: type) -> bool:
@@ -431,7 +430,7 @@ def is_tuple_or_list(t: type) -> bool:
 
 
 def is_union(t: type) -> bool:
-    """Returns whether or not the given Type annotation is a variant (or subclass) of typing.Union
+    """Returns whether or not the given Type annotation is a variant (or subclass) of typing.Union.
 
     Args:
         t (Type): some type annotation
@@ -453,8 +452,7 @@ def is_union(t: type) -> bool:
 
 
 def is_homogeneous_tuple_type(t: type[tuple]) -> bool:
-    """Returns whether the given Tuple type is homogeneous: if all items types are the
-    same.
+    """Returns whether the given Tuple type is homogeneous: if all items types are the same.
 
     This also includes Tuple[<some_type>, ...]
 
@@ -658,6 +656,7 @@ def _parse_container(container_type: type[Container]) -> Callable[[str], list[An
 
     def _parse_literal(value: str) -> list[Any] | Any:
         """try to parse the string to a python expression directly.
+
         (useful for nested lists or tuples.)
         """
         literal = ast.literal_eval(value)
@@ -723,8 +722,8 @@ def get_nesting_level(possibly_nested_list):
 
 
 def default_value(field: dataclasses.Field) -> T | _MISSING_TYPE:
-    """Returns the default value of a field in a dataclass, if available.
-    When not available, returns `dataclasses.MISSING`.
+    """Returns the default value of a field in a dataclass, if available. When not available,
+    returns `dataclasses.MISSING`.
 
     Args:
         field (dataclasses.Field): The dataclasses.Field to get the default value of.
@@ -781,7 +780,6 @@ def keep_keys(d: dict, keys_to_keep: Iterable[str]) -> tuple[dict, dict]:
     Tuple[Dict, Dict]
         The same dictionary (with all the unwanted keys removed) as well as a
         new dict containing only the removed item.
-
     """
     d_keys = set(d.keys())  # save a copy since we will modify the dict.
     removed = {}
@@ -792,7 +790,7 @@ def keep_keys(d: dict, keys_to_keep: Iterable[str]) -> tuple[dict, dict]:
 
 
 def compute_identity(size: int = 16, **sample) -> str:
-    """Compute a unique hash out of a dictionary
+    """Compute a unique hash out of a dictionary.
 
     Parameters
     ----------
@@ -801,7 +799,6 @@ def compute_identity(size: int = 16, **sample) -> str:
 
     **sample:
         Dictionary to compute the hash from
-
     """
     sample_hash = hashlib.sha256()
 
@@ -840,7 +837,7 @@ def zip_dicts(*dicts: dict[K, V]) -> Iterable[tuple[K, tuple[V | None, ...]]]:
 
 
 def dict_union(*dicts: dict[K, V], recurse: bool = True, dict_factory=dict) -> dict[K, V]:
-    """Simple dict union until we use python 3.9
+    """Simple dict union until we use python 3.9.
 
     If `recurse` is True, also does the union of nested dictionaries.
     NOTE: The returned dictionary has keys sorted alphabetically.
@@ -924,7 +921,8 @@ def unflatten(flattened: Mapping[tuple[K, ...], V]) -> PossiblyNestedDict[K, V]:
 
 
 def flatten_join(nested: PossiblyNestedMapping[str, V], sep: str = ".") -> dict[str, V]:
-    """Flatten a dictionary of dictionaries. Joins different nesting levels with `sep` as separator.
+    """Flatten a dictionary of dictionaries. Joins different nesting levels with `sep` as
+    separator.
 
     >>> flatten_join({'a': {'b': 2, 'c': 3}, 'c': {'d': 3, 'e': 4}})
     {'a.b': 2, 'a.c': 3, 'c.d': 3, 'c.e': 4}

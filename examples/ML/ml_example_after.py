@@ -8,7 +8,7 @@ parser = ArgumentParser()
 
 @dataclass
 class MyModelHyperParameters:
-    """Hyperparameters of MyModel"""
+    """Hyperparameters of MyModel."""
 
     # Learning rate of the Adam optimizer.
     learning_rate: float = 0.05
@@ -18,7 +18,7 @@ class MyModelHyperParameters:
 
 @dataclass
 class TrainingConfig:
-    """Training configuration settings"""
+    """Training configuration settings."""
 
     data_dir: str = "/data"
     log_dir: str = "/logs"

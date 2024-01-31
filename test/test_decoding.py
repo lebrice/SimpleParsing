@@ -18,7 +18,6 @@ from simple_parsing.utils import DataclassT
 
 
 def test_encode_something(simple_attribute):
-
     some_type, passed_value, expected_value = simple_attribute
 
     @dataclass
@@ -159,6 +158,7 @@ class Parameters(Serializable):
 
 def test_implicit_int_casting(tmp_path: Path):
     """Test that we do in fact perform the unsafe casting as described in #227:
+
     https://github.com/lebrice/SimpleParsing/issues/227
     """
     with open(tmp_path / "conf.yaml", "w") as f:
@@ -198,7 +198,7 @@ def reset_int_decoding_fns_after_test():
 
 
 def test_registering_safe_casting_decoding_fn():
-    """Test the solution to 'issue' #227: https://github.com/lebrice/SimpleParsing/issues/227"""
+    """Test the solution to 'issue' #227: https://github.com/lebrice/SimpleParsing/issues/227."""
 
     # Solution: register a decoding function for `int` that casts to int, but raises an error if
     # the value would lose precision.
@@ -211,19 +211,16 @@ def test_registering_safe_casting_decoding_fn():
 
     register_decoding_fn(int, _safe_cast, overwrite=True)
 
-    assert (
-        Parameters.loads_yaml(
-            textwrap.dedent(
-                """\
+    assert Parameters.loads_yaml(
+        textwrap.dedent(
+            """\
         hparams:
             use_log: 1
             severity: 0.0
             probs: [3, 4.0]
         """
-            )
         )
-        == Parameters(hparams=Hparams(severity=0, probs=[3, 4]))
-    )
+    ) == Parameters(hparams=Hparams(severity=0, probs=[3, 4]))
 
     with pytest.raises(ValueError, match="Cannot safely cast 0.1 to int"):
         Parameters.loads_yaml(
@@ -312,7 +309,8 @@ def test_issue_227_unsafe_int_casting_on_load(
     expected_message: str,
     expected_result: DataclassT,
 ):
-    """Test that a warning is raised when performing a lossy cast when deserializing a dataclass."""
+    """Test that a warning is raised when performing a lossy cast when deserializing a
+    dataclass."""
     with pytest.warns(
         RuntimeWarning,
         match=expected_message,

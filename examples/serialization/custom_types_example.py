@@ -27,7 +27,7 @@ class Student(Person):
 
 @encode.register
 def encode_tensor(obj: Tensor) -> List:
-    """We choose to encode a tensor as a list, for instance"""
+    """We choose to encode a tensor as a list, for instance."""
     return obj.tolist()
 
 
