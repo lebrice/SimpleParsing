@@ -79,6 +79,11 @@ repos:
           # - mdformat-black
         require_serial: true
 
+  - repo: https://github.com/python-poetry/poetry
+    rev: 1.7.0
+    hooks:
+      - id: poetry-check
+        require_serial: true
 
   # word spelling linter
   - repo: https://github.com/codespell-project/codespell
