@@ -5,7 +5,7 @@ from simple_parsing import ArgumentParser
 
 @dataclass
 class Config:
-    """Simple example of a class that can be reused"""
+    """Simple example of a class that can be reused."""
 
     log_dir: str = "logs"
 

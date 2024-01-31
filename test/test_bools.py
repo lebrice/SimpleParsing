@@ -137,7 +137,7 @@ def test_bool_nargs(
 ):
     @dataclass
     class MyClass(TestSetup):
-        """Some test class"""
+        """Some test class."""
 
         a: bool = helpers.field(nargs=nargs)
 
@@ -183,7 +183,7 @@ def test_list_of_bools_nargs(
 ):
     @dataclass
     class MyClass(TestSetup):
-        """Some test class"""
+        """Some test class."""
 
         a: List[bool] = helpers.field(nargs=nargs)
 
@@ -199,9 +199,8 @@ def test_list_of_bools_nargs(
 
 @pytest.mark.parametrize("field", [field, flag])
 def test_using_custom_negative_prefix(field):
-    """Check that we can customize the negative prefix for a boolean field, either with the
-    `field` function or with the `flag` function.
-    """
+    """Check that we can customize the negative prefix for a boolean field, either with the `field`
+    function or with the `flag` function."""
 
     @dataclass
     class Config(TestSetup):
@@ -254,7 +253,7 @@ def test_using_custom_negative_option(field):
 
 @pytest.mark.parametrize("default_value", [True, False])
 def test_nested_bool_field_negative_args(default_value: bool):
-    """Test that we get --train.nodebug instead of --notrain.debug"""
+    """Test that we get --train.nodebug instead of --notrain.debug."""
 
     @dataclass
     class Options:
@@ -322,10 +321,10 @@ def test_bool_nested_field_when_conflict_has_two_dashes(
     bool_field: Callable[..., bool], default_value: bool
 ):
     """TODO:"""
+
     # Check that there isn't a "-train.d bool" argument generated here, only "--train.d bool"
     @dataclass
     class Options:
-
         # whether or not to execute in debug mode.
         d: bool = bool_field(default=default_value)
 

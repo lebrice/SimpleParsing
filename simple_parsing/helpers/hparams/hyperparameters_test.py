@@ -48,9 +48,8 @@ class C(HyperParameters):
 
 
 def test_clip_within_bounds():
-    """Test to make sure that the `clip_within_bounds` actually restricts the
-    values of the HyperParameters to be within the bounds.
-    """
+    """Test to make sure that the `clip_within_bounds` actually restricts the values of the
+    HyperParameters to be within the bounds."""
     # valid range for learning_rate is (0 - 1].
     a = A(learning_rate=123)
     assert a.learning_rate == 123
@@ -87,9 +86,8 @@ def test_clip_within_bounds():
 
 
 def test_strict_bounds():
-    """When creating a class and using a hparam field with `strict=True`, the values
-    will be restricted to be within the given bounds.
-    """
+    """When creating a class and using a hparam field with `strict=True`, the values will be
+    restricted to be within the given bounds."""
 
     @dataclass
     class C(HyperParameters):
@@ -147,7 +145,9 @@ def test_choice_field():
 
     bob = Child.sample()
     assert bob.hparam in {1.23, 4.56, 7.89}
-    assert Child.get_orion_space_dict() == {"hparam": "choices(['a', 'b', 'c'], default_value='a')"}
+    assert Child.get_orion_space_dict() == {
+        "hparam": "choices(['a', 'b', 'c'], default_value='a')"
+    }
 
 
 def test_choice_field_with_values_of_a_weird_type():
@@ -213,7 +213,6 @@ class Foo(HyperParameters):
 
 
 def test_priors_with_shape():
-
     foo = Foo()
     assert foo.x == (5, 5)
     assert foo.y == (5, 5, 5)

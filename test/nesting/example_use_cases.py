@@ -17,9 +17,7 @@ __all__ = [
 
 @dataclass
 class HParams(TestSetup):
-    """
-    Model Hyper-parameters
-    """
+    """Model Hyper-parameters."""
 
     # Number of examples per batch
     batch_size: int = 32
@@ -33,14 +31,14 @@ class HParams(TestSetup):
     # number of layers.
     num_layers: int = default_num_layers
     # the number of neurons at each layer
-    neurons_per_layer: List[int] = field(default_factory=lambda: [128] * HParams.default_num_layers)
+    neurons_per_layer: List[int] = field(
+        default_factory=lambda: [128] * HParams.default_num_layers
+    )
 
 
 @dataclass
 class RunConfig(TestSetup):
-    """
-    Group of settings used during a training or validation run.
-    """
+    """Group of settings used during a training or validation run."""
 
     # the set of hyperparameters for this run.
     hparams: HParams = field(default_factory=HParams)
@@ -56,9 +54,7 @@ class RunConfig(TestSetup):
 
 @dataclass
 class TrainConfig(TestSetup):
-    """
-    Top-level settings for multiple runs.
-    """
+    """Top-level settings for multiple runs."""
 
     # run config to be used during training
     train: RunConfig = field(default_factory=functools.partial(RunConfig, log_dir="train"))
@@ -68,9 +64,7 @@ class TrainConfig(TestSetup):
 
 @dataclass
 class TaskHyperParameters(TestSetup):
-    """
-    HyperParameters for a task-specific model
-    """
+    """HyperParameters for a task-specific model."""
 
     # name of the task
     name: str

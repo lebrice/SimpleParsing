@@ -1,7 +1,4 @@
-"""
-A simple example to demonstrate the 'attribute docstrings' mechanism of simple-parsing.
-
-"""
+"""A simple example to demonstrate the 'attribute docstrings' mechanism of simple-parsing."""
 from dataclasses import dataclass
 
 from simple_parsing import ArgumentParser
@@ -16,7 +13,7 @@ class DocStringsExample:
     """
 
     attribute1: float = 1.0
-    """docstring below, When used, this always shows up in the --help text for this attribute"""
+    """Docstring below, When used, this always shows up in the --help text for this attribute."""
 
     # Comment above only: this shows up in the help text, since there is no docstring below.
     attribute2: float = 1.0

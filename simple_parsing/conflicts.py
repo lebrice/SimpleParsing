@@ -13,7 +13,6 @@ logger = getLogger(__name__)
 class ConflictResolution(enum.Enum):
     """Determines prefixing when adding the same dataclass more than once.
 
-
     - NONE:
         Disallow using the same dataclass in two different destinations without
         explicitly setting a distinct prefix for at least one of them.
@@ -66,9 +65,8 @@ class ConflictResolver:
     def resolve_and_flatten(self, wrappers: list[DataclassWrapper]) -> list[DataclassWrapper]:
         """Given the list of all dataclass wrappers, find and resolve any conflicts between fields.
 
-        Returns the new list of (possibly mutated in-place) dataclass wrappers.
-        This returned list is flattened, i.e. it contains all the dataclass wrappers and their
-        children.
+        Returns the new list of (possibly mutated in-place) dataclass wrappers. This returned list
+        is flattened, i.e. it contains all the dataclass wrappers and their children.
         """
         from simple_parsing.parsing import _assert_no_duplicates, _flatten_wrappers
 
@@ -377,7 +375,10 @@ class ConflictResolver:
         return None
 
     def _conflict_exists(self, all_wrappers: list[DataclassWrapper]) -> bool:
-        """Return True whenever a conflict exists. (option strings overlap)."""
+        """Return True whenever a conflict exists.
+
+        (option strings overlap).
+        """
         arg_names: set[str] = set()
         for wrapper in all_wrappers:
             for field in wrapper.fields:

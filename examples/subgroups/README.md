@@ -3,7 +3,6 @@
 Adding a choice between different subgroups of arguments can be very difficult using Argparse.
 Subparsers are not exactly meant for this, and they introduce many errors
 
-
 This friction is one of the motivating factors for a plethora of argument parsing frameworks
 such as Hydra, Click, and others.
 
@@ -117,7 +116,6 @@ Dataset2Config ['config.dataset']:
                         (default: data/bar)
   --dataset.bar float   (default: 1.2)
 ```
-
 
 ```console
 $ python examples/subgroups/subgroups_example.py --model model_b --help

@@ -1,5 +1,4 @@
-""" Functions for decoding dataclass fields from "raw" values (e.g. from json).
-"""
+"""Functions for decoding dataclass fields from "raw" values (e.g. from json)."""
 from __future__ import annotations
 
 import inspect
@@ -201,7 +200,6 @@ def get_decoding_fn(type_annotation: type[T] | str) -> Callable[..., T]:
     Returns:
         Callable[[Any], T]:
             A function that decodes a 'raw' value to an instance of type `t`.
-
     """
     from .serializable import from_dict
 
@@ -454,8 +452,7 @@ def decode_dict(K_: type[K], V_: type[V]) -> Callable[[list[tuple[Any, Any]]], d
 
 
 def decode_enum(item_type: type[Enum]) -> Callable[[str], Enum]:
-    """
-    Creates a decoding function for an enum type.
+    """Creates a decoding function for an enum type.
 
     Args:
         item_type (Type[Enum]): the type of the items in the set.

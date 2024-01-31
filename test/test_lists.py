@@ -110,7 +110,7 @@ def test_list_supported_formats(
     @dataclass
     class SomeClass(TestSetup):
         a: List[item_type] = field(default_factory=list)  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     arguments = "--a " + list_formatting_function(passed_values)
     print(arguments)
@@ -148,7 +148,7 @@ def test_parse_multiple_with_list_attributes(
     @dataclass
     class SomeClass(TestSetup):
         a: List[item_type] = field(default_factory=list)  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     arguments = "--a " + list_of_lists_formatting_function(passed_values)
     classes = list(SomeClass.setup_multiple(3, arguments))

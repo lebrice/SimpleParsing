@@ -57,7 +57,6 @@ SGDConfig: type[Partial[SGD]] = config_for(SGD, ignore_args="params")
 
 @dataclass
 class Config:
-
     # Which optimizer to use.
     optimizer: Partial[Optimizer] = subgroups(
         {

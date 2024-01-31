@@ -29,31 +29,27 @@ logger = getLogger(__name__)
 
 
 class ArgumentGenerationMode(Enum):
-    """
-    Enum for argument generation modes.
-    """
+    """Enum for argument generation modes."""
 
     FLAT = auto()
-    """ Tries to generate flat arguments, removing the argument destination path when possible. """
+    """Tries to generate flat arguments, removing the argument destination path when possible."""
 
     NESTED = auto()
-    """ Generates arguments with their full destination path. """
+    """Generates arguments with their full destination path."""
 
     BOTH = auto()
-    """ Generates both the flat and nested arguments. """
+    """Generates both the flat and nested arguments."""
 
 
 class NestedMode(Enum):
-    """
-    Controls how nested arguments are generated.
-    """
+    """Controls how nested arguments are generated."""
 
     DEFAULT = auto()
-    """ By default, the full destination path is used. """
+    """By default, the full destination path is used."""
 
     WITHOUT_ROOT = auto()
-    """
-    The full destination path is used, but the first level is removed.
+    """The full destination path is used, but the first level is removed.
+
     Useful because sometimes the first level is uninformative (i.e. 'args').
     """
 
@@ -69,7 +65,6 @@ class DashVariant(Enum):
     - UNDERSCORE_AND_DASH:
 
     - DASH:
-
     """
 
     AUTO = False
@@ -79,12 +74,10 @@ class DashVariant(Enum):
 
 
 class FieldWrapper(Wrapper):
-    """
-    The FieldWrapper class acts a bit like an 'argparse.Action' class, which
-    essentially just creates the `option_strings` and `arg_options` that get
-    passed to the `add_argument(*option_strings, **arg_options)` function of the
-    `argparse._ArgumentGroup` (in this case represented by the `parent`
-    attribute, an instance of the class `DataclassWrapper`).
+    """The FieldWrapper class acts a bit like an 'argparse.Action' class, which essentially just
+    creates the `option_strings` and `arg_options` that get passed to the
+    `add_argument(*option_strings, **arg_options)` function of the `argparse._ArgumentGroup` (in
+    this case represented by the `parent` attribute, an instance of the class `DataclassWrapper`).
 
     The `option_strings`, `required`, `help`, `metavar`, `default`, etc.
     attributes just autogenerate the argument of the same name of the
@@ -179,9 +172,8 @@ class FieldWrapper(Wrapper):
         constructor_arguments: dict[str, dict[str, Any]],
         option_string: str | None = None,
     ):
-        """Immitates a custom Action, which sets the corresponding value from
-        `values` at the right destination in the `constructor_arguments` of the
-        parser.
+        """Immitates a custom Action, which sets the corresponding value from `values` at the right
+        destination in the `constructor_arguments` of the parser.
 
         TODO: Doesn't seem currently possible to check whether the argument was passed in the
         first place.
@@ -206,7 +198,6 @@ class FieldWrapper(Wrapper):
         self._results = {}
 
         for destination, value in zip(self.destinations, values):
-
             if self.is_subgroup:
                 logger.debug(f"Ignoring the FieldWrapper for subgroup at dest {self.dest}")
                 return
@@ -288,7 +279,9 @@ class FieldWrapper(Wrapper):
                 # Union[<something>, NoneType]
                 assert type_arguments
                 non_none_types = [
-                    t for t in type_arguments if t is not type(None)  # noqa: E721
+                    t
+                    for t in type_arguments
+                    if t is not type(None)  # noqa: E721
                 ]  # noqa: E721
                 assert non_none_types
                 if len(non_none_types) == 1:
@@ -464,8 +457,8 @@ class FieldWrapper(Wrapper):
             )
 
     def postprocess(self, raw_parsed_value: Any) -> Any:
-        """Applies any conversions to the 'raw' parsed value before it is used
-        in the constructor of the dataclass.
+        """Applies any conversions to the 'raw' parsed value before it is used in the constructor
+        of the dataclass.
 
         Args:
             raw_parsed_value (Any): The 'raw' parsed value.
@@ -584,7 +577,6 @@ class FieldWrapper(Wrapper):
         added.
 
         For an illustration of this, see the aliases example.
-
         """
 
         dashes: list[str] = []  # contains the leading dashes.
@@ -649,7 +641,9 @@ class FieldWrapper(Wrapper):
 
         if add_dash_variants == DashVariant.UNDERSCORE_AND_DASH:
             additional_options = [option.replace("_", "-") for option in options if "_" in option]
-            additional_dashes = ["-" if len(option) == 1 else "--" for option in additional_options]
+            additional_dashes = [
+                "-" if len(option) == 1 else "--" for option in additional_options
+            ]
             options.extend(additional_options)
             dashes.extend(additional_dashes)
 
@@ -684,13 +678,12 @@ class FieldWrapper(Wrapper):
 
     @property
     def dest_field(self) -> FieldWrapper | None:
-        """Return the `FieldWrapper` for which `self` is a proxy (same dest).
-        When a `dest` argument is passed to `field()`, and its value is a
-        `Field`, that indicates that this Field is just a proxy for another.
+        """Return the `FieldWrapper` for which `self` is a proxy (same dest). When a `dest`
+        argument is passed to `field()`, and its value is a `Field`, that indicates that this Field
+        is just a proxy for another.
 
-        In such a case, we replace the dest of `self` with that of the other
-        wrapper's we then find the corresponding FieldWrapper and use its `dest`
-        instead of ours.
+        In such a case, we replace the dest of `self` with that of the other wrapper's we then find
+        the corresponding FieldWrapper and use its `dest` instead of ours.
         """
         if self._dest_field is not None:
             return self._dest_field
@@ -715,9 +708,9 @@ class FieldWrapper(Wrapper):
 
     @property
     def default(self) -> Any:
-        """Either a single default value, when parsing a single argument, or
-        the list of default values, when this argument is reused multiple times
-        (which only happens with the `ConflictResolution.ALWAYS_MERGE` option).
+        """Either a single default value, when parsing a single argument, or the list of default
+        values, when this argument is reused multiple times (which only happens with the
+        `ConflictResolution.ALWAYS_MERGE` option).
 
         In order of increasing priority, this could either be:
         1. The default attribute of the field
@@ -845,7 +838,9 @@ class FieldWrapper(Wrapper):
                     get_field_type_from_annotations,
                 )
 
-                field_type = get_field_type_from_annotations(self.parent.dataclass, self.field.name)
+                field_type = get_field_type_from_annotations(
+                    self.parent.dataclass, self.field.name
+                )
                 self._type = field_type
             elif isinstance(self._type, dataclasses.InitVar):
                 self._type = self._type.type
@@ -860,7 +855,8 @@ class FieldWrapper(Wrapper):
 
     @property
     def choices(self) -> list | None:
-        """The list of possible values that can be passed on the command-line for this field, or None."""
+        """The list of possible values that can be passed on the command-line for this field, or
+        None."""
 
         if "choices" in self.custom_arg_options:
             return self.custom_arg_options["choices"]
@@ -913,9 +909,7 @@ class FieldWrapper(Wrapper):
 
     @property
     def metavar(self) -> str | None:
-        """Returns the 'metavar' when set using one of the `field` functions,
-        else None.
-        """
+        """Returns the 'metavar' when set using one of the `field` functions, else None."""
         if self._metavar:
             return self._metavar
         self._metavar = self.custom_arg_options.get("metavar")
@@ -983,9 +977,9 @@ class FieldWrapper(Wrapper):
 
     @property
     def subparsers_dict(self) -> dict[str, type] | None:
-        """The dict of subparsers, which is created either when using a
-        Union[<dataclass_1>, <dataclass_2>] type annotation, or when using the
-        `subparsers()` function.
+        """The dict of subparsers, which is created either when using a Union[<dataclass_1>,
+
+        <dataclass_2>] type annotation, or when using the `subparsers()` function.
         """
         if self.field.metadata.get("subparsers"):
             return self.field.metadata["subparsers"]

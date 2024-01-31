@@ -28,18 +28,15 @@ repos:
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     # Ruff version.
-    rev: 'v0.0.261'
+    rev: 'v0.1.14'
     hooks:
+      # Run the linter.
       - id: ruff
-        args: ['--line-length', '99', '--fix']
+        args: ['--line-length', '99', "--select", "I,UP", '--fix']
         require_serial: true
-
-  # python code formatting
-  - repo: https://github.com/psf/black
-    rev: 22.12.0
-    hooks:
-      - id: black
-        args: [--line-length, "99"]
+      # Run the formatter.
+      - id: ruff-format
+        args: ['--line-length', '99']
         require_serial: true
 
   # python docstring formatting
@@ -47,6 +44,7 @@ repos:
     rev: v1.5.1
     hooks:
       - id: docformatter
+        exclude: ^test/test_docstrings.py
         args: [--in-place, --wrap-summaries=99, --wrap-descriptions=99]
         require_serial: true
 
@@ -72,6 +70,7 @@ repos:
     hooks:
       - id: mdformat
         args: ["--number"]
+        exclude: ^.github/ISSUE_TEMPLATE/.*\.md$
         additional_dependencies:
           - mdformat-gfm
           - mdformat-tables
@@ -80,6 +79,11 @@ repos:
           # - mdformat-black
         require_serial: true
 
+  - repo: https://github.com/python-poetry/poetry
+    rev: 1.7.0
+    hooks:
+      - id: poetry-check
+        require_serial: true
 
   # word spelling linter
   - repo: https://github.com/codespell-project/codespell

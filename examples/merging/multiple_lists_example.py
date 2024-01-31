@@ -1,7 +1,6 @@
-"""
-Here, we demonstrate parsing multiple classes each of which has a list attribute.
-There are a few options for doing this. For example, if we want to let each instance
-have a distinct prefix for its arguments, we could use the ConflictResolution.AUTO option.
+"""Here, we demonstrate parsing multiple classes each of which has a list attribute. There are a
+few options for doing this. For example, if we want to let each instance have a distinct prefix for
+its arguments, we could use the ConflictResolution.AUTO option.
 
 Here, we want to create a few instances of `CNNStack` from the command line,
 but don't want to have a different prefix for each instance.

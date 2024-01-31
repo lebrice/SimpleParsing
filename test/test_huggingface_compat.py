@@ -1,4 +1,4 @@
-""" Simple test for compatibility with HuggingFace's help text convention.
+"""Simple test for compatibility with HuggingFace's help text convention.
 
 This checks that Simple-Parsing can be used as a replacement for the HFArgumentParser.
 """
@@ -13,14 +13,13 @@ import pytest
 from simple_parsing import ArgumentParser
 from simple_parsing.docstring import get_attribute_docstring
 
-from .testutils import TestSetup, raises_invalid_choice
+from .testutils import TestSetup, needs_yaml, raises_invalid_choice
 
 
 @dataclass
 class ModelArguments:
-    """
-    Arguments pertaining to which model/config/tokenizer we are going to fine-tune, or train from scratch.
-    """
+    """Arguments pertaining to which model/config/tokenizer we are going to fine-tune, or train
+    from scratch."""
 
     model_name_or_path: Optional[str] = field(
         default=None,
@@ -93,9 +92,7 @@ class ModelArguments:
 
 @dataclass
 class DataTrainingArguments:
-    """
-    Arguments pertaining to what data we are going to input our model for training and eval.
-    """
+    """Arguments pertaining to what data we are going to input our model for training and eval."""
 
     dataset_name: Optional[str] = field(
         default=None,
@@ -217,7 +214,8 @@ class Config(TestSetup):
 
 
 def test_choices():
-    """Checks that the `choices` in the field metadata are used as the `choice` argument to `add_argument`"""
+    """Checks that the `choices` in the field metadata are used as the `choice` argument to
+    `add_argument`"""
 
     with raises_invalid_choice():
         Config.setup("--log_level invalid")
@@ -226,9 +224,7 @@ def test_choices():
 
 
 class ExplicitEnum(str, Enum):
-    """
-    Enum with more explicit error message for missing values.
-    """
+    """Enum with more explicit error message for missing values."""
 
     @classmethod
     def _missing_(cls, value):
@@ -276,9 +272,7 @@ trainer_log_levels = {
 
 
 class OptimizerNames(ExplicitEnum):
-    """
-    Stores the acceptable string identifiers for optimizers.
-    """
+    """Stores the acceptable string identifiers for optimizers."""
 
     ADAMW_HF = "adamw_hf"
     ADAMW_TORCH = "adamw_torch"
@@ -319,10 +313,9 @@ def test_enums_are_parsed_to_enum_member():
 
 @dataclass
 class TrainingArguments(TestSetup):
-    """
-    TrainingArguments is the subset of the arguments we use in our example scripts **which relate to the training loop
-    itself**.
-    Using [`HfArgumentParser`] we can turn this class into
+    """TrainingArguments is the subset of the arguments we use in our example scripts **which
+    relate to the training loop itself**. Using [`HfArgumentParser`] we can turn this class into.
+
     [argparse](https://docs.python.org/3/library/argparse#module-argparse) arguments that can be specified on the
     command line.
     Parameters:
@@ -1266,7 +1259,6 @@ class TrainingArguments(TestSetup):
 
 @pytest.mark.xfail(reason="docstring_parser can't parse the docstring of TrainingArguments!")
 def test_docstring_parse_works_with_hf_training_args():
-
     assert get_attribute_docstring(TrainingArguments, "output_dir").desc_from_cls_docstring == (
         "The output directory where the model predictions and checkpoints will be written."
     )
@@ -1289,7 +1281,15 @@ def test_entire_docstring_isnt_used_as_help():
         TrainingArguments(save_strategy=IntervalStrategy.EPOCH),
     ],
 )
-@pytest.mark.parametrize("filename", ["bob.yaml", "bob.json", "bob.pkl", "bob.yml"])
+@pytest.mark.parametrize(
+    "filename",
+    [
+        pytest.param("bob.yaml", marks=needs_yaml),
+        "bob.json",
+        "bob.pkl",
+        pytest.param("bob.yml", marks=needs_yaml),
+    ],
+)
 def test_serialization(tmp_path: Path, filename: str, args: TrainingArguments):
     """test that serializing / deserializing a TrainingArguments works."""
     from simple_parsing.helpers.serialization import load, save

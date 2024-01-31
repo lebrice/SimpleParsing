@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import os
 import shlex
 import string
@@ -94,7 +95,8 @@ T = TypeVar("T")
 
 class TestParser(simple_parsing.ArgumentParser, Generic[T]):
     __test__ = False
-    """ A parser subclass just used for testing.
+    """A parser subclass just used for testing.
+
     Makes the retrieval of the arguments a bit easier to read.
     """
 
@@ -293,3 +295,21 @@ def format_lists_using_double_quotes(list_of_lists: list[list[Any]]) -> str:
 
 def format_lists_using_single_quotes(list_of_lists: list[list[Any]]) -> str:
     return " ".join(format_list_using_single_quotes(value_list) for value_list in list_of_lists)
+
+
+YAML_INSTALLED = importlib.util.find_spec("yaml") is not None
+needs_yaml = pytest.mark.xfail(
+    not YAML_INSTALLED,
+    raises=ModuleNotFoundError,
+    reason="Test requires pyyaml to be installed.",
+)
+
+TOML_INSTALLED = (
+    importlib.util.find_spec("tomli") is not None
+    and importlib.util.find_spec("tomli_w") is not None
+)
+needs_toml = pytest.mark.xfail(
+    not TOML_INSTALLED,
+    raises=ModuleNotFoundError,
+    reason="Test requires tomli and tomli_w to be installed.",
+)

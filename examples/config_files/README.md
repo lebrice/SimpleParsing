@@ -14,10 +14,10 @@ When using both options (the `config_path` parameter of `ArgumentParser.__init__
 updated with the contents of the `--config_path` file(s).
 
 In other words, the default values are set like so, in increasing priority:
+
 1. normal defaults (e.g. from the dataclass definitions)
 2. updated with the contents of the `config_path` file(s) of `ArgumentParser.__init__`
 3. updated with the contents of the `--config_path` file(s) from the command-line.
-
 
 ## [Single Config example](one_config.py)
 

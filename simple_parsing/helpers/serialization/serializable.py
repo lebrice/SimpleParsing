@@ -461,7 +461,8 @@ S = TypeVar("S", bound=SerializableMixin)
 def get_serializable_dataclass_types_from_forward_ref(
     forward_ref: type, serializable_base_class: type[S] = SerializableMixin
 ) -> list[type[S]]:
-    """Gets all the subclasses of `serializable_base_class` that have the same name as the argument of this forward reference annotation."""
+    """Gets all the subclasses of `serializable_base_class` that have the same name as the argument
+    of this forward reference annotation."""
     arg = get_forward_arg(forward_ref)
     potential_classes: list[type] = []
     for serializable_class in serializable_base_class.subclasses:
@@ -526,7 +527,7 @@ def load(
         # Load a dict from the file.
         d = read_file(path)
     elif load_fn:
-        with (path.open() if isinstance(path, Path) else path) as f:
+        with path.open() if isinstance(path, Path) else path as f:
             d = load_fn(f)
     else:
         raise ValueError(
@@ -928,13 +929,11 @@ def is_dataclass_or_optional_dataclass_type(t: type) -> bool:
 
 
 def _locate(path: str) -> Any:
-    """
-    COPIED FROM Hydra:
-    https://github.com/facebookresearch/hydra/blob/f8940600d0ab5c695961ad83abd042ffe9458caf/hydra/_internal/utils.py#L614
+    """COPIED FROM Hydra: https://github.com/facebookresearch/hydra/blob/f8940600d0ab5c695961ad83ab
+    d042ffe9458caf/hydra/_internal/utils.py#L614.
 
-    Locate an object by name or dotted path, importing as necessary.
-    This is similar to the pydoc function `locate`, except that it checks for
-    the module from the given path from back to front.
+    Locate an object by name or dotted path, importing as necessary. This is similar to the pydoc
+    function `locate`, except that it checks for the module from the given path from back to front.
     """
     if path == "":
         raise ImportError("Empty path")

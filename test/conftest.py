@@ -9,8 +9,10 @@ from logging import getLogger as get_logger
 from typing import Any, Generic, TypeVar
 
 import pytest
-from typing_extensions import NamedTuple  # For Generic NamedTuples
-from typing_extensions import Literal
+from typing_extensions import (
+    Literal,
+    NamedTuple,  # For Generic NamedTuples
+)
 
 pytest.register_assert_rewrite("test.testutils")
 
@@ -71,7 +73,12 @@ class SimpleAttributeWithDefault(NamedTuple, Generic[T]):
 
 
 # TODO: Also add something like `[Optional[t] for t in simple_arguments]`!
-default_values_for_type = {int: [0, -111], str: ["bob", ""], float: [0.0, 1e2], bool: [True, False]}
+default_values_for_type = {
+    int: [0, -111],
+    str: ["bob", ""],
+    float: [0.0, 1e2],
+    bool: [True, False],
+}
 
 
 @pytest.fixture(
@@ -143,7 +150,7 @@ def setup_logging():
     ch.setFormatter(
         logging.Formatter(
             "%(levelname)s {%(pathname)s:%(lineno)d} - %(message)s",
-            "%m-%d %H:%M:%S"
+            "%m-%d %H:%M:%S",
             # "%(asctime)-15s::%(levelname)s::%(pathname)s::%(lineno)d::%(message)s"
         )
     )
@@ -192,10 +199,7 @@ def no_warning_log_messages(caplog):
 
 @pytest.fixture
 def silent(no_stdout, no_warning_log_messages):
-    """
-    Test fixture that will make a test fail if it prints anything to stdout or
-    logs warnings
-    """
+    """Test fixture that will make a test fail if it prints anything to stdout or logs warnings."""
 
 
 @pytest.fixture

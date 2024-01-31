@@ -1,14 +1,19 @@
 import textwrap
+import typing
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
 import pytest
-import yaml
 
 from simple_parsing import Serializable
 from simple_parsing.helpers.serialization.serializable import dumps_yaml, loads_yaml
+
+if typing.TYPE_CHECKING:
+    import yaml
+else:
+    yaml = pytest.importorskip("yaml")
 
 
 class LoggingTypes(Enum):
@@ -32,7 +37,8 @@ class Parameters(Serializable):
     raises=KeyError, match="'jsonl'", strict=True, reason="Enums are saved by name, not by value."
 )
 def test_decode_enum_saved_by_value_doesnt_work(tmp_path: Path):
-    """Test to reproduce https://github.com/lebrice/SimpleParsing/issues/219#issuecomment-1437817369"""
+    """Test to reproduce
+    https://github.com/lebrice/SimpleParsing/issues/219#issuecomment-1437817369."""
     with open(tmp_path / "conf.yaml", "w") as f:
         f.write(
             textwrap.dedent(

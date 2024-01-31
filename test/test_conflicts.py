@@ -1,5 +1,4 @@
-"""Tests for weird conflicts.
-"""
+"""Tests for weird conflicts."""
 import argparse
 import functools
 from dataclasses import dataclass, field

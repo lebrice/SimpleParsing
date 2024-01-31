@@ -83,7 +83,7 @@ def test_subclasses_with_same_base_class_with_args_merge():
 
 
 def test_weird_structure():
-    """both is-a, and has-a at the same time, a very weird inheritance structure"""
+    """Both is-a, and has-a at the same time, a very weird inheritance structure."""
 
     @dataclass
     class ConvBlock(Serializable):
@@ -94,14 +94,14 @@ def test_weird_structure():
 
     @dataclass
     class GeneratorHParams(ConvBlock):
-        """Settings of the Generator model"""
+        """Settings of the Generator model."""
 
         conv: ConvBlock = field(default_factory=ConvBlock)
         optimizer: str = choice("ADAM", "RMSPROP", "SGD", default="ADAM")
 
     @dataclass
     class DiscriminatorHParams(ConvBlock):
-        """Settings of the Discriminator model"""
+        """Settings of the Discriminator model."""
 
         conv: ConvBlock = field(default_factory=ConvBlock)
         optimizer: str = choice("ADAM", "RMSPROP", "SGD", default="ADAM")

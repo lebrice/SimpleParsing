@@ -1,13 +1,15 @@
 # Docstrings
 
 A docstring can either be:
+
 - A comment on the same line as the attribute definition
 - A single or multi-line comment on the line(s) preceding the attribute definition
 - A single or multi-line docstring on the line(s) following the attribute
-definition, starting with either `"""` or `'''` and ending with the same token.
+  definition, starting with either `"""` or `'''` and ending with the same token.
 
 When more than one docstring options are present, one of them is chosen to
 be used as the '--help' text of the attribute, according to the following ordering:
+
 1. docstring below the attribute
 2. comment above the attribute
 3. inline comment

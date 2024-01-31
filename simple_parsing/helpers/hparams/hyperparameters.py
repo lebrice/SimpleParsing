@@ -1,16 +1,17 @@
 from __future__ import annotations
+
 import dataclasses
 import inspect
 import math
 import pickle
 import random
+import typing
 from collections import OrderedDict
 from dataclasses import Field, dataclass, fields
 from functools import singledispatch, total_ordering
 from logging import getLogger
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, NamedTuple, Optional, Tuple, Type, TypeVar
-import typing
+from typing import Any, ClassVar, NamedTuple, TypeVar
 
 from simple_parsing import utils
 from simple_parsing.helpers.serialization.serializable import Serializable
@@ -39,7 +40,7 @@ class BoundInfo(Serializable):
     name: str
     # One of 'continuous', 'discrete' or 'bandit' (unsupported).
     type: str = "continuous"
-    domain: Tuple[float, float] = (-math.inf, math.inf)
+    domain: tuple[float, float] = (-math.inf, math.inf)
 
 
 @dataclass
@@ -69,53 +70,53 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
                 setattr(self, name, new_value)
 
     @classmethod
-    def field_names(cls) -> List[str]:
+    def field_names(cls) -> list[str]:
         return [f.name for f in fields(cls)]
 
     def id(self):
         return compute_identity(**self.to_dict())
 
-    def seed(self, seed: Optional[int]) -> None:
+    def seed(self, seed: int | None) -> None:
         """TODO: Seed all priors with the given seed. (recursively if nested dataclasses
         are present.)
         """
         raise NotImplementedError("TODO")
 
     @classmethod
-    def get_priors(cls) -> Dict[str, Prior]:
+    def get_priors(cls) -> dict[str, Prior]:
         """Returns a dictionary of the Priors for the hparam fields in this class."""
-        priors_dict: Dict[str, Prior] = {}
+        priors_dict: dict[str, Prior] = {}
         for field in fields(cls):
             # If a HyperParameters class contains another HyperParameters class as a field
             # we perform returned a flattened dict.
             if inspect.isclass(field.type) and issubclass(field.type, HyperParameters):
                 priors_dict[field.name] = field.type.get_priors()
             else:
-                prior: Optional[Prior] = field.metadata.get("prior")
+                prior: Prior | None = field.metadata.get("prior")
                 if prior:
                     priors_dict[field.name] = prior
         return priors_dict
 
     @classmethod
-    def get_orion_space_dict(cls) -> Dict[str, str]:
-        result: Dict[str, str] = {}
+    def get_orion_space_dict(cls) -> dict[str, str]:
+        result: dict[str, str] = {}
         for field in fields(cls):
             # If a HyperParameters class contains another HyperParameters class as a field
             # we perform returned a flattened dict.
             if inspect.isclass(field.type) and issubclass(field.type, HyperParameters):
                 result[field.name] = field.type.get_orion_space_dict()
             else:
-                prior: Optional[Prior] = field.metadata.get("prior")
+                prior: Prior | None = field.metadata.get("prior")
                 if prior:
                     result[field.name] = prior.get_orion_space_string()
         return result
 
-    def get_orion_space(self) -> Dict[str, str]:
+    def get_orion_space(self) -> dict[str, str]:
         """NOTE: This might be more useful in some cases than the above classmethod
         version, for example when a field is a different kind of dataclass than its
         annotation.
         """
-        result: Dict[str, str] = {}
+        result: dict[str, str] = {}
         for field in fields(self):
             value = getattr(self, field.name)
             # If a HyperParameters class contains another HyperParameters class as a field
@@ -123,7 +124,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
             if isinstance(value, HyperParameters):
                 result[field.name] = value.get_orion_space()
             else:
-                prior: Optional[Prior] = field.metadata.get("prior")
+                prior: Prior | None = field.metadata.get("prior")
                 if prior:
                     result[field.name] = prior.get_orion_space_string()
         return result
@@ -133,12 +134,12 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
         return compute_identity(**cls.get_orion_space_dict())
 
     @classmethod
-    def get_bounds(cls) -> List[BoundInfo]:
+    def get_bounds(cls) -> list[BoundInfo]:
         """Returns the bounds of the search domain for this type of HParam.
 
         Returns them as a list of `BoundInfo` objects, in the format expected by GPyOpt.
         """
-        bounds: List[BoundInfo] = []
+        bounds: list[BoundInfo] = []
         for f in fields(cls):
             # TODO: handle a hparam which is categorical (i.e. choices)
             min_v = f.metadata.get("min")
@@ -155,14 +156,14 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
         return bounds
 
     @classmethod
-    def get_bounds_dicts(cls) -> List[Dict[str, Any]]:
+    def get_bounds_dicts(cls) -> list[dict[str, Any]]:
         """Returns the bounds of the search space for this type of HParam, in the format expected
         by the `GPyOpt` package."""
         return [b.to_dict() for b in cls.get_bounds()]
 
     @classmethod
     def sample(cls):
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         for field in dataclasses.fields(cls):
             if inspect.isclass(field.type) and issubclass(field.type, HyperParameters):
                 # TODO: Should we allow adding a 'prior' in terms of a dataclass field?
@@ -177,7 +178,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
                 value = chosen_class.sample()
                 kwargs[field.name] = value
             else:
-                prior: Optional[Prior] = field.metadata.get("prior")
+                prior: Prior | None = field.metadata.get("prior")
                 if prior is not None:
                     try:
                         import numpy as np
@@ -209,7 +210,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
         import numpy as np
 
         dtype = np.float32 if dtype is None else dtype
-        values: List[float] = []
+        values: list[float] = []
         for k, v in self.to_dict(dict_factory=OrderedDict).items():
             try:
                 v = float(v)
@@ -220,7 +221,7 @@ class HyperParameters(Serializable, decode_into_subclasses=True):  # type: ignor
         return np.array(values, dtype=dtype)
 
     @classmethod
-    def from_array(cls: Type[HP], array: numpy.ndarray) -> HP:
+    def from_array(cls: type[HP], array: numpy.ndarray) -> HP:
         import numpy as np
 
         if len(array.shape) == 2 and array.shape[0] == 1:
@@ -287,7 +288,7 @@ class Point(NamedTuple):
             hps_equal = hp_id == other_id
         return hps_equal and self.perf == other[1]
 
-    def __gt__(self, other: Tuple[object, ...]) -> bool:
+    def __gt__(self, other: tuple[object, ...]) -> bool:
         # Even though the tuple has (hp, perf), compare based on the order
         # (perf, hp).
         # This means that sorting a list of Points will work as expected!

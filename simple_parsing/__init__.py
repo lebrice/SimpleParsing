@@ -1,4 +1,5 @@
 """Simple, Elegant Argument parsing.
+
 @author: Fabrice Normandin
 """
 from . import helpers, utils, wrappers
@@ -57,7 +58,3 @@ __all__ = [
     "utils",
     "wrappers",
 ]
-
-from . import _version
-
-__version__ = _version.get_versions()["version"]

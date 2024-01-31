@@ -1,4 +1,5 @@
-"""Utility for retrieveing the docstring of a dataclass's attributes
+"""Utility for retrieveing the docstring of a dataclass's attributes.
+
 @author: Fabrice Normandin
 """
 from __future__ import annotations
@@ -28,11 +29,12 @@ class AttributeDocString:
     docstring_below: str = ""
 
     desc_from_cls_docstring: str = ""
-    """ The description of this field from the class docstring. """
+    """The description of this field from the class docstring."""
 
     @property
     def help_string(self) -> str:
-        """Returns the value that will be used for the "--help" string, using the contents of self."""
+        """Returns the value that will be used for the "--help" string, using the contents of
+        self."""
         return (
             self.docstring_below
             or self.comment_above
@@ -104,6 +106,7 @@ def get_attribute_docstring(
 @functools.lru_cache(2048)
 def _get_attribute_docstring(dataclass: type, field_name: str) -> AttributeDocString | None:
     """Gets the AttributeDocString of the given field in the given dataclass.
+
     Doesn't inspect base classes.
     """
     try:

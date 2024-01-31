@@ -1,7 +1,6 @@
 """Functions that are to be used to parse a field.
 
-Somewhat analogous to the 'parse' function in the
-`helpers.serialization.parsing` package.
+Somewhat analogous to the 'parse' function in the `helpers.serialization.parsing` package.
 """
 import enum
 import functools

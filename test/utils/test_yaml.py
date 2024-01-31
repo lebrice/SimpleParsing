@@ -1,10 +1,15 @@
-""" Tests for serialization to/from yaml files. """
+"""Tests for serialization to/from yaml files."""
 import textwrap
 from dataclasses import dataclass
 from typing import List
 
+import pytest
+
 from simple_parsing import list_field
-from simple_parsing.helpers.serialization import YamlSerializable
+
+yaml = pytest.importorskip("yaml")
+
+from simple_parsing.helpers.serialization.yaml_serialization import YamlSerializable  # noqa: E402
 
 
 @dataclass

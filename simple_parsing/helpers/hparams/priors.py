@@ -1,3 +1,4 @@
+import importlib.util
 import math
 import random
 from abc import abstractmethod
@@ -14,13 +15,14 @@ from typing import (
     overload,
 )
 
-import importlib.util
 
 class _np_lazy:
     def __getattr__(self, attr):
         global np
         import numpy as np
+
         return getattr(np, attr)
+
 
 np = _np_lazy()
 numpy_installed = importlib.util.find_spec("numpy") is not None

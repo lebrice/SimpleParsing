@@ -1,12 +1,9 @@
-""" Modular and reusable!
-With SimpleParsing, you can easily add similar groups of command-line arguments
-by simply reusing the dataclasses you define!
-There is no longer need for any copy-pasting of blocks, or adding prefixes
-everywhere by hand.
+"""Modular and reusable! With SimpleParsing, you can easily add similar groups of command-line
+arguments by simply reusing the dataclasses you define! There is no longer need for any copy-
+pasting of blocks, or adding prefixes everywhere by hand.
 
-Instead, the ArgumentParser detects when more than one instance of
-the same `@dataclass` needs to be parsed, and automatically adds the relevant
-prefixes to the arguments for you.
+Instead, the ArgumentParser detects when more than one instance of the same `@dataclass` needs to
+be parsed, and automatically adds the relevant prefixes to the arguments for you.
 """
 
 from dataclasses import dataclass

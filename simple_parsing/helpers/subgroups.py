@@ -194,7 +194,14 @@ def subgroups(
 
     from .fields import choice
 
-    return choice(choices, *args, default=default, default_factory=default_factory, metadata=metadata, **kwargs)  # type: ignore
+    return choice(
+        choices,
+        *args,
+        default=default,
+        default_factory=default_factory,
+        metadata=metadata,
+        **kwargs,
+    )  # type: ignore
 
 
 def _get_dataclass_type_from_callable(
@@ -226,7 +233,6 @@ def _get_dataclass_type_from_callable(
         # Recurse, so this also works with partial(partial(...)) (idk why you'd do that though.)
 
     if isinstance(signature.return_annotation, str):
-
         dataclass_fn_type = signature.return_annotation
         if caller_frame is not None:
             # Travel up until we find the right frame where the subgroup is defined.
@@ -265,7 +271,7 @@ def _get_dataclass_type_from_callable(
 def is_lambda(obj: Any) -> bool:
     """Returns True if the given object is a lambda expression.
 
-    Taken from https://stackoverflow.com/questions/3655842/how-can-i-test-whether-a-variable-holds-a-lambda
+    Taken froma-lambda
     """
     LAMBDA = lambda: 0  # noqa: E731
     return isinstance(obj, type(LAMBDA)) and obj.__name__ == LAMBDA.__name__

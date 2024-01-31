@@ -53,7 +53,7 @@ def test_works_fine_with_other_argparse_arguments(simple_attribute, silent):
     @dataclass
     class SomeClass:
         a: some_type  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     parser = ArgumentParser()
     parser.add_argument("--x", type=int)
@@ -79,7 +79,7 @@ def test_arg_value_is_set_when_args_are_provided(
     @dataclass
     class SomeClass(TestSetup):
         a: some_type = default_value  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     class_a = SomeClass.setup(f"--a {arg_value}")
     assert class_a.a != default_value
@@ -100,7 +100,7 @@ def test_not_providing_required_argument_throws_error(some_type):
     @dataclass
     class SomeClass(TestSetup):
         a: some_type  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     with raises(SystemExit):
         _ = SomeClass.setup("")
@@ -111,7 +111,7 @@ def test_not_providing_required_argument_name_but_no_value_throws_error(some_typ
     @dataclass
     class SomeClass(TestSetup):
         a: some_type  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     with raises(SystemExit):
         _ = SomeClass.setup("--a")
@@ -125,10 +125,10 @@ class Color(Enum):
 
 @dataclass
 class Base(TestSetup):
-    """A simple base-class example"""
+    """A simple base-class example."""
 
     a: int  # TODO: finetune this
-    """docstring for attribute 'a'"""
+    """Docstring for attribute 'a'."""
     b: float = 5.0  # inline comment on attribute 'b'
     c: str = ""
 
@@ -138,7 +138,7 @@ class Extended(Base):
     """Some extension of base-class `Base`"""
 
     d: int = 5
-    """ docstring for 'd' in Extended. """
+    """docstring for 'd' in Extended."""
     e: Color = Color.BLUE
 
 
@@ -183,7 +183,7 @@ def test_passing_default_value(simple_attribute, silent):
     @dataclass
     class SomeClass(TestSetup):
         a: some_type = passed_value  # type: ignore
-        """some docstring for attribute 'a' """
+        """Some docstring for attribute 'a'."""
 
     some_class = SomeClass.setup(default=SomeClass(expected_value))
     assert some_class.a == expected_value
@@ -265,7 +265,7 @@ def test_issue62():
 
     @dataclass
     class MyPreferences(TestSetup):
-        """You can use Enums"""
+        """You can use Enums."""
 
         color: Color = Color.BLUE  # my favorite colour
         # a list of colors

@@ -1,4 +1,4 @@
-""" Tests for compatibility with the postponed evaluation of annotations. """
+"""Tests for compatibility with the postponed evaluation of annotations."""
 from __future__ import annotations
 
 import dataclasses
@@ -16,7 +16,7 @@ from simple_parsing.annotation_utils.get_field_annotations import (
 from simple_parsing.helpers import Serializable
 from simple_parsing.utils import is_list, is_tuple
 
-from .testutils import TestSetup
+from .testutils import YAML_INSTALLED, TestSetup
 
 
 @dataclass
@@ -77,8 +77,7 @@ class ClassWithNewUnionSyntax(TestSetup):
 @dataclass
 class OtherClassWithNewUnionSyntax(ClassWithNewUnionSyntax):
     """Create a child class without annotations, just to check that they are picked up from the
-    base class.
-    """
+    base class."""
 
 
 @pytest.mark.parametrize(
@@ -233,19 +232,21 @@ def test_serialization_deserialization():
     assert Opts2 in Serializable.subclasses
     assert Wrapper.from_dict(opts.to_dict()) == opts
     assert Wrapper.loads_json(opts.dumps_json()) == opts
-    assert Wrapper.loads_yaml(opts.dumps_yaml()) == opts
+
+    if YAML_INSTALLED:
+        assert Wrapper.loads_yaml(opts.dumps_yaml()) == opts
 
 
 @dataclass
 class OptimizerConfig(TestSetup):
     lr_scheduler: str = "cosine"
-    """ LR scheduler to use. """
+    """LR scheduler to use."""
 
 
 @dataclass
 class SubclassOfOptimizerConfig(OptimizerConfig):
     bar: int | float = 123
-    """ some dummy arg bar. """
+    """some dummy arg bar."""
 
 
 def test_missing_annotation_on_subclass():

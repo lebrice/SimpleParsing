@@ -10,9 +10,10 @@ class Example:
     some_integers: List[int] = field(
         default_factory=list
     )  # This is a list of integers (empty by default)
-    """This list is empty, by default. when passed some parameters, they are
-    automatically converted to integers, since we annotated the attribute with
-    a type (typing.List[<some_type>]).
+    """This list is empty, by default.
+
+    when passed some parameters, they are automatically converted to integers, since we annotated
+    the attribute with a type (typing.List[<some_type>]).
     """
 
     # When using a list attribute, the dataclasses module requires us to use `dataclass.field()`,

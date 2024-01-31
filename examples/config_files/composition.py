@@ -1,4 +1,4 @@
-""" Example where we compose different configurations! """
+"""Example where we compose different configurations!"""
 
 import shlex
 from dataclasses import dataclass

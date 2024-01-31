@@ -38,9 +38,9 @@ class SimpleHelpFormatter(
         elif action.nargs == OPTIONAL:
             result = "[%s]" % _get_metavar(1)
         elif action.nargs == ZERO_OR_MORE:
-            result = "[%s [%s ...]]" % _get_metavar(2)
+            result = "[%s [%s ...]]" % _get_metavar(2)  # noqa: UP031
         elif action.nargs == ONE_OR_MORE:
-            result = "%s [%s ...]" % _get_metavar(2)
+            result = "%s [%s ...]" % _get_metavar(2)  # noqa: UP031
         elif action.nargs == REMAINDER:
             result = "..."
         elif action.nargs == PARSER:

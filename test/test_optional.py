@@ -50,6 +50,7 @@ class Parent(TestSetup):
 
 def test_optional_parameter_group():
     """Reproduces issue #28 :
+
     https://github.com/lebrice/SimpleParsing/issues/28#issue-663689719
     """
     parent: Parent = Parent.setup("--breed Shitzu")

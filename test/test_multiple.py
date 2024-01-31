@@ -39,7 +39,7 @@ def test_parse_multiple_with_no_arguments_sets_default_value(
     @dataclass
     class SomeClass(TestSetup):
         a: some_type = expected_value  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     classes = SomeClass.setup_multiple(num_instances, "")
     assert len(classes) == num_instances
@@ -61,7 +61,7 @@ def test_parse_multiple_with_single_arg_value_sets_that_value_for_all_instances(
     @dataclass
     class SomeClass(TestSetup):
         a: some_type = expected_value  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     classes = SomeClass.setup_multiple(num_instances, f"--a {passed_value}")
 
@@ -88,7 +88,7 @@ def test_parse_multiple_with_provided_value_for_each_instance(
     @dataclass
     class SomeClass(TestSetup):
         a: some_type = default_value  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     # TODO: maybe test out other syntaxes for passing in multiple argument values? (This looks a lot like passing in a list of values..)
     arguments = f"--a {' '.join(str(p) for p in passed_values)}"
@@ -107,7 +107,7 @@ def test_parse_multiple_without_required_arguments(some_type: Type):
     @dataclass
     class SomeClass(TestSetup):
         a: some_type  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     with exits_and_writes_to_stderr():
         SomeClass.setup_multiple(2, "")
@@ -115,11 +115,13 @@ def test_parse_multiple_without_required_arguments(some_type: Type):
 
 @parametrize("container_type", [List, Tuple])
 @parametrize("item_type", [int, float, str, bool])
-def test_parse_multiple_without_required_container_arguments(container_type: Type, item_type: Type):
+def test_parse_multiple_without_required_container_arguments(
+    container_type: Type, item_type: Type
+):
     @dataclass
     class SomeClass(TestSetup):
         a: container_type[item_type]  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     with exits_and_writes_to_stderr("the following arguments are required:"):
         _ = SomeClass.setup_multiple(3, "")
@@ -131,7 +133,7 @@ def test_parse_multiple_with_arg_name_without_arg_value(container_type: Type, it
     @dataclass
     class SomeClass(TestSetup):
         a: container_type[item_type]  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     with exits_and_writes_to_stderr("expected at least one argument"):
         _ = SomeClass.setup_multiple(3, "--a")
@@ -154,7 +156,7 @@ def test_parse_multiple_containers_default_value(
     @dataclass
     class SomeClass(TestSetup):
         a: container_type = field(default_factory=lambda: default_value.copy())  # type: ignore
-        """some docstring for attribute 'a'"""
+        """Some docstring for attribute 'a'."""
 
     values = list(SomeClass.setup_multiple(num_instances))
     assert values == [SomeClass(default_value) for i in range(num_instances)]

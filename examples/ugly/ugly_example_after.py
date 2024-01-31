@@ -14,12 +14,11 @@ from simple_parsing import choice
 
 @dataclass
 class DatasetParams:
-    """Dataset Parameters"""
+    """Dataset Parameters."""
 
     default_root: ClassVar[str] = "/dataset"  # the default root directory to use.
-
     dataset: str = "objects_folder_multi"  # laptop,pistol
-    """ dataset name: [shapenet, objects_folder, objects_folder]') """
+    """dataset name: [shapenet, objects_folder, objects_folder]')"""
 
     root_dir: str = default_root  # dataset root directory
     root_dir1: str = default_root  # dataset root directory
@@ -89,7 +88,7 @@ class NetworkParams:
 
 @dataclass
 class OptimizerParams:
-    """Optimization parameters"""
+    """Optimization parameters."""
 
     optimizer: str = "adam"  # Optimizer (adam, rmsprop)
     lr: float = 0.0001  # learning rate, default=0.0002
@@ -109,12 +108,14 @@ class OptimizerParams:
     n_iter: int = 76201  # number of iterations to train
     batchSize: int = 4  # input batch size
     alt_opt_zn_interval: Optional[int] = None
-    """ Alternating optimization interval.
+    """Alternating optimization interval.
+
     - None: joint optimization
     - 20: every 20 iterations, etc.
     """
     alt_opt_zn_start: int = 100000
     """Alternating optimization start interaction.
+
     - -1: starts immediately,
     - '100: starts alternating after the first 100 iterations.
     """
@@ -122,7 +123,7 @@ class OptimizerParams:
 
 @dataclass
 class GanParams:
-    """Gan parameters"""
+    """Gan parameters."""
 
     criterion: str = choice("GAN", "WGAN", default="WGAN")  # GAN Training criterion
     gp: str = choice("None", "original", default="original")  # Add gradient penalty
@@ -133,7 +134,7 @@ class GanParams:
 
 @dataclass
 class OtherParams:
-    """Other parameters"""
+    """Other parameters."""
 
     manualSeed: int = 1  # manual seed
     no_cuda: bool = False  # enables cuda
@@ -144,7 +145,7 @@ class OtherParams:
 
 @dataclass
 class CameraParams:
-    """Camera Parameters"""
+    """Camera Parameters."""
 
     cam_pos: Tuple[float, float, float] = (0.0, 0.0, 0.0)  # Camera position.
     width: int = 128
@@ -179,7 +180,7 @@ class RenderingParams:
     est_normals: bool = False  # Estimate normals from splat positions.
     n_splats: Optional[int] = None
     same_view: bool = False  # before we add conditioning on cam pose, this is necessary
-    """ data with view fixed """
+    """Data with view fixed."""
 
     print_interval: int = 10  # Print loss interval.
     save_image_interval: int = 100  # Save image interval.
@@ -204,7 +205,7 @@ class Parameters:
     other: OtherParams = field(default_factory=OtherParams)
 
     def __post_init__(self):
-        """Post-initialization code"""
+        """Post-initialization code."""
         # Make output folder
         # try:
         #     os.makedirs(self.other.out_dir)

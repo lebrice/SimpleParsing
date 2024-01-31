@@ -35,7 +35,7 @@ HParams(num_layers=4, num_units=64, optimizer='ADAM', learning_rate=0.001, train
 assert parse(HParams, "--no-train") == HParams(train=False)
 
 
-# showing what --help outputs 
+# showing what --help outputs
 parser = ArgumentParser()  # Create an argument parser
 parser.add_arguments(HParams, dest="hparams")  # add arguments for the dataclass
 parser.print_help()

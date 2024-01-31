@@ -1,4 +1,4 @@
-""" Test for https://github.com/lebrice/SimpleParsing/issues/132 """
+"""Test for https://github.com/lebrice/SimpleParsing/issues/132."""
 from dataclasses import dataclass
 
 from simple_parsing import field

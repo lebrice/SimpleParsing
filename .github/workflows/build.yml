@@ -1,26 +1,67 @@
 name: Python package
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+  pull_request:
 
 jobs:
-  build:
+  linting:
+    name: Run linting/pre-commit checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install pre-commit
+      - run: pre-commit --version
+      - run: pre-commit install
+      - run: pre-commit run --all-files
 
+  build:
+    needs: [linting]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-      - name: Install dependencies
+      - uses: actions/checkout@v4
+      - name: Install poetry
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[all]
-      - name: Unit tests with Pytest
+          pip install poetry
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: poetry
+
+      - name: Install base dependencies
+        run: poetry install
+
+      - name: Unit tests with Pytest (no extras)
+        timeout-minutes: 3
         run: |
-          pytest --benchmark-disable
+          poetry run pytest --benchmark-disable --cov=simple_parsing --cov-report=xml --cov-append
+
+
+      - name: Install extra dependencies
+        run: poetry install --all-extras
+
+      - name: Unit tests with Pytest (with extra dependencies)
+        timeout-minutes: 3
+        run: |
+          poetry run pytest --benchmark-disable --cov=simple_parsing --cov-report=xml --cov-append
+
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          env_vars: PLATFORM,PYTHON
+          name: codecov-umbrella
+          fail_ci_if_error: false

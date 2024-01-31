@@ -10,5 +10,6 @@ To do this, we pass the `ConflictResolution.ALWAYS_MERGE` option to the argument
 For more info, check out the docstring of the `ConflictResolution` enum.
 
 ## Examples:
+
 - [multiple_example.py](multiple_example.py)
 - [multiple_lists_example.py](multiple_lists_example.py)
