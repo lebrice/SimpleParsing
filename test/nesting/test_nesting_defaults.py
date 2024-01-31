@@ -7,6 +7,8 @@ from simple_parsing import ArgumentParser
 from simple_parsing.helpers import field
 from simple_parsing.helpers.serialization.serializable import Serializable
 
+from ..testutils import needs_yaml
+
 
 @dataclass
 class AdvTraining(Serializable):
@@ -41,6 +43,7 @@ class TrainConfig(Serializable):
     cpu: bool = False
 
 
+@needs_yaml
 def test_comment_pull115(tmp_path):
     config_in_file = TrainConfig(
         data_config=DatasetConfig(name="bob", split="victim", prop="123", value=1.23),

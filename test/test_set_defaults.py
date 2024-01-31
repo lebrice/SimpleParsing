@@ -1,13 +1,18 @@
 """Tests for the setdefaults method of the parser."""
+import typing
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
-import yaml
 
 from simple_parsing.helpers.serialization.serializable import save, to_dict
 from simple_parsing.parsing import ArgumentParser
 from simple_parsing.wrappers.field_wrapper import NestedMode
+
+if typing.TYPE_CHECKING:
+    import yaml
+else:
+    yaml = pytest.importorskip("yaml")
 
 from .testutils import TestSetup
 

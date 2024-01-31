@@ -3,8 +3,10 @@ from pathlib import Path
 import pytest
 
 from ..nesting.example_use_cases import HyperParameters
+from ..testutils import needs_toml, needs_yaml
 
 
+@needs_yaml
 def test_save_yaml(tmpdir: Path):
     hparams = HyperParameters.setup("")
     tmp_path = Path(tmpdir / "temp.yml")
@@ -17,11 +19,12 @@ def test_save_yaml(tmpdir: Path):
 def test_save_json(tmpdir: Path):
     hparams = HyperParameters.setup("")
     tmp_path = Path(tmpdir / "temp.json")
-    hparams.save_yaml(tmp_path)
-    _hparams = HyperParameters.load_yaml(tmp_path)
+    hparams.save_json(tmp_path)
+    _hparams = HyperParameters.load_json(tmp_path)
     assert hparams == _hparams
 
 
+@needs_yaml
 def test_save_yml(tmpdir: Path):
     hparams = HyperParameters.setup("")
     tmp_path = Path(tmpdir / "temp.yml")
@@ -65,6 +68,7 @@ def test_save_torch(tmpdir: Path):
     assert hparams == _hparams
 
 
+@needs_toml
 def test_save_toml(tmpdir: Path):
     hparams = HyperParameters.setup("")
     tmp_path = Path(tmpdir / "temp.toml")

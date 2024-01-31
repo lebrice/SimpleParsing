@@ -8,6 +8,8 @@ from pytest_regressions.file_regression import FileRegressionFixture
 
 from simple_parsing.helpers.serialization import load, save
 
+from ..testutils import needs_yaml
+
 
 @dataclass
 class A:
@@ -42,7 +44,7 @@ class BB(B):
         Container(item=BB(b="hey", extra_field=111)),
     ],
 )
-@pytest.mark.parametrize("file_type", [".json", ".yaml"])
+@pytest.mark.parametrize("file_type", [".json", pytest.param(".yaml", marks=needs_yaml)])
 def test_encoding_with_dc_types(
     obj: Container, file_type: str, tmp_path: Path, file_regression: FileRegressionFixture
 ):
@@ -66,7 +68,7 @@ def reset_encoding_fns():
     _decoding_fns.update(copy)
 
 
-@pytest.mark.parametrize("file_type", [".json", ".yaml"])
+@pytest.mark.parametrize("file_type", [".json", pytest.param(".yaml", marks=needs_yaml)])
 def test_encoding_inner_dc_types_raises_warning_and_doest_work(tmp_path: Path, file_type: str):
     file = (tmp_path / "test").with_suffix(file_type)
 

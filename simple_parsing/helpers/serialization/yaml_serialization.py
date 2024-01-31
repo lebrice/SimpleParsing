@@ -4,7 +4,10 @@ from logging import getLogger
 from pathlib import Path
 from typing import IO
 
-import yaml
+try:
+    import yaml
+except ImportError:
+    pass
 
 from .serializable import D, Serializable
 
@@ -20,10 +23,14 @@ class YamlSerializable(Serializable):
     Requires the pyyaml package.
     """
 
-    def dump(self, fp: IO[str], dump_fn=yaml.dump, **kwargs) -> None:
+    def dump(self, fp: IO[str], dump_fn=None, **kwargs) -> None:
+        if dump_fn is None:
+            dump_fn = yaml.dump
         dump_fn(self.to_dict(), fp, **kwargs)
 
-    def dumps(self, dump_fn=yaml.dump, **kwargs) -> str:
+    def dumps(self, dump_fn=None, **kwargs) -> str:
+        if dump_fn is None:
+            dump_fn = yaml.dump
         return dump_fn(self.to_dict(), **kwargs)
 
     @classmethod
@@ -31,9 +38,12 @@ class YamlSerializable(Serializable):
         cls: type[D],
         path: Path | str | IO[str],
         drop_extra_fields: bool | None = None,
-        load_fn=yaml.safe_load,
+        load_fn=None,
         **kwargs,
     ) -> D:
+        if load_fn is None:
+            load_fn = yaml.safe_load
+
         return super().load(path, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
     @classmethod
@@ -41,9 +51,11 @@ class YamlSerializable(Serializable):
         cls: type[D],
         s: str,
         drop_extra_fields: bool | None = None,
-        load_fn=yaml.safe_load,
+        load_fn=None,
         **kwargs,
     ) -> D:
+        if load_fn is None:
+            load_fn = yaml.safe_load
         return super().loads(s, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)
 
     @classmethod
@@ -51,7 +63,9 @@ class YamlSerializable(Serializable):
         cls: type[D],
         fp: IO[str],
         drop_extra_fields: bool | None = None,
-        load_fn=yaml.safe_load,
+        load_fn=None,
         **kwargs,
     ) -> D:
+        if load_fn is None:
+            load_fn = yaml.safe_load
         return super()._load(fp, drop_extra_fields=drop_extra_fields, load_fn=load_fn, **kwargs)

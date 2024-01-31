@@ -16,6 +16,8 @@ from simple_parsing.helpers.serialization.decoding import (
 from simple_parsing.helpers.serialization.serializable import loads_json
 from simple_parsing.utils import DataclassT
 
+from .testutils import needs_yaml
+
 
 def test_encode_something(simple_attribute):
     some_type, passed_value, expected_value = simple_attribute
@@ -172,6 +174,7 @@ def test_implicit_int_casting(tmp_path: Path):
                 """
             )
         )
+    _yaml = pytest.importorskip("yaml")
     with pytest.warns(RuntimeWarning, match="Unsafe casting"):
         file_config = Parameters.load(tmp_path / "conf.yaml")
     assert file_config == Parameters(hparams=Hparams(severity=0, probs=[0, 0]))
@@ -197,6 +200,7 @@ def reset_int_decoding_fns_after_test():
     _decoding_fns.update(backup)
 
 
+@needs_yaml
 def test_registering_safe_casting_decoding_fn():
     """Test the solution to 'issue' #227: https://github.com/lebrice/SimpleParsing/issues/227."""
 

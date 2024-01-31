@@ -13,7 +13,7 @@ import pytest
 from simple_parsing import ArgumentParser
 from simple_parsing.docstring import get_attribute_docstring
 
-from .testutils import TestSetup, raises_invalid_choice
+from .testutils import TestSetup, needs_yaml, raises_invalid_choice
 
 
 @dataclass
@@ -1281,7 +1281,15 @@ def test_entire_docstring_isnt_used_as_help():
         TrainingArguments(save_strategy=IntervalStrategy.EPOCH),
     ],
 )
-@pytest.mark.parametrize("filename", ["bob.yaml", "bob.json", "bob.pkl", "bob.yml"])
+@pytest.mark.parametrize(
+    "filename",
+    [
+        pytest.param("bob.yaml", marks=needs_yaml),
+        "bob.json",
+        "bob.pkl",
+        pytest.param("bob.yml", marks=needs_yaml),
+    ],
+)
 def test_serialization(tmp_path: Path, filename: str, args: TrainingArguments):
     """test that serializing / deserializing a TrainingArguments works."""
     from simple_parsing.helpers.serialization import load, save

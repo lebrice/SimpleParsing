@@ -16,7 +16,7 @@ from simple_parsing.annotation_utils.get_field_annotations import (
 from simple_parsing.helpers import Serializable
 from simple_parsing.utils import is_list, is_tuple
 
-from .testutils import TestSetup
+from .testutils import YAML_INSTALLED, TestSetup
 
 
 @dataclass
@@ -232,7 +232,9 @@ def test_serialization_deserialization():
     assert Opts2 in Serializable.subclasses
     assert Wrapper.from_dict(opts.to_dict()) == opts
     assert Wrapper.loads_json(opts.dumps_json()) == opts
-    assert Wrapper.loads_yaml(opts.dumps_yaml()) == opts
+
+    if YAML_INSTALLED:
+        assert Wrapper.loads_yaml(opts.dumps_yaml()) == opts
 
 
 @dataclass

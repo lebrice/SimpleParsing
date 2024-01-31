@@ -1,14 +1,19 @@
 import textwrap
+import typing
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import List, Optional
 
 import pytest
-import yaml
 
 from simple_parsing import Serializable
 from simple_parsing.helpers.serialization.serializable import dumps_yaml, loads_yaml
+
+if typing.TYPE_CHECKING:
+    import yaml
+else:
+    yaml = pytest.importorskip("yaml")
 
 
 class LoggingTypes(Enum):

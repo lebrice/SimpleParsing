@@ -39,13 +39,23 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: poetry
 
-      - name: Install dependencies
-        run: poetry install --all-extras
+      - name: Install base dependencies
+        run: poetry install
 
-      - name: Unit tests with Pytest
+      - name: Unit tests with Pytest (no extras)
         timeout-minutes: 3
         run: |
           poetry run pytest --benchmark-disable --cov=simple_parsing --cov-report=xml --cov-append
+
+
+      - name: Install extra dependencies
+        run: poetry install --all-extras
+
+      - name: Unit tests with Pytest (with extra dependencies)
+        timeout-minutes: 3
+        run: |
+          poetry run pytest --benchmark-disable --cov=simple_parsing --cov-report=xml --cov-append
+
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v3

@@ -70,7 +70,7 @@ repos:
     hooks:
       - id: mdformat
         args: ["--number"]
-        exclude: ^.github/
+        exclude: ^.github/ISSUE_TEMPLATE/.*\.md$
         additional_dependencies:
           - mdformat-gfm
           - mdformat-tables

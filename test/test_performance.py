@@ -7,6 +7,8 @@ from typing import Callable, TypeVar
 import pytest
 from pytest_benchmark.fixture import BenchmarkFixture
 
+from .testutils import needs_yaml
+
 C = TypeVar("C", bound=Callable)
 
 
@@ -68,7 +70,7 @@ def test_parse_performance(benchmark: BenchmarkFixture):
 @pytest.mark.benchmark(
     group="serialization",
 )
-@pytest.mark.parametrize("filetype", [".yaml", ".json", ".pkl"])
+@pytest.mark.parametrize("filetype", [pytest.param(".yaml", marks=needs_yaml), ".json", ".pkl"])
 def test_serialization_performance(benchmark: BenchmarkFixture, tmp_path: Path, filetype: str):
     from test.test_huggingface_compat import TrainingArguments
 

@@ -16,6 +16,8 @@ from typing import Callable, Sequence
 
 import pytest
 
+from .testutils import needs_yaml
+
 expected = ""
 
 
@@ -107,18 +109,28 @@ def test_running_example_outputs_expected(
         *[
             pytest.param(
                 p,
-                marks=[
-                    pytest.mark.skipif(
-                        sys.version_info[:2] == (3, 6),
-                        reason="Example uses __future__ annotations feature",
-                    ),
-                    pytest.mark.xfail(
-                        reason="Example has different indentation depending on python version.",
-                    ),
-                ],
+                marks=(
+                    [
+                        pytest.mark.skipif(
+                            sys.version_info[:2] == (3, 6),
+                            reason="Example uses __future__ annotations feature",
+                        ),
+                        pytest.mark.xfail(
+                            reason="Example has different indentation depending on python version.",
+                        ),
+                    ]
+                    if p == "examples/subgroups/subgroups_example.py"
+                    else [needs_yaml]
+                    if p
+                    in [
+                        "examples/config_files/one_config.py",
+                        "examples/config_files/composition.py",
+                        "examples/config_files/many_configs.py",
+                        "examples/serialization/serialization_example.py",
+                    ]
+                    else []
+                ),
             )
-            if p == "examples/subgroups/subgroups_example.py"
-            else p
             for p in glob.glob("examples/**/*.py")
             if p
             not in {
