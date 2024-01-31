@@ -32,7 +32,6 @@ repos:
     hooks:
       # Run the linter.
       - id: ruff
-        exclude: ^examples/|tests/
         args: ['--line-length', '99', "--select", "I,UP", '--fix']
         require_serial: true
       # Run the formatter.
