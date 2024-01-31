@@ -51,3 +51,7 @@ jobs:
         uses: codecov/codecov-action@v3
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          env_vars: PLATFORM,PYTHON
+          name: codecov-umbrella
+          fail_ci_if_error: false
