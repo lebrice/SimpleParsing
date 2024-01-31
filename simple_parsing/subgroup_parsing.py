@@ -49,6 +49,8 @@ def resolve_subgroups(
         parser. This is done by adding wrapping the dataclass and adding it to the `wrappers`
         list.
     """
+    # TODO: Check if there is anything useful in the `_defaults` here.
+    _defaults_not_associated_with_known_dataclasses = parser._defaults.copy()
 
     unresolved_subgroups = _get_subgroup_fields(wrappers)
     # Dictionary of the subgroup choices that were resolved (key: subgroup dest, value: chosen
