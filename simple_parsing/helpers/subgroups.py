@@ -251,7 +251,8 @@ def _get_dataclass_type_from_callable(
 def is_lambda(obj: Any) -> bool:
     """Returns True if the given object is a lambda expression.
 
-    Taken from https://stackoverflow.com/questions/3655842/how-can-i-test-whether-a-variable-holds-a-lambda
+    Taken from
+    https://stackoverflow.com/questions/3655842/how-can-i-test-whether-a-variable-holds-a-lambda
     """
     LAMBDA = lambda: 0  # noqa: E731
     return isinstance(obj, type(LAMBDA)) and obj.__name__ == LAMBDA.__name__

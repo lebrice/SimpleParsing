@@ -272,7 +272,7 @@ def is_literal(t: type) -> bool:
 
 
 def is_list(t: type) -> bool:
-    """returns True when `t` is a List type.
+    """Returns True when `t` is a List type.
 
     Args:
         t (Type): a type.
@@ -303,7 +303,7 @@ def is_list(t: type) -> bool:
 
 
 def is_tuple(t: type) -> bool:
-    """returns True when `t` is a tuple type.
+    """Returns True when `t` is a tuple type.
 
     Args:
         t (Type): a type.
@@ -334,7 +334,7 @@ def is_tuple(t: type) -> bool:
 
 
 def is_dict(t: type) -> bool:
-    """returns True when `t` is a dict type or annotation.
+    """Returns True when `t` is a dict type or annotation.
 
     Args:
         t (Type): a type.
@@ -371,7 +371,7 @@ def is_dict(t: type) -> bool:
 
 
 def is_set(t: type) -> bool:
-    """returns True when `t` is a set type or annotation.
+    """Returns True when `t` is a set type or annotation.
 
     Args:
         t (Type): a type.
@@ -659,7 +659,7 @@ def _parse_container(container_type: type[Container]) -> Callable[[str], list[An
         return values
 
     def _parse_literal(value: str) -> list[Any] | Any:
-        """try to parse the string to a python expression directly.
+        """Try to parse the string to a python expression directly.
 
         (useful for nested lists or tuples.)
         """

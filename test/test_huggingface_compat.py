@@ -1298,7 +1298,7 @@ def test_entire_docstring_isnt_used_as_help():
     ],
 )
 def test_serialization(tmp_path: Path, filename: str, args: TrainingArguments):
-    """test that serializing / deserializing a TrainingArguments works."""
+    """Test that serializing / deserializing a TrainingArguments works."""
 
     path = tmp_path / filename
     save(args, path)

@@ -189,7 +189,7 @@ class RenderingParams:
 
 @dataclass
 class Parameters:
-    """base options."""
+    """Base options."""
 
     # Dataset parameters.
     dataset: DatasetParams = field(default_factory=DatasetParams)

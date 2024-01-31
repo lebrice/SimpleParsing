@@ -25,6 +25,9 @@ repos:
         require_serial: true
       - id: check-added-large-files
         require_serial: true
+      - id: check-merge-conflict
+        require_serial: true
+        args: ["--assume-in-merge"]
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     # Ruff version.

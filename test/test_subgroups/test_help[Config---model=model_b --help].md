@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-# Regression file for [this test](test/test_subgroups.py:731)
-=======
-# Regression file for [this test](test/test_subgroups.py:736)
->>>>>>> Fix changed regression files
+# Regression file for [this test](test/test_subgroups.py:730)
 
 Given Source code:
 

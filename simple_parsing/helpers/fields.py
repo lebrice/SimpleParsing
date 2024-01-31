@@ -262,7 +262,7 @@ def choice(*choices, default=MISSING, **kwargs):
 
 
 def list_field(*default_items: T, **kwargs) -> list[T]:
-    """shorthand function for setting a `list` attribute on a dataclass, so that every instance of
+    """Shorthand function for setting a `list` attribute on a dataclass, so that every instance of
     the dataclass doesn't share the same list.
 
     Accepts any of the arguments of the `dataclasses.field` function.
@@ -285,7 +285,7 @@ def list_field(*default_items: T, **kwargs) -> list[T]:
 
 
 def dict_field(default_items: dict[K, V] | Iterable[tuple[K, V]] = (), **kwargs) -> dict[K, V]:
-    """shorthand function for setting a `dict` attribute on a dataclass, so that every instance of
+    """Shorthand function for setting a `dict` attribute on a dataclass, so that every instance of
     the dataclass doesn't share the same `dict`.
 
     NOTE: Do not use keyword arguments as you usually would with a dictionary

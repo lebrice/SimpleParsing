@@ -15,10 +15,10 @@ import pytest
 from pytest_regressions.file_regression import FileRegressionFixture
 from typing_extensions import Annotated
 
-from simple_parsing.utils import Dataclass
-from simple_parsing.helpers.serialization import save
 from simple_parsing import ArgumentParser, parse, subgroups
+from simple_parsing.helpers.serialization import save
 from simple_parsing.helpers.serialization.serializable import from_dict, to_dict
+from simple_parsing.utils import Dataclass
 from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
 from .test_choice import Color
