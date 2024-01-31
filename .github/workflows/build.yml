@@ -3,8 +3,24 @@ name: Python package
 on: [push, pull_request]
 
 jobs:
-  build:
+  linting:
+    name: Run linting/pre-commit checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install pre-commit
+      - run: pre-commit --version
+      - run: pre-commit install
+      - run: pre-commit run --all-files
 
+
+
+  build:
+    needs: [linting]
     runs-on: ubuntu-latest
     strategy:
       matrix:
