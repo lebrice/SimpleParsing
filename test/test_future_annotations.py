@@ -246,7 +246,7 @@ class OptimizerConfig(TestSetup):
 @dataclass
 class SubclassOfOptimizerConfig(OptimizerConfig):
     bar: int | float = 123
-    """some dummy arg bar."""
+    """Some dummy arg bar."""
 
 
 def test_missing_annotation_on_subclass():

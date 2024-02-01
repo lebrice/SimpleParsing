@@ -962,10 +962,12 @@ class FieldWrapper(Wrapper):
         return self.field.metadata["subgroups"]
 
     @property
-    def subgroup_default(self) -> Hashable | Literal[dataclasses.MISSING] | None:
+    def subgroup_default(self) -> Hashable | Literal[dataclasses.MISSING]:
         if not self.is_subgroup:
             raise RuntimeError(f"Field {self.field} doesn't have subgroups! ")
-        return self.field.metadata.get("subgroup_default")
+        subgroup_default_key = self.field.metadata.get("subgroup_default")
+        assert subgroup_default_key is not None
+        return subgroup_default_key
 
     @property
     def type_arguments(self) -> tuple[type, ...] | None:
