@@ -56,9 +56,8 @@ jobs:
         run: |
           poetry run pytest --benchmark-disable --cov=simple_parsing --cov-report=xml --cov-append
 
-
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
