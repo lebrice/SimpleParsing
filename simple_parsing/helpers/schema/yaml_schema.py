@@ -8,7 +8,6 @@ from logging import getLogger as get_logger
 from pathlib import Path
 from typing import Any, TypeVar
 
-import pydantic
 from typing_extensions import TypeGuard
 
 from simple_parsing.docstring import get_attribute_docstring, inspect_getdoc
@@ -39,6 +38,12 @@ def save_yaml_with_schema(
     generated_schemas_dir: Path | None = None,
     gitignore_schemas: bool = True,
 ) -> None:
+    try:
+        import pydantic
+    except ModuleNotFoundError:
+        logger.error("pydantic is required for this feature.")
+        raise
+
     json_schema = pydantic.TypeAdapter(type(dc)).json_schema(mode="serialization")
     # Add field docstrings as descriptions in the schema!
     json_schema = _update_schema_with_descriptions(dc, json_schema=json_schema)
