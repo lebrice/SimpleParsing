@@ -1,0 +1,30 @@
+{
+  "$defs": {
+    "Bob": {
+      "properties": {
+        "foo": {
+          "default": 123,
+          "title": "Foo",
+          "type": "integer"
+        }
+      },
+      "title": "Bob",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "bob": {
+      "$ref": "#/$defs/Bob"
+    },
+    "other_field": {
+      "title": "Other Field",
+      "type": "string"
+    }
+  },
+  "required": [
+    "bob",
+    "other_field"
+  ],
+  "title": "Nested",
+  "type": "object"
+}

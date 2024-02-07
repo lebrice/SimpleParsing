@@ -3,7 +3,6 @@ from __future__ import annotations
 import copy
 import dataclasses
 import json
-from dataclasses import dataclass
 from logging import getLogger as get_logger
 from pathlib import Path
 from typing import Any, TypeVar
@@ -17,27 +16,67 @@ from simple_parsing.utils import Dataclass, PossiblyNestedDict, is_dataclass_typ
 logger = get_logger(__name__)
 
 
-@dataclass
-class Bob:
-    """Some docstring."""
-
-    foo: int = 123
-    """A very important field."""
-
-
-@dataclass
-class Nested:
-    bob: Bob
-    other_field: str
-
-
 def save_yaml_with_schema(
     dc: Dataclass,
     path: Path,
     repo_root: Path | None = Path.cwd(),
     generated_schemas_dir: Path | None = None,
     gitignore_schemas: bool = True,
-) -> None:
+) -> Path:
+    try:
+        import pydantic
+    except ModuleNotFoundError:
+        logger.error("pydantic is required for this feature.")
+        raise
+
+    json_schema = pydantic.TypeAdapter(type(dc)).json_schema(mode="serialization")
+    # Add field docstrings as descriptions in the schema!
+    json_schema = _update_schema_with_descriptions(dc, json_schema=json_schema)
+
+    dc_schema_filename = f"{type(dc).__qualname__}_schema.json"
+
+    if generated_schemas_dir is None:
+        # Defaults to saving in a .schemas folder next to the config yaml file.
+        generated_schemas_dir = path.parent / ".schemas"
+    generated_schemas_dir.mkdir(exist_ok=True, parents=True)
+    schema_file = generated_schemas_dir / dc_schema_filename
+    schema_file.write_text(json.dumps(json_schema, indent=2))
+
+    if repo_root:
+        repo_root, _ = _try_make_relative(repo_root, relative_to=Path.cwd())
+        generated_schemas_dir, _ = _try_make_relative(generated_schemas_dir, relative_to=repo_root)
+
+    if gitignore_schemas:
+        # Add a .gitignore in the schemas dir so the schema files aren't tracked by git.
+        _write_gitignore_file_for_schemas(generated_schemas_dir)
+
+    # Try to write out a relative path to the schema if possible, because we wouldn't want to
+    # include the absolute paths (e.g. /home/my_user/...) into the config yaml file.
+
+    shema_path_to_write_in_header, success = _try_make_relative(schema_file, path.parent)
+
+    if success:
+        # The schema is saved in a file relative to the config file, so we just embed the
+        # *relative* path to the schema as a comment in the first line of the yaml file.
+        pass
+    else:
+        nameof_generated_schemas_dir = f"{generated_schemas_dir=}".partition("=")[0]
+        logger.warning(
+            f"Writing the dataclass to a config file at {path} that will include an absolute path "
+            f"to the schema file. To avoid this, set {nameof_generated_schemas_dir} to `None` or "
+            f"to a relative path with respect to {path.parent}."
+        )
+    _write_yaml_with_schema_header(dc, path=path, schema_path=shema_path_to_write_in_header)
+    return schema_file
+
+
+def save_yaml_with_schema_in_vscode_settings(
+    dc: Dataclass,
+    path: Path,
+    repo_root: Path = Path.cwd(),
+    generated_schemas_dir: Path | None = None,
+    gitignore_schemas: bool = True,
+):
     try:
         import pydantic
     except ModuleNotFoundError:
@@ -55,9 +94,8 @@ def save_yaml_with_schema(
         generated_schemas_dir = path.parent / ".schemas"
     generated_schemas_dir.mkdir(exist_ok=True, parents=True)
 
-    if repo_root:
-        repo_root, _ = _try_make_relative(repo_root, relative_to=Path.cwd())
-        generated_schemas_dir, _ = _try_make_relative(generated_schemas_dir, relative_to=repo_root)
+    repo_root, _ = _try_make_relative(repo_root, relative_to=Path.cwd())
+    generated_schemas_dir, _ = _try_make_relative(generated_schemas_dir, relative_to=repo_root)
 
     if gitignore_schemas:
         # Add a .gitignore in the schemas dir so the schema files aren't tracked by git.
@@ -66,33 +104,19 @@ def save_yaml_with_schema(
     schema_file = generated_schemas_dir / dc_schema_filename
     schema_file.write_text(json.dumps(json_schema, indent=2))
 
-    # Try to write out a relative path to the schema if possible, because we wouldn't want to
-    # include the absolute paths (e.g. /home/my_user/...) into the config yaml file.
-    schema_file, success = _try_make_relative(schema_file, path.parent)
-    if success:
-        # The schema is saved in a file relative to the config file, so we just embed the
-        # *relative* path to the schema as a comment in the first line of the yaml file.
-        _write_yaml_with_schema_header(dc, path=path, schema_file=schema_file)
-        return
-
-    if repo_root is None or not (vscode_dir := repo_root / ".vscode").exists():
-        nameof_generated_schemas_dir = f"{generated_schemas_dir=}".partition("=")[0]
-        logger.warning(
-            f"Writing the dataclass to a config file at {path} that will include an absolute path "
-            f"to the schema file. To avoid this, set {nameof_generated_schemas_dir} to `None` or "
-            f"to a relative path with respect to {path.parent}."
-        )
-        _write_yaml_with_schema_header(dc, path=path, schema_file=schema_file)
-        return
-
     # Alternatively: we can also use a setting in the VsCode editor to associate a schema file with
     # a list of config files.
 
+    vscode_dir = repo_root / ".vscode"
+    vscode_dir.mkdir(exist_ok=True, parents=False)
     vscode_settings_file = vscode_dir / "settings.json"
+    vscode_settings_file.touch()
+
     try:
         vscode_settings: dict[str, Any] = json.loads(vscode_settings_file.read_text())
     except json.decoder.JSONDecodeError:
-        return
+        logger.error("Unable to load the vscode settings file!")
+        raise
 
     yaml_schemas: dict[str, str | list[str]] = vscode_settings.setdefault("yaml.schemas", {})
 
@@ -111,11 +135,12 @@ def save_yaml_with_schema(
     yaml_schemas[schema_key] = files_associated_with_schema
 
     vscode_settings_file.write_text(json.dumps(vscode_settings, indent=2))
+    return schema_file
 
 
-def _write_yaml_with_schema_header(dc: Dataclass, path: Path, schema_file: Path):
+def _write_yaml_with_schema_header(dc: Dataclass, path: Path, schema_path: Path):
     with path.open("w") as f:
-        f.write(f"# yaml-language-server: $schema={schema_file}\n")
+        f.write(f"# yaml-language-server: $schema={schema_path}\n")
         dump_yaml(dc, f)
 
 
@@ -214,9 +239,3 @@ def _update_definition_in_schema_using_dc(definition: dict[str, Any], dc_type: t
         field_desc = field_docstring.help_string.strip()
         if field_desc:
             property_values.setdefault("description", field_desc)
-
-
-if __name__ == "__main__":
-    save_yaml_with_schema(
-        Nested(bob=Bob(foo=222), other_field="babab"), Path(__file__).parent / "nested.yaml"
-    )
