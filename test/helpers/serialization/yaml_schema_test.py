@@ -6,6 +6,8 @@ from pytest_regressions.file_regression import FileRegressionFixture
 from simple_parsing.helpers.serialization.serializable import load_yaml
 from simple_parsing.helpers.serialization.yaml_schema import save_yaml_with_schema
 
+from ...testutils import needs_pydantic
+
 
 @dataclass
 class Bob:
@@ -21,6 +23,7 @@ class Nested:
     other_field: str  # inline comment for `other_field` of class `Nested`
 
 
+@needs_pydantic
 def test_save_with_yaml_schema(tmp_path: Path, file_regression: FileRegressionFixture):
     dc = Nested(bob=Bob(foo=222), other_field="babab")
     savepath = tmp_path / "nested.yaml"
