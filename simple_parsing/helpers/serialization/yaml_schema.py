@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import inspect
 import json
 from logging import getLogger as get_logger
 from pathlib import Path
@@ -173,7 +174,9 @@ def _has_default_dataclass_docstring(dc_type: type[Dataclass]) -> bool:
 
 
 def _update_schema_with_descriptions(
-    dc: Dataclass, json_schema: PossiblyNestedDict[str, str | list[str]], inplace: bool = True
+    dc: Dataclass,
+    json_schema: PossiblyNestedDict[str, str | list[str]],
+    inplace: bool = True,
 ):
     if not inplace:
         json_schema = copy.deepcopy(json_schema)
@@ -185,8 +188,18 @@ def _update_schema_with_descriptions(
             definition_dc_type = type(dc)
         else:
             # Get the dataclass type has this classname.
-            definition_dc_type = globals().get(classname)
-            if not is_dataclass_type(definition_dc_type):
+            frame = inspect.currentframe()
+            assert frame
+            outer_frames = inspect.getouterframes(frame)
+            for frame in outer_frames:
+                if classname in frame.frame.f_globals and is_dataclass_type(
+                    definition_dc_type := frame.frame.f_globals[classname]
+                ):
+                    break
+            else:
+                logger.debug(
+                    f"Unable to find the dataclass type for {classname} in the caller globals."
+                )
                 continue
 
         assert isinstance(definition, dict)

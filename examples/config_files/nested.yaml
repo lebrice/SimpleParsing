@@ -1,0 +1,4 @@
+# yaml-language-server: $schema=.schemas/Nested_schema.json
+bob:
+  foo: 222
+other_field: babab

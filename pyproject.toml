@@ -27,6 +27,7 @@ pytest-benchmark = "^4.0.0"
 [tool.poetry.extras]
 yaml = ["pyyaml"]
 toml = ["tomli", "tomli_w"]
+pydantic = ["pydantic"]
 
 
 [tool.poetry-dynamic-versioning]
