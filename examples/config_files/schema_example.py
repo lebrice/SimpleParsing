@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-from simple_parsing.helpers.serialization.serializable import load_yaml
 from simple_parsing.helpers.serialization.yaml_schema import save_yaml_with_schema
 
 
@@ -15,6 +14,8 @@ class Bob:
 
 @dataclass
 class Nested:
+    """Some docstring of the 'Nested' class."""
+
     bob: Bob  # inline comment for field `bob` of class `Nested`
     """bobobobo."""
 
@@ -24,6 +25,11 @@ class Nested:
 
 if __name__ == "__main__":
     save_yaml_with_schema(
+        Bob(foo=222),
+        Path(__file__).parent / "bob_with_schema.yaml",
+    )
+
+    save_yaml_with_schema(
         Nested(bob=Bob(foo=222), other_field="babab"),
-        Path(__file__).parent / "nested.yaml",
+        Path(__file__).parent / "nested_with_schema.yaml",
     )

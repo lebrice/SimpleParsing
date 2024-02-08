@@ -41,7 +41,7 @@ def save_yaml_with_schema(
         generated_schemas_dir = path.parent / ".schemas"
     generated_schemas_dir.mkdir(exist_ok=True, parents=True)
     schema_file = generated_schemas_dir / dc_schema_filename
-    schema_file.write_text(json.dumps(json_schema, indent=2))
+    schema_file.write_text(json.dumps(json_schema, indent=2) + "\n")
 
     if repo_root:
         repo_root, _ = _try_make_relative(repo_root, relative_to=Path.cwd())
@@ -103,9 +103,9 @@ def save_yaml_with_schema_in_vscode_settings(
         _write_gitignore_file_for_schemas(generated_schemas_dir)
 
     schema_file = generated_schemas_dir / dc_schema_filename
-    schema_file.write_text(json.dumps(json_schema, indent=2))
+    schema_file.write_text(json.dumps(json_schema, indent=2) + "\n")
 
-    # Alternatively: we can also use a setting in the VsCode editor to associate a schema file with
+    # We can use a setting in the VsCode editor to associate a schema file with
     # a list of config files.
 
     vscode_dir = repo_root / ".vscode"
@@ -119,7 +119,9 @@ def save_yaml_with_schema_in_vscode_settings(
         logger.error("Unable to load the vscode settings file!")
         raise
 
-    yaml_schemas: dict[str, str | list[str]] = vscode_settings.setdefault("yaml.schemas", {})
+    yaml_schemas_setting: dict[str, str | list[str]] = vscode_settings.setdefault(
+        "yaml.schemas", {}
+    )
 
     schema_key = str(schema_file.relative_to(repo_root))
     try:
@@ -127,13 +129,13 @@ def save_yaml_with_schema_in_vscode_settings(
     except ValueError:
         path_to_add = str(path)
 
-    files_associated_with_schema: str | list[str] = yaml_schemas.get(schema_key, [])
+    files_associated_with_schema: str | list[str] = yaml_schemas_setting.get(schema_key, [])
     if isinstance(files_associated_with_schema, str):
         existing_value = files_associated_with_schema
         files_associated_with_schema = sorted(set([existing_value, path_to_add]))
     else:
         files_associated_with_schema = sorted(set(files_associated_with_schema + [path_to_add]))
-    yaml_schemas[schema_key] = files_associated_with_schema
+    yaml_schemas_setting[schema_key] = files_associated_with_schema
 
     vscode_settings_file.write_text(json.dumps(vscode_settings, indent=2))
     return schema_file
@@ -173,6 +175,16 @@ def _has_default_dataclass_docstring(dc_type: type[Dataclass]) -> bool:
     return bool(docstring) and docstring.startswith(f"{dc_type.__name__}(")
 
 
+def _get_dc_type_with_name(dataclass_name: str) -> type[Dataclass] | None:
+    # Get the dataclass type has this classname.
+    frame = inspect.currentframe()
+    assert frame
+    for frame_info in inspect.getouterframes(frame):
+        if is_dataclass_type(definition_dc_type := frame_info.frame.f_globals.get(dataclass_name)):
+            return definition_dc_type
+    return None
+
+
 def _update_schema_with_descriptions(
     dc: Dataclass,
     json_schema: PossiblyNestedDict[str, str | list[str]],
@@ -181,29 +193,29 @@ def _update_schema_with_descriptions(
     if not inplace:
         json_schema = copy.deepcopy(json_schema)
 
-    definitions = json_schema["$defs"]
-    assert isinstance(definitions, dict)
-    for classname, definition in definitions.items():
-        if classname == type(dc).__name__:
-            definition_dc_type = type(dc)
-        else:
-            # Get the dataclass type has this classname.
-            frame = inspect.currentframe()
-            assert frame
-            outer_frames = inspect.getouterframes(frame)
-            for frame in outer_frames:
-                if classname in frame.frame.f_globals and is_dataclass_type(
-                    definition_dc_type := frame.frame.f_globals[classname]
-                ):
-                    break
+    if "$defs" in json_schema:
+        definitions = json_schema["$defs"]
+        assert isinstance(definitions, dict)
+        for classname, definition in definitions.items():
+            if classname == type(dc).__name__:
+                definition_dc_type = type(dc)
             else:
-                logger.debug(
-                    f"Unable to find the dataclass type for {classname} in the caller globals."
-                )
-                continue
+                # Get the dataclass type has this classname.
+                frame = inspect.currentframe()
+                assert frame
+                definition_dc_type = _get_dc_type_with_name(classname)
+                if not definition_dc_type:
+                    logger.debug(
+                        f"Unable to find the dataclass type for {classname} in the caller globals."
+                        f"Not adding descriptions for this dataclass."
+                    )
+                    continue
 
-        assert isinstance(definition, dict)
-        _update_definition_in_schema_using_dc(definition, dc_type=definition_dc_type)
+            assert isinstance(definition, dict)
+            _update_definition_in_schema_using_dc(definition, dc_type=definition_dc_type)
+
+    if "properties" in json_schema:
+        _update_definition_in_schema_using_dc(json_schema, dc_type=type(dc))
 
     return json_schema
 
