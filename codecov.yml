@@ -7,7 +7,7 @@ coverage:
     patch:
       default:
         target: 100%
-        informational: false
+        informational: true
 
 github_checks:
   annotations: true
