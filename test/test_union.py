@@ -35,7 +35,6 @@ def test_union_type_raises_error():
 
 
 def test_union_type_with_list():
-
     @dataclass
     class Foo(TestSetup):
         x: Union[str, list[str]]
