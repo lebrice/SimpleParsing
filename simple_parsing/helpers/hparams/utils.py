@@ -21,7 +21,3 @@ def set_seed(seed: int) -> None:
                 torch.cuda.manual_seed_all(seed)
         except AttributeError:
             pass
-
-
-def _unused_function():
-    ...  # unused function just to check that the PR comments check with codecov works.
