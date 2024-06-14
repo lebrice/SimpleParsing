@@ -12,6 +12,7 @@ import simple_parsing
 from simple_parsing import choice
 
 
+
 @dataclass
 class DatasetParams:
     """Dataset Parameters."""
@@ -205,6 +206,8 @@ class Parameters:
     other: OtherParams = field(default_factory=OtherParams)
 
     def __post_init__(self):
+        #from simple_parsing.utils import branch_coverage, print_coverage
+        from simple_parsing import utils
         """Post-initialization code."""
         # Make output folder
         # try:
@@ -213,12 +216,27 @@ class Parameters:
         #     pass
 
         # Set render number of channels
+        # branch_coverage["ugly_example_post_init_1"] = False
+        # branch_coverage["ugly_example_post_init_2"] = False
+        # branch_coverage["ugly_example_post_init_3"] = False
+
+        # def reassign_branch_coverage(function: str, new_value: bool):
+        #     # global branch_coverage
+        #     utils.branch_coverage[function] = new_value
+
         if self.rendering.render_type == "img":
+            utils.branch_coverage["ugly_example_post_init_1"] = True
+            # reassign_branch_coverage("ugly_example_post_init_1", True)
             self.rendering.render_img_nc = 3
         elif self.rendering.render_type == "depth":
+            utils.branch_coverage["ugly_example_post_init_2"] = True
             self.rendering.render_img_nc = 1
         else:
+            utils.branch_coverage["ugly_example_post_init_3"] = True
             raise ValueError("Unknown rendering type")
+
+        utils.print_coverage()
+
 
         # # Set random seed
         # if self.other.manualSeed is None:

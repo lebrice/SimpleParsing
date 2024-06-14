@@ -39,8 +39,18 @@ from typing_extensions import Literal, Protocol, TypeGuard, get_args, get_origin
 
 branch_coverage = {
     "ugly_example_post_init_1" : False,
-    "ugly_example_post_init_2" : False
+    "ugly_example_post_init_2" : False,
+    "ugly_example_post_init_3" : False
 }
+
+# def reassign_branch_coverage(function: str, new_value:bool):
+#     global branch_coverage
+#     branch_coverage[function] = new_value
+
+def print_coverage():
+    global branch_coverage
+    for branch, hit in branch_coverage.items():
+        print(f"{branch} was {'hit' if hit else 'not hit'}")
 
 # There are cases where typing.Literal doesn't match typing_extensions.Literal:
 # https://github.com/python/typing_extensions/pull/148
@@ -980,5 +990,35 @@ def all_subclasses(t: type[T]) -> set[type[T]]:
 
 if __name__ == "__main__":
     import doctest
-
+    from examples.ugly.ugly_example_after import Parameters
     doctest.testmod()
+
+    params = Parameters()
+    params.__post_init__()
+    #print_coverage()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
