@@ -37,6 +37,11 @@ from typing import (
 
 from typing_extensions import Literal, Protocol, TypeGuard, get_args, get_origin
 
+branch_coverage = {
+    "ugly_example_post_init_1" : False,
+    "ugly_example_post_init_2" : False
+}
+
 # There are cases where typing.Literal doesn't match typing_extensions.Literal:
 # https://github.com/python/typing_extensions/pull/148
 try:
