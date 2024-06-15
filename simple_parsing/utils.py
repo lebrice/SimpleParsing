@@ -42,6 +42,9 @@ branch_coverage = {
     "ugly_example_post_init_2" : False
 }
 
+coverage1 = {i: False for i in range(2)}
+coverage2 = {i: False for i in range(4)}
+
 # There are cases where typing.Literal doesn't match typing_extensions.Literal:
 # https://github.com/python/typing_extensions/pull/148
 try:
@@ -57,8 +60,10 @@ def is_typevar(t) -> bool:
 
 def get_bound(t):
     if is_typevar(t):
+        coverage1[0] = True
         return getattr(t, "__bound__", None)
     else:
+        coverage1[1] = True
         raise TypeError(f"type is not a `TypeVar`: {t}")
 
 
@@ -980,5 +985,19 @@ def all_subclasses(t: type[T]) -> set[type[T]]:
 
 if __name__ == "__main__":
     import doctest
+    from simple_parsing.decorators import _description_from_docstring
+    import docstring_parser as dp
 
     doctest.testmod()
+
+    T1 = TypeVar('T1')
+    get_bound(T1)
+    print("Function 1: def get_bound(t)")
+    for branch, hit in coverage2.items():
+        print(f"{branch} was {'hit' if hit else 'not hit'}")
+
+    example_docstring = dp.Docstring()
+    _description_from_docstring(example_docstring)
+    print("Function 2: def _description_from_docstring(docstring: dp.Docstring)")
+    for branch, hit in coverage3.items():
+        print(f"{branch} was {'hit' if hit else 'not hit'}")
