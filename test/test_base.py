@@ -1,13 +1,15 @@
 import argparse
+import dataclasses
 import shlex
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Type
+from typing import Any, Type, List
 
 import pytest
 
 import simple_parsing
 from simple_parsing import ArgumentParser
+from simple_parsing.utils import contains_dataclass_type_arg
 
 from .testutils import TestSetup, parametrize, raises, raises_missing_required_arg
 
@@ -242,6 +244,16 @@ def test_using_a_Type_type():
 
     foo = OtherFoo.setup("")
     assert foo.a == Extended()
+
+
+#TODO: FIX THIS
+def test_is_tuple_or_list_of_dataclasses(self, mock_is_tuple_or_list_of_dataclasses,
+                                         mock_is_dataclass_type_or_typevar):
+    @dataclasses.dataclass
+    class Example:
+        value: int  # the type doesn't matter as we're mocking
+    result = contains_dataclass_type_arg(List[Example])
+    self.assertTrue(result)
 
 
 def test_issue62():
