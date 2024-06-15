@@ -22,14 +22,19 @@ class _Field(NamedTuple):
 
 def _description_from_docstring(docstring: dp.Docstring) -> str:
     """Construct a description from the short and long description of a docstring."""
+    from simple_parsing import utils
     description = ""
     if docstring.short_description:
+        utils.coverage2[0] = True
         description += f"{docstring.short_description}\n"
         if docstring.blank_after_short_description:
+            utils.coverage2[1] = True
             description += "\n"
     if docstring.long_description:
+        utils.coverage2[2] = True
         description += f"{docstring.long_description}\n"
         if docstring.blank_after_long_description:
+            utils.coverage2[3] = True
             description += "\n"
     return description
 
