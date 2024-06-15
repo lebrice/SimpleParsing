@@ -93,7 +93,8 @@ Coverage after: <br> ![get_bound with tests](https://github.com/noracai26/Simple
 As seen from the screenshot, the function was initially not covered completely by test cases. I have added the test cases to make sure all of the brances are covered. As a result, the function is covered by 100%
 and the number of 'missing' statements in utils.py got decreased by 1 - from 77 to 76.
 
-<br>
+<br><br>
+
 Test 2: def _description_from_docstring(docstring: dp.Docstring)
 
 Coverage before: <br> ![description_from_docstring_before](https://github.com/noracai26/SimpleParsing/assets/76873802/070a6577-33d7-4159-af7f-2f35631175da)
@@ -102,8 +103,7 @@ Coverage after: <br>![description_from_docstring_after](https://github.com/norac
 <State the coverage improvement with a number and elaborate on why the coverage is improved>
 Similarly, the function was not covered completely. Adding new test cases for this function raised the coverage of decorators.py file for 2% - from 91 to 93. The function is now covered by 100% and the 'missing' statements number has also decreased by 1 - from 6 to 5. 
 
-
-<br>
+<br><br>
 <Group member name>
 
 <Test 1>
