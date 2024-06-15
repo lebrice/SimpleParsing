@@ -38,9 +38,19 @@ from typing import (
 from typing_extensions import Literal, Protocol, TypeGuard, get_args, get_origin
 
 branch_coverage = {
-    "ugly_example_post_init_1" : False,
-    "ugly_example_post_init_2" : False
+    # "ugly_example_post_init_1": False,
+    # "ugly_example_post_init_2": False,
+    "contains_dataclass_type_arg_1": False,
+    "contains_dataclass_type_arg_2": False,
+    "contains_dataclass_type_arg_3": False,
+    "get_dataclass_type_arg_1": False,
+    "get_dataclass_type_arg_2": False,
+    "get_dataclass_type_arg_3": False
 }
+
+def print_coverage():
+    for branch, hit in branch_coverage.items():
+        print(f"{branch} was {'hit' if hit else 'not hit'}")
 
 # There are cases where typing.Literal doesn't match typing_extensions.Literal:
 # https://github.com/python/typing_extensions/pull/148
@@ -534,20 +544,30 @@ def is_tuple_or_list_of_dataclasses(t: type) -> bool:
 
 def contains_dataclass_type_arg(t: type) -> bool:
     if is_dataclass_type_or_typevar(t):
+        branch_coverage["contains_dataclass_type_arg_1"] = True
+        print("changed to true")
+        print(branch_coverage["contains_dataclass_type_arg_1"])
         return True
     elif is_tuple_or_list_of_dataclasses(t):
+        branch_coverage["contains_dataclass_type_arg_2"] = True
+        print(branch_coverage["contains_dataclass_type_arg_2"])
         return True
     elif is_union(t):
+        branch_coverage["contains_dataclass_type_arg_3"] = True
+        print(branch_coverage["contains_dataclass_type_arg_3"])
         return any(contains_dataclass_type_arg(arg) for arg in get_type_arguments(t))
     return False
 
 
 def get_dataclass_type_arg(t: type) -> type | None:
     if not contains_dataclass_type_arg(t):
+        branch_coverage["get_dataclass_type_arg_1"] = True
         return None
     if is_dataclass_type_or_typevar(t):
+        branch_coverage["get_dataclass_type_arg_2"] = True
         return t
     elif is_tuple_or_list(t) or is_union(t):
+        branch_coverage["get_dataclass_type_arg_3"] = True
         return next(
             filter(None, (get_dataclass_type_arg(arg) for arg in get_type_arguments(t))),
             None,
@@ -980,5 +1000,15 @@ def all_subclasses(t: type[T]) -> set[type[T]]:
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod()
+
+    @dataclasses.dataclass
+    class Example:
+        value: int
+
+    result = contains_dataclass_type_arg(Example)
+    print_coverage()
+    result2 = contains_dataclass_type_arg(List[Example])
+    print_coverage()
+    result3 = contains_dataclass_type_arg(Union[int, float, str])
+    print_coverage()
