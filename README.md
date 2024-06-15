@@ -23,6 +23,19 @@ Coverage.py via the command: coverage run -m pytest
 
 <The following is supposed to be repeated for each group member>
 
+<Group member name> Karina Sudnicina
+
+Function 1 name: get_bound(t) from simple_parsing/utils.py
+
+![image](https://github.com/noracai26/SimpleParsing/assets/76873802/359c53f7-65f6-42f9-a90b-c7386723108f)
+
+
+Function 2 name: _description_from_docstring(docstring: dp.Docstring) from simple_parsing/decorators.py
+
+![image](https://github.com/noracai26/SimpleParsing/assets/76873802/d43a7a5b-f63d-4435-948e-5dceabd67bf2)
+
+<br>
+
 <Group member name>
 
 <Function 1 name>
@@ -34,6 +47,33 @@ Coverage.py via the command: coverage run -m pytest
 <Function 2 name>
 
 <Provide the same kind of information provided for Function 1>
+<br>
+
+<Group member name>
+
+<Function 1 name>
+
+<Show a patch (diff) or a link to a commit made in your forked repository that shows the instrumented code to gather coverage measurements>
+
+<Provide a screenshot of the coverage results output by the instrumentation>
+
+<Function 2 name>
+
+<Provide the same kind of information provided for Function 1>
+<br>
+
+<Group member name>
+
+<Function 1 name>
+
+<Show a patch (diff) or a link to a commit made in your forked repository that shows the instrumented code to gather coverage measurements>
+
+<Provide a screenshot of the coverage results output by the instrumentation>
+
+<Function 2 name>
+
+<Provide the same kind of information provided for Function 1>
+<br>
 
 ## Coverage improvement
 
