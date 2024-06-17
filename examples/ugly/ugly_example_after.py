@@ -215,18 +215,8 @@ class Parameters:
         # except OSError:
         #     pass
 
-        # Set render number of channels
-        # branch_coverage["ugly_example_post_init_1"] = False
-        # branch_coverage["ugly_example_post_init_2"] = False
-        # branch_coverage["ugly_example_post_init_3"] = False
-
-        # def reassign_branch_coverage(function: str, new_value: bool):
-        #     # global branch_coverage
-        #     utils.branch_coverage[function] = new_value
-
         if self.rendering.render_type == "img":
             utils.branch_coverage["ugly_example_post_init_1"] = True
-            # reassign_branch_coverage("ugly_example_post_init_1", True)
             self.rendering.render_img_nc = 3
         elif self.rendering.render_type == "depth":
             utils.branch_coverage["ugly_example_post_init_2"] = True

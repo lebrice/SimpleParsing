@@ -25,34 +25,19 @@ class OtherParams:
 @pytest.fixture
 def params_img():
     return Parameters(
-        dataset=DatasetParams(),
-        optimizer=OptimizerParams(),
-        gan=GanParams(),
-        camera=CameraParams(),
-        rendering=RenderingParams(render_type="img"),
-        other=OtherParams()
+        rendering=RenderingParams(render_type="img")
     )
 
 @pytest.fixture
 def params_depth():
     return Parameters(
-        dataset=DatasetParams(),
-        optimizer=OptimizerParams(),
-        gan=GanParams(),
-        camera=CameraParams(),
-        rendering=RenderingParams(render_type="depth"),
-        other=OtherParams()
+        rendering=RenderingParams(render_type="depth")
     )
 
 @pytest.fixture
 def params_unknown():
     return Parameters(
-        dataset=DatasetParams(),
-        optimizer=OptimizerParams(),
-        gan=GanParams(),
-        camera=CameraParams(),
-        rendering=RenderingParams(render_type="unknown"),
-        other=OtherParams()
+        rendering=RenderingParams(render_type="unknown")
     )
 
 def test_post_init_img(params_img):
@@ -66,6 +51,6 @@ def test_post_init_depth(params_depth):
     assert utils.branch_coverage["ugly_example_post_init_2"] == True
 
 def test_post_init_unknown(params_unknown):
-    # with pytest.raises(ValueError, match="Unknown rendering type"):
-    #     params_unknown.__post_init__()
+    with pytest.raises(ValueError, match="Unknown rendering type"):
+        params_unknown.__post_init__()
     assert utils.branch_coverage["ugly_example_post_init_3"] == True
