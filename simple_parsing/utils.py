@@ -38,9 +38,9 @@ from typing import (
 from typing_extensions import Literal, Protocol, TypeGuard, get_args, get_origin
 
 branch_coverage = {
-    "ugly_example_post_init_1" : False,
-    "ugly_example_post_init_2" : False,
-    "ugly_example_post_init_3" : False
+    "ugly_example_post_init_1": False,
+    "ugly_example_post_init_2": False,
+    "ugly_example_post_init_3": False
 }
 
 # def reassign_branch_coverage(function: str, new_value:bool):
@@ -991,11 +991,11 @@ def all_subclasses(t: type[T]) -> set[type[T]]:
 if __name__ == "__main__":
     import doctest
     from examples.ugly.ugly_example_after import Parameters
+
     doctest.testmod()
 
     params = Parameters()
     params.__post_init__()
-    #print_coverage()
 
 
 

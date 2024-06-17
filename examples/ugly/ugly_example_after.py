@@ -206,7 +206,7 @@ class Parameters:
     other: OtherParams = field(default_factory=OtherParams)
 
     def __post_init__(self):
-        #from simple_parsing.utils import branch_coverage, print_coverage
+        #from simple_parsing import utils
         from simple_parsing import utils
         """Post-initialization code."""
         # Make output folder
