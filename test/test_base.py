@@ -238,6 +238,12 @@ def test_using_a_Type_type():
     assert not contains_dataclass_type_arg(Type[Base])
     assert foo.a_class() == Base()
 
+    @dataclasses.dataclass
+    class Example:
+        value: int
+
+    assert contains_dataclass_type_arg(List[Example])
+
     @dataclass
     class OtherFoo(Foo):
         a_class: Type[Base] = field(default=Extended, init=False)
@@ -245,15 +251,6 @@ def test_using_a_Type_type():
     foo = OtherFoo.setup("")
     assert foo.a == Extended()
 
-
-#TODO: FIX THIS
-def test_is_tuple_or_list_of_dataclasses(self, mock_is_tuple_or_list_of_dataclasses,
-                                         mock_is_dataclass_type_or_typevar):
-    @dataclasses.dataclass
-    class Example:
-        value: int  # the type doesn't matter as we're mocking
-    result = contains_dataclass_type_arg(List[Example])
-    self.assertTrue(result)
 
 
 def test_issue62():

@@ -38,14 +38,12 @@ from typing import (
 from typing_extensions import Literal, Protocol, TypeGuard, get_args, get_origin
 
 branch_coverage = {
-    # "ugly_example_post_init_1": False,
-    # "ugly_example_post_init_2": False,
+    "ugly_example_post_init_1": False,
+    "ugly_example_post_init_2": False,
+    "ugly_example_post_init_3": False,
     "contains_dataclass_type_arg_1": False,
     "contains_dataclass_type_arg_2": False,
     "contains_dataclass_type_arg_3": False,
-    "get_dataclass_type_arg_1": False,
-    "get_dataclass_type_arg_2": False,
-    "get_dataclass_type_arg_3": False
 }
 
 def print_coverage():
@@ -561,13 +559,10 @@ def contains_dataclass_type_arg(t: type) -> bool:
 
 def get_dataclass_type_arg(t: type) -> type | None:
     if not contains_dataclass_type_arg(t):
-        branch_coverage["get_dataclass_type_arg_1"] = True
         return None
     if is_dataclass_type_or_typevar(t):
-        branch_coverage["get_dataclass_type_arg_2"] = True
         return t
     elif is_tuple_or_list(t) or is_union(t):
-        branch_coverage["get_dataclass_type_arg_3"] = True
         return next(
             filter(None, (get_dataclass_type_arg(arg) for arg in get_type_arguments(t))),
             None,
