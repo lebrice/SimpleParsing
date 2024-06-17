@@ -40,9 +40,7 @@ Function 2 name: _description_from_docstring(docstring: dp.Docstring) from simpl
 
 Function 1 name: def __post_init__ from examples/ugly_example_after.py
 
-
-![77EEF328-316B-4EC1-8183-7A21D9A2FEFC_4_5005_c](https://github.com/noracai26/SimpleParsing/assets/90709657/4a7991f0-7bee-4119-9b57-ea2a1272c192)
-
+![15C6B39A-F85B-40D7-868A-BD7814146D84_4_5005_c](https://github.com/noracai26/SimpleParsing/assets/90709657/e1e013fd-8147-46ec-a2c4-ae574826d108)
 
 ![D44E1447-744E-4E90-9AB9-66AD85D8B659_4_5005_c](https://github.com/noracai26/SimpleParsing/assets/90709657/6d2dc978-f224-43af-9ec5-1e5640ca720a)
 
@@ -56,7 +54,7 @@ Function 2 name: def contains_dataclass_type_arg from simple_parsing/utils.py
 
 <br>
 
-<Group member name>
+<Group member name>Che
 
 <Function 1 name>
 
@@ -115,21 +113,53 @@ Similarly, the function was not covered completely. Adding new test cases for th
 
 Test 1: test/test_ugly_example_after.py
 
-<Show a patch (diff) or a link to a commit made in your forked repository that shows the new/enhanced test>
+added new test:
 
-<Provide a screenshot of the old coverage results (the same as you already showed above)>
+![DE6C58C0-C52B-40B5-8FB7-492B1ADDBE97](https://github.com/noracai26/SimpleParsing/assets/90709657/f3426fad-cc8a-4bc4-a75b-27b32d08ed2b)
 
-<Provide a screenshot of the new coverage results>
+old coverage:
 
-<State the coverage improvement with a number and elaborate on why the coverage is improved>
+![A3D1D742-6072-4379-B4FC-7C709D595299_4_5005_c](https://github.com/noracai26/SimpleParsing/assets/90709657/e6cfaa8f-872e-4aa3-9f6f-30bb594a7b9e)
 
-<Test 2>
+new coverage:
 
-<Provide the same kind of information provided for Test 1>
+![77EEF328-316B-4EC1-8183-7A21D9A2FEFC_4_5005_c](https://github.com/noracai26/SimpleParsing/assets/90709657/becd7012-22c0-42e7-866e-25602b565370)
+
+
+percentage of improvement: 60%%
+
+![9CFFF73C-F44B-43ED-A9A1-A718B839F63F_4_5005_c](https://github.com/noracai26/SimpleParsing/assets/90709657/96de4555-657d-439c-8fbb-06b823331d98)
+
+![0BE40E06-0EC0-4DB6-BD22-32BBABD08BD1_4_5005_c](https://github.com/noracai26/SimpleParsing/assets/90709657/a60375d4-06b6-4b8d-9f35-90fc5b08221b)
+
+The coverage of the function def __post_init__ went from 40% to 100%, this is because the coverage for the function has been improved by writing test case to cover the second and third branch, which were not previously covered.
+
+Test 2: test/test_base.py
+
+enhanced existing test:
+
+![00CC657A-5AB9-4523-ADE5-21180F44985F](https://github.com/noracai26/SimpleParsing/assets/90709657/be69a8f0-4fed-4e74-bb40-f660ffdf5b06)
+
+old coverage:
+
+![AB405694-D254-4802-8724-270B2223A4C7_4_5005_c](https://github.com/noracai26/SimpleParsing/assets/90709657/1347cb1a-c3f7-4d18-a8a4-611135590f78)
+
+new coverage:
+
+![B76F7C5B-6034-4358-B9F4-A651EDDD191A_4_5005_c](https://github.com/noracai26/SimpleParsing/assets/90709657/05b8b551-bd36-45a9-9479-6728d3f0d7f5)
+
+percentage of improvement: 14%
+
+![31650BE9-DBBD-426C-96AC-FE910953B826_4_5005_c](https://github.com/noracai26/SimpleParsing/assets/90709657/efb040fe-a02a-4032-9f14-5f8c19508dda)
+
+![EE3DB7E3-22FD-4476-8F6D-EAD10AAFF1D4_4_5005_c](https://github.com/noracai26/SimpleParsing/assets/90709657/ce548844-db5c-4c75-a56a-18b330079363)
+
+The coverage of the function def contains_dataclass_type_arg went from 86% to 100%, the increase is caused by the enhancement of test cases that that covers the second branch of the function, which was not previously covered.
+
 
 
 <br>
-<Group member name>
+<Group member name>Che
 
 <Test 1>
 
