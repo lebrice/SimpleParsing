@@ -40,15 +40,13 @@ from typing_extensions import Literal, Protocol, TypeGuard, get_args, get_origin
 branch_coverage = {
     "ugly_example_post_init_1": False,
     "ugly_example_post_init_2": False,
-    "ugly_example_post_init_3": False
+    "ugly_example_post_init_3": False,
+    "contains_dataclass_type_arg_1": False,
+    "contains_dataclass_type_arg_2": False,
+    "contains_dataclass_type_arg_3": False
 }
 
-# def reassign_branch_coverage(function: str, new_value:bool):
-#     global branch_coverage
-#     branch_coverage[function] = new_value
-
 def print_coverage():
-    global branch_coverage
     for branch, hit in branch_coverage.items():
         print(f"{branch} was {'hit' if hit else 'not hit'}")
 
@@ -544,10 +542,17 @@ def is_tuple_or_list_of_dataclasses(t: type) -> bool:
 
 def contains_dataclass_type_arg(t: type) -> bool:
     if is_dataclass_type_or_typevar(t):
+        branch_coverage["contains_dataclass_type_arg_1"] = True
+        print("changed to true")
+        print(branch_coverage["contains_dataclass_type_arg_1"])
         return True
     elif is_tuple_or_list_of_dataclasses(t):
+        branch_coverage["contains_dataclass_type_arg_2"] = True
+        print(branch_coverage["contains_dataclass_type_arg_2"])
         return True
     elif is_union(t):
+        branch_coverage["contains_dataclass_type_arg_3"] = True
+        print(branch_coverage["contains_dataclass_type_arg_3"])
         return any(contains_dataclass_type_arg(arg) for arg in get_type_arguments(t))
     return False
 
@@ -997,28 +1002,13 @@ if __name__ == "__main__":
     params = Parameters()
     params.__post_init__()
 
+    @dataclasses.dataclass
+    class Example:
+        value: int
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    result = contains_dataclass_type_arg(Example)
+    print_coverage()
+    result2 = contains_dataclass_type_arg(List[Example])
+    print_coverage()
+    result3 = contains_dataclass_type_arg(Union[int, float, str])
+    print_coverage()
