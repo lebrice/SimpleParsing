@@ -238,11 +238,11 @@ def test_using_a_Type_type():
     assert not contains_dataclass_type_arg(Type[Base])
     assert foo.a_class() == Base()
 
-    # @dataclasses.dataclass
-    # class Example:
-    #     value: int
-    #
-    # assert contains_dataclass_type_arg(List[Example])
+    @dataclasses.dataclass
+    class Example:
+        value: int
+
+    assert contains_dataclass_type_arg(List[Example])
 
     @dataclass
     class OtherFoo(Foo):
