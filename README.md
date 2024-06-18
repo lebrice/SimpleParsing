@@ -54,17 +54,21 @@ Function 2 name: def contains_dataclass_type_arg from simple_parsing/utils.py
 
 <br>
 
-<Group member name>Che
+<Group member name> Che Lai
 
-<Function 1 name>
+Function 1 name: def setattr_recursive from simple_parsing/utils.py
 
-<Show a patch (diff) or a link to a commit made in your forked repository that shows the instrumented code to gather coverage measurements>
+![3891718737517_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/5104306a-3df1-4fa2-927e-66185f03c6af)
 
-<Provide a screenshot of the coverage results output by the instrumentation>
+![3841718649695_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/709ec3c8-3a38-4168-a196-c7810c918069)
 
-<Function 2 name>
 
-<Provide the same kind of information provided for Function 1>
+<Function 2 name> def getattr_recursive from simple_parsing/utils.py
+
+![3901718737537_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/953f9db4-611b-459a-9aa1-f3b77f17e2e5)
+
+![3841718649695_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/cfdb6903-50a1-443c-a395-0da800c54ded)
+
 <br>
 
 <Group member name>
@@ -159,22 +163,39 @@ The coverage of the function def contains_dataclass_type_arg went from 86% to 10
 
 
 <br>
-<Group member name>Che
+<Group member name> Che Lai
 
-<Test 1>
+<Test 1> setattr_recursive
 
-<Show a patch (diff) or a link to a commit made in your forked repository that shows the new/enhanced test>
+old coverage results: (coverage: 0%)
+![3871718651183_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/2b43ac8b-5a4d-4378-9e12-e01319eb5d4b)
 
-<Provide a screenshot of the old coverage results (the same as you already showed above)>
+![3851718651108_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/956ab807-ae39-44b5-9ecd-2a674e46532d)
 
-<Provide a screenshot of the new coverage results>
+new coverage results: (coverage: 100%)
+![3971718738756_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/d963d989-38c4-4bc7-8d8e-1f53a07c5611)
 
-<State the coverage improvement with a number and elaborate on why the coverage is improved>
+![3941718738557_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/c73e5dc7-221e-4e17-8ec3-cee18198b196)
 
-<Test 2>
 
-<Provide the same kind of information provided for Test 1>
+In the original test file, there was no test case for this function, so the coverage of this function was 0%, then I added the test code for this function, then its coverage increased to 100%.
 
+<Test 2> getattr_recursive
+
+old coverage results: (coverage: 0%)
+
+![3931718738438_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/4851b8b1-a9fb-4604-8334-8185e3c12b5f)
+
+![3861718651118_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/82439748-14d1-48a2-ad50-023f24244c03)
+
+new coverage results: (coverage: 100%)
+![3961718738689_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/d8206ed6-5563-44a6-a2c6-259bd2d00991)
+
+![3951718738569_ pic](https://github.com/noracai26/SimpleParsing/assets/135572774/76446167-4e04-4a67-b975-c0179c213bd4)
+
+percentage of improvement: 100%
+
+Same as the function in Test 1, there was no test case for this function, so the old covearage was 0%, after I added test case for it, the coverage of this function increased to 100%.
 
 <br>
 <Group member name>
