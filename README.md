@@ -71,17 +71,28 @@ Function 1 name: def setattr_recursive from simple_parsing/utils.py
 
 <br>
 
-<Group member name>
+<Group member name> Sanne Aerts
 
-<Function 1 name>
+The global variable branch_coverage tracks coverage, and the print_coverage() function prints the results.
+This function is called in config.py after all tests have been run with pytest.
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/316afcc2-ffd0-4bd3-b71e-4358d182efb8)
 
-<Show a patch (diff) or a link to a commit made in your forked repository that shows the instrumented code to gather coverage measurements>
+Function 1: get_item_type from simple_parsing/utils.py
 
-<Provide a screenshot of the coverage results output by the instrumentation>
+The instrumented code
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/c44eb8a2-d2b4-40c8-b0f8-c8ead9ad758b)
 
-<Function 2 name>
+Coverage results output from the instrumentation
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/0b738d01-ac1f-4885-b206-14c8c21bc4de)
 
-<Provide the same kind of information provided for Function 1>
+Function 2: get_argparse_type_for_container from simple_parsing/utils.py
+
+The instrumented code
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/fb502335-2e13-4033-91b6-12b77801540c)
+
+Coverage results output from the instrumentation
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/788bd88d-6aa9-409b-b90c-e8d03d49d47c)
+
 <br>
 
 ## Coverage improvement
@@ -198,21 +209,43 @@ percentage of improvement: 100%
 Same as the function in Test 1, there was no test case for this function, so the old covearage was 0%, after I added test case for it, the coverage of this function increased to 100%.
 
 <br>
-<Group member name>
+<Group member name> Sanne Aerts
 
-<Test 1>
+Test 1: New test for Function 1 (get_item_type from simple_parsing/utils.py) to hit the third branch.
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/03b45af5-dd3a-41c0-bd72-566bd9430794)
 
-<Show a patch (diff) or a link to a commit made in your forked repository that shows the new/enhanced test>
+Old coverage result
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/3f7a3126-05c2-439e-9bed-88d7a2a0bb81)
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/9ec037bf-9096-46e8-a508-961a77f07350)
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/f7b12ff4-5cae-4027-8b19-db0ed54d30bc)
 
-<Provide a screenshot of the old coverage results (the same as you already showed above)>
+New coverage result
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/091bc99f-24cf-41d8-a14c-5f434c4ab9b5)
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/c289eb4e-2a58-41ee-a5e7-af9c4cd240c6)
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/781c7ec8-a37d-463a-8c53-5c7eab5e207a)
 
-<Provide a screenshot of the new coverage results>
+Adding a new test case to cover the third branch of the function resulted in a coverage improvement of 17%, bringing the total coverage for the function to 100%.
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/c31ffb75-8ed4-473b-9fb0-ed41178f10c7)
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/5d8258b0-8c6d-4a05-ace3-e5c9ffe47fa5)
 
-<State the coverage improvement with a number and elaborate on why the coverage is improved>
+Test 2: New test for Function 2 (get_argparse_type_for_container from simple_parsing/utils.py) to hit the second branch.
 
-<Test 2>
+Old coverage result
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/c8937278-2d74-4f60-960d-12c64d1acf81)
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/04bdf961-804b-47d1-8541-f73251d1f05f)
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/4fccb159-a9f6-48b7-ab7a-79a02523bff7)
 
-<Provide the same kind of information provided for Test 1>
+
+New coverage result
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/2b01269e-6e59-4f14-98ac-2a9914cad684)
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/0dae13eb-c835-48d3-808d-58b402383b16)
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/a0f86a2f-66b1-4f63-85d1-7fa1c4feccd9)
+
+Adding a new test case to cover the second branch of the function resulted in a coverage improvement of 11%, bringing the total coverage for the function to 100%.
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/d1dcf6e9-615e-4c5f-bb12-e994f0ec113d)
+![image](https://github.com/noracai26/SimpleParsing/assets/97464986/588d98ed-b7fe-4d9c-b21d-e8e47d6809b0)
+
+
 
 ### Overall
 
