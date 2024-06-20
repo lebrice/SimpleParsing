@@ -79,7 +79,7 @@ This function is called in config.py after all tests have been run with pytest.
 
 Function 1: get_item_type from simple_parsing/utils.py
 
-The instrumented code
+The instrumented function
 ![image](https://github.com/noracai26/SimpleParsing/assets/97464986/c44eb8a2-d2b4-40c8-b0f8-c8ead9ad758b)
 
 Coverage results output from the instrumentation
@@ -87,7 +87,7 @@ Coverage results output from the instrumentation
 
 Function 2: get_argparse_type_for_container from simple_parsing/utils.py
 
-The instrumented code
+The instrumented function
 ![image](https://github.com/noracai26/SimpleParsing/assets/97464986/fb502335-2e13-4033-91b6-12b77801540c)
 
 Coverage results output from the instrumentation
