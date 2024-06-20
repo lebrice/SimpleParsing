@@ -3,7 +3,8 @@ from typing import List, Any
 from simple_parsing.utils import get_argparse_type_for_container
 
 class TestGetArgparseTypeForContainer(unittest.TestCase):
-        
+    
+    # hits 2nd branch
     def test_get_argparse_type_for_container_any(self):
         self.assertEqual(get_argparse_type_for_container(List[Any]), str)
 
