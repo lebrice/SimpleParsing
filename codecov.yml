@@ -9,6 +9,7 @@ coverage:
         target: 100%
         informational: true
 
-
+github_checks:
+  annotations: true
 # When modifying this file, please validate using
 # curl -X POST --data-binary @codecov.yml https://codecov.io/validate
