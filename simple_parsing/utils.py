@@ -38,12 +38,21 @@ from typing import (
 from typing_extensions import Literal, Protocol, TypeGuard, get_args, get_origin
 
 branch_coverage = {
-    "ugly_example_post_init_1" : False,
-    "ugly_example_post_init_2" : False
+    "ugly_example_post_init_1": False,
+    "ugly_example_post_init_2": False,
+    "ugly_example_post_init_3": False,
+    "contains_dataclass_type_arg_1": False,
+    "contains_dataclass_type_arg_2": False,
+    "contains_dataclass_type_arg_3": False
 }
 
 coverage1 = {i: False for i in range(2)}
 coverage2 = {i: False for i in range(4)}
+
+def print_coverage():
+    for branch, hit in branch_coverage.items():
+        print(f"{branch} was {'hit' if hit else 'not hit'}")
+
 
 # There are cases where typing.Literal doesn't match typing_extensions.Literal:
 # https://github.com/python/typing_extensions/pull/148
@@ -539,10 +548,17 @@ def is_tuple_or_list_of_dataclasses(t: type) -> bool:
 
 def contains_dataclass_type_arg(t: type) -> bool:
     if is_dataclass_type_or_typevar(t):
+        branch_coverage["contains_dataclass_type_arg_1"] = True
+        print("changed to true")
+        print(branch_coverage["contains_dataclass_type_arg_1"])
         return True
     elif is_tuple_or_list_of_dataclasses(t):
+        branch_coverage["contains_dataclass_type_arg_2"] = True
+        print(branch_coverage["contains_dataclass_type_arg_2"])
         return True
     elif is_union(t):
+        branch_coverage["contains_dataclass_type_arg_3"] = True
+        print(branch_coverage["contains_dataclass_type_arg_3"])
         return any(contains_dataclass_type_arg(arg) for arg in get_type_arguments(t))
     return False
 
@@ -985,8 +1001,10 @@ def all_subclasses(t: type[T]) -> set[type[T]]:
 
 if __name__ == "__main__":
     import doctest
+
     from simple_parsing.decorators import _description_from_docstring
     import docstring_parser as dp
+    from examples.ugly.ugly_example_after import Parameters
 
     doctest.testmod()
 
@@ -1001,3 +1019,18 @@ if __name__ == "__main__":
     print("Function 2: def _description_from_docstring(docstring: dp.Docstring)")
     for branch, hit in coverage3.items():
         print(f"{branch} was {'hit' if hit else 'not hit'}")
+
+    params = Parameters()
+    params.__post_init__()
+
+    @dataclasses.dataclass
+    class Example:
+        value: int
+
+    result = contains_dataclass_type_arg(Example)
+    print_coverage()
+    result2 = contains_dataclass_type_arg(List[Example])
+    print_coverage()
+    result3 = contains_dataclass_type_arg(Union[int, float, str])
+    print_coverage()
+
