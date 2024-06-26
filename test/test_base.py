@@ -1,13 +1,15 @@
 import argparse
+import dataclasses
 import shlex
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Type
+from typing import Any, Type, List
 
 import pytest
 
 import simple_parsing
 from simple_parsing import ArgumentParser
+from simple_parsing.utils import contains_dataclass_type_arg
 
 from .testutils import TestSetup, parametrize, raises, raises_missing_required_arg
 
@@ -236,12 +238,19 @@ def test_using_a_Type_type():
     assert not contains_dataclass_type_arg(Type[Base])
     assert foo.a_class() == Base()
 
+    @dataclasses.dataclass
+    class Example:
+        value: int
+
+    assert contains_dataclass_type_arg(List[Example])
+
     @dataclass
     class OtherFoo(Foo):
         a_class: Type[Base] = field(default=Extended, init=False)
 
     foo = OtherFoo.setup("")
     assert foo.a == Extended()
+
 
 
 def test_issue62():
