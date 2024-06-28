@@ -49,7 +49,10 @@ print(parser.equivalent_argparse_code())
 expected += """
 parser = ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-group = parser.add_argument_group(title="HParams ['hparams']", description="Set of options for the training of a Model.")
+group = parser.add_argument_group(
+    title="HParams ['hparams']",
+    description="Set of options for the training of a Model.",
+)
 group.add_argument(*['--num_layers'], **{'type': int, 'required': False, 'dest': 'hparams.num_layers', 'default': 4, 'help': ' '})
 group.add_argument(*['--num_units'], **{'type': int, 'required': False, 'dest': 'hparams.num_units', 'default': 64, 'help': ' '})
 group.add_argument(*['--optimizer'], **{'type': str, 'required': False, 'dest': 'hparams.optimizer', 'default': 'ADAM', 'help': ' '})
