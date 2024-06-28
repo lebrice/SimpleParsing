@@ -129,9 +129,12 @@ class TOMLExtension(FormatExtension):
     binary: bool = True
 
     def load(self, io: IO) -> Any:
-        import tomli
+        try:
+            import tomllib
+        except ImportError:
+            import tomli as tomllib
 
-        return tomli.load(io)
+        return tomllib.load(io)
 
     def dump(self, obj: Any, io: IO, **kwargs) -> None:
         import tomli_w
