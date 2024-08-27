@@ -508,7 +508,7 @@ def is_optional(t: type) -> bool:
     bool
         Whether or not this is an Optional.
 
-    >>> from typing import Union, Optional, List
+    >>> from typing import Union, Optional, List, Literal
     >>> is_optional(str)
     False
     >>> is_optional(Optional[str])
@@ -519,8 +519,17 @@ def is_optional(t: type) -> bool:
     False
     >>> is_optional(Union[str, List, int, float, None])
     True
+    >>> is_optional(Literal["a", None, "b"])
+    True
+    >>> is_optional(Literal["a", 1])
+    False
     """
-    return is_union(t) and type(None) in get_type_arguments(t)
+    if is_union(t) and type(None) in get_type_arguments(t):
+        return True
+    elif is_literal(t) and None in get_type_arguments(t):
+        return True
+    else:
+        return False
 
 
 def is_tuple_or_list_of_dataclasses(t: type) -> bool:
