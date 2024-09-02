@@ -1,0 +1,35 @@
+{
+  "$defs": {
+    "Bob": {
+      "properties": {
+        "foo": {
+          "default": 123,
+          "title": "Foo",
+          "type": "integer",
+          "description": "A very important field."
+        }
+      },
+      "title": "Bob",
+      "type": "object",
+      "description": "Some docstring."
+    }
+  },
+  "properties": {
+    "bob": {
+      "$ref": "#/$defs/Bob",
+      "description": "bobobobo."
+    },
+    "other_field": {
+      "title": "Other Field",
+      "type": "string",
+      "description": "This is a docstring for the other field."
+    }
+  },
+  "required": [
+    "bob",
+    "other_field"
+  ],
+  "title": "Nested",
+  "type": "object",
+  "description": "Some docstring of the 'Nested' class."
+}
