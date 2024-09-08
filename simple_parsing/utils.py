@@ -850,15 +850,14 @@ def dict_union(*dicts: dict[K, V], recurse: bool = True, dict_factory=dict) -> d
 
     If `recurse` is True, also does the union of nested dictionaries.
     NOTE: The returned dictionary has keys sorted alphabetically.
-    >>> from collections import OrderedDict
-    >>> a = OrderedDict(a=1, b=2, c=3)
-    >>> b = OrderedDict(c=5, d=6, e=7)
-    >>> dict_union(a, b, dict_factory=OrderedDict)
-    OrderedDict([('a', 1), ('b', 2), ('c', 5), ('d', 6), ('e', 7)])
-    >>> a = OrderedDict(a=1, b=OrderedDict(c=2, d=3))
-    >>> b = OrderedDict(a=2, b=OrderedDict(c=3, e=6))
-    >>> dict_union(a, b, dict_factory=OrderedDict)
-    OrderedDict([('a', 2), ('b', OrderedDict([('c', 3), ('d', 3), ('e', 6)]))])
+    >>> a = {'a': 1, 'b': 2, 'c': 3}
+    >>> b = {'c': 5, 'd': 6, 'e': 7}
+    >>> dict_union(a, b)
+    {'a': 1, 'b': 2, 'c': 5, 'd': 6, 'e': 7}
+    >>> a = {'a': 1, 'b': {'c': 2, 'd': 3}}
+    >>> b = {'a': 2, 'b': {'c': 3, 'e': 6}}
+    >>> dict_union(a, b)
+    {'a': 2, 'b': {'c': 3, 'd': 3, 'e': 6}}
     """
     result: dict = dict_factory()
     if not dicts:
