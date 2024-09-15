@@ -225,7 +225,7 @@ class FieldWrapper(Wrapper):
                     # string, and the values are always dataclass types. We don't need to worry
                     # about having to deal with {"bob": "alice", "alice": "foo"}-type weirdness.
                     namespace.subgroups[self.dest] = value
-                    logger.info(f"Chosen subgroup for '{self.dest}':  '{value}'")
+                    logger.debug(f"Chosen subgroup for '{self.dest}':  '{value}'")
 
     def get_arg_options(self) -> dict[str, Any]:
         """Create the `parser.add_arguments` kwargs for this field.
