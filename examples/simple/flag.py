@@ -1,15 +1,7 @@
 from dataclasses import dataclass
 
-from simple_parsing import ArgumentParser
+from simple_parsing import ArgumentParser, parse
 from simple_parsing.helpers import flag
-
-
-def parse(cls, args: str = ""):
-    """Removes some boilerplate code from the examples."""
-    parser = ArgumentParser()  # Create an argument parser
-    parser.add_arguments(cls, dest="hparams")  # add arguments for the dataclass
-    ns = parser.parse_args(args.split())  # parse the given `args`
-    return ns.hparams
 
 
 @dataclass
@@ -32,7 +24,7 @@ HParams(num_layers=4, num_units=64, optimizer='ADAM', learning_rate=0.001, train
 """
 
 # Example 2 using the flags negative prefix
-assert parse(HParams, "--no-train") == HParams(train=False)
+assert parse(HParams, args="--no-train") == HParams(train=False)
 
 
 # showing what --help outputs

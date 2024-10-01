@@ -6,59 +6,28 @@ import typing
 from dataclasses import _MISSING_TYPE, MISSING
 from enum import Enum
 from logging import getLogger as get_logger
-from typing import Any, Callable, TypeVar, Union, overload
+from typing import Any, Callable, Mapping, TypeVar, Union
 
 from typing_extensions import TypeAlias
 
-from simple_parsing.utils import DataclassT, is_dataclass_instance, is_dataclass_type
+from simple_parsing.helpers.serialization.serializable import to_dict
+from simple_parsing.utils import Dataclass, DataclassT, is_dataclass_instance, is_dataclass_type
 
 logger = get_logger(__name__)
 
 SubgroupKey: TypeAlias = Union[str, int, bool, Enum]
 
 Key = TypeVar("Key", str, int, bool, Enum)
-
-
-@overload
-def subgroups(
-    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
-    *args,
-    default: Key | DataclassT,
-    default_factory: _MISSING_TYPE = MISSING,
-    **kwargs,
-) -> DataclassT:
-    ...
-
-
-@overload
-def subgroups(
-    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
-    *args,
-    default: _MISSING_TYPE = MISSING,
-    default_factory: type[DataclassT] | functools.partial[DataclassT],
-    **kwargs,
-) -> DataclassT:
-    ...
-
-
-@overload
-def subgroups(
-    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
-    *args,
-    default: _MISSING_TYPE = MISSING,
-    default_factory: _MISSING_TYPE = MISSING,
-    **kwargs,
-) -> DataclassT:
-    ...
+DC = TypeVar("DC")
 
 
 def subgroups(
-    subgroups: dict[Key, DataclassT | type[DataclassT] | functools.partial[DataclassT]],
+    subgroups: Mapping[Key, type[DC] | functools.partial[DC]],
     *args,
-    default: Key | DataclassT | _MISSING_TYPE = MISSING,
-    default_factory: type[DataclassT] | functools.partial[DataclassT] | _MISSING_TYPE = MISSING,
+    default: Key | _MISSING_TYPE = MISSING,
+    default_factory: type[DC] | functools.partial[DC] | _MISSING_TYPE = MISSING,
     **kwargs,
-) -> DataclassT:
+) -> DC:
     """Creates a field that will be a choice between different subgroups of arguments.
 
     This is different than adding a subparser action. There can only be one subparser action, while
@@ -88,12 +57,16 @@ def subgroups(
         if not isinstance(default, Hashable):
             raise ValueError(
                 "'default' can either be a key of the subgroups dict or a hashable (frozen) "
-                "dataclass."
+                "dataclass in the values of the subgroup dict."
             )
         if default not in subgroups.values():
-            # TODO: (@lebrice): Do we really need to enforce this? What is the reasoning behind this
-            # restriction again?
-            raise ValueError(f"Default value {default} needs to be a value in the subgroups dict.")
+            # NOTE: The reason we enforce this is perhaps artificial, but it's because the way we
+            # implement subgroups requires us to know the key that is selected in the dict.
+            raise ValueError(
+                f"When passing a dataclass instance as the `default` for the subgroups, it needs "
+                f"to be a hashable value (e.g. frozen dataclass) in the subgroups dict. "
+                f"Got {default}"
+            )
     elif default is not MISSING and default not in subgroups.keys():
         raise ValueError("default must be a key in the subgroups dict!")
 
@@ -112,7 +85,11 @@ def subgroups(
     metadata["subgroup_default"] = default
     metadata["subgroup_dataclass_types"] = {}
 
-    subgroup_dataclass_types: dict[Key, type[DataclassT]] = {}
+    # Custom encoding function that will add the _type_ key with the subgroup dataclass type.
+    # Using an int here means that only to the subgroup dataclass.
+    kwargs.setdefault("encoding_fn", functools.partial(to_dict, save_dc_types=1))
+
+    subgroup_dataclass_types: dict[Key, type[Dataclass]] = {}
     choices = subgroups.keys()
 
     # NOTE: Perhaps we could raise a warning if the default_factory is a Lambda, since we have to
@@ -218,7 +195,8 @@ def _get_dataclass_type_from_callable(
             return dataclass_fn.func
         # partial to a function that should return a dataclass. Hopefully it has a return type
         # annotation, otherwise we'd have to call the function just to know the return type!
-        # NOTE: recurse here, so it also works with `partial(partial(...))` and `partial(some_function)`
+        # NOTE: recurse here, so it also works with `partial(partial(...))` and
+        # `partial(some_function)`
         return _get_dataclass_type_from_callable(
             dataclass_fn=dataclass_fn.func, caller_frame=caller_frame
         )
@@ -229,7 +207,8 @@ def _get_dataclass_type_from_callable(
             f"{dataclass_fn!r}, because it doesn't have a return type annotation, and we don't "
             f"want to call it just to figure out what it produces."
         )
-        # NOTE: recurse here, so it also works with `partial(partial(...))` and `partial(some_function)`
+        # NOTE: recurse here, so it also works with `partial(partial(...))` and
+        # `partial(some_function)`
         # Recurse, so this also works with partial(partial(...)) (idk why you'd do that though.)
 
     if isinstance(signature.return_annotation, str):
@@ -250,7 +229,8 @@ def _get_dataclass_type_from_callable(
             caller_globals = caller_frame.f_globals
 
             try:
-                # NOTE: This doesn't seem to be very often different than just calling `get_type_hints`
+                # NOTE: This doesn't seem to be very often different than just calling
+                # `get_type_hints`
                 type_hints = typing.get_type_hints(
                     dataclass_fn, globalns=caller_globals, localns=caller_locals
                 )
@@ -261,8 +241,8 @@ def _get_dataclass_type_from_callable(
             type_hints = typing.get_type_hints(dataclass_fn)
         dataclass_fn_type = type_hints["return"]
 
-        # Recursing here would be a bit extra, let's be real. Might be good enough to just assume that
-        # the return annotation needs to be a dataclass.
+        # Recursing here would be a bit extra, let's be real. Might be good enough to just assume
+        # that the return annotation needs to be a dataclass.
         # return _get_dataclass_type_from_callable(dataclass_fn_type, caller_frame=caller_frame)
         assert is_dataclass_type(dataclass_fn_type)
         return dataclass_fn_type
@@ -271,7 +251,8 @@ def _get_dataclass_type_from_callable(
 def is_lambda(obj: Any) -> bool:
     """Returns True if the given object is a lambda expression.
 
-    Taken froma-lambda
+    Taken from
+    https://stackoverflow.com/questions/3655842/how-can-i-test-whether-a-variable-holds-a-lambda
     """
     LAMBDA = lambda: 0  # noqa: E731
     return isinstance(obj, type(LAMBDA)) and obj.__name__ == LAMBDA.__name__

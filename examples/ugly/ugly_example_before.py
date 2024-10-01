@@ -9,7 +9,7 @@ import textwrap
 
 
 class Parameters:
-    """base options."""
+    """Base options."""
 
     def __init__(self):
         """Constructor."""

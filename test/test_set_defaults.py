@@ -66,7 +66,7 @@ def test_set_broken_defaults_from_file(tmp_path: Path):
 
 
 def test_set_defaults_from_file_without_root(tmp_path: Path):
-    """test that set_defaults accepts the fields of the dataclass directly, when the parser has
+    """Test that set_defaults accepts the fields of the dataclass directly, when the parser has
     nested_mode=NestedMode.WITHOUT_ROOT."""
     parser = ArgumentParser(nested_mode=NestedMode.WITHOUT_ROOT)
     parser.add_arguments(Foo, dest="foo")

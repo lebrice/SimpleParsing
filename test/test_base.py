@@ -138,7 +138,7 @@ class Extended(Base):
     """Some extension of base-class `Base`"""
 
     d: int = 5
-    """docstring for 'd' in Extended."""
+    """Docstring for 'd' in Extended."""
     e: Color = Color.BLUE
 
 

@@ -35,7 +35,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal, Protocol, TypeGuard, get_args, get_origin
+from typing_extensions import Literal, Protocol, TypeGuard, deprecated, get_args, get_origin
 
 # There are cases where typing.Literal doesn't match typing_extensions.Literal:
 # https://github.com/python/typing_extensions/pull/148
@@ -114,6 +114,7 @@ class InconsistentArgumentError(RuntimeError):
         super().__init__(*args, **kwargs)
 
 
+@deprecated("This is unused internally and will be removed soon.")
 def camel_case(name):
     s1 = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
     return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s1).lower()
@@ -210,7 +211,8 @@ def get_argparse_type_for_container(
     'str' is returned.
 
     Arguments:
-        container_type {Type} -- A container type (ideally a typing.Type such as List, Tuple, along with an item annotation: List[str], Tuple[int, int], etc.)
+        container_type -- A container type (ideally a typing.Type such as List, Tuple, along
+            with an item annotation: List[str], Tuple[int, int], etc.)
 
     Returns:
         typing.Type -- the type that should be used in argparse 'type' argument option.
@@ -270,7 +272,7 @@ def is_literal(t: type) -> bool:
 
 
 def is_list(t: type) -> bool:
-    """returns True when `t` is a List type.
+    """Returns True when `t` is a List type.
 
     Args:
         t (Type): a type.
@@ -301,7 +303,7 @@ def is_list(t: type) -> bool:
 
 
 def is_tuple(t: type) -> bool:
-    """returns True when `t` is a tuple type.
+    """Returns True when `t` is a tuple type.
 
     Args:
         t (Type): a type.
@@ -332,7 +334,7 @@ def is_tuple(t: type) -> bool:
 
 
 def is_dict(t: type) -> bool:
-    """returns True when `t` is a dict type or annotation.
+    """Returns True when `t` is a dict type or annotation.
 
     Args:
         t (Type): a type.
@@ -369,7 +371,7 @@ def is_dict(t: type) -> bool:
 
 
 def is_set(t: type) -> bool:
-    """returns True when `t` is a set type or annotation.
+    """Returns True when `t` is a set type or annotation.
 
     Args:
         t (Type): a type.
@@ -621,6 +623,7 @@ def get_container_nargs(container_type: type) -> int | str:
     raise NotImplementedError(f"Not sure what 'nargs' should be for type {container_type}")
 
 
+@deprecated("This is likely going to be removed soon.")
 def _parse_multiple_containers(
     container_type: type, append_action: bool = False
 ) -> Callable[[str], list[Any]]:
@@ -658,20 +661,22 @@ def _parse_container(container_type: type[Container]) -> Callable[[str], list[An
             # if it doesn't work, fall back to the parse_fn.
             values = _fallback_parse(value)
 
-        # we do the default 'argparse' action, which is to add the values to a bigger list of values.
+        # we do the default 'argparse' action, which is to add the values to a bigger list of
+        # values.
         # result.extend(values)
         logger.debug(f"returning values: {values}")
         return values
 
     def _parse_literal(value: str) -> list[Any] | Any:
-        """try to parse the string to a python expression directly.
+        """Try to parse the string to a python expression directly.
 
         (useful for nested lists or tuples.)
         """
         literal = ast.literal_eval(value)
         logger.debug(f"Parsed literal: {literal}")
         if not isinstance(literal, (list, tuple)):
-            # we were passed a single-element container, like "--some_list 1", which should give [1].
+            # we were passed a single-element container, like "--some_list 1", which should give
+            # [1].
             # We therefore return the literal itself, and argparse will append it.
             return T(literal)
         else:
@@ -892,6 +897,7 @@ def dict_union(*dicts: dict[K, V], recurse: bool = True, dict_factory=dict) -> d
     return result
 
 
+@deprecated("This is buggy and unused internally and will be removed soon.")
 def flatten(nested: PossiblyNestedMapping[K, V]) -> dict[tuple[K, ...], V]:
     """Flatten a dictionary of dictionaries. The returned dictionary's keys are tuples, one entry
     per layer.
@@ -958,16 +964,19 @@ def unflatten_split(
     return unflatten({tuple(key.split(sep)): value for key, value in flattened.items()})
 
 
+@deprecated("This is unused internally and will be removed soon.")
 @overload
 def getitem_recursive(d: PossiblyNestedDict[K, V], keys: Iterable[K]) -> V:
     ...
 
 
+@deprecated("This is unused internally and will be removed soon.")
 @overload
 def getitem_recursive(d: PossiblyNestedDict[K, V], keys: Iterable[K], default: T) -> V | T:
     ...
 
 
+@deprecated("This is unused internally and will be removed soon.")
 def getitem_recursive(
     d: PossiblyNestedDict[K, V], keys: Iterable[K], default: T | _MISSING_TYPE = MISSING
 ) -> V | T:
