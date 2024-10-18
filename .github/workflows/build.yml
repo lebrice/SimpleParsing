@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-      - run: pip install pre-commit
+      - run: pip install "pre-commit<4.0.0"
       - run: pre-commit --version
       - run: pre-commit install
       - run: pre-commit run --all-files
