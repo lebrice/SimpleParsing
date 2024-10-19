@@ -208,7 +208,7 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                     f"--help text."
                 )
 
-            logger.info(f"group.add_argument(*{wrapped_field.option_strings}, **{arg_options})")
+            logger.debug(f"group.add_argument(*{wrapped_field.option_strings}, **{arg_options})")
             # TODO: Perhaps we could hook into the `action` that is returned here to know if the
             # flag was passed or not for a given field.
             _ = group.add_argument(*wrapped_field.option_strings, **arg_options)

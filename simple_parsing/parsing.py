@@ -829,10 +829,10 @@ class ArgumentParser(argparse.ArgumentParser):
         assert len(sorted_dc_wrappers) == len(set(sorted_dc_wrappers))
 
         for dc_wrapper in sorted_dc_wrappers:
-            logger.info(f"Instantiating the wrapper with destinations {dc_wrapper.destinations}")
+            logger.debug(f"Instantiating the wrapper with destinations {dc_wrapper.destinations}")
 
             for destination in dc_wrapper.destinations:
-                logger.info(f"Instantiating the dataclass at destination {destination}")
+                logger.debug(f"Instantiating the dataclass at destination {destination}")
                 # Instantiate the dataclass by passing the constructor arguments
                 # to the constructor.
                 constructor = dc_wrapper.dataclass_fn
