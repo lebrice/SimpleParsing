@@ -1,0 +1,13 @@
+{
+  "properties": {
+    "foo": {
+      "default": 123,
+      "title": "Foo",
+      "type": "integer",
+      "description": "A very important field."
+    }
+  },
+  "title": "Bob",
+  "type": "object",
+  "description": "Some docstring."
+}

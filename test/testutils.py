@@ -313,3 +313,12 @@ needs_toml = pytest.mark.xfail(
     raises=ModuleNotFoundError,
     reason="Test requires tomli and tomli_w to be installed.",
 )
+
+PYDANTIC_INSTALLED = importlib.util.find_spec("pydantic") is not None
+
+needs_pydantic = pytest.mark.xfail(
+    not PYDANTIC_INSTALLED,
+    raises=ModuleNotFoundError,
+    strict=True,
+    reason="Test requires pydantic to be installed.",
+)
