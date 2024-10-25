@@ -1,3 +1,0 @@
-include versioneer.py
-include simple_parsing/_version.py
-include requirements.txt
