@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import functools
 import inspect
+import json
 import shlex
 import sys
 from dataclasses import dataclass, field
@@ -15,6 +16,9 @@ from pytest_regressions.file_regression import FileRegressionFixture
 from typing_extensions import Annotated
 
 from simple_parsing import ArgumentParser, parse, subgroups
+from simple_parsing.helpers.serialization import save
+from simple_parsing.helpers.serialization.serializable import from_dict, to_dict
+from simple_parsing.utils import Dataclass
 from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
 
 from .test_choice import Color
@@ -425,7 +429,10 @@ lambdas_arent_supported_yet = functools.partial(
     marks=pytest.mark.xfail(
         strict=True,
         raises=NotImplementedError,
-        reason="Lambda expressions aren't allowed in the subgroup dict or default_factory at the moment.",
+        reason=(
+            "Lambda expressions aren't allowed in the subgroup dict or default_factory at the "
+            "moment."
+        ),
     ),
 )
 
@@ -784,11 +791,12 @@ We expect to get:
 #     ModelConfig = _ModelConfig()
 #     SmallModel = _ModelConfig(num_layers=1, hidden_dim=32)
 #     BigModel = _ModelConfig(num_layers=32, hidden_dim=128)
-
-#     @dataclasses.dataclass
-#     class Config(TestSetup):
-#         model: Model = subgroups({"small": SmallModel, "big": BigModel}, default_factory=SmallModel)
-
+#
+#    @dataclasses.dataclass
+#    class Config(TestSetup):
+#        model: Model = subgroups({"small": SmallModel, "big": BigModel},
+#                                 default_factory=SmallModel)
+#
 #     assert Config.setup().model == SmallModel()
 #     # Hopefully this illustrates why Annotated aren't exactly great:
 #     # At runtime, they are basically the same as the original dataclass when called.
@@ -935,3 +943,99 @@ def test_ordering_of_args_doesnt_matter():
         model=ModelAConfig(lr=0.0003, optimizer="Adam", betas=(0.0, 1.0)),
         dataset=Dataset2Config(data_dir="data/bar", bar=1.2),
     )
+
+
+@dataclass(frozen=True, unsafe_hash=True)
+class A1:
+    a_val: int = 1
+
+
+@dataclass(frozen=True, unsafe_hash=True)
+class A2:
+    a_val: int = 2
+
+
+also_a2_default = functools.partial(A2, a_val=123)
+
+
+@dataclass
+class A1OrA2:
+    a: A1 | A2 = subgroups({"a1": A1, "a2": A2, "also_a2": also_a2_default}, default="a1")
+
+
+@pytest.mark.parametrize(
+    ("value_in_config", "args", "expected"),
+    [
+        (A1OrA2(a=A2()), "", A1OrA2(a=A2())),
+        (A1OrA2(a=A1()), "", A1OrA2(a=A1())),
+        (A1OrA2(a=A1()), "--a=a2", A1OrA2(a=A2())),
+        (A1OrA2(a=also_a2_default()), "", A1OrA2(a=also_a2_default())),
+    ],
+    ids=repr,
+)
+@pytest.mark.parametrize("filetype", [".yaml", ".json", ".pkl"])
+def test_parse_with_config_file_with_different_subgroup(
+    tmp_path: Path,
+    filetype: str,
+    value_in_config: A1OrA2,
+    args: str,
+    expected: A1OrA2,
+):
+    """Test the case where a subgroup different from the default is saved in the config file."""
+    config_path = (tmp_path / "bob").with_suffix(filetype)
+    save(value_in_config, config_path, save_dc_types=True)
+    assert parse(type(value_in_config), config_path=config_path, args=args) == expected
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        A1OrA2(),
+        A1OrA2(a=A2(a_val=2)),
+    ],
+)
+def test_roundtrip(value: Dataclass):
+    """Test to reproduce
+    https://github.com/lebrice/SimpleParsing/pull/284#issuecomment-1783490388."""
+    assert from_dict(type(value), to_dict(value)) == value
+    assert to_dict(from_dict(type(value), to_dict(value))) == to_dict(value)
+
+
+@dataclass
+class AorB:
+    a_or_b: A | B = subgroups(
+        {"a": A, "b": B, "also_a": functools.partial(A, a=1.23)}, default="a"
+    )
+
+
+def test_saved_with_key_as_default(tmp_path: Path):
+    """Test to try to reproduce
+    https://github.com/lebrice/SimpleParsing/pull/284#discussion_r1434421587
+    """
+
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"a_or_b": "b"}))
+
+    assert parse(AorB, args="") == AorB(a_or_b=A())
+    assert parse(AorB, config_path=config_path, args="") == AorB(a_or_b=B())
+    assert parse(AorB, config_path=config_path, args="--a_or_b=a") == AorB(a_or_b=A())
+
+
+def test_saved_with_custom_dict_as_default(tmp_path: Path):
+    """Test when a customized dict is set in the config for a subgroups field.
+
+    We expect to have a warning but for things to work.
+    """
+
+    config_path = tmp_path / "config.json"
+    config_path.write_text(json.dumps({"a_or_b": {"b": "somefoo"}}))
+    assert parse(AorB, args="") == AorB(a_or_b=A())
+
+    with pytest.raises(TypeError):
+        # Default is 'a', so we should get a TypeError because b="somefoo" is passed to `A`.
+        assert parse(AorB, config_path=config_path, args="")
+
+    with pytest.warns(RuntimeWarning):
+        assert parse(AorB, config_path=config_path, args="--b=bobo") == AorB(a_or_b=B(b="bobo"))
+
+    assert parse(AorB, config_path=config_path, args="--a_or_b=a") == AorB(a_or_b=A())

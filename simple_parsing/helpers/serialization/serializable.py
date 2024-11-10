@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import json
 import pickle
 import warnings
@@ -210,7 +211,8 @@ class SerializableMixin:
                 if parent in SerializableMixin.subclasses and parent is not SerializableMixin:
                     decode_into_subclasses = parent.decode_into_subclasses
                     logger.debug(
-                        f"Parent class {parent} has decode_into_subclasses = {decode_into_subclasses}"
+                        f"Parent class {parent} has decode_into_subclasses = "
+                        f"{decode_into_subclasses}"
                     )
                     break
 
@@ -222,7 +224,10 @@ class SerializableMixin:
         register_decoding_fn(cls, cls.from_dict)
 
     def to_dict(
-        self, dict_factory: type[dict] = dict, recurse: bool = True, save_dc_types: bool = False
+        self,
+        dict_factory: type[dict] = dict,
+        recurse: bool = True,
+        save_dc_types: bool | int = False,
     ) -> dict:
         """Serializes this dataclass to a dict.
 
@@ -598,6 +603,7 @@ def loads_yaml(
 
 def read_file(path: str | Path) -> dict:
     """Returns the contents of the given file as a dictionary.
+
     Uses the right function depending on `path.suffix`:
     {
         ".yml": yaml.safe_load,
@@ -616,7 +622,7 @@ def save(
     obj: Any,
     path: str | Path,
     format: FormatExtension | None = None,
-    save_dc_types: bool = False,
+    save_dc_types: bool | int = False,
     **kwargs,
 ) -> None:
     """Save the given dataclass or dictionary to the given file."""
@@ -707,7 +713,7 @@ def to_dict(
     dc: DataclassT,
     dict_factory: type[dict] = dict,
     recurse: bool = True,
-    save_dc_types: bool = False,
+    save_dc_types: bool | int = False,
 ) -> dict:
     """Serializes this dataclass to a dict.
 
@@ -739,6 +745,11 @@ def to_dict(
         else:
             d[DC_TYPE_KEY] = module + "." + class_name
 
+    # Decrement save_dc_types if it is an int, so that we only save the type of the subgroups
+    # dataclass, not all dataclasses recursively.
+    if save_dc_types is not True and save_dc_types > 0:
+        save_dc_types -= 1
+
     for f in fields(dc):
         name = f.name
         value = getattr(dc, name)
@@ -766,7 +777,8 @@ def to_dict(
                 encoded = encoding_fn(value)
             except Exception as e:
                 logger.error(
-                    f"Unable to encode value {value} of type {type(value)}! Leaving it as-is. (exception: {e})"
+                    f"Unable to encode value {value} of type {type(value)}! Leaving it as-is. "
+                    f"(exception: {e})"
                 )
                 encoded = value
         d[name] = encoded
@@ -835,6 +847,7 @@ def from_dict(
         if name not in obj_dict:
             if (
                 field.metadata.get("to_dict", True)
+                and field.init
                 and field.default is MISSING
                 and field.default_factory is MISSING
             ):
@@ -931,6 +944,7 @@ def is_dataclass_or_optional_dataclass_type(t: type) -> bool:
     return is_dataclass(t) or (is_optional(t) and is_dataclass(get_args(t)[0]))
 
 
+@functools.lru_cache(maxsize=None)
 def _locate(path: str) -> Any:
     """COPIED FROM Hydra: https://github.com/facebookresearch/hydra/blob/f8940600d0ab5c695961ad83ab
     d042ffe9458caf/hydra/_internal/utils.py#L614.
@@ -971,7 +985,8 @@ def _locate(path: str) -> Any:
                 except ModuleNotFoundError as exc_import:
                     raise ImportError(
                         f"Error loading '{path}':\n{repr(exc_import)}"
-                        + f"\nAre you sure that '{part}' is importable from module '{parent_dotpath}'?"
+                        + f"\nAre you sure that '{part}' is importable from module "
+                        f"'{parent_dotpath}'?"
                     ) from exc_import
                 except Exception as exc_import:
                     raise ImportError(

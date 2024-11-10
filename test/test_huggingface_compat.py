@@ -10,8 +10,9 @@ from typing import List, Optional, Union
 
 import pytest
 
-from simple_parsing import ArgumentParser
+from simple_parsing import ArgumentParser, parse
 from simple_parsing.docstring import get_attribute_docstring
+from simple_parsing.helpers.serialization import load, save
 
 from .testutils import TestSetup, needs_yaml, raises_invalid_choice
 
@@ -299,14 +300,14 @@ def test_enums_are_parsed_to_enum_member():
 
     # However, it is, once we factor in what's happening in the __post_init__ of TrainingArguments.
     with pytest.raises(ValueError):
-        TrainingArguments.setup("--evaluation_strategy invalid")
+        parse(TrainingArguments, args="--evaluation_strategy invalid")
 
     for mode, enum_value in zip(
         ["no", "steps", "epoch"],
         [IntervalStrategy.NO, IntervalStrategy.STEPS, IntervalStrategy.EPOCH],
     ):
         assert (
-            TrainingArguments.setup(f"--evaluation_strategy {mode}").evaluation_strategy
+            parse(TrainingArguments, args=f"--evaluation_strategy {mode}").evaluation_strategy
             == enum_value
         )
 
@@ -1265,7 +1266,13 @@ def test_docstring_parse_works_with_hf_training_args():
 
 
 def test_entire_docstring_isnt_used_as_help():
-    help_text = TrainingArguments.get_help_text()
+    parser = ArgumentParser()
+    parser.add_arguments(TrainingArguments, "config")
+    with io.StringIO() as f:
+        parser.print_help(file=f)
+        f.seek(0)
+        help_text = f.read()
+    # help_text = TrainingArguments.get_help_text()
 
     help_from_field = "Whether to use Apple Silicon chip based `mps` device."
     assert help_from_field in help_text
@@ -1291,9 +1298,21 @@ def test_entire_docstring_isnt_used_as_help():
     ],
 )
 def test_serialization(tmp_path: Path, filename: str, args: TrainingArguments):
-    """test that serializing / deserializing a TrainingArguments works."""
-    from simple_parsing.helpers.serialization import load, save
+    """Test that serializing / deserializing a TrainingArguments works."""
 
     path = tmp_path / filename
     save(args, path)
     assert load(TrainingArguments, path) == args
+
+
+# @pytest.mark.xfail(
+#     raises=TypeError,
+#     strict=True,
+#     reason="All fields (non-init ones too) are passed to .set_defaults, which raises a TypeError",
+# )
+@pytest.mark.parametrize("filetype", [".yaml", ".json", ".pkl"])
+def test_parse_with_config_file(tmp_path: Path, filetype: str):
+    default_args = TrainingArguments(label_smoothing_factor=123.123)
+    config_path = (tmp_path / "bob").with_suffix(filetype)
+    save(default_args, config_path, save_dc_types=True)
+    assert parse(TrainingArguments, config_path=config_path, args="") == default_args
