@@ -100,7 +100,7 @@ class ArgumentParser(argparse.ArgumentParser):
     - add_config_path_arg : bool, str, optional
         When set to `True`, adds a `--config_path` argument, of type Path, which is used to parse.
         If set to a string then this is the name of the config_path argument.
-        
+
     - config_path: str, optional
         The values read from this file will overwrite the default values from the dataclass definitions.
         When `add_config_path_arg` is also set the defaults are first updated using `config_path`, and then
@@ -167,8 +167,10 @@ class ArgumentParser(argparse.ArgumentParser):
             # By default, add a config path argument if a config path was passed.
             add_config_path_arg = bool(config_path)
         if isinstance(add_config_path_arg, str) and not add_config_path_arg.isidentifier():
-            raise ValueError("If `add_config_path_arg` is a string it must be a valid Python identifier (no dashes)."
-                             f" Not: {add_config_path_arg}")
+            raise ValueError(
+                "If `add_config_path_arg` is a string it must be a valid Python identifier (no dashes)."
+                f" Not: {add_config_path_arg}"
+            )
         self.add_config_path_arg = add_config_path_arg
 
     # TODO: Remove, since the base class already has nicer type hints.
@@ -308,7 +310,11 @@ class ArgumentParser(argparse.ArgumentParser):
                 self.set_defaults(config_file)
 
         if self.add_config_path_arg:
-            config_path_name = self.add_config_path_arg if isinstance(self.add_config_path_arg, str) else 'config_path'
+            config_path_name = (
+                self.add_config_path_arg
+                if isinstance(self.add_config_path_arg, str)
+                else "config_path"
+            )
             temp_parser = ArgumentParser(
                 add_config_path_arg=False,
                 add_help=False,
@@ -1023,7 +1029,7 @@ def parse(
     """
     if dest == add_config_path_arg:
         raise ValueError("`add_config_path_arg` cannot use the same name as `dest`.")
-    
+
     parser = ArgumentParser(
         nested_mode=nested_mode,
         add_help=True,

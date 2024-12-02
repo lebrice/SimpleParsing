@@ -13,7 +13,9 @@ class TrainConfig:
 
 
 def main(args=None) -> None:
-    cfg = simple_parsing.parse(config_class=TrainConfig, args=args, add_config_path_arg="config_file")
+    cfg = simple_parsing.parse(
+        config_class=TrainConfig, args=args, add_config_path_arg="config_file"
+    )
     print(f"Training {cfg.exp_name} with {cfg.workers} workers...")
 
 
