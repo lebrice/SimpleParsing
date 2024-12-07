@@ -14,7 +14,7 @@ class TrainConfig:
 
 def main(args=None) -> None:
     cfg = simple_parsing.parse(
-        config_class=TrainConfig, args=args, add_config_path_arg="config_file"
+        config_class=TrainConfig, args=args, add_config_path_arg="config-file"
     )
     print(f"Training {cfg.exp_name} with {cfg.workers} workers...")
 
@@ -30,7 +30,7 @@ Training default_exp with 8 workers...
 """
 
 # NOTE: When running as in the readme:
-main("--config_file one_config.yaml --exp_name my_first_exp")
+main("--config-file one_config.yaml --exp_name my_first_exp")
 expected += """\
 Training my_first_exp with 42 workers...
 """

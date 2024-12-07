@@ -166,11 +166,6 @@ class ArgumentParser(argparse.ArgumentParser):
         if add_config_path_arg is None:
             # By default, add a config path argument if a config path was passed.
             add_config_path_arg = bool(config_path)
-        if isinstance(add_config_path_arg, str) and not add_config_path_arg.isidentifier():
-            raise ValueError(
-                "If `add_config_path_arg` is a string it must be a valid Python identifier (no dashes)."
-                f" Not: {add_config_path_arg}"
-            )
         self.add_config_path_arg = add_config_path_arg
 
     # TODO: Remove, since the base class already has nicer type hints.
@@ -330,7 +325,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 help="Path to a config file containing default values to use.",
             )
             args_with_config_path, args = temp_parser.parse_known_args(args)
-            config_path = getattr(args_with_config_path, config_path_name)
+            config_path = getattr(args_with_config_path, config_path_name.replace("-", "_"))
 
             if config_path is not None:
                 config_paths = config_path if isinstance(config_path, list) else [config_path]
@@ -1028,7 +1023,7 @@ def parse(
     If `config_path` is passed, loads the values from that file and uses them as defaults.
     """
     if dest == add_config_path_arg:
-        raise ValueError("`add_config_path_arg` cannot use the same name as `dest`.")
+        raise ValueError("`add_config_path_arg` cannot be the same as `dest`.")
 
     parser = ArgumentParser(
         nested_mode=nested_mode,
