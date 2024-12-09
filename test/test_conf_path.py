@@ -15,9 +15,9 @@ class BarConf:
 
 
 @pytest.mark.parametrize(
-    "invalid_value", ["config-file", "config_file", "foo.bar.baz?", "bob bob bob"]
+    "conf_arg_name", ["config-file", "config_file", "foo.bar.baz?", "bob bob bob"]
 )
-def test_config_path_arg(tmp_path: Path, invalid_value: str):
+def test_config_path_arg(tmp_path: Path, conf_arg_name: str):
     """Test config_path with valid strings."""
     # Create config file
     conf_path = tmp_path / "foo.yml"
@@ -25,27 +25,27 @@ def test_config_path_arg(tmp_path: Path, invalid_value: str):
         json.dump({"foo": "bee"}, f)
 
     # with pytest.raises(ValueError):
-    parser = ArgumentParser(BarConf, add_config_path_arg=invalid_value)
-    args = parser.parse_args([f"--{invalid_value}", str(conf_path)])
+    parser = ArgumentParser(BarConf, add_config_path_arg=conf_arg_name)
+    args = parser.parse_args([f"--{conf_arg_name}", str(conf_path)])
     print(args)
 
 
 @pytest.mark.parametrize(
-    "invalid_value",
+    "conf_arg_name",
     [
         "-------",
     ],
 )
-def test_pass_invalid_value_to_add_config_path_arg(tmp_path: Path, invalid_value: str):
+def test_pass_invalid_value_to_add_config_path_arg(tmp_path: Path, conf_arg_name: str):
     """Test config_path with invalid strings."""
     # Create config file
     conf_path = tmp_path / "foo.yml"
     with conf_path.open("w") as f:
         json.dump({"foo": "bee"}, f)
 
-    parser = ArgumentParser(BarConf, add_config_path_arg=invalid_value)
+    parser = ArgumentParser(BarConf, add_config_path_arg=conf_arg_name)
     with pytest.raises(ValueError):
-        parser.parse_args([f"--{invalid_value}", str(conf_path)])
+        parser.parse_args([f"--{conf_arg_name}", str(conf_path)])
 
 
 def test_config_path_same_as_dst_error():
