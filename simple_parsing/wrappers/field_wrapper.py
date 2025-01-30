@@ -1021,7 +1021,9 @@ class FieldWrapper(Wrapper):
         # subparsers.required = default_value is dataclasses.MISSING
         for subcommand, dataclass_type in self.subparsers_dict.items():
             logger.debug(f"adding subparser '{subcommand}' for type {dataclass_type}")
-            subparser = subparsers.add_parser(subcommand)
+            subparser = subparsers.add_parser(
+                subcommand, formatter_class=parser.formatter_class
+            )
             # Just for typing correctness, as we didn't explicitly change
             # the return type of subparsers.add_parser method.)
             subparser = cast("ArgumentParser", subparser)
