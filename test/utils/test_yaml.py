@@ -1,7 +1,6 @@
 """Tests for serialization to/from yaml files."""
 import textwrap
 from dataclasses import dataclass
-from typing import List
 
 import pytest
 
@@ -24,7 +23,7 @@ class Config(YamlSerializable):
     bob: int = 123
     some_float: float = 1.23
 
-    points: List[Point] = list_field()
+    points: list[Point] = list_field()
 
 
 def test_dumps():

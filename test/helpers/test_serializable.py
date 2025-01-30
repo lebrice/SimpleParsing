@@ -1,10 +1,12 @@
 """Adds typed dataclasses for the "config" yaml files."""
+
 from collections import OrderedDict
+from collections.abc import MutableMapping
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from test.testutils import TestSetup, raises
-from typing import Callable, Dict, List, MutableMapping, Optional, Set, Tuple
+from typing import Callable, Optional
 
 import pytest
 
@@ -83,7 +85,7 @@ def Parent(frozen: bool, Child):
     @dataclass(frozen=frozen)
     class Parent(FrozenSerializable if frozen else Serializable):
         name: str = "Consuela"
-        children: Dict[str, Child] = field(default_factory=OrderedDict)
+        children: dict[str, Child] = field(default_factory=OrderedDict)
 
     return Parent
 
@@ -93,7 +95,7 @@ def ParentWithOptionalChildren(Parent, Child):
     @dataclass(frozen=issubclass(Parent, FrozenSerializable))
     class ParentWithOptionalChildren(Parent):
         name: str = "Consuela"
-        children: Dict[str, Optional[Child]] = field(default_factory=OrderedDict)
+        children: dict[str, Optional[Child]] = field(default_factory=OrderedDict)
 
     return ParentWithOptionalChildren
 
@@ -102,7 +104,7 @@ def ParentWithOptionalChildren(Parent, Child):
 def ChildWithFriends(Child):
     @dataclass(frozen=issubclass(Child, FrozenSerializable))
     class ChildWithFriends(Child):
-        friends: List[Optional[Child]] = mutable_field(list)
+        friends: list[Optional[Child]] = mutable_field(list)
 
     return ChildWithFriends
 
@@ -228,7 +230,7 @@ def B(Base):
 def Container(frozen: bool, Base):
     @dataclass(frozen=frozen)
     class Container(FrozenSerializable if frozen else Serializable):
-        items: List[Base] = field(default_factory=list)
+        items: list[Base] = field(default_factory=list)
 
     return Container
 
@@ -248,7 +250,7 @@ def test_forward_ref_dict(silent, frozen: bool):
     class LossWithDict(FrozenSerializable if frozen else Serializable):
         name: str = ""
         total: float = 0.0
-        sublosses: Dict[str, "LossWithDict"] = field(default_factory=dict)  # noqa
+        sublosses: dict[str, "LossWithDict"] = field(default_factory=dict)  # noqa
 
     LossWithDict.frozen = frozen
     recon = LossWithDict(name="recon", total=1.2)
@@ -269,7 +271,7 @@ def test_forward_ref_list(silent, frozen: bool):
     class JLossWithList(FrozenSerializable if frozen else Serializable):
         name: str = ""
         total: float = 0.0
-        same_level: List["JLossWithList"] = field(default_factory=list)  # noqa: F821
+        same_level: list["JLossWithList"] = field(default_factory=list)  # noqa: F821
 
     recon = JLossWithList(name="recon", total=1.2)
     kl = JLossWithList(name="kl", total=3.4)
@@ -295,7 +297,7 @@ def test_forward_ref_correct_one_chosen_if_two_types_have_same_name(frozen: bool
     class Loss(FrozenSerializable if frozen else Serializable):
         name: str = ""
         total: float = 0.0
-        sublosses: Dict[str, "Loss"] = field(default_factory=OrderedDict)  # noqa: F821
+        sublosses: dict[str, "Loss"] = field(default_factory=OrderedDict)  # noqa: F821
         fofo: int = 1
 
     def foo():
@@ -339,9 +341,9 @@ def test_nested_list(frozen: bool):
     class Cat(FrozenSerializable if frozen else Serializable):
         name: str = "bob"
         age: int = 12
-        litters: List[List[Kitten]] = field(default_factory=list)
+        litters: list[list[Kitten]] = field(default_factory=list)
 
-    kittens: List[List[Kitten]] = [
+    kittens: list[list[Kitten]] = [
         [Kitten(name=f"kitten_{i}") for i in range(i * 5, i * 5 + 5)] for i in range(2)
     ]
     mom = Cat("Chloe", age=12, litters=kittens)
@@ -358,9 +360,9 @@ def test_nested_list_optional(frozen: bool):
     class Cat(FrozenSerializable if frozen else Serializable):
         name: str = "bob"
         age: int = 12
-        litters: List[List[Optional[Kitten]]] = field(default_factory=list)
+        litters: list[list[Optional[Kitten]]] = field(default_factory=list)
 
-    kittens: List[List[Optional[Kitten]]] = [
+    kittens: list[list[Optional[Kitten]]] = [
         [(Kitten(name=f"kitten_{i}") if i % 2 == 0 else None) for i in range(i * 5, i * 5 + 5)]
         for i in range(2)
     ]
@@ -377,7 +379,7 @@ def test_dicts(frozen: bool):
 
     @dataclass(frozen=frozen)
     class Bob(FrozenSerializable if frozen else Serializable):
-        cats: Dict[str, Cat] = mutable_field(dict)
+        cats: dict[str, Cat] = mutable_field(dict)
 
     bob = Bob(cats={"Charlie": Cat("Charlie", 1)})
     assert Bob.loads(bob.dumps()) == bob
@@ -416,7 +418,7 @@ def test_custom_encoding_fn(frozen: bool):
 
 
 def test_set_field(frozen):
-    from typing import Hashable
+    from collections.abc import Hashable
 
     @dataclass(unsafe_hash=True, order=True, frozen=frozen)
     class Person(FrozenSerializable if frozen else Serializable, Hashable):
@@ -430,7 +432,7 @@ def test_set_field(frozen):
 
     @dataclass(frozen=frozen)
     class Group(FrozenSerializable if frozen else Serializable):
-        members: Set[Person] = set_field(bob, peter)
+        members: set[Person] = set_field(bob, peter)
 
     g = Group()
     s = g.dumps_json(sort_keys=True)
@@ -450,7 +452,7 @@ def test_set_field(frozen):
 
 
 def test_used_as_dict_key(frozen: bool):
-    from typing import Hashable
+    from collections.abc import Hashable
 
     @dataclass(unsafe_hash=True, order=True, frozen=frozen)
     class Person(FrozenSerializable if frozen else Serializable, Hashable):
@@ -464,7 +466,7 @@ def test_used_as_dict_key(frozen: bool):
 
     @dataclass(frozen=frozen)
     class Leaderboard(FrozenSerializable if frozen else Serializable):
-        participants: Dict[Person, int] = dict_field({bob: 1, peter: 2})
+        participants: dict[Person, int] = dict_field({bob: 1, peter: 2})
 
     # TODO: When serializing a dict, if the key itself is a dict, then we
     # need to serialize it as an ordered dict (list of tuples), because a dict isn't hashable!
@@ -488,7 +490,7 @@ def test_used_as_dict_key(frozen: bool):
 def test_tuple_with_ellipsis(frozen: bool):
     @dataclass(frozen=frozen)
     class Container(FrozenSerializable if frozen else Serializable):
-        ints: Tuple[int, ...] = ()
+        ints: tuple[int, ...] = ()
 
     container = Container(ints=(1, 2))
     assert Container.loads(container.dumps()) == container

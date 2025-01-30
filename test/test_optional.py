@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Optional
 
 import pytest
 
@@ -110,7 +110,7 @@ def test_optional_str():
 def test_optional_list_of_ints():
     @dataclass
     class Bob(TestSetup):
-        a: Optional[List[int]] = field(default_factory=list)
+        a: Optional[list[int]] = field(default_factory=list)
 
     # assert Bob.setup("--a") == Bob(a=None)
     assert Bob.setup("--a 1") == Bob(a=[1])

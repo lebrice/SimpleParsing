@@ -1,7 +1,7 @@
 import dataclasses
 from functools import wraps
 from logging import getLogger
-from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union, overload
+from typing import Any, Optional, TypeVar, Union, overload
 
 from simple_parsing.helpers.fields import choice as _choice
 from simple_parsing.helpers.fields import field
@@ -26,7 +26,7 @@ def uniform(
     default: int = None,
     discrete: bool = True,
     strict: bool = False,
-    shape: Union[int, Tuple[int, ...]] = None,
+    shape: Union[int, tuple[int, ...]] = None,
     **kwargs,
 ) -> int:
     pass
@@ -38,7 +38,7 @@ def uniform(
     max: float,
     default: float = None,
     strict: bool = False,
-    shape: Union[int, Tuple[int, ...]] = None,
+    shape: Union[int, tuple[int, ...]] = None,
     **kwargs,
 ) -> float:
     pass
@@ -51,7 +51,7 @@ def uniform(
     default: float = None,
     discrete: bool = False,
     strict: bool = False,
-    shape: Union[int, Tuple[int, ...]] = None,
+    shape: Union[int, tuple[int, ...]] = None,
     **kwargs,
 ) -> float:
     pass
@@ -63,7 +63,7 @@ def uniform(
     discrete: bool = None,
     default: Union[int, float, dataclasses._MISSING_TYPE] = dataclasses.MISSING,
     strict: bool = False,
-    shape: Union[int, Tuple[int, ...]] = None,
+    shape: Union[int, tuple[int, ...]] = None,
     **kwargs,
 ) -> Union[int, float]:
     """Declares a Field with a Uniform prior.
@@ -149,7 +149,7 @@ def log_uniform(
     min: int,
     max: int,
     discrete: bool = True,
-    shape: Union[int, Tuple[int, ...]] = None,
+    shape: Union[int, tuple[int, ...]] = None,
     **kwargs,
 ) -> int:
     pass
@@ -160,7 +160,7 @@ def log_uniform(
     min: float,
     max: float,
     discrete: bool = False,
-    shape: Union[int, Tuple[int, ...]] = None,
+    shape: Union[int, tuple[int, ...]] = None,
     **kwargs,
 ) -> float:
     pass
@@ -171,7 +171,7 @@ def log_uniform(
     max: Union[int, float],
     discrete: bool = False,
     default: Union[int, float, dataclasses._MISSING_TYPE] = dataclasses.MISSING,
-    shape: Union[int, Tuple[int, ...]] = None,
+    shape: Union[int, tuple[int, ...]] = None,
     **kwargs,
 ) -> Union[int, float]:
     if "default_value" in kwargs:
@@ -207,7 +207,7 @@ loguniform = log_uniform
 def categorical(
     *choices: T,
     default: Union[T, dataclasses._MISSING_TYPE] = dataclasses.MISSING,
-    probabilities: Union[List[float], Dict[str, float]] = None,
+    probabilities: Union[list[float], dict[str, float]] = None,
     strict: bool = False,
     **kwargs: Any,
 ) -> T:
@@ -232,7 +232,7 @@ def categorical(
     metadata = kwargs.get("metadata", {})
     default_key = default
 
-    options: List[Any]
+    options: list[Any]
     if len(choices) == 1 and isinstance(choices[0], dict):
         choice_dict = choices[0]
         if probabilities and not isinstance(probabilities, dict):
@@ -299,7 +299,7 @@ def categorical(
 def hparam(
     default: T,
     *args,
-    prior: Union[Type[Prior[T]], Prior[T]] = None,
+    prior: Union[type[Prior[T]], Prior[T]] = None,
     strict: bool = False,
     **kwargs,
 ) -> T:

@@ -6,7 +6,7 @@
 # import torch.backends.cudnn as cudnn
 # import torch.utils.data
 from dataclasses import dataclass, field
-from typing import ClassVar, Optional, Tuple
+from typing import ClassVar, Optional
 
 import simple_parsing
 from simple_parsing import choice
@@ -147,7 +147,7 @@ class OtherParams:
 class CameraParams:
     """Camera Parameters."""
 
-    cam_pos: Tuple[float, float, float] = (0.0, 0.0, 0.0)  # Camera position.
+    cam_pos: tuple[float, float, float] = (0.0, 0.0, 0.0)  # Camera position.
     width: int = 128
     height: int = 128
     cam_dist: float = 3.0  # Camera distance from the center of the object
@@ -155,14 +155,14 @@ class CameraParams:
     angle: int = 30  # cam angle
     fovy: float = 30  # Field of view in the vertical direction.
     focal_length: float = 0.1  # focal length
-    theta: Tuple[float, float] = (20, 80)  # Angle in degrees from the z-axis.
-    phi: Tuple[float, float] = (20, 70)  # Angle in degrees from the x-axis.
-    axis: Tuple[float, float, float] = (
+    theta: tuple[float, float] = (20, 80)  # Angle in degrees from the z-axis.
+    phi: tuple[float, float] = (20, 70)  # Angle in degrees from the x-axis.
+    axis: tuple[float, float, float] = (
         0.0,
         1.0,
         0.0,
     )  # Axis for random camera position.
-    at: Tuple[float, float, float] = (0.05, 0.0, 0.0)  # Camera lookat position.
+    at: tuple[float, float, float] = (0.05, 0.0, 0.0)  # Camera lookat position.
     sphere_halfbox: bool = False  # Renders demo sphere-halfbox
     norm_depth_image_only: bool = False  # Render on the normalized depth image.
     mesh: bool = False  # Render as mesh if enabled.
@@ -189,7 +189,7 @@ class RenderingParams:
 
 @dataclass
 class Parameters:
-    """base options."""
+    """Base options."""
 
     # Dataset parameters.
     dataset: DatasetParams = field(default_factory=DatasetParams)

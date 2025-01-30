@@ -1,6 +1,7 @@
 import argparse
+from collections.abc import Container
 from dataclasses import dataclass, field
-from typing import Any, Container, List, Tuple, Type, Union
+from typing import Any, Union
 
 from simple_parsing import ArgumentParser
 
@@ -83,7 +84,7 @@ def test_parse_multiple_with_single_arg_value_sets_that_value_for_all_instances(
     ],
 )
 def test_parse_multiple_with_provided_value_for_each_instance(
-    some_type: Type, default_value: Any, passed_values: List[Any], silent
+    some_type: type, default_value: Any, passed_values: list[Any], silent
 ):
     @dataclass
     class SomeClass(TestSetup):
@@ -103,7 +104,7 @@ def test_parse_multiple_with_provided_value_for_each_instance(
 
 
 @parametrize("some_type", [int, float, str, bool])
-def test_parse_multiple_without_required_arguments(some_type: Type):
+def test_parse_multiple_without_required_arguments(some_type: type):
     @dataclass
     class SomeClass(TestSetup):
         a: some_type  # type: ignore
@@ -113,10 +114,10 @@ def test_parse_multiple_without_required_arguments(some_type: Type):
         SomeClass.setup_multiple(2, "")
 
 
-@parametrize("container_type", [List, Tuple])
+@parametrize("container_type", [list, tuple])
 @parametrize("item_type", [int, float, str, bool])
 def test_parse_multiple_without_required_container_arguments(
-    container_type: Type, item_type: Type
+    container_type: type, item_type: type
 ):
     @dataclass
     class SomeClass(TestSetup):
@@ -127,9 +128,9 @@ def test_parse_multiple_without_required_container_arguments(
         _ = SomeClass.setup_multiple(3, "")
 
 
-@parametrize("container_type", [List, Tuple])
+@parametrize("container_type", [list, tuple])
 @parametrize("item_type", [int, float, str, bool])
-def test_parse_multiple_with_arg_name_without_arg_value(container_type: Type, item_type: Type):
+def test_parse_multiple_with_arg_name_without_arg_value(container_type: type, item_type: type):
     @dataclass
     class SomeClass(TestSetup):
         a: container_type[item_type]  # type: ignore
@@ -144,14 +145,14 @@ def test_parse_multiple_with_arg_name_without_arg_value(container_type: Type, it
 @parametrize(
     "container_type, default_value",
     [
-        (List[str], ["1", "2", "3"]),
-        (List[str], ["1", "2"]),
-        (Tuple[str, int], ["1", 2]),
-        (List[Union[str, bool]], ["1", False]),
+        (list[str], ["1", "2", "3"]),
+        (list[str], ["1", "2"]),
+        (tuple[str, int], ["1", 2]),
+        (list[Union[str, bool]], ["1", False]),
     ],
 )
 def test_parse_multiple_containers_default_value(
-    num_instances: int, container_type: Type[Container], default_value: Container
+    num_instances: int, container_type: type[Container], default_value: Container
 ):
     @dataclass
     class SomeClass(TestSetup):

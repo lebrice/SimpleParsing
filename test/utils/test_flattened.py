@@ -2,7 +2,7 @@
 import functools
 from dataclasses import dataclass, field
 from test.testutils import pytest, raises
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 
 from simple_parsing import mutable_field
 from simple_parsing.helpers import FlattenedAccess
@@ -77,7 +77,7 @@ class ObjectConfig:
     """Configuration for a generic Object with a type and some kwargs."""
 
     type: str = ""
-    options: Dict[str, Any] = field(default_factory=dict)
+    options: dict[str, Any] = field(default_factory=dict)
 
     def __init__(self, type: str, **kwargs):
         self.type = type
@@ -119,7 +119,7 @@ class SummaryConfig:
     eval_step: int = 250
     ckpt_step: int = 1000000000
     summarize_samples: bool = True
-    sample_grid: Tuple[int, int] = (10, 10)
+    sample_grid: tuple[int, int] = (10, 10)
 
 
 @dataclass

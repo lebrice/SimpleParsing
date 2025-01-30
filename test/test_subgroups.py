@@ -8,11 +8,10 @@ import sys
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import Callable, TypeVar
+from typing import Annotated, Callable, TypeVar
 
 import pytest
 from pytest_regressions.file_regression import FileRegressionFixture
-from typing_extensions import Annotated
 
 from simple_parsing import ArgumentParser, parse, subgroups
 from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
@@ -752,12 +751,12 @@ def test_help(
     here = Path(__file__).relative_to(Path.cwd())
     file_regression.check(
         f"""\
-# Regression file for [this test]({here}:{inspect.getsourcelines(test_help)[1]})
+# Regression file for {Path(__file__).name:}::{test_help.__name__}
 
 Given Source code:
 
 ```python
-{''.join(inspect.getsourcelines(dataclass_type)[0])}
+{"".join(inspect.getsourcelines(dataclass_type)[0])}
 ```
 
 and command: {command!r}

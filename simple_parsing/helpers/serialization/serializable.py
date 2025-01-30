@@ -598,6 +598,7 @@ def loads_yaml(
 
 def read_file(path: str | Path) -> dict:
     """Returns the contents of the given file as a dictionary.
+
     Uses the right function depending on `path.suffix`:
     {
         ".yml": yaml.safe_load,

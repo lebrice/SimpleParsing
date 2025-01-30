@@ -12,7 +12,6 @@ For more info, check out the docstring of the `ConflictResolution` enum.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Tuple
 
 from simple_parsing import ArgumentParser, ConflictResolution
 
@@ -21,8 +20,8 @@ from simple_parsing import ArgumentParser, ConflictResolution
 class CNNStack:
     name: str = "stack"
     num_layers: int = 3
-    kernel_sizes: Tuple[int, int, int] = (7, 5, 5)
-    num_filters: List[int] = field(default_factory=[32, 64, 64].copy)
+    kernel_sizes: tuple[int, int, int] = (7, 5, 5)
+    num_filters: list[int] = field(default_factory=[32, 64, 64].copy)
 
 
 parser = ArgumentParser(conflict_resolution=ConflictResolution.ALWAYS_MERGE)

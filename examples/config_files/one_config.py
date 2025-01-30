@@ -1,4 +1,5 @@
 """Example adapted from https://github.com/eladrich/pyrallis#my-first-pyrallis-example-"""
+
 from dataclasses import dataclass
 
 import simple_parsing

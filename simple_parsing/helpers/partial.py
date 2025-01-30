@@ -5,16 +5,14 @@ import dataclasses
 import functools
 import inspect
 import typing
+from collections.abc import Hashable, Sequence
 from dataclasses import make_dataclass
 from functools import lru_cache, singledispatch, wraps
 from logging import getLogger as get_logger
 from typing import (
     Any,
     Callable,
-    Dict,
     Generic,
-    Hashable,
-    Sequence,
     _ProtocolMeta,
     cast,
     get_type_hints,
@@ -72,7 +70,7 @@ def _cache_when_possible(fn: Callable[_P, _OutT]) -> Callable[_P, _OutT]:
     @wraps(fn)
     def _switch(*args: _P.args, **kwargs: _P.kwargs) -> _OutT:
         if _all_hashable(args, kwargs):
-            hashable_kwargs = typing.cast(Dict[str, Hashable], kwargs)
+            hashable_kwargs = typing.cast(dict[str, Hashable], kwargs)
             return cached_fn(*args, **hashable_kwargs)
         return fn(*args, **kwargs)
 
@@ -211,12 +209,12 @@ def infer_type_annotation_from_default(default: Any) -> Any | type:
     if isinstance(default, (int, str, float, bool)):
         return type(default)
     if isinstance(default, tuple):
-        return typing.Tuple[tuple(infer_type_annotation_from_default(d) for d in default)]
+        return tuple[tuple(infer_type_annotation_from_default(d) for d in default)]
     if isinstance(default, list):
         if not default:
             return list
         # Assuming that all items have the same type.
-        return typing.List[infer_type_annotation_from_default(default[0])]
+        return list[infer_type_annotation_from_default(default[0])]
     if isinstance(default, dict):
         if not default:
             return dict
