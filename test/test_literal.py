@@ -1,7 +1,7 @@
 import enum
 import sys
 from dataclasses import dataclass
-from typing import Any, List, NamedTuple, Optional
+from typing import Any, NamedTuple, Optional
 
 import pytest
 from typing_extensions import Literal
@@ -90,7 +90,7 @@ def test_list_of_literal(literal_field: FieldComponents):
 
     @dataclass
     class Foo(TestSetup):
-        values: List[field_annotation]  # type: ignore
+        values: list[field_annotation]  # type: ignore
 
     with raises_missing_required_arg():
         Foo.setup("")

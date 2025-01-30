@@ -85,7 +85,7 @@ def test_vanilla_argparse_issue64():
 
 
 def test_solved_issue64():
-    """test that shows that Issue 64 is solved now, by adding a single space as the 'help'
+    """Test that shows that Issue 64 is solved now, by adding a single space as the 'help'
     argument, the help formatter can then add the "(default: bbb)" after the argument."""
     parser = ArgumentParser("issue64")
     parser.add_arguments(Options, dest="options")

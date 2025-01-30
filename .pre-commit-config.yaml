@@ -3,7 +3,7 @@ default_language_version:
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v5.0.0
     hooks:
       # list of supported hooks: https://pre-commit.com/hooks.html
       - id: trailing-whitespace
@@ -32,21 +32,21 @@ repos:
     hooks:
       # Run the linter.
       - id: ruff
-        args: ['--line-length', '99', "--select", "I,UP", '--fix']
         require_serial: true
+        args: ["--fix"]
       # Run the formatter.
       - id: ruff-format
-        args: ['--line-length', '99']
         require_serial: true
 
   # python docstring formatting
   - repo: https://github.com/myint/docformatter
-    rev: v1.5.1
+    rev: eb1df347edd128b30cd3368dddc3aa65edcfac38 # Don't autoupdate until https://github.com/PyCQA/docformatter/issues/293 is fixed
     hooks:
       - id: docformatter
         exclude: ^test/test_docstrings.py
-        args: [--in-place, --wrap-summaries=99, --wrap-descriptions=99]
         require_serial: true
+        additional_dependencies: [tomli]
+
 
   # NOTE: Disabling this, since I'm having the glib-c2.29 weird bug.
   # # yaml formatting
@@ -77,12 +77,6 @@ repos:
           - mdformat_frontmatter
           # - mdformat-toc
           # - mdformat-black
-        require_serial: true
-
-  - repo: https://github.com/python-poetry/poetry
-    rev: 1.7.0
-    hooks:
-      - id: poetry-check
         require_serial: true
 
   # word spelling linter

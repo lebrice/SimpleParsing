@@ -1,4 +1,5 @@
 """Collection of helper classes and functions to reduce boilerplate code."""
+
 from .fields import *
 from .flatten import FlattenedAccess
 from .hparams import HyperParameters
@@ -13,3 +14,13 @@ except ImportError:
 # For backward compatibility purposes
 JsonSerializable = Serializable
 SimpleEncoder = SimpleJsonEncoder
+__all__ = [
+    "FlattenedAccess",
+    "HyperParameters",
+    "Partial",
+    "config_for",
+    "FrozenSerializable",
+    "Serializable",
+    "SimpleJsonEncoder",
+    "encode",
+]

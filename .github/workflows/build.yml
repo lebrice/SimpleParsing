@@ -11,50 +11,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
+          version: "0.5.25"
           python-version: '3.11'
-          cache: 'pip'
-      - run: pip install "pre-commit<4.0.0"
-      - run: pre-commit --version
-      - run: pre-commit install
-      - run: pre-commit run --all-files
+      - run: uvx pre-commit --version
+      - run: uvx pre-commit run --all-files
 
   build:
     needs: [linting]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
-      - name: Install poetry
-        run: |
-          python -m pip install --upgrade pip
-          pip install poetry
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-          cache: poetry
 
-      - name: Install base dependencies
-        run: poetry install
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.5.25"
+          python-version: ${{ matrix.python-version }}
+
+
+      - name: Install the project (no extras)
+        run: uv sync
 
       - name: Unit tests with Pytest (no extras)
         timeout-minutes: 3
         run: |
-          poetry run pytest --benchmark-disable --cov=simple_parsing --cov-report=xml --cov-append
-
+          uv run pytest --benchmark-disable --cov=simple_parsing --cov-report=xml --cov-append
 
       - name: Install extra dependencies
-        run: poetry install --all-extras
+        run: uv sync --all-extras
 
       - name: Unit tests with Pytest (with extra dependencies)
         timeout-minutes: 3
         run: |
-          poetry run pytest --benchmark-disable --cov=simple_parsing --cov-report=xml --cov-append
+          uv run pytest --benchmark-disable --cov=simple_parsing --cov-report=xml --cov-append
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4

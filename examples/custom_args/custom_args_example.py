@@ -1,7 +1,6 @@
 """Example of overwriting auto-generated argparse options with custom ones."""
 
 from dataclasses import dataclass
-from typing import List
 
 from simple_parsing import ArgumentParser, field
 from simple_parsing.helpers import list_field
@@ -21,7 +20,7 @@ def parse(cls, args: str = ""):
 @dataclass
 class Example1:
     # A list of animals to take on a walk. (can only be passed 'cat' or 'dog')
-    pets_to_walk: List[str] = list_field(default=["dog"], choices=["cat", "dog"])
+    pets_to_walk: list[str] = list_field(default=["dog"], choices=["cat", "dog"])
 
 
 # passing no arguments uses the default values:

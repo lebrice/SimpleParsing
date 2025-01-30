@@ -5,9 +5,10 @@ import dataclasses
 import inspect
 import sys
 import typing
+from collections.abc import Hashable
 from enum import Enum, auto
 from logging import getLogger
-from typing import Any, Callable, ClassVar, Hashable, Union, cast
+from typing import Any, Callable, ClassVar, Union, cast
 
 from typing_extensions import Literal
 

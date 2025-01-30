@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Optional
 
 import pytest
 
@@ -46,20 +46,20 @@ class Color(Enum):
 @pytest.mark.parametrize(
     "annotation, expected_options",
     [
-        (Tuple[int, int], dict(nargs=2, type=int)),
-        (Tuple[Color, Color], dict(nargs=2, type=parse_enum(Color))),
+        (tuple[int, int], dict(nargs=2, type=int)),
+        (tuple[Color, Color], dict(nargs=2, type=parse_enum(Color))),
         (
-            Optional[Tuple[Color, Color]],
+            Optional[tuple[Color, Color]],
             dict(nargs=2, type=parse_enum(Color), required=False),
         ),
-        (List[str], dict(nargs="*", type=str)),
-        (Optional[List[str]], dict(nargs="*", type=str, required=False)),
+        (list[str], dict(nargs="*", type=str)),
+        (Optional[list[str]], dict(nargs="*", type=str, required=False)),
         (Optional[str], dict(nargs="?", type=str, required=False)),
         (Optional[bool], dict(nargs="?", type=str2bool, required=False)),
         # (Optional[Tuple[Color, str]], dict(nargs=2, type=get_parsing_fn(Tuple[Color, str]), required=False)),
     ],
 )
-def test_generated_options_from_annotation(annotation: Type, expected_options: Dict):
+def test_generated_options_from_annotation(annotation: type, expected_options: dict):
     raise NotImplementedError(
         """
         TODO: Would be a good idea to refactor the FieldWrapper class a bit. The args_dict (a dict

@@ -47,6 +47,7 @@ def get_attribute_docstring(
     dataclass: type, field_name: str, accumulate_from_bases: bool = True
 ) -> AttributeDocString:
     """Returns the docstrings of a dataclass field.
+
     NOTE: a docstring can either be:
     - An inline comment, starting with <#>
     - A Comment on the preceding line, starting with <#>

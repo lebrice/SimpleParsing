@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence, Union
+from typing import Union
 
 import pytest
 

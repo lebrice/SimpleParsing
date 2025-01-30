@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 from simple_parsing import field
 
@@ -20,7 +19,7 @@ def test_single_posarg():
 def test_repeated_posarg():
     @dataclass
     class Foo(TestSetup):
-        output_dir: List[str] = field(positional=True)
+        output_dir: list[str] = field(positional=True)
         extra_flag: bool = False
 
     # Here we see why 'invoke' wrote their own parser. Doesn't seem obvious how to explain to argparse that

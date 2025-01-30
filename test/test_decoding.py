@@ -3,7 +3,7 @@ import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 from test.testutils import Generic, TypeVar
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Optional, Union
 
 import pytest
 from typing_extensions import Literal
@@ -24,9 +24,9 @@ def test_encode_something(simple_attribute):
 
     @dataclass
     class SomeClass(Serializable):
-        d: Dict[str, some_type] = dict_field()
-        l: List[Tuple[some_type, some_type]] = list_field()
-        t: Dict[str, Optional[some_type]] = dict_field()
+        d: dict[str, some_type] = dict_field()
+        l: list[tuple[some_type, some_type]] = list_field()
+        t: dict[str, Optional[some_type]] = dict_field()
         # w: Dict[str, Union[some_type, int, str, None, str, None]] = dict_field()
 
     b = SomeClass()
@@ -73,7 +73,7 @@ def test_typevar_decoding(simple_attribute):
 
     @dataclass
     class Container(Serializable, Generic[ItemT]):
-        items: List[ItemT] = list_field()
+        items: list[ItemT] = list_field()
 
     chair = Item()
     cheap_chair = DiscountedItem(name="Cheap chair")
@@ -85,9 +85,9 @@ def test_typevar_decoding(simple_attribute):
 
     @dataclass
     class SomeClass(Serializable):
-        d: Dict[str, some_type] = dict_field()
-        l: List[Tuple[some_type, some_type]] = list_field()
-        t: Dict[str, Optional[some_type]] = dict_field()
+        d: dict[str, some_type] = dict_field()
+        l: list[tuple[some_type, some_type]] = list_field()
+        t: dict[str, Optional[some_type]] = dict_field()
         # w: Dict[str, Union[some_type, int, str, None, str, None]] = dict_field()
 
     b = SomeClass()
@@ -106,7 +106,7 @@ def test_typevar_decoding(simple_attribute):
 def test_super_nesting():
     @dataclass
     class Complicated(Serializable):
-        x: List[List[List[Dict[int, Tuple[int, float, str, List[float]]]]]] = list_field()
+        x: list[list[list[dict[int, tuple[int, float, str, list[float]]]]]] = list_field()
 
     c = Complicated()
     c.x = [[[{0: (2, 1.23, "bob", [1.2, 1.3])}]]]
@@ -119,7 +119,7 @@ def test_super_nesting():
     [
         # (Tuple[int, float], json.loads(json.dumps([1, 2])), (1, 2.0)),
         (
-            List[Tuple[int, float]],
+            list[tuple[int, float]],
             json.loads(json.dumps([[1, 2], [3, 4]])),
             [(1, 2.0), (3, 4.0)],
         ),
@@ -139,7 +139,7 @@ def test_super_nesting():
         (Union[float, int], 1.2, 1.2),
     ],
 )
-def test_decode(some_type: Type, encoded_value: Any, expected_value: Any):
+def test_decode(some_type: type, encoded_value: Any, expected_value: Any):
     decoding_function = get_decoding_fn(some_type)
     actual = decoding_function(encoded_value)
     assert actual == expected_value
@@ -150,7 +150,7 @@ def test_decode(some_type: Type, encoded_value: Any, expected_value: Any):
 class Hparams:
     use_log: int = 1
     severity: int = 2
-    probs: List[int] = field(default_factory=lambda: [1, 2])
+    probs: list[int] = field(default_factory=lambda: [1, 2])
 
 
 @dataclass
@@ -264,11 +264,11 @@ def test_optional_list_type_doesnt_use_type_decoding_fn():
     register_decoding_fn(int, _safe_cast, overwrite=True)
 
     with pytest.raises(ValueError):
-        get_decoding_fn(List[int])([0.1, 0.2])
+        get_decoding_fn(list[int])([0.1, 0.2])
 
     # BUG: This doesn't work correctly.
     with pytest.raises(ValueError):
-        get_decoding_fn(Optional[List[int]])([0.1, 0.2])
+        get_decoding_fn(Optional[list[int]])([0.1, 0.2])
 
 
 @dataclass
@@ -278,7 +278,7 @@ class ClassWithInt:
 
 @dataclass
 class ClassWithIntList:
-    values: List[int] = field(default_factory=[1, 2, 3].copy)
+    values: list[int] = field(default_factory=[1, 2, 3].copy)
 
 
 @pytest.mark.parametrize(
@@ -301,14 +301,14 @@ class ClassWithIntList:
         pytest.param(
             ClassWithIntList,
             {"values": [1.1, 2.2, 3.3]},
-            r"Unsafe casting occurred when deserializing field 'values' of type typing.List\[int\]: raw value: \[1.1, 2.2, 3.3\], decoded value: \[1, 2, 3\].",
+            r"Unsafe casting occurred when deserializing field 'values' of type list\[int\]: raw value: \[1.1, 2.2, 3.3\], decoded value: \[1, 2, 3\].",
             ClassWithIntList(values=[int(1.1), int(2.2), int(3.3)]),
             id="List of floats",
         ),
     ],
 )
 def test_issue_227_unsafe_int_casting_on_load(
-    class_to_use: Type[DataclassT],
+    class_to_use: type[DataclassT],
     serialized_dict: dict,
     expected_message: str,
     expected_result: DataclassT,

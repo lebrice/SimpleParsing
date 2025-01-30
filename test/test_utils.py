@@ -2,7 +2,6 @@ import enum
 import os
 import sys
 from dataclasses import dataclass
-from typing import Dict, List, Set, Tuple, Type
 
 import simple_parsing.utils as utils
 from simple_parsing import mutable_field
@@ -20,13 +19,13 @@ class SomeDataclass:
 @parametrize(
     "t",
     [
-        Tuple[int, ...],
-        Tuple[str],
-        Tuple,
+        tuple[int, ...],
+        tuple[str],
+        tuple,
         tuple,
     ],
 )
-def test_is_tuple(t: Type):
+def test_is_tuple(t: type):
     assert utils.is_tuple(t)
     assert not utils.is_list(t)
 
@@ -34,14 +33,14 @@ def test_is_tuple(t: Type):
 @parametrize(
     "t",
     [
-        List[int],
-        List[str],
-        List,
+        list[int],
+        list[str],
         list,
-        List[SomeDataclass],
+        list,
+        list[SomeDataclass],
     ],
 )
-def test_is_list(t: Type):
+def test_is_list(t: type):
     assert utils.is_list(t)
     assert not utils.is_tuple(t)
 
@@ -49,11 +48,11 @@ def test_is_list(t: Type):
 @parametrize(
     "t",
     [
-        List[SomeDataclass],
-        Tuple[SomeDataclass],
+        list[SomeDataclass],
+        tuple[SomeDataclass],
     ],
 )
-def test_is_list_of_dataclasses(t: Type):
+def test_is_list_of_dataclasses(t: type):
     assert utils.is_tuple_or_list_of_dataclasses(t)
 
 
@@ -91,7 +90,7 @@ class Temperature(enum.IntEnum):
         Temperature,
     ],
 )
-def test_is_enum(t: Type):
+def test_is_enum(t: type):
     assert utils.is_enum(t)
 
 
@@ -109,7 +108,7 @@ def test_json_serializable(tmpdir):
 def test_list_field():
     @dataclass
     class A:
-        a: List[str] = list_field("bob", "john", "bart")
+        a: list[str] = list_field("bob", "john", "bart")
 
     a1 = A()
     a2 = A()
@@ -119,7 +118,7 @@ def test_list_field():
 def test_set_field():
     @dataclass
     class A:
-        a: Set[str] = set_field("bob", "john", "bart")
+        a: set[str] = set_field("bob", "john", "bart")
 
     a1 = A()
     a2 = A()
@@ -131,7 +130,7 @@ def test_dict_field():
 
     @dataclass
     class A:
-        a: Dict[str, int] = dict_field(default)
+        a: dict[str, int] = dict_field(default)
 
     a1 = A()
     print(a1.a)
@@ -145,7 +144,7 @@ def test_dict_field_with_keyword_args():
 
     @dataclass
     class A(TestSetup):
-        a: Dict[str, int] = dict_field(dict(bob=0, john=1, bart=2))
+        a: dict[str, int] = dict_field(dict(bob=0, john=1, bart=2))
 
     a1 = A()
     a2 = A()
@@ -158,7 +157,7 @@ def test_dict_field_without_args():
 
     @dataclass
     class A(TestSetup):
-        a: Dict[str, int] = dict_field()
+        a: dict[str, int] = dict_field()
 
     a1 = A()
     a2 = A()

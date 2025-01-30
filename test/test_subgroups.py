@@ -8,11 +8,10 @@ import sys
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import Callable, TypeVar
+from typing import Annotated, Callable, TypeVar
 
 import pytest
 from pytest_regressions.file_regression import FileRegressionFixture
-from typing_extensions import Annotated
 
 from simple_parsing import ArgumentParser, parse, subgroups
 from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode, NestedMode
