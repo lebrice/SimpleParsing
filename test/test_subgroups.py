@@ -751,12 +751,12 @@ def test_help(
     here = Path(__file__).relative_to(Path.cwd())
     file_regression.check(
         f"""\
-# Regression file for [this test]({here}:{inspect.getsourcelines(test_help)[1]})
+# Regression file for {Path(__file__).name:}::{test_help.__name__}
 
 Given Source code:
 
 ```python
-{''.join(inspect.getsourcelines(dataclass_type)[0])}
+{"".join(inspect.getsourcelines(dataclass_type)[0])}
 ```
 
 and command: {command!r}
