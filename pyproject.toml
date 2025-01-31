@@ -30,9 +30,7 @@ testpaths = ["test", "simple_parsing"]
 norecursedirs = ["examples", "docs"]
 
 [tool.ruff.lint]
-select = ["I", "UP"]
-# TODO: Fix the imports in __init__.py files and enable these:
-# select = ["E4", "E7", "E9", "I", "UP"]
+select = ["E4", "E7", "E9", "I", "UP"]
 
 [tool.docformatter]
 in-place = true

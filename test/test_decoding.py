@@ -24,14 +24,14 @@ def test_encode_something(simple_attribute):
 
     @dataclass
     class SomeClass(Serializable):
-        d: dict[str, some_type] = dict_field()
-        l: list[tuple[some_type, some_type]] = list_field()
-        t: dict[str, Optional[some_type]] = dict_field()
+        d: dict[str, some_type] = dict_field()  # pyright: ignore[reportInvalidTypeForm]
+        some_list: list[tuple[some_type, some_type]] = list_field()  # pyright: ignore[reportInvalidTypeForm]
+        t: dict[str, Optional[some_type]] = dict_field()  # pyright: ignore[reportInvalidTypeForm]
         # w: Dict[str, Union[some_type, int, str, None, str, None]] = dict_field()
 
     b = SomeClass()
     b.d.update({"hey": expected_value})
-    b.l.append((expected_value, expected_value))
+    b.some_list.append((expected_value, expected_value))
     b.t.update({"hey": None, "hey2": expected_value})
     # b.w.update({
     #     "hey": None,
@@ -85,14 +85,14 @@ def test_typevar_decoding(simple_attribute):
 
     @dataclass
     class SomeClass(Serializable):
-        d: dict[str, some_type] = dict_field()
-        l: list[tuple[some_type, some_type]] = list_field()
-        t: dict[str, Optional[some_type]] = dict_field()
+        d: dict[str, some_type] = dict_field()  # pyright: ignore[reportInvalidTypeForm]
+        some_list: list[tuple[some_type, some_type]] = list_field()  # pyright: ignore[reportInvalidTypeForm]
+        t: dict[str, Optional[some_type]] = dict_field()  # pyright: ignore[reportInvalidTypeForm]
         # w: Dict[str, Union[some_type, int, str, None, str, None]] = dict_field()
 
     b = SomeClass()
     b.d.update({"hey": expected_value})
-    b.l.append((expected_value, expected_value))
+    b.some_list.append((expected_value, expected_value))
     b.t.update({"hey": None, "hey2": expected_value})
     # b.w.update({
     #     "hey": None,
