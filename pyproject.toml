@@ -24,6 +24,11 @@ source = "uv-dynamic-versioning"
 [tool.ruff]
 line-length = 99
 
+[tool.pytest]
+addopts = ["--doctest-modules", "--benchmark-autosave"]
+testpaths = ["test", "simple_parsing"]
+norecursedirs = ["examples", "docs"]
+
 [tool.ruff.lint]
 select = ["I", "UP"]
 # TODO: Fix the imports in __init__.py files and enable these:
