@@ -294,24 +294,66 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
         self._default = value
         if field_default_values is None:
             return
-        unknown_names = set(field_default_values)
+            
+        # First try to handle any subgroup fields
+        subgroup_fields = {f for f in self.fields if f.is_subgroup}
+        remaining_fields = field_default_values.copy()  # Work with a copy to track what's been handled
+        
+        for field_wrapper in subgroup_fields:
+            # Get the default subgroup type from the choices
+            default_key = field_wrapper.subgroup_default
+            if default_key is not None and default_key is not dataclasses.MISSING:
+                choices = field_wrapper.subgroup_choices
+                default_factory = choices[default_key]
+                if callable(default_factory):
+                    default_type = default_factory
+                else:
+                    default_type = type(default_factory)
+                
+                # Get fields of the default type
+                default_subgroup_fields = {f.name for f in dataclasses.fields(default_type)}
+                
+                # Find which fields in the input match fields in the default subgroup
+                matching_fields = {name: remaining_fields[name] for name in list(remaining_fields.keys()) 
+                                if name in default_subgroup_fields}
+                
+                if matching_fields:
+                    # Create the nested structure for the subgroup
+                    subgroup_dict = {
+                        field_wrapper.name: {
+                            "_type_": default_key,
+                            **matching_fields
+                        }
+                    }
+                    # Set this as the default for this field
+                    field_wrapper.set_default(subgroup_dict[field_wrapper.name])
+                    
+                    # Remove handled fields
+                    for name in matching_fields:
+                        remaining_fields.pop(name, None)
+
+        # Now handle any remaining regular fields
         for field_wrapper in self.fields:
-            if field_wrapper.name not in field_default_values:
+            if field_wrapper.name not in remaining_fields:
                 continue
-            # Manually set the default value for this argument.
-            field_default_value = field_default_values[field_wrapper.name]
-            field_wrapper.set_default(field_default_value)
-            unknown_names.remove(field_wrapper.name)
+            if field_wrapper.is_subgroup:
+                continue
+            # Set default for regular field
+            field_wrapper.set_default(remaining_fields[field_wrapper.name])
+            remaining_fields.pop(field_wrapper.name)
+
+        # Handle nested dataclass fields
         for nested_dataclass_wrapper in self._children:
-            if nested_dataclass_wrapper.name not in field_default_values:
+            if nested_dataclass_wrapper.name not in remaining_fields:
                 continue
-            field_default_value = field_default_values[nested_dataclass_wrapper.name]
-            nested_dataclass_wrapper.set_default(field_default_value)
-            unknown_names.remove(nested_dataclass_wrapper.name)
-        unknown_names.discard("_type_")
-        if unknown_names:
+            nested_dataclass_wrapper.set_default(remaining_fields[nested_dataclass_wrapper.name])
+            remaining_fields.pop(nested_dataclass_wrapper.name)
+
+        # Check for any unhandled fields
+        remaining_fields.pop("_type_", None)  # Remove _type_ if present as it's handled separately
+        if remaining_fields:
             raise RuntimeError(
-                f"{sorted(unknown_names)} are not fields of {self.dataclass} at path {self.dest!r}!"
+                f"{sorted(remaining_fields.keys())} are not fields of {self.dataclass} at path {self.dest!r}!"
             )
 
     @property

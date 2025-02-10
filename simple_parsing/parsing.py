@@ -387,14 +387,10 @@ class ArgumentParser(argparse.ArgumentParser):
         if config_path:
             defaults = read_file(config_path)
             if self.nested_mode == NestedMode.WITHOUT_ROOT and len(self._wrappers) == 1:
-                # The file should have the same format as the command-line args, e.g. contain the
-                # fields of the 'root' dataclass directly (e.g. "foo: 123"), rather a dict with
-                # "config: foo: 123" where foo is a field of the root dataclass at dest 'config'.
-                # Therefore, we add the prefix back here.
-                defaults = {self._wrappers[0].dest: defaults}
-                # We also assume that the kwargs are passed as foo=123
-                kwargs = {self._wrappers[0].dest: kwargs}
-            # Also include the values from **kwargs.
+                # The file should have the same format as the command-line args
+                wrapper = self._wrappers[0]
+                defaults = {wrapper.dest: defaults}
+                kwargs = {wrapper.dest: kwargs}
             kwargs = dict_union(defaults, kwargs)
 
         # The kwargs that are set in the dataclasses, rather than on the namespace.
@@ -640,7 +636,7 @@ class ArgumentParser(argparse.ArgumentParser):
             # config_path=self.config_path,
             # NOTE: We disallow abbreviations for subgroups for now. This prevents potential issues
             # for example if you have —a_or_b and A has a field —a then it will error out if you
-            # pass —a=1 because 1 isn’t a choice for the a_or_b argument (because --a matches it
+            # pass —a=1 because 1 isn't a choice for the a_or_b argument (because --a matches it
             # with the abbreviation feature turned on).
             allow_abbrev=False,
         )
@@ -827,6 +823,8 @@ class ArgumentParser(argparse.ArgumentParser):
         argparse.Namespace
             The transformed namespace with the instances set at their
             corresponding destinations.
+            Also keeps whatever arguments were added in the traditional fashion,
+            i.e. with `parser.add_argument(...)`.
         """
         constructor_arguments = constructor_arguments.copy()
         # FIXME: There's a bug here happening with the `ALWAYS_MERGE` case: The namespace has the
@@ -1157,5 +1155,45 @@ def _create_dataclass_instance(
         else:
             logger.debug(f"All fields for {wrapper.dest} were either at their default, or None.")
             return None
+            
+    # Handle subgroup fields
+    subgroup_fields = {f for f in wrapper.fields if f.is_subgroup}
+    if subgroup_fields:
+        # Create a copy of constructor args to avoid modifying the original
+        filtered_args = constructor_args.copy()
+        
+        # Remove _type_ field if present at top level
+        filtered_args.pop("_type_", None)
+        
+        # For each subgroup field, check if we have parameters that belong to its default type
+        for field_wrapper in subgroup_fields:
+            default_key = field_wrapper.subgroup_default
+            if default_key is not None and default_key is not dataclasses.MISSING:
+                choices = field_wrapper.subgroup_choices
+                default_factory = choices[default_key]
+                if callable(default_factory):
+                    default_type = default_factory
+                else:
+                    default_type = type(default_factory)
+                
+                # Get fields of the default type
+                default_subgroup_fields = {f.name for f in dataclasses.fields(default_type)}
+                
+                # Find which fields in the input match fields in the default subgroup
+                matching_fields = {name: filtered_args[name] for name in list(filtered_args.keys()) 
+                                if name in default_subgroup_fields}
+                
+                if matching_fields:
+                    # Create an instance of the default type with the matching fields
+                    subgroup_instance = default_type(**matching_fields)
+                    filtered_args[field_wrapper.name] = subgroup_instance
+                    
+                    # Remove handled fields
+                    for name in matching_fields:
+                        filtered_args.pop(name, None)
+        
+        # Use the filtered args to create the instance
+        constructor_args = filtered_args
+    
     logger.debug(f"Calling constructor: {constructor}(**{constructor_args})")
     return constructor(**constructor_args)

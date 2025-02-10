@@ -964,7 +964,8 @@ def test_subgroup_params_in_config_file_minimal():
     # Create a config file
     config_path = Path(__file__).parent / "test_subgroup_minimal.yaml"
     config = {
-        "model_a_param": "test"  # This should work but currently fails
+        "_type_": "type_a",  # Specify we want to use ModelTypeA
+        "model_a_param": "test"  # Set the parameter
     }
     with config_path.open('w') as f:
         yaml.dump(config, f)
@@ -980,8 +981,8 @@ def test_subgroup_params_in_config_file_minimal():
     # This should work the same way as CLI args
     config_from_file = parse(
         TrainConfig,
-        args=shlex.split(f"--config_path {config_path}"),
-        add_config_path_arg=True,
+        config_path=config_path,
+        args=[],  # Pass empty list to prevent pytest args from being parsed
     )
     
     # These assertions should pass but currently fail because the config file parameters 
