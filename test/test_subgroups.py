@@ -955,16 +955,16 @@ def test_subgroup_params_in_config_file_minimal():
 
     @dataclasses.dataclass
     class TrainConfig(TestSetup):
-        # Use string literal for forward reference to avoid NameError
         model_type: "Union[ModelTypeA, ModelTypeB]" = subgroups(
             {"type_a": ModelTypeA, "type_b": ModelTypeB},
             default_factory=ModelTypeA,
+            positional=False,
         )
 
     # Create a config file
     config_path = Path(__file__).parent / "test_subgroup_minimal.yaml"
     config = {
-        "model_a_param": "test"  # This should work but fails
+        "model_a_param": "test"  # This should work but currently fails
     }
     with config_path.open('w') as f:
         yaml.dump(config, f)
@@ -972,23 +972,19 @@ def test_subgroup_params_in_config_file_minimal():
     # This works (CLI args case)
     config_from_cli = parse(
         TrainConfig,
-        args=shlex.split("--model_type.model_a_param test"),
-        argument_generation_mode=ArgumentGenerationMode.NESTED,
-        nested_mode=NestedMode.WITHOUT_ROOT,
+        args=shlex.split("--model_a_param test"),
     )
     assert isinstance(config_from_cli.model_type, ModelTypeA)
     assert config_from_cli.model_type.model_a_param == "test"
 
-    # This fails with:
-    # RuntimeError: ['model_a_param'] are not fields of <class '__main__.TrainConfig'> at path 'config'!
-    with pytest.raises(RuntimeError, match=r".*not fields of.*TrainConfig.*") as exc_info:
-        config_from_file = parse(
-            TrainConfig,
-            args=shlex.split(f"--config_path {config_path}"),
-            argument_generation_mode=ArgumentGenerationMode.NESTED,
-            nested_mode=NestedMode.WITHOUT_ROOT,
-            add_config_path_arg=True,
-        )
+    # This should work the same way as CLI args
+    config_from_file = parse(
+        TrainConfig,
+        args=shlex.split(f"--config_path {config_path}"),
+        add_config_path_arg=True,
+    )
     
-    # The error occurs because the config file parameters aren't properly associated with the default subgroup
-    assert "model_a_param" in str(exc_info.value)
+    # These assertions should pass but currently fail because the config file parameters 
+    # aren't properly associated with the default subgroup
+    assert isinstance(config_from_file.model_type, ModelTypeA)
+    assert config_from_file.model_type.model_a_param == "test"
