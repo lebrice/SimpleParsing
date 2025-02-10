@@ -8,7 +8,7 @@ import sys
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
-from typing import Annotated, Callable, TypeVar
+from typing import Annotated, Callable, TypeVar, Union, ForwardRef
 
 import pytest
 from pytest_regressions.file_regression import FileRegressionFixture
@@ -321,7 +321,7 @@ def test_defaults_from_partial():
     # constructor arguments, and even if the dataclass_fn is a partial(A, a=1.23), since it's being
     # called like `dataclass_fn(**{"a": 0.0})` (from the field default), then the value of `a` is
     # overwritten with the default value from the field. I think the solution is either:
-    # 1. Not populate the constructor arguments with the value for this field;
+    # 1. Not populate the constructor arguments dict with the default values;
     # 2. Change the default value to be the one from the partial, instead of the one from the
     #    field. The partial would then be called with the same value.
     # I think 1. makes more sense. For fields that aren't required (have a default value), then the
@@ -934,3 +934,61 @@ def test_ordering_of_args_doesnt_matter():
         model=ModelAConfig(lr=0.0003, optimizer="Adam", betas=(0.0, 1.0)),
         dataset=Dataset2Config(data_dir="data/bar", bar=1.2),
     )
+
+def test_subgroup_params_in_config_file_minimal():
+    """Minimal reproduction of the issue where subgroup parameters fail when loaded from config file.
+    
+    This test reproduces the exact issue from the GitHub issue, where parameters for the default
+    subgroup (ModelTypeA) fail to be recognized when provided through a config file, even though
+    they work via CLI arguments.
+    """
+    import yaml
+    from pathlib import Path
+
+    @dataclasses.dataclass
+    class ModelTypeA:
+        model_a_param: str = "default_a"
+
+    @dataclasses.dataclass
+    class ModelTypeB:
+        model_b_param: str = "default_b"
+
+    @dataclasses.dataclass
+    class TrainConfig(TestSetup):
+        # Use string literal for forward reference to avoid NameError
+        model_type: "Union[ModelTypeA, ModelTypeB]" = subgroups(
+            {"type_a": ModelTypeA, "type_b": ModelTypeB},
+            default_factory=ModelTypeA,
+        )
+
+    # Create a config file
+    config_path = Path(__file__).parent / "test_subgroup_minimal.yaml"
+    config = {
+        "model_a_param": "test"  # This should work but fails
+    }
+    with config_path.open('w') as f:
+        yaml.dump(config, f)
+
+    # This works (CLI args case)
+    config_from_cli = parse(
+        TrainConfig,
+        args=shlex.split("--model_type.model_a_param test"),
+        argument_generation_mode=ArgumentGenerationMode.NESTED,
+        nested_mode=NestedMode.WITHOUT_ROOT,
+    )
+    assert isinstance(config_from_cli.model_type, ModelTypeA)
+    assert config_from_cli.model_type.model_a_param == "test"
+
+    # This fails with:
+    # RuntimeError: ['model_a_param'] are not fields of <class '__main__.TrainConfig'> at path 'config'!
+    with pytest.raises(RuntimeError, match=r".*not fields of.*TrainConfig.*") as exc_info:
+        config_from_file = parse(
+            TrainConfig,
+            args=shlex.split(f"--config_path {config_path}"),
+            argument_generation_mode=ArgumentGenerationMode.NESTED,
+            nested_mode=NestedMode.WITHOUT_ROOT,
+            add_config_path_arg=True,
+        )
+    
+    # The error occurs because the config file parameters aren't properly associated with the default subgroup
+    assert "model_a_param" in str(exc_info.value)
