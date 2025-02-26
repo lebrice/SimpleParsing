@@ -306,7 +306,47 @@ class DataclassWrapper(Wrapper, Generic[DataclassT]):
                 choices = field_wrapper.subgroup_choices
                 default_factory = choices[default_key]
                 if callable(default_factory):
-                    default_type = default_factory
+                    # Handle callables (functions or partial) that return a dataclass
+                    if isinstance(default_factory, functools.partial):
+                        # For partial, get the underlying function/class
+                        default_type = default_factory.func
+                    else:
+                        default_type = default_factory
+                    
+                    # If it's still a callable but not a class, we need the return type
+                    if not isinstance(default_type, type) and callable(default_type):
+                        # For a function, use the return annotation to get the class
+                        import inspect
+                        signature = inspect.signature(default_type)
+                        if signature.return_annotation != inspect.Signature.empty:
+                            # Use the actual dataclass directly from the test
+                            if hasattr(default_type, "__globals__"):
+                                # Get globals from the function to resolve the return annotation
+                                globals_dict = default_type.__globals__
+                                locals_dict = {}
+                                if isinstance(signature.return_annotation, str):
+                                    # Try to evaluate the string as a type
+                                    try:
+                                        return_type = eval(signature.return_annotation, globals_dict, locals_dict)
+                                        if is_dataclass_type(return_type):
+                                            default_type = return_type
+                                    except (NameError, TypeError):
+                                        # If we can't evaluate it, try to get it from the global namespace
+                                        # For simple cases like 'Obj' where Obj is defined in the same scope
+                                        if signature.return_annotation in globals_dict:
+                                            default_type = globals_dict[signature.return_annotation]
+                                else:
+                                    # Non-string annotation
+                                    if is_dataclass_type(signature.return_annotation):
+                                        default_type = signature.return_annotation
+                            else:
+                                # Fallback - try simple_parsing's helper (might not work in all cases)
+                                from simple_parsing.helpers.subgroups import _get_dataclass_type_from_callable
+                                try:
+                                    default_type = _get_dataclass_type_from_callable(default_type)
+                                except Exception:
+                                    # If we can't determine the type, we'll skip field analysis
+                                    continue
                 else:
                     default_type = type(default_factory)
                 
