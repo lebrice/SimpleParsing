@@ -150,7 +150,7 @@ def test_optional_positional():
 
     @dataclass
     class Foo(TestSetup):
-        a: int | None = simple_parsing.field(positional=True, default=None)
+        a: Optional[int] = simple_parsing.field(positional=True, default=None)
 
     assert Foo.setup("") == Foo(a=None)
     assert Foo.setup("1") == Foo(a=1)
