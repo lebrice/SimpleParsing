@@ -146,7 +146,7 @@ def test_optional_without_default():
 
 
 def test_optional_positional():
-    """Test when an argument is optional and positional."""
+    """Test when an optional positional argument."""
 
     @dataclass
     class Foo(TestSetup):
