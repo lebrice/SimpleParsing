@@ -272,7 +272,8 @@ class FieldWrapper(Wrapper):
             _arg_options.pop("metavar", None)
 
         elif utils.is_optional(self.type) or self.field.default is None:
-            _arg_options["required"] = False
+            if not self.field.metadata.get("positional"):
+                _arg_options["required"] = False
 
             if utils.is_optional(self.type):
                 type_arguments = utils.get_args(self.type)
