@@ -3,6 +3,7 @@ from typing import Optional
 
 import pytest
 
+import simple_parsing
 from simple_parsing import ArgumentParser
 
 from .testutils import TestSetup
@@ -142,3 +143,14 @@ def test_optional_without_default():
 #     actual = SomeDataclass.setup(f"--some_attribute {passed_value}")
 #     assert actual.some_attribute == expected_value
 #     assert isinstance(actual.some_attribute, some_type)
+
+
+def test_optional_positional():
+    """Test a optional positional argument."""
+
+    @dataclass
+    class Foo(TestSetup):
+        a: Optional[int] = simple_parsing.field(positional=True, default=None)
+
+    assert Foo.setup("") == Foo(a=None)
+    assert Foo.setup("1") == Foo(a=1)
