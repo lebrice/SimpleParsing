@@ -1,0 +1,95 @@
+site_name: simple_parsing Documentation
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - Examples:
+    - Overview: examples/README.md
+    - Demo: examples/demo.py
+    - Demo Simple: examples/demo_simple.py
+    - ML:
+      - Overview: examples/ML/README.md
+      - Ml Example After: examples/ML/ml_example_after.py
+      - Ml Example Before: examples/ML/ml_example_before.py
+      - Other Ml Example: examples/ML/other_ml_example.py
+    - Aliases:
+      - Overview: examples/aliases/README.md
+      - Aliases Example: examples/aliases/aliases_example.py
+    - Config Files:
+      - Overview: examples/config_files/README.md
+      - Composition: examples/config_files/composition.py
+      - Many Configs: examples/config_files/many_configs.py
+      - One Config: examples/config_files/one_config.py
+    - Container Types:
+      - Overview: examples/container_types/README.md
+      - Lists Example: examples/container_types/lists_example.py
+    - Custom Args:
+      - Overview: examples/custom_args/README.md
+      - Custom Args Example: examples/custom_args/custom_args_example.py
+    - Dataclasses:
+      - Overview: examples/dataclasses/README.md
+      - Dataclass Example: examples/dataclasses/dataclass_example.py
+      - Hyperparameters Example: examples/dataclasses/hyperparameters_example.py
+    - Docstrings:
+      - Overview: examples/docstrings/README.md
+      - Docstrings Example: examples/docstrings/docstrings_example.py
+    - Enums:
+      - Overview: examples/enums/README.md
+      - Enums Example: examples/enums/enums_example.py
+    - Inheritance:
+      - Overview: examples/inheritance/README.md
+      - Inheritance Example: examples/inheritance/inheritance_example.py
+      - Ml Inheritance: examples/inheritance/ml_inheritance.py
+      - Ml Inheritance 2: examples/inheritance/ml_inheritance_2.py
+    - Merging:
+      - Overview: examples/merging/README.md
+      - Multiple Example: examples/merging/multiple_example.py
+      - Multiple Lists Example: examples/merging/multiple_lists_example.py
+    - Nesting:
+      - Overview: examples/nesting/README.md
+      - Nesting Example: examples/nesting/nesting_example.py
+    - Partials:
+      - Overview: examples/partials/README.md
+      - Partials Example: examples/partials/partials_example.py
+    - Prefixing:
+      - Overview: examples/prefixing/README.md
+      - Manual Prefix Example: examples/prefixing/manual_prefix_example.py
+    - Serialization:
+      - Overview: examples/serialization/README.md
+      - Custom Types Example: examples/serialization/custom_types_example.py
+      - Serialization Example: examples/serialization/serialization_example.py
+    - Simple:
+      - Basic: examples/simple/basic.py
+      - Choice: examples/simple/choice.py
+      - Flag: examples/simple/flag.py
+      - Help: examples/simple/help.py
+      - Inheritance: examples/simple/inheritance.py
+      - Option Strings: examples/simple/option_strings.py
+      - Reuse: examples/simple/reuse.py
+      - To Json: examples/simple/to_json.py
+    - Subgroups:
+      - Overview: examples/subgroups/README.md
+      - Subgroups Example: examples/subgroups/subgroups_example.py
+    - Subparsers:
+      - Overview: examples/subparsers/README.md
+      - Optional Subparsers: examples/subparsers/optional_subparsers.py
+      - Subparsers Example: examples/subparsers/subparsers_example.py
+    - Ugly:
+      - Ugly Example After: examples/ugly/ugly_example_after.py
+      - Ugly Example Before: examples/ugly/ugly_example_before.py
+  - API Reference: api_reference.md
+markdown_extensions:
+  - pymdownx.superfences
+  - toc:
+      permalink: true
+  - codehilite:
+      guess_lang: false
+      noclasses: true
+plugins:
+  - search # Add search if not already there, common plugin
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_root_heading: True
+            show_source: True
