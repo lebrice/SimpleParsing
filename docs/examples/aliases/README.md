@@ -49,7 +49,7 @@ RunSettings ['train']:
   --train.debug [bool], --train.d [bool]
                         whether or not to execute in debug mode. (default:
                         False)
-  --train.some_value int, --train.v int, ---train.some-value int
+  --train.some_value int, --train.v int
 
 RunSettings ['valid']:
   Parameters for a run.
@@ -57,6 +57,6 @@ RunSettings ['valid']:
   --valid.debug [bool], --valid.d [bool]
                         whether or not to execute in debug mode. (default:
                         False)
-  --valid.some_value int, --valid.v int, ---valid.some-value int
+  --valid.some_value int, --valid.v int
 '''
 ```
