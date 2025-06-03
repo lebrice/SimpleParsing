@@ -1,0 +1,8 @@
+foo:
+  a: "default value for `a` from the Parser's `config_path` (composition_defaults.yaml)"
+
+bar:
+  b: "default value for `b` from the Parser's `config_path` (composition_defaults.yaml)"
+
+baz:
+  c: "default value for `c` from the Parser's `config_path` (composition_defaults.yaml)"

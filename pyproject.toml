@@ -49,4 +49,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "pytest-regressions>=2.7.0",
     "pytest-xdist>=3.6.1",
+    "mkdocs>=1.0",
+    "mkdocs-material>=7.0",
+    "mkdocstrings[python]>=0.18",
 ]
