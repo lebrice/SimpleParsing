@@ -209,6 +209,7 @@ def parse_optional(t: type[T]) -> Callable[[Optional[Any]], Optional[T]]:
 
     return _parse_optional
 
+
 def parse_tuple(tuple_item_types: tuple[type[T], ...]) -> Callable[[list[T]], tuple[T, ...]]:
     """Makes a parsing function for creating tuples from the command-line args.
 
