@@ -42,13 +42,9 @@ def test_optional_with_default_value():
     parser = ArgumentParser()
     parser.add_arguments(Config2, dest="config")
 
-    args = parser.parse_args("".split())
-    config: Config2 = args.config
-    assert config == Config2(var_with_default=42)
-
-    args = parser.parse_args("--var_with_default".split())
-    config: Config2 = args.config
-    assert config == Config2(var_with_default=None)
+    assert parser.parse_args([]).config == Config2(var_with_default=42)
+    assert parser.parse_args(["--var_with_default"]).config == Config2(var_with_default=None)
+    assert parser.parse_args("--var_with_default None".split()).config == Config2(var_with_default=None)
 
 
 @dataclass
