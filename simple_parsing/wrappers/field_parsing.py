@@ -200,7 +200,12 @@ def parse_optional(t: type[T]) -> Callable[[Optional[Any]], Optional[T]]:
     parse = get_parsing_fn(t)
 
     def _parse_optional(val: Optional[Any]) -> Optional[T]:
-        return val if val is None else parse(val)
+        if val is None:
+            return val
+        elif isinstance(val, str) and val == "None":
+            return None
+        else:
+            return parse(val)
 
     return _parse_optional
 

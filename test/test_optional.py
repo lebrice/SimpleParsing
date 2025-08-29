@@ -32,6 +32,22 @@ def test_optional_seed():
 
 
 @dataclass
+class Config2:
+    var_with_default: Optional[int] = 42
+
+
+def test_optional_with_default_value():
+    """Test that a value marked as Optional with a default value can be overridden to None.
+    """
+    parser = ArgumentParser()
+    parser.add_arguments(Config2, dest="config")
+
+    assert parser.parse_args([]).config == Config2(var_with_default=42)
+    assert parser.parse_args(["--var_with_default"]).config == Config2(var_with_default=None)
+    assert parser.parse_args("--var_with_default None".split()).config == Config2(var_with_default=None)
+
+
+@dataclass
 class Child:
     name: str = "Kevin"
     age: int = 12
