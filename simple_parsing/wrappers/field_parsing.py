@@ -213,8 +213,8 @@ def parse_optional(t: type[T]) -> Callable[[Optional[Any]], Optional[T]]:
 def parse_literal(literal_type: type[T]) -> Callable[[str], T]:
     """Returns a parsing function for a Literal type.
 
-    The function maps the string representation of each literal value back to
-    the actual value (e.g. "1" -> 1, "BLUE" -> Color.BLUE).
+    The function maps the string representation of each literal value back to the actual value
+    (e.g. "1" -> 1, "BLUE" -> Color.BLUE).
     """
     literal_values = get_type_arguments(literal_type)
     # Build a mapping from the string representation to the actual value.
