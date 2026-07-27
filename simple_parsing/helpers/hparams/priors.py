@@ -2,14 +2,12 @@ import importlib.util
 import math
 import random
 from abc import abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import (
     Any,
     Generic,
-    List,
     Optional,
-    Sequence,
-    Tuple,
     TypeVar,
     Union,
     overload,
@@ -65,7 +63,7 @@ class NormalPrior(Prior):
     sigma: float = 1.0
     discrete: bool = False
     default: Optional[float] = None
-    shape: Union[int, Tuple[int, ...]] = None
+    shape: Union[int, tuple[int, ...]] = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -110,7 +108,7 @@ class UniformPrior(Prior):
     max: float = 1.0
     discrete: bool = False
     default: Optional[float] = None
-    shape: Union[int, Tuple[int, ...]] = None
+    shape: Union[int, tuple[int, ...]] = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -163,8 +161,8 @@ class UniformPrior(Prior):
 
 @dataclass
 class CategoricalPrior(Prior[T]):
-    choices: List[T]
-    probabilities: Optional[List[float]] = None
+    choices: list[T]
+    probabilities: Optional[list[float]] = None
     default_value: Optional[T] = None
 
     def __post_init__(self):
@@ -178,19 +176,19 @@ class CategoricalPrior(Prior[T]):
                 self.probabilities.append(v)
 
     @overload
-    def sample(self, n: int) -> List[T]:
+    def sample(self, n: int) -> list[T]:
         ...
 
     @overload
     def sample(self) -> T:
         ...
 
-    def sample(self, n: int = None) -> Union[T, List[T]]:
+    def sample(self, n: int = None) -> Union[T, list[T]]:
         assert self.choices
         # n = n or 1
         # assert isinstance(n, int), n
-        choices: List = []
-        probabilities: List[float] = []
+        choices: list = []
+        probabilities: list[float] = []
         if isinstance(self.choices, dict):
             for k, v in self.choices.items():
                 choices.append(k)
@@ -240,7 +238,7 @@ class LogUniformPrior(Prior):
     base: float = math.e
     discrete: bool = False
     default: Optional[float] = None
-    shape: Union[int, Tuple[int, ...]] = None
+    shape: Union[int, tuple[int, ...]] = None
 
     def __post_init__(self):
         super().__post_init__()

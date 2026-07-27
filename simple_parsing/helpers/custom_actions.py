@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import argparse
-from typing import Any, Callable, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import Any, Callable
 
 from typing_extensions import Literal
 

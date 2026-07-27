@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from simple_parsing.helpers import Serializable, choice, list_field
 
-from .testutils import ConflictResolution, List, TestSetup, xfail
+from .testutils import ConflictResolution, TestSetup, xfail
 
 
 @dataclass
@@ -90,7 +90,7 @@ def test_weird_structure():
         """A Block of Conv Layers."""
 
         n_layers: int = 4  # number of layers
-        n_filters: List[int] = list_field(16, 32, 64, 64)  # filters per layer
+        n_filters: list[int] = list_field(16, 32, 64, 64)  # filters per layer
 
     @dataclass
     class GeneratorHParams(ConvBlock):

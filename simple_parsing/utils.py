@@ -14,6 +14,7 @@ import types
 import typing
 from collections import OrderedDict, defaultdict
 from collections import abc as c_abc
+from collections.abc import Container, Iterable, Mapping, MutableMapping
 from dataclasses import _MISSING_TYPE, MISSING, Field
 from enum import Enum
 from logging import getLogger
@@ -21,15 +22,7 @@ from typing import (
     Any,
     Callable,
     ClassVar,
-    Container,
-    Dict,
     ForwardRef,
-    Iterable,
-    List,
-    Mapping,
-    MutableMapping,
-    Set,
-    Tuple,
     TypeVar,
     Union,
     overload,
@@ -93,9 +86,9 @@ def is_dataclass_type(obj: Any) -> TypeGuard[type[Dataclass]]:
 DataclassT = TypeVar("DataclassT", bound=Dataclass)
 
 SimpleValueType = Union[bool, int, float, str]
-SimpleIterable = Union[List[SimpleValueType], Dict[Any, SimpleValueType], Set[SimpleValueType]]
+SimpleIterable = Union[list[SimpleValueType], dict[Any, SimpleValueType], set[SimpleValueType]]
 
-PossiblyNestedDict = Dict[K, Union[V, "PossiblyNestedDict[K, V]"]]
+PossiblyNestedDict = dict[K, Union[V, "PossiblyNestedDict[K, V]"]]
 PossiblyNestedMapping = Mapping[K, Union[V, "PossiblyNestedMapping[K, V]"]]
 
 
@@ -186,10 +179,10 @@ def get_item_type(container_type: type[Container[T]]) -> T:
         list,
         set,
         tuple,
-        List,
-        Set,
-        Tuple,
-        Dict,
+        list,
+        set,
+        tuple,
+        dict,
         Mapping,
         MutableMapping,
     }:
@@ -270,7 +263,7 @@ def is_literal(t: type) -> bool:
 
 
 def is_list(t: type) -> bool:
-    """returns True when `t` is a List type.
+    """Returns True when `t` is a List type.
 
     Args:
         t (Type): a type.
@@ -301,7 +294,7 @@ def is_list(t: type) -> bool:
 
 
 def is_tuple(t: type) -> bool:
-    """returns True when `t` is a tuple type.
+    """Returns True when `t` is a tuple type.
 
     Args:
         t (Type): a type.
@@ -332,7 +325,7 @@ def is_tuple(t: type) -> bool:
 
 
 def is_dict(t: type) -> bool:
-    """returns True when `t` is a dict type or annotation.
+    """Returns True when `t` is a dict type or annotation.
 
     Args:
         t (Type): a type.
@@ -369,7 +362,7 @@ def is_dict(t: type) -> bool:
 
 
 def is_set(t: type) -> bool:
-    """returns True when `t` is a set type or annotation.
+    """Returns True when `t` is a set type or annotation.
 
     Args:
         t (Type): a type.
@@ -664,7 +657,7 @@ def _parse_container(container_type: type[Container]) -> Callable[[str], list[An
         return values
 
     def _parse_literal(value: str) -> list[Any] | Any:
-        """try to parse the string to a python expression directly.
+        """Try to parse the string to a python expression directly.
 
         (useful for nested lists or tuples.)
         """
@@ -850,15 +843,14 @@ def dict_union(*dicts: dict[K, V], recurse: bool = True, dict_factory=dict) -> d
 
     If `recurse` is True, also does the union of nested dictionaries.
     NOTE: The returned dictionary has keys sorted alphabetically.
-    >>> from collections import OrderedDict
-    >>> a = OrderedDict(a=1, b=2, c=3)
-    >>> b = OrderedDict(c=5, d=6, e=7)
-    >>> dict_union(a, b, dict_factory=OrderedDict)
-    OrderedDict([('a', 1), ('b', 2), ('c', 5), ('d', 6), ('e', 7)])
-    >>> a = OrderedDict(a=1, b=OrderedDict(c=2, d=3))
-    >>> b = OrderedDict(a=2, b=OrderedDict(c=3, e=6))
-    >>> dict_union(a, b, dict_factory=OrderedDict)
-    OrderedDict([('a', 2), ('b', OrderedDict([('c', 3), ('d', 3), ('e', 6)]))])
+    >>> a = {'a': 1, 'b': 2, 'c': 3}
+    >>> b = {'c': 5, 'd': 6, 'e': 7}
+    >>> dict_union(a, b)
+    {'a': 1, 'b': 2, 'c': 5, 'd': 6, 'e': 7}
+    >>> a = {'a': 1, 'b': {'c': 2, 'd': 3}}
+    >>> b = {'a': 2, 'b': {'c': 3, 'e': 6}}
+    >>> dict_union(a, b)
+    {'a': 2, 'b': {'c': 3, 'd': 3, 'e': 6}}
     """
     result: dict = dict_factory()
     if not dicts:

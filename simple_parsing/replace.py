@@ -3,7 +3,8 @@ from __future__ import annotations
 import copy
 import dataclasses
 import logging
-from typing import Any, Mapping, overload
+from collections.abc import Mapping
+from typing import Any, overload
 
 from simple_parsing.annotation_utils.get_field_annotations import (
     get_field_type_from_annotations,

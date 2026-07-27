@@ -19,7 +19,7 @@ class Config:
     run_name: str = "train"  # Some parameter for the run name.
     some_int: int = 10  # an optional int parameter.
     log_dir: str = "logs"  # an optional string parameter.
-    """the logging directory to use.
+    """The logging directory to use.
 
     (This is an attribute docstring for the log_dir attribute, and shows up when using the "--help"
     argument!)

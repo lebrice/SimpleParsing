@@ -13,9 +13,10 @@ import sys
 import typing
 from argparse import SUPPRESS, Action, HelpFormatter, Namespace, _
 from collections import defaultdict
+from collections.abc import Sequence
 from logging import getLogger
 from pathlib import Path
-from typing import Any, Callable, Sequence, Type, overload
+from typing import Any, Callable, overload
 
 from simple_parsing.helpers.subgroups import SubgroupKey
 from simple_parsing.wrappers.dataclass_wrapper import DataclassWrapperType
@@ -97,8 +98,15 @@ class ArgumentParser(argparse.ArgumentParser):
         `argparse.MetavarTypeHelpFormatter` and
         `argparse.RawDescriptionHelpFormatter` classes.
 
-    - add_config_path_arg : bool, optional
-        When set to `True`, adds a `--config_path` argument, of type Path, which is used to parse
+    - add_config_path_arg : bool, str, optional
+        When set to `True`, adds a `--config_path` argument, of type Path, which is used to parse.
+        If set to a string then this is the name of the config_path argument.
+
+    - config_path: str, optional
+        The values read from this file will overwrite the default values from the dataclass definitions.
+        When `add_config_path_arg` is also set the defaults are first updated using `config_path`, and then
+        updated with the contents of the `--config_path` file(s). By setting this value it will be default set
+        `add_config_path_arg` to True.
     """
 
     def __init__(
@@ -111,7 +119,7 @@ class ArgumentParser(argparse.ArgumentParser):
         argument_generation_mode=ArgumentGenerationMode.FLAT,
         nested_mode: NestedMode = NestedMode.DEFAULT,
         formatter_class: type[HelpFormatter] = SimpleHelpFormatter,
-        add_config_path_arg: bool | None = None,
+        add_config_path_arg: bool | str | None = None,
         config_path: Path | str | Sequence[Path | str] | None = None,
         add_dest_to_option_strings: bool | None = None,
         **kwargs,
@@ -256,7 +264,7 @@ class ArgumentParser(argparse.ArgumentParser):
                 raise ValueError(
                     f"`dataclass` should be a dataclass type or instance. Got {dataclass}."
                 )
-            dataclass = typing.cast(Type[DataclassT], dataclass)
+            dataclass = typing.cast(type[DataclassT], dataclass)
             dataclass_type = dataclass
             default = default
 
@@ -298,6 +306,11 @@ class ArgumentParser(argparse.ArgumentParser):
                 self.set_defaults(config_file)
 
         if self.add_config_path_arg:
+            config_path_name = (
+                self.add_config_path_arg
+                if isinstance(self.add_config_path_arg, str)
+                else "config_path"
+            )
             temp_parser = ArgumentParser(
                 add_config_path_arg=False,
                 add_help=False,
@@ -306,14 +319,14 @@ class ArgumentParser(argparse.ArgumentParser):
                 nested_mode=FieldWrapper.nested_mode,
             )
             temp_parser.add_argument(
-                "--config_path",
+                f"--{config_path_name}",
                 type=Path,
                 nargs="*",
                 default=self.config_path,
                 help="Path to a config file containing default values to use.",
             )
             args_with_config_path, args = temp_parser.parse_known_args(args)
-            config_path = args_with_config_path.config_path
+            config_path = getattr(args_with_config_path, config_path_name.replace("-", "_"))
 
             if config_path is not None:
                 config_paths = config_path if isinstance(config_path, list) else [config_path]
@@ -323,7 +336,7 @@ class ArgumentParser(argparse.ArgumentParser):
             # Adding it here just so it shows up in the help message. The default will be set in
             # the help string.
             self.add_argument(
-                "--config_path",
+                f"--{config_path_name}",
                 type=Path,
                 default=config_path,
                 help="Path to a config file containing default values to use.",
@@ -829,10 +842,10 @@ class ArgumentParser(argparse.ArgumentParser):
         assert len(sorted_dc_wrappers) == len(set(sorted_dc_wrappers))
 
         for dc_wrapper in sorted_dc_wrappers:
-            logger.info(f"Instantiating the wrapper with destinations {dc_wrapper.destinations}")
+            logger.debug(f"Instantiating the wrapper with destinations {dc_wrapper.destinations}")
 
             for destination in dc_wrapper.destinations:
-                logger.info(f"Instantiating the dataclass at destination {destination}")
+                logger.debug(f"Instantiating the dataclass at destination {destination}")
                 # Instantiate the dataclass by passing the constructor arguments
                 # to the constructor.
                 constructor = dc_wrapper.dataclass_fn
@@ -995,12 +1008,13 @@ def parse(
     dest: str = "config",
     *,
     prefix: str = "",
+    add_help: bool = True,
     nested_mode: NestedMode = NestedMode.WITHOUT_ROOT,
     conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
     add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
     argument_generation_mode=ArgumentGenerationMode.FLAT,
     formatter_class: type[HelpFormatter] = SimpleHelpFormatter,
-    add_config_path_arg: bool | None = None,
+    add_config_path_arg: bool | str | None = None,
     **kwargs,
 ) -> DataclassT:
     """Parse the given dataclass from the command-line.
@@ -1010,10 +1024,12 @@ def parse(
 
     If `config_path` is passed, loads the values from that file and uses them as defaults.
     """
+    if dest == add_config_path_arg:
+        raise ValueError("`add_config_path_arg` cannot be the same as `dest`.")
+
     parser = ArgumentParser(
         nested_mode=nested_mode,
-        add_help=True,
-        # add_config_path_arg=None,
+        add_help=add_help,
         config_path=config_path,
         conflict_resolution=conflict_resolution,
         add_option_string_dash_variants=add_option_string_dash_variants,
@@ -1041,6 +1057,7 @@ def parse_known_args(
     dest: str = "config",
     attempt_to_reorder: bool = False,
     *,
+    add_help: bool = True,
     nested_mode: NestedMode = NestedMode.WITHOUT_ROOT,
     conflict_resolution: ConflictResolution = ConflictResolution.AUTO,
     add_option_string_dash_variants: DashVariant = DashVariant.AUTO,
@@ -1060,7 +1077,7 @@ def parse_known_args(
         args = shlex.split(args)
     parser = ArgumentParser(
         nested_mode=nested_mode,
-        add_help=True,
+        add_help=add_help,
         # add_config_path_arg=None,
         config_path=config_path,
         conflict_resolution=conflict_resolution,

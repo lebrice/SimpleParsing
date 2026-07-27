@@ -159,14 +159,13 @@ def test_more_complicated_unions():
         vals_tuple: tuple[int | float, bool] = field(default=(1, False))
 
     assert (
-        get_field_type_from_annotations(MoreComplex, "vals_list")
-        == typing.List[typing.Union[int, float]]
+        get_field_type_from_annotations(MoreComplex, "vals_list") == list[typing.Union[int, float]]
     )
     assert MoreComplex.__annotations__["vals_list"] == "list[int | float]"
     assert MoreComplex.__annotations__["vals_tuple"] == "tuple[int | float, bool]"
     assert (
         get_field_type_from_annotations(MoreComplex, "vals_tuple")
-        == typing.Tuple[typing.Union[int, float], bool]
+        == tuple[typing.Union[int, float], bool]
     )
     # NOTE: Before we do anything related to simple-parsing, the value in Field.type should still be
     # equivalent to their annotations.
@@ -179,8 +178,8 @@ def test_more_complicated_unions():
 
     ArgumentParser().add_arguments(MoreComplex, dest="unused")
     field_annotations = {f.name: f.type for f in dataclasses.fields(MoreComplex)}
-    assert field_annotations["vals_list"] == typing.List[typing.Union[int, float]]
-    assert field_annotations["vals_tuple"] == typing.Tuple[typing.Union[int, float], bool]
+    assert field_annotations["vals_list"] == list[typing.Union[int, float]]
+    assert field_annotations["vals_tuple"] == tuple[typing.Union[int, float], bool]
 
     assert is_list(field_annotations["vals_list"])
     assert is_tuple(field_annotations["vals_tuple"])
@@ -246,7 +245,7 @@ class OptimizerConfig(TestSetup):
 @dataclass
 class SubclassOfOptimizerConfig(OptimizerConfig):
     bar: int | float = 123
-    """some dummy arg bar."""
+    """Some dummy arg bar."""
 
 
 def test_missing_annotation_on_subclass():

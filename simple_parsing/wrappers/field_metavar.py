@@ -1,6 +1,6 @@
 import functools
 from logging import getLogger
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar
+from typing import Any, Callable, Optional, TypeVar
 
 from ..utils import get_type_arguments, is_optional, is_tuple, is_union
 
@@ -8,16 +8,16 @@ T = TypeVar("T")
 
 logger = getLogger(__name__)
 
-_new_metavars: Dict[Type[T], Optional[str]] = {
+_new_metavars: dict[type[T], Optional[str]] = {
     # the 'primitive' types don't get a 'new' metavar.
     t: t.__name__
     for t in [str, float, int, bytes]
 }
 
 
-def log_results(fn: Callable[[Type], str]):
+def log_results(fn: Callable[[type], str]):
     @functools.wraps(fn)
-    def _wrapped(t: Type) -> str:
+    def _wrapped(t: type) -> str:
         result = fn(t)
         # logger.debug(f"Metavar for type {t}: {result}")
         return result
@@ -26,7 +26,7 @@ def log_results(fn: Callable[[Type], str]):
 
 
 @log_results
-def get_metavar(t: Type) -> str:
+def get_metavar(t: type) -> str:
     """Gets the metavar to be used for that type in help strings.
 
     This is crucial when using a `weird` auto-generated parsing functions for
@@ -48,7 +48,7 @@ def get_metavar(t: Type) -> str:
 
     elif is_union(t):
         args = get_type_arguments(t)
-        metavars: List[str] = []
+        metavars: list[str] = []
         for type_arg in args:
             if type_arg is type(None):  # noqa: E721
                 continue
@@ -63,7 +63,7 @@ def get_metavar(t: Type) -> str:
         if not args:
             return get_metavar(Any)
         logger.debug(f"Tuple args: {args}")
-        metavars: List[str] = []
+        metavars: list[str] = []
         for arg in args:
             if arg is Ellipsis:
                 metavars.append(f"[{metavars[-1]}, ...]")

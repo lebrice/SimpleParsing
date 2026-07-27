@@ -5,9 +5,10 @@ import dataclasses
 import inspect
 import sys
 import typing
+from collections.abc import Hashable
 from enum import Enum, auto
 from logging import getLogger
-from typing import Any, Callable, ClassVar, Hashable, Union, cast
+from typing import Any, Callable, ClassVar, Union, cast
 
 from typing_extensions import Literal
 
@@ -225,7 +226,7 @@ class FieldWrapper(Wrapper):
                     # string, and the values are always dataclass types. We don't need to worry
                     # about having to deal with {"bob": "alice", "alice": "foo"}-type weirdness.
                     namespace.subgroups[self.dest] = value
-                    logger.info(f"Chosen subgroup for '{self.dest}':  '{value}'")
+                    logger.debug(f"Chosen subgroup for '{self.dest}':  '{value}'")
 
     def get_arg_options(self) -> dict[str, Any]:
         """Create the `parser.add_arguments` kwargs for this field.
@@ -271,7 +272,8 @@ class FieldWrapper(Wrapper):
             _arg_options.pop("metavar", None)
 
         elif utils.is_optional(self.type) or self.field.default is None:
-            _arg_options["required"] = False
+            if not self.field.metadata.get("positional"):
+                _arg_options["required"] = False
 
             if utils.is_optional(self.type):
                 type_arguments = utils.get_args(self.type)
@@ -1020,7 +1022,7 @@ class FieldWrapper(Wrapper):
         # subparsers.required = default_value is dataclasses.MISSING
         for subcommand, dataclass_type in self.subparsers_dict.items():
             logger.debug(f"adding subparser '{subcommand}' for type {dataclass_type}")
-            subparser = subparsers.add_parser(subcommand)
+            subparser = subparsers.add_parser(subcommand, formatter_class=parser.formatter_class)
             # Just for typing correctness, as we didn't explicitly change
             # the return type of subparsers.add_parser method.)
             subparser = cast("ArgumentParser", subparser)

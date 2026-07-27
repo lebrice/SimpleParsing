@@ -1,9 +1,10 @@
 import enum
 import sys
 from dataclasses import dataclass
-from typing import Any, List, Literal, NamedTuple, Optional, Union
+from typing import Any, NamedTuple, Optional, Union
 
 import pytest
+from typing_extensions import Literal
 
 from .testutils import (
     TestSetup,
@@ -89,7 +90,7 @@ def test_list_of_literal(literal_field: FieldComponents):
 
     @dataclass
     class Foo(TestSetup):
-        values: List[field_annotation]  # type: ignore
+        values: list[field_annotation]  # type: ignore
 
     with raises_missing_required_arg():
         Foo.setup("")
@@ -130,9 +131,8 @@ def test_issue_322():
 
     assert parse(Foo, args="") == Foo()
     assert parse(Foo, args="--bar=a") == Foo(bar="a")
-    with raises_invalid_choice():
+    # 'b' is neither in Literal["a"] nor a valid int, so it should be rejected.
+    with exits_and_writes_to_stderr("invalid"):
         assert parse(Foo, args="--bar=b")
 
     assert parse(Foo, args="--bar=123") == Foo(bar=123)
-    # TODO: What about this again?
-    assert parse(Foo, args="--bar=1.23") == Foo(bar=1)

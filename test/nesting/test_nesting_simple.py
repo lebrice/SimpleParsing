@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Optional
 
 import pytest
 
@@ -41,7 +41,7 @@ class Container2(TestSetup):
 
 @dataclass
 class ContainerWithList(TestSetup):
-    list_of_class_c: List[ClassC] = field(default_factory=lambda: [ClassC()] * 2)
+    list_of_class_c: list[ClassC] = field(default_factory=lambda: [ClassC()] * 2)
 
 
 xfail_nesting_with_containers_isnt_supported_yet = pytest.mark.xfail(

@@ -3,22 +3,23 @@ import inspect
 import sys
 import types
 import typing
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import InitVar
 from itertools import dropwhile
 from logging import getLogger as get_logger
-from typing import Any, Dict, Iterator, Optional, get_type_hints
+from typing import Any, Optional, get_type_hints
 
 logger = get_logger(__name__)
 
 # NOTE: This dict is used to enable forward compatibility with things such as `tuple[int, str]`,
 # `list[float]`, etc. when using `from __future__ import annotations`.
 forward_refs_to_types = {
-    "tuple": typing.Tuple,
-    "set": typing.Set,
-    "dict": typing.Dict,
-    "list": typing.List,
-    "type": typing.Type,
+    "tuple": tuple,
+    "set": set,
+    "dict": dict,
+    "list": list,
+    "type": type,
 }
 
 
@@ -52,7 +53,7 @@ def evaluate_string_annotation(annotation: str, containing_class: Optional[type]
     """
     # The type of the field might be a string when using `from __future__ import annotations`.
     # Get the local and global namespaces to pass to the `get_type_hints` function.
-    local_ns: Dict[str, Any] = {"typing": typing, **vars(typing)}
+    local_ns: dict[str, Any] = {"typing": typing, **vars(typing)}
     local_ns.update(forward_refs_to_types)
     global_ns = {}
     if containing_class:
@@ -80,23 +81,23 @@ def _replace_UnionType_with_typing_Union(annotation):
     if is_list(annotation):
         item_annotation = typing.get_args(annotation)[0]
         new_item_annotation = _replace_UnionType_with_typing_Union(item_annotation)
-        return typing.List[new_item_annotation]
+        return list[new_item_annotation]
     if is_tuple(annotation):
         item_annotations = typing.get_args(annotation)
         new_item_annotations = tuple(
             _replace_UnionType_with_typing_Union(arg) for arg in item_annotations
         )
-        return typing.Tuple[new_item_annotations]  # type: ignore
+        return tuple[new_item_annotations]  # type: ignore
     if is_dict(annotation):
         annotations = typing.get_args(annotation)
         if not annotations:
-            return typing.Dict
+            return dict
         assert len(annotations) == 2
         key_annotation = annotations[0]
         value_annotation = annotations[1]
         new_key_annotation = _replace_UnionType_with_typing_Union(key_annotation)
         new_value_annotation = _replace_UnionType_with_typing_Union(value_annotation)
-        return typing.Dict[new_key_annotation, new_value_annotation]
+        return dict[new_key_annotation, new_value_annotation]
     if annotation in builtin_types:
         return annotation
     if inspect.isclass(annotation):
@@ -145,8 +146,8 @@ def _get_old_style_annotation(annotation: str) -> str:
 
 
 def _replace_new_union_syntax_with_old_union_syntax(
-    annotations_dict: Dict[str, str], context: collections.ChainMap
-) -> Dict[str, Any]:
+    annotations_dict: dict[str, str], context: collections.ChainMap
+) -> dict[str, Any]:
     new_annotations = annotations_dict.copy()
     for field, annotation_str in annotations_dict.items():
         updated_annotation = _get_old_style_annotation(annotation_str)
@@ -174,7 +175,7 @@ def get_field_type_from_annotations(some_class: type, field_name: str) -> type:
 
     # The type of the field might be a string when using `from __future__ import annotations`.
     # Get the local and global namespaces to pass to the `get_type_hints` function.
-    local_ns: Dict[str, Any] = {"typing": typing, **vars(typing)}
+    local_ns: dict[str, Any] = {"typing": typing, **vars(typing)}
     local_ns.update(forward_refs_to_types)
 
     # NOTE: Get the local namespace of the calling function / module where this class is defined,

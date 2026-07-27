@@ -22,7 +22,7 @@ class DocStringsExample:
 
     # comment above 42
     attribute4: float = 1.0  # inline comment
-    """docstring below (this appears in --help)"""
+    """Docstring below (this appears in --help)"""
 
     # comment above (this appears in --help) 46
     attribute5: float = 1.0  # inline comment
@@ -30,7 +30,7 @@ class DocStringsExample:
     attribute6: float = 1.0  # inline comment (this appears in --help)
 
     attribute7: float = 1.0  # inline comment
-    """docstring below (this appears in --help)"""
+    """Docstring below (this appears in --help)"""
 
 
 parser.add_arguments(DocStringsExample, "example")

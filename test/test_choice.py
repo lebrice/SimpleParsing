@@ -6,13 +6,13 @@ import pytest
 
 from simple_parsing import choice
 
-from .testutils import List, TestSetup, raises
+from .testutils import TestSetup, raises
 
 
 @dataclass
 class A(TestSetup):
     color: str = choice("red", "green", "blue", default="red")
-    colors: List[str] = choice("red", "green", "blue", default_factory=["red"].copy)
+    colors: list[str] = choice("red", "green", "blue", default_factory=["red"].copy)
 
 
 def test_choice_default():
@@ -67,7 +67,7 @@ def test_choice_with_dict():
             {"a": AA("aaa"), "b": BB("bbb"), "bob": AA("bobobo"), "f": 1.23},
             default="a",
         )
-        options: List[Union[AA, BB, float]] = choice(
+        options: list[Union[AA, BB, float]] = choice(
             {"a": AA("aaa"), "b": BB("bbb"), "bob": AA("bobobo"), "f": 1.23},
             default_factory=["a"].copy,
         )
@@ -120,7 +120,7 @@ def test_passing_enum_to_choice():
     @dataclass
     class Something(TestSetup):
         favorite_color: Color = choice(Color, default=Color.green)
-        colors: List[Color] = choice(Color, default_factory=[Color.green].copy)
+        colors: list[Color] = choice(Color, default_factory=[Color.green].copy)
 
     s = Something.setup("")
     assert s.favorite_color == Color.green

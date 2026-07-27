@@ -1,7 +1,8 @@
 import sys
 import textwrap
+from contextlib import AbstractContextManager as ContextManager
 from dataclasses import dataclass
-from typing import Callable, ContextManager, List, Union
+from typing import Callable, Union
 
 import pytest
 
@@ -179,13 +180,13 @@ def test_bool_nargs(
 def test_list_of_bools_nargs(
     flag,
     nargs,
-    a_or_failure: Union[List[bool], Callable[[], ContextManager]],
+    a_or_failure: Union[list[bool], Callable[[], ContextManager]],
 ):
     @dataclass
     class MyClass(TestSetup):
         """Some test class."""
 
-        a: List[bool] = helpers.field(nargs=nargs)
+        a: list[bool] = helpers.field(nargs=nargs)
 
     if isinstance(a_or_failure, (list, tuple)):
         a = a_or_failure

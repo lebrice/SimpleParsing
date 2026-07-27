@@ -2,7 +2,7 @@ import argparse
 import shlex
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Type
+from typing import Any
 
 import pytest
 
@@ -74,7 +74,7 @@ def test_works_fine_with_other_argparse_arguments(simple_attribute, silent):
     ],
 )
 def test_arg_value_is_set_when_args_are_provided(
-    some_type: Type, default_value: Any, arg_value: Any
+    some_type: type, default_value: Any, arg_value: Any
 ):
     @dataclass
     class SomeClass(TestSetup):
@@ -138,7 +138,7 @@ class Extended(Base):
     """Some extension of base-class `Base`"""
 
     d: int = 5
-    """docstring for 'd' in Extended."""
+    """Docstring for 'd' in Extended."""
     e: Color = Color.BLUE
 
 
@@ -224,7 +224,7 @@ def test_using_a_Type_type():
 
     @dataclass
     class Foo(TestSetup):
-        a_class: Type[Base] = field(default=Base, init=False)
+        a_class: type[Base] = field(default=Base, init=False)
         a: Base = field(default=None, init=False)
 
         def __post_init__(self):
@@ -233,12 +233,12 @@ def test_using_a_Type_type():
     foo = Foo.setup("")
     from simple_parsing.utils import contains_dataclass_type_arg
 
-    assert not contains_dataclass_type_arg(Type[Base])
+    assert not contains_dataclass_type_arg(type[Base])
     assert foo.a_class() == Base()
 
     @dataclass
     class OtherFoo(Foo):
-        a_class: Type[Base] = field(default=Extended, init=False)
+        a_class: type[Base] = field(default=Extended, init=False)
 
     foo = OtherFoo.setup("")
     assert foo.a == Extended()
@@ -246,7 +246,6 @@ def test_using_a_Type_type():
 
 def test_issue62():
     import enum
-    from typing import List
 
     from simple_parsing.helpers import list_field
 
@@ -269,13 +268,13 @@ def test_issue62():
 
         color: Color = Color.BLUE  # my favorite colour
         # a list of colors
-        color_list: List[Color] = list_field(Color.ORANGE)
+        color_list: list[Color] = list_field(Color.ORANGE)
         # Some floats.
-        floats: List[float] = list_field(1.1, 2.2, 3.3)
+        floats: list[float] = list_field(1.1, 2.2, 3.3)
         # pick a temperature
         temp: Temperature = Temperature.WARM
         # a list of temperatures
-        temp_list: List[Temperature] = list_field(Temperature.COLD, Temperature.WARM)
+        temp_list: list[Temperature] = list_field(Temperature.COLD, Temperature.WARM)
 
     parser.add_arguments(MyPreferences, "my_preferences")
     assert MyPreferences.setup(

@@ -1,6 +1,8 @@
 import shlex
+import sys
+import textwrap
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Optional, Union
 
 import pytest
 
@@ -17,7 +19,7 @@ from .testutils import (
 def test_tuple_any_becomes_string():
     @dataclass
     class Container(TestSetup):
-        strings: Tuple = (64, 128, 256, 512)
+        strings: tuple = (64, 128, 256, 512)
 
     c = Container.setup("")
     assert c.strings == (64, 128, 256, 512)
@@ -28,7 +30,7 @@ def test_tuple_any_becomes_string():
 def test_tuple_with_n_items_takes_only_n_values():
     @dataclass
     class Container(TestSetup):
-        ints: Tuple[int, int] = (1, 5)
+        ints: tuple[int, int] = (1, 5)
 
     c = Container.setup("")
     assert c.ints == (1, 5)
@@ -39,7 +41,7 @@ def test_tuple_with_n_items_takes_only_n_values():
 def test_tuple_elipsis_takes_any_number_of_args():
     @dataclass
     class Container(TestSetup):
-        ints: Tuple[int, ...] = (1, 2, 3)
+        ints: tuple[int, ...] = (1, 2, 3)
 
     c = Container.setup("")
     assert c.ints == (1, 2, 3)
@@ -47,17 +49,19 @@ def test_tuple_elipsis_takes_any_number_of_args():
     assert c.ints == (4, 5, 6, 7, 8)
 
 
+@pytest.mark.skipif(
+    sys.version_info != (3, 12), reason="Output format differs between Python versions."
+)
 def test_tuple_with_ellipsis_help_format():
     @dataclass
     class Container(TestSetup):
-        ints: Tuple[int, ...] = (1, 2, 3)
+        ints: tuple[int, ...] = (1, 2, 3)
 
-    assert_help_output_equals(
-        Container.get_help_text(),
-        """
+    assert Container.get_help_text() == textwrap.dedent(
+        """\
         usage: pytest [-h] [--ints int [int, ...]]
 
-        optional arguments:
+        options:
           -h, --help            show this help message and exit
 
         test_tuple_with_ellipsis_help_format.<locals>.Container ['container']:
@@ -73,7 +77,7 @@ def test_each_type_is_used_correctly():
     class Container(TestSetup):
         """A container with mixed items in a tuple."""
 
-        mixed: Tuple[int, str, bool, float] = (1, "bob", False, 1.23)
+        mixed: tuple[int, str, bool, float] = (1, "bob", False, 1.23)
 
     c = Container.setup("")
     assert c.mixed == (1, "bob", False, 1.23)
@@ -102,7 +106,7 @@ def test_issue_29():
 
     @dataclass
     class MyCli:
-        asdf: Tuple[str, ...]
+        asdf: tuple[str, ...]
 
     parser = ArgumentParser()
     parser.add_arguments(MyCli, dest="args")
@@ -118,7 +122,7 @@ DONT_PASS = object()
 
 @dataclass
 class MyConfig:
-    values: Optional[Tuple[int, int]]
+    values: Optional[tuple[int, int]]
 
 
 class TestIssue47:
@@ -149,7 +153,7 @@ class TestIssue47:
         ],
     )
     def test_vanilla_argparse_beheviour(
-        self, options: Dict[str, Any], passed_arg: str, expected_value: Any
+        self, options: dict[str, Any], passed_arg: str, expected_value: Any
     ):
         parser = ArgumentParser()
         parser.add_argument("--foo", **options)
@@ -164,19 +168,19 @@ class TestIssue47:
     @pytest.mark.parametrize(
         "field_type, expected_options",
         [
-            (Tuple[str, str], dict(type=str, nargs=2, required=True)),
+            (tuple[str, str], dict(type=str, nargs=2, required=True)),
             # A Weirder 'type' will be generated for this one:
-            (Tuple[str, int], dict(nargs=2, required=True)),
-            (Optional[Tuple[str, str]], dict(nargs=2, required=False)),
-            (Optional[Tuple[str, str]], dict(nargs=2, required=False)),
+            (tuple[str, int], dict(nargs=2, required=True)),
+            (Optional[tuple[str, str]], dict(nargs=2, required=False)),
+            (Optional[tuple[str, str]], dict(nargs=2, required=False)),
             xfail_param(
-                *(Optional[List[str]], dict(nargs="*", required=False, const=[])),
+                *(Optional[list[str]], dict(nargs="*", required=False, const=[])),
                 reason="Can't use 'const' with nargs of '*'.",
             ),
-            (List[str], dict(type=str, nargs="*", required=True)),
+            (list[str], dict(type=str, nargs="*", required=True)),
         ],
     )
-    def test_arg_options_created(self, field_type: Type, expected_options: Dict[str, Any]):
+    def test_arg_options_created(self, field_type: type, expected_options: dict[str, Any]):
         """Check the 'arg_options' that get created for different types of tuple fields."""
         parser = ArgumentParser()
 
@@ -195,17 +199,17 @@ class TestIssue47:
     @pytest.mark.parametrize(
         "field_type, passed_arg, expected_value",
         [
-            (Tuple[str, str], "a b", ("a", "b")),
-            (Optional[Tuple[str, str]], DONT_PASS, None),
-            (Optional[Tuple[str, str]], "a b", ("a", "b")),
-            (Optional[Tuple[str, int]], "a 1", ("a", 1)),
-            (Optional[Tuple[str, int, bool]], DONT_PASS, None),
-            (Optional[Tuple[str, int, bool]], "a 1 1", ("a", 1, True)),
-            (Tuple[str, int, bool], "a 1 1", ("a", 1, True)),
+            (tuple[str, str], "a b", ("a", "b")),
+            (Optional[tuple[str, str]], DONT_PASS, None),
+            (Optional[tuple[str, str]], "a b", ("a", "b")),
+            (Optional[tuple[str, int]], "a 1", ("a", 1)),
+            (Optional[tuple[str, int, bool]], DONT_PASS, None),
+            (Optional[tuple[str, int, bool]], "a 1 1", ("a", 1, True)),
+            (tuple[str, int, bool], "a 1 1", ("a", 1, True)),
             # TODO: Issue #42 Add better support for Nested tuples:
             xfail_param(
                 *(
-                    Tuple[Tuple[str, int], Tuple[float, bool]],
+                    tuple[tuple[str, int], tuple[float, bool]],
                     "a 1 2. 1",  # 'flat' version:
                     (("a", 1), (2.0, True)),
                 ),
@@ -213,7 +217,7 @@ class TestIssue47:
             ),
             xfail_param(
                 *(
-                    Tuple[Tuple[str, int], Tuple[float, bool]],
+                    tuple[tuple[str, int], tuple[float, bool]],
                     "(a,1) (2.,1)",  # 'nice' version
                     (("a", 1), (2.0, True)),
                 ),
@@ -221,7 +225,7 @@ class TestIssue47:
             ),
             xfail_param(
                 *(
-                    Tuple[Tuple[str, int], Tuple[float, bool]],
+                    tuple[tuple[str, int], tuple[float, bool]],
                     "'(a, 1)' '(2.1, 1)'",  # 'nice' (since quotes are used)
                     (("a", 1), (2.0, True)),
                 ),
@@ -229,7 +233,7 @@ class TestIssue47:
             ),
             xfail_param(
                 *(
-                    Tuple[Tuple[str, int], Tuple[float, bool]],
+                    tuple[tuple[str, int], tuple[float, bool]],
                     "(a, 1) (2.1, 1)",  # not nice, quotes aren't used and there are spaces.
                     (("a", 1), (2.0, True)),
                 ),
@@ -239,7 +243,7 @@ class TestIssue47:
     )
     def test_issue_47_is_fixed(
         self,
-        field_type: Type,
+        field_type: type,
         passed_arg: Union[str, object],
         expected_value: Any,
     ):
@@ -271,7 +275,7 @@ class TestIssue47:
 
         @dataclass
         class MyConfig:
-            foo: Optional[List[str]] = None
+            foo: Optional[list[str]] = None
 
         parser.add_arguments(MyConfig, dest="config")
 

@@ -6,7 +6,7 @@ import enum
 import functools
 from dataclasses import Field
 from logging import getLogger
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Optional, TypeVar, Union
 
 from simple_parsing.utils import (
     get_bound,
@@ -16,6 +16,7 @@ from simple_parsing.utils import (
     is_forward_ref,
     is_homogeneous_tuple_type,
     is_list,
+    is_literal,
     is_tuple,
     is_typevar,
     is_union,
@@ -29,7 +30,7 @@ K = TypeVar("K")
 
 
 # Dictionary mapping from types/type annotations to their parsing functions.
-_parsing_fns: Dict[Type[T], Callable[[Any], T]] = {
+_parsing_fns: dict[type[T], Callable[[Any], T]] = {
     # the 'primitive' types are parsed using the type fn as a constructor.
     t: t
     for t in [str, float, int, bytes]
@@ -52,13 +53,13 @@ def get_parsing_fn_for_field(field: Field) -> Callable[[Any], T]:
     return parsing_fn
 
 
-def _register(t: Type, func: Callable) -> None:
+def _register(t: type, func: Callable) -> None:
     if t not in _parsing_fns:
         # logger.debug(f"Registering the type {t} with parsing function {func}")
         _parsing_fns[t] = func
 
 
-def register_parsing_fn(some_type: Type[T], function: Callable[[Any], T]) -> None:
+def register_parsing_fn(some_type: type[T], function: Callable[[Any], T]) -> None:
     """Register a parsing function for the type `some_type`."""
     _register(some_type, function)
 
@@ -67,7 +68,7 @@ def register_parsing_fn(some_type: Type[T], function: Callable[[Any], T]) -> Non
 # argparse uses the `type` function when parsing containers.
 # TODO: Replace this with a simpler function that just returns the 'arg_options' dict to
 # give for a given type annotation.
-def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
+def get_parsing_fn(t: type[T]) -> Callable[[Any], T]:
     """Gets a parsing function for the given type or type annotation.
 
     Args:
@@ -127,6 +128,10 @@ def get_parsing_fn(t: Type[T]) -> Callable[[Any], T]:
         args = get_type_arguments(t)
         return parse_union(*args)
 
+    elif is_literal(t):
+        logger.debug(f"Parsing a Literal field of type {t}")
+        return parse_literal(t)
+
     elif is_enum(t):
         logger.debug(f"Parsing an Enum field of type {t}")
         return parse_enum(t)
@@ -177,14 +182,14 @@ def try_functions(*funcs: Callable[[Any], T]) -> Callable[[Any], Union[T, Any]]:
     return _try_functions
 
 
-def parse_union(*types: Type[T]) -> Callable[[Any], Union[T, Any]]:
+def parse_union(*types: type[T]) -> Callable[[Any], Union[T, Any]]:
     types = list(types)
     optional = type(None) in types
     # Partition the Union into None and non-None types.
     while type(None) in types:
         types.remove(type(None))
 
-    parsing_fns: List[Callable[[Any], T]] = [
+    parsing_fns: list[Callable[[Any], T]] = [
         parse_optional(t) if optional else get_parsing_fn(t) for t in types
     ]
     # Try using each of the non-None types, in succession. Worst case, return the value.
@@ -196,7 +201,7 @@ def parse_union(*types: Type[T]) -> Callable[[Any], Union[T, Any]]:
     return f
 
 
-def parse_optional(t: Type[T]) -> Callable[[Optional[Any]], Optional[T]]:
+def parse_optional(t: type[T]) -> Callable[[Optional[Any]], Optional[T]]:
     parse = get_parsing_fn(t)
 
     def _parse_optional(val: Optional[Any]) -> Optional[T]:
@@ -205,7 +210,30 @@ def parse_optional(t: Type[T]) -> Callable[[Optional[Any]], Optional[T]]:
     return _parse_optional
 
 
-def parse_tuple(tuple_item_types: Tuple[Type[T], ...]) -> Callable[[List[T]], Tuple[T, ...]]:
+def parse_literal(literal_type: type[T]) -> Callable[[str], T]:
+    """Returns a parsing function for a Literal type.
+
+    The function maps the string representation of each literal value back to
+    the actual value (e.g. "1" -> 1, "BLUE" -> Color.BLUE).
+    """
+    literal_values = get_type_arguments(literal_type)
+    # Build a mapping from the string representation to the actual value.
+    choice_dict: dict[str, Any] = {
+        (v.name if isinstance(v, enum.Enum) else str(v)): v for v in literal_values
+    }
+
+    def _parse_literal(val: str) -> T:
+        if val in choice_dict:
+            return choice_dict[val]
+        raise ValueError(
+            f"Invalid value {val!r} for {literal_type}. Expected one of: {list(choice_dict)}"
+        )
+
+    _parse_literal.__name__ = str(literal_type)
+    return _parse_literal
+
+
+def parse_tuple(tuple_item_types: tuple[type[T], ...]) -> Callable[[list[T]], tuple[T, ...]]:
     """Makes a parsing function for creating tuples from the command-line args.
 
     Can handle tuples with different item types, for instance:
@@ -222,7 +250,7 @@ def parse_tuple(tuple_item_types: Tuple[Type[T], ...]) -> Callable[[List[T]], Tu
 
     calls_count: int = 0
 
-    def _parse_tuple(val: Any) -> Tuple[T, ...]:
+    def _parse_tuple(val: Any) -> tuple[T, ...]:
         nonlocal calls_count
         logger.debug(f"Parsing a Tuple with item types {tuple_item_types}, raw value is {val}.")
         parsing_fn_index = calls_count
@@ -249,7 +277,7 @@ def parse_tuple(tuple_item_types: Tuple[Type[T], ...]) -> Callable[[List[T]], Tu
     return _parse_tuple
 
 
-def parse_list(list_item_type: Type[T]) -> T:
+def parse_list(list_item_type: type[T]) -> T:
     return get_parsing_fn(list_item_type)
 
 
@@ -268,7 +296,7 @@ def no_op(v: T) -> T:
 E = TypeVar("E", bound=enum.Enum)
 
 
-def parse_enum(enum_type: Type[E]) -> Callable[[str], E]:
+def parse_enum(enum_type: type[E]) -> Callable[[str], E]:
     """Returns a function to use to parse an enum of type `enum_type` from a string.
 
     Parameters

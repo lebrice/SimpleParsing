@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, List, Tuple, Type
+from typing import Any
 
 import pytest
 
@@ -27,7 +27,7 @@ def test_list_one_element(simple_attribute):
 
     @dataclass
     class Container(TestSetup):
-        a: List[some_type] = list_field()
+        a: list[some_type] = list_field()
 
     c = Container.setup("")
     assert c.a == []
@@ -39,10 +39,10 @@ def test_list_one_element(simple_attribute):
 def ContainerClass():
     @dataclass
     class ContainerClass(TestSetup):
-        a: Tuple[int]
-        b: List[int]
-        c: Tuple[str] = tuple()
-        d: List[int] = list_field()
+        a: tuple[int]
+        b: list[int]
+        c: tuple[str] = tuple()
+        d: list[int] = list_field()
 
     return ContainerClass
 
@@ -104,12 +104,12 @@ def test_default_value(ContainerClass):
 )
 def test_list_supported_formats(
     list_formatting_function: ListFormattingFunction,
-    item_type: Type,
-    passed_values: List[Any],
+    item_type: type,
+    passed_values: list[Any],
 ):
     @dataclass
     class SomeClass(TestSetup):
-        a: List[item_type] = field(default_factory=list)  # type: ignore
+        a: list[item_type] = field(default_factory=list)  # type: ignore
         """Some docstring for attribute 'a'."""
 
     arguments = "--a " + list_formatting_function(passed_values)
@@ -142,12 +142,12 @@ def test_list_supported_formats(
 )
 def test_parse_multiple_with_list_attributes(
     list_of_lists_formatting_function: ListOfListsFormattingFunction,
-    item_type: Type,
-    passed_values: List[List[Any]],
+    item_type: type,
+    passed_values: list[list[Any]],
 ):
     @dataclass
     class SomeClass(TestSetup):
-        a: List[item_type] = field(default_factory=list)  # type: ignore
+        a: list[item_type] = field(default_factory=list)  # type: ignore
         """Some docstring for attribute 'a'."""
 
     arguments = "--a " + list_of_lists_formatting_function(passed_values)

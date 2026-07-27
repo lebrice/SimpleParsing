@@ -1,7 +1,6 @@
 # Cleaning up
 import os
 from dataclasses import dataclass
-from typing import List
 
 import torch
 from torch import Tensor
@@ -26,7 +25,7 @@ class Student(Person):
 
 
 @encode.register
-def encode_tensor(obj: Tensor) -> List:
+def encode_tensor(obj: Tensor) -> list:
     """We choose to encode a tensor as a list, for instance."""
     return obj.tolist()
 

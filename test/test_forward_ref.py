@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List, Tuple
 
 from simple_parsing import field
 
@@ -11,9 +10,9 @@ class Foo(TestSetup):
     a: int = 123
 
     b: str = "fooobar"
-    c: Tuple[int, float] = (123, 4.56)
+    c: tuple[int, float] = (123, 4.56)
 
-    d: List[bool] = field(default_factory=list)
+    d: list[bool] = field(default_factory=list)
 
 
 @dataclass
@@ -21,7 +20,7 @@ class Bar(TestSetup):
     barry: Foo = field(default_factory=Foo)
     joe: "Foo" = field(default_factory=lambda: Foo(b="rrrrr"))
     z: "float" = 123.456
-    some_list: "List[float]" = field(default_factory=[1.0, 2.0].copy)
+    some_list: "list[float]" = field(default_factory=[1.0, 2.0].copy)
 
 
 def test_forward_ref():

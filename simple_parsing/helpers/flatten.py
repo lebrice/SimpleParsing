@@ -1,7 +1,8 @@
 import dataclasses
 import warnings
+from collections.abc import Iterable
 from logging import getLogger
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any
 
 logger = getLogger(__name__)
 
@@ -18,7 +19,7 @@ class FlattenedAccess:
         when reading an attribute whose name is a variable.
     """
 
-    def attributes(self, recursive: bool = True, prefix: str = "") -> Iterable[Tuple[str, Any]]:
+    def attributes(self, recursive: bool = True, prefix: str = "") -> Iterable[tuple[str, Any]]:
         """Returns an Iterator over the attributes of the dataclass.
 
         [extended_summary]
@@ -66,8 +67,8 @@ class FlattenedAccess:
         always get here because `self` does not have an attribute of `name`.
         """
         # potential parents and corresponding values.
-        parents: List[str] = []
-        values: List[Any] = []
+        parents: list[str] = []
+        values: list[Any] = []
 
         for attr_name, attr_value in FlattenedAccess.attributes(self):
             # if the attribute name's last part ends with `name`, we add it to
@@ -101,8 +102,8 @@ class FlattenedAccess:
         raised.
         """
         # potential parents and corresponding values.
-        parents: List[str] = []
-        values: List[Any] = []
+        parents: list[str] = []
+        values: list[Any] = []
 
         field_names = {field.name for field in dataclasses.fields(self)}
         if name in field_names:
@@ -158,5 +159,5 @@ class FlattenedAccess:
     def __setitem__(self, key, value):
         setattr(self, key, value)
 
-    def asdict(self) -> Dict:
+    def asdict(self) -> dict:
         return dataclasses.asdict(self)

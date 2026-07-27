@@ -7,7 +7,7 @@ import string
 import sys
 from contextlib import contextmanager, redirect_stderr
 from io import StringIO
-from typing import Any, Callable, Generic, List, TypeVar, cast
+from typing import Any, Callable, Generic, TypeVar, cast
 
 import pytest
 
@@ -265,8 +265,8 @@ class TestSetup:
         return s
 
 
-ListFormattingFunction = Callable[[List[Any]], str]
-ListOfListsFormattingFunction = Callable[[List[List[Any]]], str]
+ListFormattingFunction = Callable[[list[Any]], str]
+ListOfListsFormattingFunction = Callable[[list[list[Any]]], str]
 
 
 def format_list_using_spaces(value_list: list[Any]) -> str:

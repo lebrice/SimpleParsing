@@ -6,7 +6,7 @@ import io
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import pytest
 
@@ -968,7 +968,7 @@ class TrainingArguments(TestSetup):
         default=True,
         metadata={"help": "Remove columns not required by the model when using an nlp.Dataset."},
     )
-    label_names: Optional[List[str]] = field(
+    label_names: Optional[list[str]] = field(
         default=None,
         metadata={
             "help": "The list of keys in your dictionary of inputs that correspond to the labels."
@@ -1068,7 +1068,7 @@ class TrainingArguments(TestSetup):
         default="length",
         metadata={"help": "Column name with precomputed lengths to use when grouping by length."},
     )
-    report_to: Optional[List[str]] = field(
+    report_to: Optional[list[str]] = field(
         default=None,
         metadata={"help": "The list of integrations to report the results and logs to."},
     )
@@ -1291,7 +1291,7 @@ def test_entire_docstring_isnt_used_as_help():
     ],
 )
 def test_serialization(tmp_path: Path, filename: str, args: TrainingArguments):
-    """test that serializing / deserializing a TrainingArguments works."""
+    """Test that serializing / deserializing a TrainingArguments works."""
     from simple_parsing.helpers.serialization import load, save
 
     path = tmp_path / filename

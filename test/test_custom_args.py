@@ -1,7 +1,6 @@
 import argparse
 import textwrap
 from dataclasses import dataclass
-from typing import List
 
 from simple_parsing import ArgumentParser, DashVariant, field
 
@@ -101,7 +100,7 @@ def test_custom_nargs_plus():
 def test_custom_nargs_star():
     @dataclass
     class Foo(TestSetup):
-        some_int: List[int] = field(default_factory=list, type=int, nargs="*")
+        some_int: list[int] = field(default_factory=list, type=int, nargs="*")
 
     foo = Foo.setup("")
     assert foo.some_int == []
@@ -231,7 +230,7 @@ def test_list_of_choices():
         """Some class Foo."""
 
         # A sequence of tasks.
-        task_sequence: List[str] = field(choices=["train", "test", "ood"])
+        task_sequence: list[str] = field(choices=["train", "test", "ood"])
 
     foo = Foo.setup("--task_sequence train train ood")
     assert foo.task_sequence == ["train", "train", "ood"]

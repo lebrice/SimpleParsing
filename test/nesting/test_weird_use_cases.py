@@ -1,14 +1,14 @@
 import functools
 from dataclasses import dataclass, field
 from test.testutils import T, TestSetup
-from typing import Callable, Type
+from typing import Callable
 
 from simple_parsing import ConflictResolution
 
 from .example_use_cases import HyperParameters
 
 
-def simple_tree_structure(some_type: Type[T], default_value_function: Callable[[str], T]):
+def simple_tree_structure(some_type: type[T], default_value_function: Callable[[str], T]):
     @dataclass
     class A:
         a: some_type = default_value_function("a")  # type: ignore
@@ -76,7 +76,7 @@ def test_beautiful_tree_structure_merge():
 
 
 def tree_structure_with_repetitions(
-    some_type: Type[T], default_value_function: Callable[[str], T]
+    some_type: type[T], default_value_function: Callable[[str], T]
 ):
     @dataclass
     class A:

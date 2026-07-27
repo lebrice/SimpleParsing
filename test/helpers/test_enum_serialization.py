@@ -3,7 +3,7 @@ import typing
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import pytest
 
@@ -24,7 +24,7 @@ class LoggingTypes(Enum):
 @dataclass
 class Hparams:
     seed: int = 13
-    xyz: List[LoggingTypes] = field(default_factory=list)
+    xyz: list[LoggingTypes] = field(default_factory=list)
 
 
 @dataclass
@@ -55,8 +55,9 @@ def test_decode_enum_saved_by_value_doesnt_work(tmp_path: Path):
     assert file_config == Parameters(hparams=Hparams(xyz=[LoggingTypes.JSONL]), p=Path("/tmp"))
 
 
-def test_decode_enum_saved_by_name():
-    with open("conf.yaml", "w") as f:
+def test_decode_enum_saved_by_name(tmp_path: Path):
+    file = tmp_path / "conf.yaml"
+    with open(file, "w") as f:
         f.write(
             textwrap.dedent(
                 """\
@@ -67,7 +68,7 @@ def test_decode_enum_saved_by_name():
                 """
             )
         )
-    file_config = Parameters.load("conf.yaml", load_fn=yaml.safe_load)
+    file_config = Parameters.load(file, load_fn=yaml.safe_load)
     assert file_config == Parameters(hparams=Hparams(xyz=[LoggingTypes.JSONL]), p=Path("/tmp"))
 
 
@@ -77,14 +78,15 @@ def test_round_trip():
     assert dumps_yaml(loads_yaml(Parameters, dumps_yaml(p))) == dumps_yaml(p)
 
 
-def test_decode_enum_saved_by_value_using_register():
+def test_decode_enum_saved_by_value_using_register(tmp_path: Path):
     from simple_parsing.helpers.serialization.decoding import register_decoding_fn
     from simple_parsing.helpers.serialization.encoding import encode
 
     register_decoding_fn(LoggingTypes, LoggingTypes)
     encode.register(LoggingTypes, lambda x: x.value)
 
-    with open("conf.yaml", "w") as f:
+    file = tmp_path / "conf.yaml"
+    with open(file, "w") as f:
         f.write(
             textwrap.dedent(
                 """\
@@ -96,17 +98,17 @@ def test_decode_enum_saved_by_value_using_register():
             )
         )
 
-    file_config = Parameters.load_yaml("conf.yaml")
+    file_config = Parameters.load_yaml(file)
     assert file_config == Parameters(hparams=Hparams(xyz=[LoggingTypes.JSONL]), p=Path("/tmp"))
 
 
-def test_decode_enum_saved_by_value_using_field():
+def test_decode_enum_saved_by_value_using_field(tmp_path: Path):
     from simple_parsing.helpers import field
 
     @dataclass
     class HparamsWithField:
         seed: int = 13
-        xyz: List[LoggingTypes] = field(
+        xyz: list[LoggingTypes] = field(
             encoding_fn=lambda x: [e.value for e in x],
             decoding_fn=lambda str_list: [LoggingTypes(e) for e in str_list],
             default_factory=list,
@@ -117,7 +119,8 @@ def test_decode_enum_saved_by_value_using_field():
         hparams: HparamsWithField = field(default_factory=HparamsWithField)
         p: Optional[Path] = None
 
-    with open("conf.yaml", "w") as f:
+    file = tmp_path / "conf.yaml"
+    with open(file, "w") as f:
         f.write(
             textwrap.dedent(
                 """\
@@ -129,7 +132,7 @@ def test_decode_enum_saved_by_value_using_field():
             )
         )
 
-    file_config = ParametersWithField.load_yaml("conf.yaml")
+    file_config = ParametersWithField.load_yaml(file)
     assert file_config == ParametersWithField(
         hparams=HparamsWithField(xyz=[LoggingTypes.JSONL]), p=Path("/tmp")
     )

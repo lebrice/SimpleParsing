@@ -1,7 +1,7 @@
 """Abstract Wrapper base-class for the FieldWrapper and DataclassWrapper."""
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Optional
 
 
 class Wrapper(ABC):
@@ -25,13 +25,13 @@ class Wrapper(ABC):
     @property
     def dest(self) -> str:
         """Where the attribute will be stored in the Namespace."""
-        lineage_names: List[str] = [w.name for w in self.lineage()]
+        lineage_names: list[str] = [w.name for w in self.lineage()]
         self._dest = ".".join(reversed([self.name] + lineage_names))
         assert self._dest is not None
         return self._dest
 
-    def lineage(self) -> List["Wrapper"]:
-        lineage: List[Wrapper] = []
+    def lineage(self) -> list["Wrapper"]:
+        lineage: list[Wrapper] = []
         parent = self.parent
         while parent is not None:
             lineage.append(parent)

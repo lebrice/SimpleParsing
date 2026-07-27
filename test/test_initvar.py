@@ -1,6 +1,6 @@
 import sys
 from dataclasses import InitVar, dataclass
-from typing import Any, List, Tuple, Type
+from typing import Any
 
 import pytest
 from typing_extensions import Literal
@@ -17,13 +17,13 @@ from .testutils import TestSetup
     [
         (int, "1", 1),
         (float, "1.4", 1.4),
-        (Tuple[int, float], "2 -1.2", (2, -1.2)),
-        (List[str], "12 abc", ["12", "abc"]),
+        (tuple[int, float], "2 -1.2", (2, -1.2)),
+        (list[str], "12 abc", ["12", "abc"]),
         (Literal[1, 2, 3, "4"], "1", 1),
         (Literal[1, 2, 3, "4"], "4", "4"),
     ],
 )
-def test_initvar(tp: Type[Any], passed_value: str, expected: Any) -> None:
+def test_initvar(tp: type[Any], passed_value: str, expected: Any) -> None:
     @dataclass
     class Foo(TestSetup):
         init_var: InitVar[tp]

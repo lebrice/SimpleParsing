@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Optional
 
 import pytest
 
+import simple_parsing
 from simple_parsing import ArgumentParser
 
 from .testutils import TestSetup
@@ -110,7 +111,7 @@ def test_optional_str():
 def test_optional_list_of_ints():
     @dataclass
     class Bob(TestSetup):
-        a: Optional[List[int]] = field(default_factory=list)
+        a: Optional[list[int]] = field(default_factory=list)
 
     # assert Bob.setup("--a") == Bob(a=None)
     assert Bob.setup("--a 1") == Bob(a=[1])
@@ -142,3 +143,14 @@ def test_optional_without_default():
 #     actual = SomeDataclass.setup(f"--some_attribute {passed_value}")
 #     assert actual.some_attribute == expected_value
 #     assert isinstance(actual.some_attribute, some_type)
+
+
+def test_optional_positional():
+    """Test a optional positional argument."""
+
+    @dataclass
+    class Foo(TestSetup):
+        a: Optional[int] = simple_parsing.field(positional=True, default=None)
+
+    assert Foo.setup("") == Foo(a=None)
+    assert Foo.setup("1") == Foo(a=1)

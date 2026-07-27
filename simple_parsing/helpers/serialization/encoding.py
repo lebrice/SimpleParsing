@@ -11,13 +11,13 @@ def encode_ndarray(obj: np.ndarray) -> str:
 import copy
 import json
 from argparse import Namespace
-from collections.abc import Mapping
+from collections.abc import Hashable, Mapping
 from dataclasses import fields, is_dataclass
 from enum import Enum
 from functools import singledispatch
 from logging import getLogger
 from os import PathLike
-from typing import Any, Dict, Hashable, List, Set, Tuple, Union
+from typing import Any, Union
 
 logger = getLogger(__name__)
 
@@ -77,7 +77,7 @@ def encode(obj: Any) -> Any:
     try:
         if is_dataclass(obj):
             # logger.debug(f"encoding object {obj} of class {type(obj)}")
-            d: Dict[str, Any] = dict()
+            d: dict[str, Any] = dict()
             for field in fields(obj):
                 value = getattr(obj, field.name)
                 try:
@@ -98,7 +98,7 @@ def encode(obj: Any) -> Any:
 @encode.register(tuple)
 # @encode.register(Sequence) # Would also encompass `str!`
 @encode.register(set)
-def encode_list(obj: Union[List[Any], Set[Any], Tuple[Any, ...]]) -> List[Any]:
+def encode_list(obj: Union[list[Any], set[Any], tuple[Any, ...]]) -> list[Any]:
     # TODO: Here we basically say "Encode all these types as lists before serializing"
     # That's ok for JSON, but YAML can serialize stuff directly though.
     # TODO: Also, with this, we also need to convert back to the right type when
@@ -108,7 +108,7 @@ def encode_list(obj: Union[List[Any], Set[Any], Tuple[Any, ...]]) -> List[Any]:
 
 
 @encode.register(Mapping)
-def encode_dict(obj: Mapping) -> Dict[Any, Any]:
+def encode_dict(obj: Mapping) -> dict[Any, Any]:
     constructor = type(obj)
     result = constructor()
     for k, v in obj.items():

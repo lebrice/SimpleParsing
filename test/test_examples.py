@@ -2,6 +2,7 @@
 
 (Could be seen as a kind of integration test.)
 """
+
 from __future__ import annotations
 
 import glob
@@ -10,9 +11,10 @@ import runpy
 import shlex
 import sys
 from collections import Counter
+from collections.abc import Sequence
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Callable
 
 import pytest
 
@@ -53,18 +55,15 @@ def assert_equals_stdout(capsys):
         out_lines = [line.strip() for line in out_lines if line and not line.isspace()]
         expected_lines = expected.splitlines(keepends=False)
         expected_lines = [line.strip() for line in expected_lines if line and not line.isspace()]
-        if sys.version_info[:2] >= (3, 9):
-            # Ordering of values in a `Namespace` object are different!
-            expected = Counter("".join(expected_lines))
-            actual = Counter("".join(out_lines))
-            actual[" "] = 0
-            expected[" "] = 0
-            assert actual == expected, (
-                out_lines,
-                expected_lines,
-            )
-        else:
-            assert out_lines == expected_lines, file_path
+        # Ordering of values in a `Namespace` object are different!
+        expected = Counter("".join(expected_lines))
+        actual = Counter("".join(out_lines))
+        actual[" "] = 0
+        expected[" "] = 0
+        assert actual == expected, (
+            out_lines,
+            expected_lines,
+        )
 
     return should_equal
 

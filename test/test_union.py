@@ -16,7 +16,7 @@ def test_union_type():
     assert foo.x == "bob"
 
     foo = Foo.setup("--x 2")
-    assert foo.x == 2 and type(foo.x) is int
+    assert foo.x == 2 and isinstance(foo.x, int)
 
 
 def test_union_type_raises_error():
@@ -31,4 +31,4 @@ def test_union_type_raises_error():
         foo = Foo2.setup("--x bob")
 
     foo = Foo2.setup("--x 2")
-    assert foo.x == 2 and type(foo.x) is int
+    assert foo.x == 2 and isinstance(foo.x, int)

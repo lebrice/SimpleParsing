@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import List
 
 from simple_parsing import field
 from simple_parsing.docstring import AttributeDocString, get_attribute_docstring
@@ -88,7 +87,7 @@ def test_docstring_works_with_field_function():
         """Some class Foo"""
 
         # A sequence of tasks.
-        task_sequence: List[str] = field(choices=["train", "test", "ood"])  # side
+        task_sequence: list[str] = field(choices=["train", "test", "ood"])  # side
         """Below"""
 
     docstring = get_attribute_docstring(UniqueFoo, "task_sequence")

@@ -1,7 +1,7 @@
 import argparse
 from argparse import ONE_OR_MORE, OPTIONAL, PARSER, REMAINDER, ZERO_OR_MORE, Action
 from logging import getLogger
-from typing import Optional, Type
+from typing import Optional
 
 from .wrappers.field_metavar import get_metavar
 
@@ -75,7 +75,7 @@ class SimpleHelpFormatter(
     def _get_metavar_for_action(self, action: argparse.Action) -> str:
         return self._get_metavar_for_type(action.type)
 
-    def _get_metavar_for_type(self, t: Type) -> str:
+    def _get_metavar_for_type(self, t: type) -> str:
         return get_metavar(t) or str(t)
 
     def _get_help_string(self, action: Action) -> Optional[str]:
