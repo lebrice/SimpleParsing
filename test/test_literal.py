@@ -1,7 +1,7 @@
 import enum
 import sys
 from dataclasses import dataclass
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple, Optional, Union
 
 import pytest
 from typing_extensions import Literal
@@ -118,3 +118,21 @@ def test_reproduce_issue_259_parsing_literal_py39():
         "argument --param: invalid typing.Literal['bar', 'biz'] value: 'biz'"
     ):
         assert SomeFoo.setup("").param == "biz"
+
+
+@dataclass
+class Foo:
+    bar: Union[Literal["a"], int] = "a"
+
+
+def test_issue_322():
+    """Test for https://github.com/lebrice/SimpleParsing/issues/322."""
+    from simple_parsing import parse
+
+    assert parse(Foo, args="") == Foo()
+    assert parse(Foo, args="--bar=a") == Foo(bar="a")
+    # 'b' is neither in Literal["a"] nor a valid int, so it should be rejected.
+    with exits_and_writes_to_stderr("invalid"):
+        assert parse(Foo, args="--bar=b")
+
+    assert parse(Foo, args="--bar=123") == Foo(bar=123)

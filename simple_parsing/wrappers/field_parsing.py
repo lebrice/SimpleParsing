@@ -16,6 +16,7 @@ from simple_parsing.utils import (
     is_forward_ref,
     is_homogeneous_tuple_type,
     is_list,
+    is_literal,
     is_tuple,
     is_typevar,
     is_union,
@@ -127,6 +128,10 @@ def get_parsing_fn(t: type[T]) -> Callable[[Any], T]:
         args = get_type_arguments(t)
         return parse_union(*args)
 
+    elif is_literal(t):
+        logger.debug(f"Parsing a Literal field of type {t}")
+        return parse_literal(t)
+
     elif is_enum(t):
         logger.debug(f"Parsing an Enum field of type {t}")
         return parse_enum(t)
@@ -203,6 +208,29 @@ def parse_optional(t: type[T]) -> Callable[[Optional[Any]], Optional[T]]:
         return val if val is None else parse(val)
 
     return _parse_optional
+
+
+def parse_literal(literal_type: type[T]) -> Callable[[str], T]:
+    """Returns a parsing function for a Literal type.
+
+    The function maps the string representation of each literal value back to the actual value
+    (e.g. "1" -> 1, "BLUE" -> Color.BLUE).
+    """
+    literal_values = get_type_arguments(literal_type)
+    # Build a mapping from the string representation to the actual value.
+    choice_dict: dict[str, Any] = {
+        (v.name if isinstance(v, enum.Enum) else str(v)): v for v in literal_values
+    }
+
+    def _parse_literal(val: str) -> T:
+        if val in choice_dict:
+            return choice_dict[val]
+        raise ValueError(
+            f"Invalid value {val!r} for {literal_type}. Expected one of: {list(choice_dict)}"
+        )
+
+    _parse_literal.__name__ = str(literal_type)
+    return _parse_literal
 
 
 def parse_tuple(tuple_item_types: tuple[type[T], ...]) -> Callable[[list[T]], tuple[T, ...]]:
