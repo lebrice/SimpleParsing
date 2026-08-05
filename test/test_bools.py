@@ -8,6 +8,7 @@ import pytest
 
 from simple_parsing import helpers
 from simple_parsing.helpers.fields import field, flag
+from simple_parsing.wrappers.field_wrapper import ArgumentGenerationMode
 
 from .testutils import (
     TestSetup,
@@ -305,6 +306,36 @@ def test_nested_bool_field_negative_option_conflict(default_value: bool):
     assert "--train.silent" in help_text
     assert "--valid.silent" in help_text
     assert "--silent" not in help_text
+
+
+@pytest.mark.parametrize("default_value", [True, False])
+def test_nested_bool_field_negative_option_conflict_nested_mode(default_value: bool):
+    """The negative option also needs a prefix with `ArgumentGenerationMode.NESTED`.
+
+    Reproduces https://github.com/lebrice/SimpleParsing/issues/364, where adding the same
+    dataclass twice raised `argparse.ArgumentError: conflicting option string: --silent`.
+    """
+
+    @dataclass
+    class Options:
+        verbose: bool = field(default=default_value, negative_option="silent")
+
+    @dataclass
+    class Config(TestSetup):
+        train: Options = field(default_factory=Options)
+        valid: Options = field(default_factory=Options)
+
+    help_text = Config.get_help_text(
+        argument_generation_mode=ArgumentGenerationMode.NESTED,
+    )
+    assert "--config.train.silent" in help_text
+    assert "--config.valid.silent" in help_text
+
+    config = Config.setup(
+        "--config.train.silent", argument_generation_mode=ArgumentGenerationMode.NESTED
+    )
+    assert config.train.verbose is False
+    assert config.valid.verbose is default_value
 
 
 @pytest.mark.xfail(
