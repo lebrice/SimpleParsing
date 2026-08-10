@@ -1,0 +1,2 @@
+foo:
+  a: "default value for `a` from the config_a.yaml file"
