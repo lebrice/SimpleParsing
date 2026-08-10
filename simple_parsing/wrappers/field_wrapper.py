@@ -720,12 +720,13 @@ class FieldWrapper(Wrapper):
         if it has a default value
         """
 
-        if self._default is not None:
+        if self.is_subgroup:
+            # For subgroups, always use the subgroup_default to maintain consistency
+            default = self.subgroup_default
+        elif self._default is not None:
             # If a default value was set manually from the outside (e.g. from the DataclassWrapper)
             # then use that value.
             default = self._default
-        elif self.is_subgroup:
-            default = self.subgroup_default
         elif any(
             parent_default not in (None, argparse.SUPPRESS)
             for parent_default in self.parent.defaults
