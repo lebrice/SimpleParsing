@@ -239,6 +239,23 @@ def test_list_of_choices():
         Foo.setup("--task_sequence train bob test")
 
 
+def test_append_action_on_list_field():
+    """Regression test for https://github.com/lebrice/SimpleParsing/issues/366.
+
+    When action="append" is used on a list-typed field, each occurrence of the
+    flag should add a single element to the list rather than wrapping it in an
+    extra one-item list.
+    """
+    import simple_parsing
+
+    @dataclass
+    class Args:
+        header: list[str] = field(default_factory=list, action="append")
+
+    result = simple_parsing.parse(Args, args=["--header", "Auth", "--header", "Accept"])
+    assert result.header == ["Auth", "Accept"], result.header
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--foo", action="store_const", const=42)
