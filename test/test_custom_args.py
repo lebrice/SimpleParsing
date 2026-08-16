@@ -256,6 +256,20 @@ def test_append_action_on_list_field():
     assert result.header == ["Auth", "Accept"], result.header
 
 
+def test_extend_action_on_list_field():
+    """action="extend" on a list field should work correctly with multiple values."""
+    import simple_parsing
+
+    @dataclass
+    class Args:
+        header: list[str] = field(default_factory=list, action="extend", nargs="*")
+
+    result = simple_parsing.parse(
+        Args, args=["--header", "Auth", "Accept", "--header", "Content-Type"]
+    )
+    assert result.header == ["Auth", "Accept", "Content-Type"], result.header
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--foo", action="store_const", const=42)

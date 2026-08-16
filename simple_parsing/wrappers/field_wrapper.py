@@ -354,12 +354,12 @@ class FieldWrapper(Wrapper):
 
         elif self.is_list:
             logger.debug(f"Adding a List attribute '{self.name}': {self.type}")
-            # When action="append" or action="extend", each flag occurrence is a
-            # single element; argparse handles accumulation itself, so nargs="*"
-            # would wrap each occurrence in an extra list.  Skip the nargs
-            # override in that case and let the user-supplied (or default None)
-            # nargs take effect.
-            if self.action not in ("append", "extend"):
+            # When action="append", each flag occurrence adds a single element and
+            # argparse handles accumulation itself.  Setting nargs="*" would cause
+            # each occurrence to be collected into a one-item list before being
+            # appended, producing a nested list.  Skip the nargs override so the
+            # user-supplied (or default None) nargs takes effect.
+            if self.action != "append":
                 _arg_options["nargs"] = "*"
 
             if self.is_reused:
