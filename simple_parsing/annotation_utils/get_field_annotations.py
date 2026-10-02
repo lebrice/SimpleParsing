@@ -74,6 +74,9 @@ def _replace_UnionType_with_typing_Union(annotation):
         # Therefore just return the annotation as-is.
         return annotation
 
+    if annotation is Ellipsis:
+        return annotation
+
     if isinstance(annotation, types.UnionType):  # type: ignore
         union_args = typing.get_args(annotation)
         new_union_args = tuple(_replace_UnionType_with_typing_Union(arg) for arg in union_args)

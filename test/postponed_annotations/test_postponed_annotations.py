@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
-from simple_parsing import Serializable
+from simple_parsing import ArgumentParser, Serializable
 
 from ..test_utils import TestSetup
 from .b import B
@@ -81,3 +82,25 @@ def test_overwrite_field():
     assert instance == overwrite_attribute.Subclass(
         attribute=overwrite_attribute.ParamClsSubclass(True)
     ), "parsed attribute value is correct"
+
+
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="Union syntax requires Python 3.10.")
+@pytest.mark.parametrize(
+    "argv, objects",
+    [
+        ([], None),
+        (["--objects", "cube"], ("cube",)),
+        (["--objects", "cube", "cylinder"], ("cube", "cylinder")),
+    ],
+)
+def test_postponed_annotations_with_optional_variadic_tuple(
+    argv: list[str], objects: tuple[str, ...] | None
+):
+    @dataclass
+    class Arguments:
+        objects: tuple[str, ...] | None = None
+
+    parser = ArgumentParser()
+    parser.add_arguments(Arguments, dest="args")
+
+    assert parser.parse_args(argv).args == Arguments(objects=objects)
