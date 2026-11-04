@@ -79,7 +79,12 @@ class SimpleHelpFormatter(
         return get_metavar(t) or str(t)
 
     def _get_help_string(self, action: Action) -> Optional[str]:
-        help = super()._get_help_string(action=action)
+        if action.required and action.default is None:
+            # A required argument with no default has no default to show. argparse's
+            # ArgumentDefaultsHelpFormatter would still append "(default: None)".
+            help = argparse.HelpFormatter._get_help_string(self, action=action)
+        else:
+            help = super()._get_help_string(action=action)
         if help is not None:
             help = help.replace(TEMPORARY_TOKEN, "")
         return help

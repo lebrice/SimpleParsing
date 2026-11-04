@@ -39,11 +39,11 @@ def test_issue_48():
             -s str, --start_date str
                                     Start date from which to collect data about base
                                     users. Input in iso format (YYYY-MM-DD). The date is
-                                    included in the data (default: None)
+                                    included in the data
             -e str, --end_date str
                                     End date for collecting base users. Input in iso
                                     format (YYYY-MM-DD). The date is included in the data.
-                                    Should not be before `start_date` (default: None)
+                                    Should not be before `start_date`
             """
         ),
     )
