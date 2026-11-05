@@ -351,12 +351,23 @@ def decode_union(*types: type[T]) -> Callable[[Any], T | Any]:
         decode_optional(t) if optional else get_decoding_fn(t) for t in types_list
     ]
 
-    # TODO: We could be a bit smarter about the order in which we try the functions, but for now,
-    # we just try the functions in the same order as the annotation, and return the result from the
-    # first function that doesn't raise an exception.
+    decode = try_functions(*decoding_fns)
 
-    # Try using each of the non-None types, in succession. Worst case, return the value.
-    return try_functions(*decoding_fns)
+    def _decode_union(val: Any) -> T | Any:
+        # Prefer an exact numeric type match so bool is not first coerced to float.
+        # Other values, such as serialized enum names, still need annotation order.
+        if type(val) not in (bool, int, float):
+            return decode(val)
+        ordered_fns = [
+            fn
+            for _, fn in sorted(
+                zip(types_list, decoding_fns),
+                key=lambda item: item[0] is not type(val),
+            )
+        ]
+        return try_functions(*ordered_fns)(val)
+
+    return _decode_union
 
 
 def decode_list(t: type[T]) -> Callable[[list[Any]], list[T]]:
