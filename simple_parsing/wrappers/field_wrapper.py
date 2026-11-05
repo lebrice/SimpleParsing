@@ -252,6 +252,9 @@ class FieldWrapper(Wrapper):
 
         if self.help:
             _arg_options["help"] = self.help
+            if not self.field.metadata.get("help"):
+                # issue 372: Comments and docstrings are plain text, but argparse %-formats help.
+                _arg_options["help"] = self.help.replace("%", "%%")
         elif self.default is not None:
             # issue 64: Need to add a temporary 'help' string, so that the formatter
             # automatically adds the (default: '123'). We then remove it.

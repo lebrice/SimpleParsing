@@ -216,3 +216,27 @@ def test_help_takes_value_from_docstring():
     assert get_attribute_docstring(Args, "verbose") == AttributeDocString(
         desc_from_cls_docstring="Display logs",
     )
+
+
+def test_help_from_docstring_with_percent_sign():
+    """Test to reproduce issue 372: https://github.com/lebrice/SimpleParsing/issues/372."""
+
+    @dataclass
+    class Config(TestSetup):
+        # Retry about 5% of requests.
+        above: float = 0.05
+
+        below: float = 0.05
+        """Retry about 5% of requests."""
+
+        inline: float = 0.05  # Retry about 5% of requests.
+
+        # Retry 2-5% at most.
+        other: float = 0.05
+
+        explicit: float = field(default=0.05, help="Explicit help: 10%% of %(default)s")
+
+    help_text = " ".join(Config.get_help_text().split())
+    assert help_text.count("Retry about 5% of requests. (default: 0.05)") == 3
+    assert "Retry 2-5% at most. (default: 0.05)" in help_text
+    assert "Explicit help: 10% of 0.05" in help_text
