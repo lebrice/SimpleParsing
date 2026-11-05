@@ -385,7 +385,7 @@ class FieldWrapper(Wrapper):
                 # NOTE: also pass the prefix to the boolean optional action, because it needs to add it
                 # to the generated negative flags as well.
                 _arg_options["action"] = BooleanOptionalAction
-                _arg_options["_conflict_prefix"] = self.prefix
+                _arg_options["_conflict_prefix"] = self.negative_option_prefix
 
         else:
             # "Plain" / simple argument.
@@ -658,6 +658,24 @@ class FieldWrapper(Wrapper):
     # @property
     # def prefix(self) -> str:
     #     return self._prefix
+
+    @property
+    def negative_option_prefix(self) -> str:
+        """Prefix to add to an explicit `negative_option` so it doesn't conflict.
+
+        In `ArgumentGenerationMode.FLAT`, conflicts are resolved by setting `self.prefix`, so that
+        is the prefix the negative option needs. In `ArgumentGenerationMode.NESTED`, the option
+        strings are built from `self.dest` instead of `self.prefix`, which stays empty, so the
+        prefix has to be recovered from the generated (dotted) option string, otherwise two fields
+        of the same dataclass type generate the same negative flag and argparse raises a conflict.
+        """
+        if self.prefix:
+            return self.prefix
+        for option_string in self.option_strings:
+            name = option_string.lstrip("-")
+            if "." in name:
+                return name.rsplit(".", 1)[0] + "."
+        return ""
 
     @property
     def aliases(self) -> list[str]:
