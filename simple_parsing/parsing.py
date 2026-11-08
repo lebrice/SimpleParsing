@@ -370,12 +370,17 @@ class ArgumentParser(argparse.ArgumentParser):
         argument_default=None,
         conflict_handler=None,
     ) -> argparse._ArgumentGroup:
+        kwargs = {}
+        if prefix_chars:
+            # Passing `prefix_chars` is deprecated since Python 3.14. When it is omitted, the group
+            # uses the parser's `prefix_chars` anyway.
+            kwargs["prefix_chars"] = prefix_chars
         return super().add_argument_group(
             title=title,
             description=description,
-            prefix_chars=prefix_chars or self.prefix_chars,
             argument_default=argument_default or self.argument_default,
             conflict_handler=conflict_handler or self.conflict_handler,
+            **kwargs,
         )
 
     def print_help(self, file=None, args: Sequence[str] | None = None):
