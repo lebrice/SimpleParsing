@@ -52,3 +52,16 @@ def test_config_path_same_as_dst_error():
     """Raise an error if add_config_path_arg and dest are the equal."""
     with pytest.raises(ValueError, match="`add_config_path_arg` cannot be the same as `dest`."):
         parse(BarConf, dest="boo", add_config_path_arg="boo")
+
+
+def test_config_path_arg_with_leading_dashes(tmp_path: Path):
+    """Leading dashes in the config arg name ("--config") behave like ("config")."""
+    conf_path = tmp_path / "foo.yml"
+    with conf_path.open("w") as f:
+        json.dump({"c": {"foo": "bee"}}, f)
+
+    parser = ArgumentParser(add_config_path_arg="--config")
+    parser.add_arguments(BarConf, dest="c")
+    args = parser.parse_args(["--config", str(conf_path)])
+    assert args.c == BarConf(foo="bee")
+    assert "----config" not in parser.format_help()
