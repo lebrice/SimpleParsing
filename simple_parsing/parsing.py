@@ -306,11 +306,13 @@ class ArgumentParser(argparse.ArgumentParser):
                 self.set_defaults(config_file)
 
         if self.add_config_path_arg:
-            config_path_name = (
-                self.add_config_path_arg
-                if isinstance(self.add_config_path_arg, str)
-                else "config_path"
-            )
+            if isinstance(self.add_config_path_arg, str):
+                # Accept the name with or without leading dashes, so e.g.
+                # "--config" behaves like "config". Fall back to the raw value
+                # when it is only dashes, preserving the invalid-name error.
+                config_path_name = self.add_config_path_arg.lstrip("-") or self.add_config_path_arg
+            else:
+                config_path_name = "config_path"
             temp_parser = ArgumentParser(
                 add_config_path_arg=False,
                 add_help=False,
