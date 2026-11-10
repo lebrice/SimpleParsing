@@ -66,8 +66,7 @@ def test_bool_args_in_help():
           Flags(a: bool, b: bool = True, c: bool = False)
 
           -a bool, --a bool, --noa bool
-                                an example required flag (defaults to False) (default:
-                                None)
+                                an example required flag (defaults to False)
           -b bool, --b bool, --nob bool
                                 optional flag 'b'. (default: True)
           -c bool, --c bool, --noc bool
