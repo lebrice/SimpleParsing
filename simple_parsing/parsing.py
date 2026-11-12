@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import dataclasses
 import functools
 import itertools
@@ -1159,5 +1160,33 @@ def _create_dataclass_instance(
         else:
             logger.debug(f"All fields for {wrapper.dest} were either at their default, or None.")
             return None
+    _add_non_cmd_field_defaults(wrapper, constructor_args)
     logger.debug(f"Calling constructor: {constructor}(**{constructor_args})")
     return constructor(**constructor_args)
+
+
+def _add_non_cmd_field_defaults(
+    wrapper: DataclassWrapper, constructor_args: dict[str, Any]
+) -> None:
+    """Take the values of `cmd=False` fields from the default instance of the dataclass, if any.
+
+    These fields get no command-line argument, so they are not in `constructor_args`, and the
+    constructor would otherwise use the field's own default rather than the parent's default.
+    """
+    if len(wrapper.defaults) != 1:
+        return
+    default = wrapper.defaults[0]
+    if isinstance(default, wrapper.dataclass):
+        default_values = {f.name: getattr(default, f.name) for f in dataclasses.fields(default)}
+    elif isinstance(default, dict):
+        default_values = default
+    else:
+        return
+    for field in dataclasses.fields(wrapper.dataclass):
+        if (
+            field.init
+            and field.metadata.get("cmd", True) is False
+            and field.name not in constructor_args
+            and field.name in default_values
+        ):
+            constructor_args[field.name] = copy.deepcopy(default_values[field.name])
