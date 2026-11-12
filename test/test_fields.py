@@ -36,7 +36,7 @@ def test_cmd_false_doesnt_create_conflicts():
 
 @pytest.mark.parametrize("args, expected_a", [("", 1), ("--a 5", 5)])
 def test_cmd_false_field_uses_parent_default(args: str, expected_a: int):
-    """cmd=False fields of a nested dataclass keep the value of the parent's default (#371)."""
+    """Fields with cmd=False in a nested dataclass keep the parent's default value (#371)."""
 
     @dataclass
     class Inner:
