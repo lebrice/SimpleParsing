@@ -1,6 +1,6 @@
 import enum
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, NamedTuple, Optional, Union
 
 import pytest
@@ -136,3 +136,55 @@ def test_issue_322():
         assert parse(Foo, args="--bar=b")
 
     assert parse(Foo, args="--bar=123") == Foo(bar=123)
+
+
+@dataclass
+class FooWithListOfLiterals(TestSetup):
+    colors: list[Literal["red", "green", "blue"]] = field(default_factory=list)
+
+
+def test_list_of_literals_issue_374():
+    """Test for https://github.com/lebrice/SimpleParsing/issues/374.
+
+    A `list[Literal[...]]` field used to reject every value passed on the command line,
+    including valid ones, because the raw `Literal[...]` annotation (which is not
+    callable) was used as the argparse `type` argument.
+    """
+    assert FooWithListOfLiterals.setup("") == FooWithListOfLiterals(colors=[])
+    assert FooWithListOfLiterals.setup("--colors red") == FooWithListOfLiterals(colors=["red"])
+    assert FooWithListOfLiterals.setup("--colors red green") == FooWithListOfLiterals(
+        colors=["red", "green"]
+    )
+    with exits_and_writes_to_stderr("invalid"):
+        FooWithListOfLiterals.setup("--colors purple")
+
+
+@dataclass
+class FooWithListOfIntLiterals(TestSetup):
+    values: list[Literal[1, 2, 3]] = field(default_factory=list)
+
+
+def test_list_of_int_literals_issue_374():
+    """Same as above, with non-string literal values: the parsed items should have the actual
+    literal values, not their string representations."""
+    assert FooWithListOfIntLiterals.setup("--values 1 2") == FooWithListOfIntLiterals(
+        values=[1, 2]
+    )
+    with exits_and_writes_to_stderr("invalid"):
+        FooWithListOfIntLiterals.setup("--values 9")
+
+
+@dataclass
+class FooWithOptionalListOfLiterals(TestSetup):
+    colors: Optional[list[Literal["red", "green", "blue"]]] = None
+
+
+def test_optional_list_of_literals_issue_374():
+    """The same parsing bug affected `Optional[list[Literal[...]]]` fields, since they go through
+    the same `get_argparse_type_for_container` code path."""
+    assert FooWithOptionalListOfLiterals.setup("") == FooWithOptionalListOfLiterals(colors=None)
+    assert FooWithOptionalListOfLiterals.setup("--colors red blue") == (
+        FooWithOptionalListOfLiterals(colors=["red", "blue"])
+    )
+    with exits_and_writes_to_stderr("invalid"):
+        FooWithOptionalListOfLiterals.setup("--colors yellow")
