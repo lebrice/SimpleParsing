@@ -136,3 +136,23 @@ def test_issue_322():
         assert parse(Foo, args="--bar=b")
 
     assert parse(Foo, args="--bar=123") == Foo(bar=123)
+
+
+@dataclass
+class LiteralContainers(TestSetup):
+    color: Literal["red", "green", "blue"] = "red"
+    maybe_color: Optional[Literal["red", "green", "blue"]] = None
+    colors: tuple[Literal["red", "green", "blue"], ...] = ()
+    maybe_enum: Optional[Literal[Color.RED, Color.BLUE]] = None
+    shade: Union[Literal["light", "dark"], Literal["auto"]] = "auto"
+
+
+def test_help_lists_literal_choices_inside_optional_and_tuple():
+    """Test for https://github.com/lebrice/SimpleParsing/issues/375."""
+    help_text = LiteralContainers.get_help_text()
+
+    assert "--color {red,green,blue}" in help_text
+    assert "--maybe_color [{red,green,blue}]" in help_text
+    assert "--colors {red,green,blue} [{red,green,blue}, ...]" in help_text
+    assert "--maybe_enum [{RED,BLUE}]" in help_text
+    assert "--shade {light,dark}|{auto}" in help_text

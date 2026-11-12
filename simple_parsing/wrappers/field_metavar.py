@@ -1,8 +1,9 @@
 import functools
+from enum import Enum
 from logging import getLogger
 from typing import Any, Callable, Optional, TypeVar
 
-from ..utils import get_type_arguments, is_optional, is_tuple, is_union
+from ..utils import get_type_arguments, is_literal, is_optional, is_tuple, is_union
 
 T = TypeVar("T")
 
@@ -45,6 +46,13 @@ def get_metavar(t: type) -> str:
 
     if t in _new_metavars:
         return _new_metavars[t]
+
+    elif is_literal(t):
+        # Show the choices, like argparse does for a plain `Literal` field, so that
+        # `Literal[...] | None` and `tuple[Literal[...], ...]` list them too.
+        values = get_type_arguments(t)
+        names = [v.name if isinstance(v, Enum) else str(v) for v in values]
+        return "{" + ",".join(names) + "}"
 
     elif is_union(t):
         args = get_type_arguments(t)
