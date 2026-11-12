@@ -224,6 +224,13 @@ def get_argparse_type_for_container(
         from simple_parsing.wrappers.field_parsing import parse_enum
 
         return parse_enum(T)
+    if is_literal(T):
+        # A Literal annotation is not callable, so it can't be used directly as the
+        # 'type' argument of argparse: use its parsing function instead, the same way
+        # Enum item types are handled above.
+        from simple_parsing.wrappers.field_parsing import parse_literal
+
+        return parse_literal(T)
     return T
 
 
